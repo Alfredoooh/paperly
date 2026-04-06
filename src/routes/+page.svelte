@@ -16,15 +16,13 @@
   let pageFocused = false;
   let baseScale = 1;
 
-  // active toolbar states
   let boldActive = false;
   let italicActive = false;
   let underlineActive = false;
   let strikeActive = false;
   let alignActive = 'left';
 
-  // popup state
-  let activePopup = null; // 'color-text'|'font'|'size'|'styles'|'insert'|'format'|null
+  let activePopup = null;
   let popupStyle = '';
   let popupArrowLeft = '50%';
   let fontSearch = '';
@@ -32,12 +30,10 @@
   let hexPreview = '#34322d';
   let sizeStepper = 16;
 
-  // selection menu
   let selMenuVisible = false;
   let selMenuStyle = '';
   let selMenuArrowX = '50%';
 
-  // image bar
   let imgBarVisible = false;
   let imgBarStyle = '';
   let imgBarArrowX = '50%';
@@ -45,18 +41,15 @@
   let imgMoreStyle = '';
   let selImg = null;
 
-  // refs
   let pageContent;
   let canvasScroll;
   let pageWrapper;
   let pageEl;
   let topbarTitle;
   let aiInputEl;
-  let floatToolbar;
 
   let savedRange = null;
 
-  // ── Data ──
   const COLORS = ['#000000','#34322d','#5e5e5b','#858481','#d1d5db','#e5e7eb','#f3f4f6','#ffffff','#dc2626','#ea580c','#d97706','#ca8a04','#65a30d','#16a34a','#0891b2','#2563eb','#4f46e5','#7c3aed','#9333ea','#db2777','#fca5a5','#fdba74','#fcd34d','#86efac','#93c5fd','#c4b5fd','#f9a8d4','#fde68a','#6ee7b7','#a5b4fc','#fbcfe8','#e9d5ff'];
   const SZP = [8,10,12,13,14,15,16,18,20,22,24,28,32,36,48,64,72];
   const FONTS = [
@@ -89,7 +82,6 @@
 
   $: filteredFonts = FONTS.filter(f => f.l.toLowerCase().includes(fontSearch.toLowerCase()));
 
-  // ── Helpers ──
   function getEd() { return pageContent || document.querySelector('.page-content[contenteditable="true"]'); }
 
   function saveSel() {
@@ -112,12 +104,10 @@
     saveSel();
   }
 
-  // ── Drawer ──
   function openDrawer() { drawerOpen = true; appShifted = true; }
   function closeDrawer() { drawerOpen = false; appShifted = false; }
   function toggleDrawer() { drawerOpen ? closeDrawer() : openDrawer(); }
 
-  // ── Page mode ──
   function togglePageMode() {
     a4Mode = !a4Mode;
     closeDrawer();
@@ -179,7 +169,6 @@
     pageContent = c; bindEditorEvents(c); bindImgs(c);
   }
 
-  // ── Zoom ──
   function applyZoom() {
     if (!canvasScroll) return;
     const a = canvasScroll.clientWidth - 32;
@@ -200,10 +189,8 @@
     }
   }
 
-  // ── Topbar title ──
   function onTitleKeydown(e) { if (e.key === 'Enter') { e.preventDefault(); topbarTitle.blur(); } }
 
-  // ── Toolbar buttons ──
   function tbBold() { exec('bold'); boldActive = !boldActive; }
   function tbItalic() { exec('italic'); italicActive = !italicActive; }
   function tbUnderline() { exec('underline'); underlineActive = !underlineActive; }
@@ -214,10 +201,8 @@
   function tbIndent() { exec('indent'); }
   function tbOutdent() { exec('outdent'); }
 
-  // ── AI mode ──
   async function enterAI() {
-    aiMode = true;
-    closeDrawer();
+    aiMode = true; closeDrawer();
     await tick();
     if (aiInputEl) aiInputEl.focus();
   }
@@ -246,20 +231,12 @@
   }
 
   function onAIKeydown(e) { if (e.key === 'Enter') { e.preventDefault(); doAI(); } }
+  function onConfirm() { if (aiMode) { doAI(); } else { closePopup(); const ed = getEd(); if (ed) ed.focus(); } }
 
-  function onConfirm() {
-    if (aiMode) { doAI(); }
-    else { closePopup(); const ed = getEd(); if (ed) ed.focus(); }
-  }
-
-  // ── Popup system ──
   function openPopup(name, triggerEl) {
     if (activePopup === name) { closePopup(); return; }
     activePopup = name;
-    fontSearch = '';
-    sizeStepper = curSz;
-    hexInput = '#34322d';
-    // Position popup above trigger
+    fontSearch = ''; sizeStepper = curSz; hexInput = '#34322d';
     tick().then(() => positionPopup(triggerEl));
   }
 
@@ -281,15 +258,12 @@
 
   function closePopup() { activePopup = null; }
 
-  // ── Colors ──
   function applyColor(c) { exec('foreColor', c); colorBarBg = c; closePopup(); }
   function applyHex() { if (/^#[0-9a-f]{6}$/i.test(hexInput)) applyColor(hexInput); }
   function onHexInput() { if (/^#[0-9a-f]{6}$/i.test(hexInput)) hexPreview = hexInput; }
 
-  // ── Font ──
   function applyFont(f) { curFont = f.v; fontLabel = f.l; exec('fontName', f.l); closePopup(); }
 
-  // ── Size ──
   function setSize(s) { sizeStepper = s; curSz = s; sizeLabel = String(s); applySize(s); }
   function sizeDown() { sizeStepper = Math.max(6, sizeStepper - 1); setSize(sizeStepper); }
   function sizeUp() { sizeStepper = Math.min(200, sizeStepper + 1); setSize(sizeStepper); }
@@ -315,10 +289,8 @@
   }
   function clrFs(n) { if (n.nodeType === 1) { if (n.style) n.style.fontSize = ''; n.childNodes.forEach(clrFs); } }
 
-  // ── Styles ──
   function applyStyle(cmd) { exec('formatBlock', cmd); closePopup(); }
 
-  // ── Insert ──
   function insertLink() { closePopup(); const u = prompt('URL:'); if (u) exec('createLink', u); }
   function insertTable() {
     closePopup();
@@ -348,7 +320,6 @@
     fi.click();
   }
 
-  // ── Format ──
   function fmtCase(type) {
     const s = window.getSelection(); const t = s && !s.isCollapsed ? s.toString() : null;
     if (!t) { closePopup(); return; }
@@ -361,7 +332,6 @@
   function fmtLineHeight(v) { const e = getEd(); if (e) e.style.lineHeight = v; closePopup(); }
   function fmtClear() { exec('removeFormat'); closePopup(); }
 
-  // ── Selection menu ──
   function tryShowSel() {
     const s = window.getSelection();
     if (s && !s.isCollapsed && s.toString().length > 0) {
@@ -388,7 +358,6 @@
   function selLink() { hideSel(); const u = prompt('URL:'); if (u) exec('createLink', u); }
   function selDelete() { exec('delete'); hideSel(); }
 
-  // ── Image handling ──
   const HNDS = ['tl','tm','tr','ml','mr','bl','bm','br'];
   let _rd=false,_rdir='',_rw=null,_ri=null,_rx=0,_ry=0,_rW=0,_rH=0;
 
@@ -491,20 +460,11 @@
     applyZoom();
     window.addEventListener('resize', applyZoom);
     new ResizeObserver(applyZoom).observe(canvasScroll);
-
-    if (pageContent) {
-      bindEditorEvents(pageContent);
-    }
-
-    document.addEventListener('mousedown', e => {
-      if (!e.target.closest('.sel-menu') && !e.target.closest('#imgBarEl')) hideSel();
-    });
-    document.addEventListener('touchstart', e => {
-      if (!e.target.closest('.sel-menu') && !e.target.closest('#imgBarEl')) hideSel();
-    }, {passive:true});
+    if (pageContent) bindEditorEvents(pageContent);
+    document.addEventListener('mousedown', e => { if (!e.target.closest('.sel-menu') && !e.target.closest('#imgBarEl')) hideSel(); });
+    document.addEventListener('touchstart', e => { if (!e.target.closest('.sel-menu') && !e.target.closest('#imgBarEl')) hideSel(); }, {passive:true});
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.querySelector('.floating-toolbar')?.addEventListener('mousedown', e => e.preventDefault());
-
     return () => window.removeEventListener('resize', applyZoom);
   });
 </script>
@@ -517,7 +477,7 @@
   <div class="drawer-body">
     <div class="drawer-section">
       <button class="drawer-item" class:active={aiMode} on:click={toggleAI}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{#if aiMode}<path d="M12 8V4H8"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M19 10.4A7 7 0 1 1 5.6 17"/><path d="m16 13 2-2 2 2"/>{:else}<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>{/if}</svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <span>{aiMode ? 'IA activa' : 'Toolbar / IA'}</span>
       </button>
       <button class="drawer-item" class:active={a4Mode} on:click={togglePageMode}>
@@ -528,92 +488,55 @@
   </div>
 </div>
 
-<!-- ── Overlay ── -->
 <div class="overlay" class:show={drawerOpen} on:click={closeDrawer} role="presentation"></div>
 
-<!-- ── App ── -->
 <div class="app" class:shifted={appShifted}>
-
-  <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-left">
-      <button class="icon-btn" on:click={toggleDrawer} aria-label="Menu">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <button class="icon-btn" on:click={toggleDrawer}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
-    <div
-      class="topbar-title"
-      bind:this={topbarTitle}
-      contenteditable="true"
-      spellcheck="false"
-      data-placeholder="Sem título"
-      on:keydown={onTitleKeydown}
-      on:contextmenu|preventDefault
-      role="textbox"
-      aria-label="Título do documento"
-    ></div>
+    <div class="topbar-title" bind:this={topbarTitle} contenteditable="true" spellcheck="false" data-placeholder="Sem título" on:keydown={onTitleKeydown} on:contextmenu|preventDefault role="textbox" aria-label="Título"></div>
     <div class="topbar-right">
-      <button class="icon-btn" on:click={() => exec('undo')} aria-label="Desfazer">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13C5.33 7.67 9 5 14 5c4 0 7 2 8.5 6"/></svg>
+      <button class="icon-btn" on:click={() => exec('undo')}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13C5.33 7.67 9 5 14 5c4 0 7 2 8.5 6"/></svg>
       </button>
-      <button class="icon-btn" on:click={() => exec('redo')} aria-label="Refazer">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13C18.67 7.67 15 5 10 5c-4 0-7 2-8.5 6"/></svg>
+      <button class="icon-btn" on:click={() => exec('redo')}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13C18.67 7.67 15 5 10 5c-4 0-7 2-8.5 6"/></svg>
       </button>
     </div>
   </div>
 
-  <!-- Canvas -->
   <div class="canvas-scroll" bind:this={canvasScroll} on:click={onCanvasClick} role="presentation">
     <div class="page-wrapper scroll-mode" bind:this={pageWrapper}>
       <div class="page" bind:this={pageEl}>
-        <div
-          class="page-content"
-          bind:this={pageContent}
-          contenteditable="true"
-          spellcheck="true"
-          data-placeholder="Começa a escrever…"
-        ></div>
+        <div class="page-content" bind:this={pageContent} contenteditable="true" spellcheck="true" data-placeholder="Começa a escrever…"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Floating Toolbar ── -->
 <nav class="floating-toolbar">
   <div class="toolbar-pill" class:ai-mode={aiMode}>
     {#if aiMode}
       <div class="ai-input-row">
-        <input
-          class="ai-input"
-          bind:this={aiInputEl}
-          bind:value={aiInput}
-          placeholder="Pergunta à IA…"
-          autocomplete="off"
-          on:keydown={onAIKeydown}
-        />
+        <input class="ai-input" bind:this={aiInputEl} bind:value={aiInput} placeholder="Pergunta à IA…" autocomplete="off" on:keydown={onAIKeydown} />
         {#if aiThinking}
-          <div class="ai-thinking">
-            <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-          </div>
+          <div class="ai-thinking"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div>
         {/if}
       </div>
     {:else}
       <div class="toolbar-track">
-        <!-- Color -->
         <button class="tb-btn btn-A" on:mousedown|preventDefault on:click={e => openPopup('color-text', e.currentTarget)}>
-          <span class="lbl">A</span>
-          <div class="bar" style="background:{colorBarBg}"></div>
+          <span class="lbl">A</span><div class="bar" style="background:{colorBarBg}"></div>
         </button>
         <div class="tb-div"></div>
-
-        <!-- Bold / Italic / Underline / Strike -->
         <button class="tb-btn btn-B" class:active={boldActive} on:click={tbBold}><span>B</span></button>
         <button class="tb-btn btn-I" class:active={italicActive} on:click={tbItalic}><span>I</span></button>
         <button class="tb-btn btn-U" class:active={underlineActive} on:click={tbUnderline}><span>U</span></button>
         <button class="tb-btn btn-S" class:active={strikeActive} on:click={tbStrike}><span>S</span></button>
         <div class="tb-div"></div>
-
-        <!-- Font / Size chips -->
         <button class="tb-chip" class:open={activePopup==='font'} on:mousedown|preventDefault on:click={e => openPopup('font', e.currentTarget)}>
           <span>{fontLabel}</span>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -623,15 +546,11 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="tb-div"></div>
-
-        <!-- Styles -->
         <button class="tb-chip" class:open={activePopup==='styles'} on:mousedown|preventDefault on:click={e => openPopup('styles', e.currentTarget)}>
           <span>Estilos</span>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="tb-div"></div>
-
-        <!-- Alignment -->
         <button class="tb-btn" class:active={alignActive==='left'} on:click={() => tbAlign('left')}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
         </button>
@@ -645,8 +564,6 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="12" x2="3" y2="12"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
         </button>
         <div class="tb-div"></div>
-
-        <!-- Lists -->
         <button class="tb-btn" on:click={tbList}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </button>
@@ -660,8 +577,6 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="15 12 12 10 9 12"/></svg>
         </button>
         <div class="tb-div"></div>
-
-        <!-- Insert / Format -->
         <button class="tb-chip" class:open={activePopup==='insert'} on:mousedown|preventDefault on:click={e => openPopup('insert', e.currentTarget)}>
           <span>Inserir</span>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -669,52 +584,31 @@
         <div class="tb-div"></div>
         <button class="tb-chip" class:open={activePopup==='format'} on:mousedown|preventDefault on:click={e => openPopup('format', e.currentTarget)}>
           <span>Formatar</span>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>
         </button>
       </div>
     {/if}
-
-    <!-- Confirm/Send button -->
-    <button
-      class="btn-confirm"
-      class:mode-check={!aiMode}
-      class:mode-send={aiMode}
-      on:mousedown|preventDefault
-      on:click={onConfirm}
-    >
+    <button class="btn-confirm" class:mode-check={!aiMode} class:mode-send={aiMode} on:mousedown|preventDefault on:click={onConfirm}>
       {#if aiThinking}
-        <div class="ai-thinking" style="width:16px;height:16px">
-          <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-        </div>
+        <div class="ai-thinking"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div>
       {:else if aiMode}
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       {:else}
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg>
       {/if}
     </button>
   </div>
 </nav>
 
-<!-- ── Popup mask ── -->
 {#if activePopup}
   <div class="popup-mask" on:click={closePopup} role="presentation"></div>
-
   <div class="popup-card" style={popupStyle}>
     <div class="popup-inner">
-
-      <!-- Color popup -->
       {#if activePopup === 'color-text'}
         <div class="popup-header">Cor do texto</div>
         <div class="color-grid">
           {#each COLORS as c}
-            <div
-              class="color-swatch"
-              style="background:{c};{c==='#ffffff'?'border:2px solid rgba(0,0,0,.15)':''}"
-              on:mousedown|preventDefault
-              on:click={() => applyColor(c)}
-              role="button" tabindex="0"
-              on:keydown={e => e.key==='Enter' && applyColor(c)}
-            ></div>
+            <div class="color-swatch" style="background:{c};{c==='#ffffff'?'border:2px solid rgba(0,0,0,.15)':''}" on:mousedown|preventDefault on:click={() => applyColor(c)} role="button" tabindex="0" on:keydown={e => e.key==='Enter' && applyColor(c)}></div>
           {/each}
         </div>
         <div class="hex-row">
@@ -722,27 +616,16 @@
           <input class="hex-input" bind:value={hexInput} maxlength="7" on:input={onHexInput} />
           <button class="hex-apply" on:mousedown|preventDefault on:click={applyHex}>✓</button>
         </div>
-
-      <!-- Font popup -->
       {:else if activePopup === 'font'}
         <div class="popup-header">Tipo de letra</div>
-        <div class="font-search">
-          <input placeholder="Pesquisar…" bind:value={fontSearch} />
-        </div>
+        <div class="font-search"><input placeholder="Pesquisar…" bind:value={fontSearch} /></div>
         <div class="font-list">
           {#each filteredFonts as f}
-            <button
-              class="font-item"
-              class:active={f.v === curFont}
-              on:mousedown|preventDefault
-              on:click={() => applyFont(f)}
-            >
+            <button class="font-item" class:active={f.v === curFont} on:mousedown|preventDefault on:click={() => applyFont(f)}>
               <span style="font-family:{f.v};font-size:14px;flex:1">{f.l}</span>
             </button>
           {/each}
         </div>
-
-      <!-- Size popup -->
       {:else if activePopup === 'size'}
         <div class="popup-header">Tamanho</div>
         <div class="size-stepper">
@@ -752,16 +635,9 @@
         </div>
         <div class="size-presets">
           {#each SZP as s}
-            <button
-              class="size-preset"
-              class:active={s === curSz}
-              on:mousedown|preventDefault
-              on:click={() => { setSize(s); closePopup(); }}
-            >{s}</button>
+            <button class="size-preset" class:active={s === curSz} on:mousedown|preventDefault on:click={() => { setSize(s); closePopup(); }}>{s}</button>
           {/each}
         </div>
-
-      <!-- Styles popup -->
       {:else if activePopup === 'styles'}
         <div class="popup-header">Estilo de parágrafo</div>
         {#each STLS as s}
@@ -770,28 +646,16 @@
             <span>{s.l}</span>
           </button>
         {/each}
-
-      <!-- Insert popup -->
       {:else if activePopup === 'insert'}
         <div class="popup-header">Inserir</div>
         <div class="popup-section">
-          <button class="popup-item" on:mousedown|preventDefault on:click={insertLink}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Link
-          </button>
-          <button class="popup-item" on:mousedown|preventDefault on:click={insertImage}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Imagem
-          </button>
-          <button class="popup-item" on:mousedown|preventDefault on:click={insertTable}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg> Tabela 3×3
-          </button>
+          <button class="popup-item" on:mousedown|preventDefault on:click={insertLink}>🔗 Link</button>
+          <button class="popup-item" on:mousedown|preventDefault on:click={insertImage}>🖼 Imagem</button>
+          <button class="popup-item" on:mousedown|preventDefault on:click={insertTable}>⊞ Tabela 3×3</button>
         </div>
         <div class="popup-section">
-          <button class="popup-item" on:mousedown|preventDefault on:click={insertHr}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> Linha divisória
-          </button>
-          <button class="popup-item" on:mousedown|preventDefault on:click={insertDate}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Data e hora
-          </button>
+          <button class="popup-item" on:mousedown|preventDefault on:click={insertHr}>— Linha divisória</button>
+          <button class="popup-item" on:mousedown|preventDefault on:click={insertDate}>📅 Data e hora</button>
         </div>
         <div class="popup-section">
           <div class="popup-section-label">Caixas de destaque</div>
@@ -800,8 +664,6 @@
           <button class="popup-item" on:mousedown|preventDefault on:click={() => insertCallout('ok')}>✓ Sucesso</button>
           <button class="popup-item" on:mousedown|preventDefault on:click={() => insertCallout('err')}>✕ Erro</button>
         </div>
-
-      <!-- Format popup -->
       {:else if activePopup === 'format'}
         <div class="popup-header">Formatar</div>
         <div class="popup-section">
@@ -826,13 +688,11 @@
           <button class="popup-item danger" on:mousedown|preventDefault on:click={fmtClear}>🗑 Limpar formatação</button>
         </div>
       {/if}
-
     </div>
     <div class="popup-arrow" style="left:{popupArrowLeft}"></div>
   </div>
 {/if}
 
-<!-- ── Selection menu ── -->
 {#if selMenuVisible}
   <div class="sel-menu" class:show={selMenuVisible} style="{selMenuStyle};--ax:{selMenuArrowX}">
     <div class="sel-row">
@@ -850,7 +710,6 @@
   </div>
 {/if}
 
-<!-- ── Image bar ── -->
 {#if imgBarVisible}
   <div class="img-bar" id="imgBarEl" style="{imgBarStyle};--ax:{imgBarArrowX}">
     <div class="ib-row">
@@ -864,7 +723,6 @@
   </div>
 {/if}
 
-<!-- Image more popup -->
 {#if imgMoreVisible}
   <div class="img-more-pop" style={imgMoreStyle}>
     <div class="popup-header">Imagem</div>

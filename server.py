@@ -41,6 +41,9 @@ REFERERS = {
     'pornding': 'https://www.pornding.com/',
 }
 
+# Sites que precisam da lógica avançada do segundo servidor
+SITES_AVANCADOS = {'eporner', 'sunporno', 'porntrex'}
+
 def get_referer(url):
     url_lower = url.lower()
     for key, referer in REFERERS.items():
@@ -59,10 +62,7 @@ def extrair_link(url):
     site_key = get_site_key(url)
     referer = get_referer(url)
 
-    base_headers = {
-        **HEADERS,
-        'Referer': referer,
-    }
+    base_headers = {**HEADERS, 'Referer': referer}
 
     opts = {
         'quiet': True,
@@ -77,15 +77,12 @@ def extrair_link(url):
         'socket_timeout': 30,
     }
 
+    # Overrides para sites problemáticos
     if site_key == 'eporner':
         opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-        opts['http_headers'] = {
-            **base_headers,
-            'Origin': 'https://www.eporner.com',
-        }
+        opts['http_headers'] = {**base_headers, 'Origin': 'https://www.eporner.com'}
 
     elif site_key == 'sunporno':
-        opts['format'] = 'best'
         opts['http_headers'] = {
             **base_headers,
             'Origin': 'https://www.sunporno.com',
@@ -96,7 +93,6 @@ def extrair_link(url):
         opts['extractor_args'] = {'sunporno': {}}
 
     elif site_key == 'porntrex':
-        opts['format'] = 'best'
         opts['http_headers'] = {
             **base_headers,
             'Origin': 'https://www.porntrex.com',
@@ -116,21 +112,23 @@ def extrair_link(url):
         thumbnail = info.get('thumbnail')
         direto = None
 
-        # Lógica avançada: prioriza mp4 ordenado por qualidade
-        if formats:
-            validos = [f for f in formats if f.get('url')]
-            mp4s = [f for f in validos if f.get('ext') == 'mp4' or 'mp4' in (f.get('url') or '')]
-
-            if mp4s:
-                mp4s.sort(key=lambda f: f.get('height') or 0, reverse=True)
-                direto = mp4s[0]['url']
-            elif validos:
-                validos.sort(key=lambda f: f.get('height') or 0, reverse=True)
-                direto = validos[0]['url']
-
-        # Fallback lógica simples do servidor original — garante compatibilidade
-        # com PornHub, RedTube, xVideos, PornOne e outros que já funcionavam
-        if not direto:
+        if site_key in SITES_AVANCADOS:
+            # Lógica avançada — filtra mp4 e ordena por qualidade
+            if formats:
+                validos = [f for f in formats if f.get('url')]
+                mp4s = [f for f in validos if f.get('ext') == 'mp4' or 'mp4' in (f.get('url') or '')]
+                if mp4s:
+                    mp4s.sort(key=lambda f: f.get('height') or 0, reverse=True)
+                    direto = mp4s[0]['url']
+                elif validos:
+                    validos.sort(key=lambda f: f.get('height') or 0, reverse=True)
+                    direto = validos[0]['url']
+                else:
+                    direto = formats[-1].get('url')
+            if not direto:
+                direto = info.get('url')
+        else:
+            # Lógica simples original — funciona para PornHub, RedTube, xVideos, PornOne, etc.
             direto = info.get('url') or (formats[-1]['url'] if formats else None)
 
         if not direto:
@@ -160,11 +158,7 @@ def extract():
         if contador['total'] % 10 == 0:
             gc.collect()
 
-        return jsonify({
-            'link': proxy,
-            'titulo': titulo,
-            'thumbnail': thumbnail
-        })
+        return jsonify({'link': proxy, 'titulo': titulo, 'thumbnail': thumbnail})
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 

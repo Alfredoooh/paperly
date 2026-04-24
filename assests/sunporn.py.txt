@@ -64,6 +64,7 @@ def extrair_link(url):
         'Referer': referer,
     }
 
+    # Opções base — não alterar para sites que já funcionam
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -77,7 +78,10 @@ def extrair_link(url):
         'socket_timeout': 30,
     }
 
+    # Overrides SOMENTE para sites problemáticos
     if site_key == 'eporner':
+        # EPorner usa CDN própria com hash — precisa do extractor nativo
+        # e formato específico para evitar URLs com token expirado
         opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
         opts['http_headers'] = {
             **base_headers,
@@ -85,6 +89,8 @@ def extrair_link(url):
         }
 
     elif site_key == 'sunporno':
+        # SunPorno é um site MyBB/PHP — o player carrega via JS com variáveis
+        # O yt-dlp tem extractor nativo; precisa de Origin + cookies mínimos
         opts['format'] = 'best'
         opts['http_headers'] = {
             **base_headers,
@@ -93,9 +99,12 @@ def extrair_link(url):
             'Sec-Fetch-Mode': 'navigate',
             'Sec-Fetch-Dest': 'document',
         }
+        # Forçar extractor SunPorno se yt-dlp falhar com o genérico
         opts['extractor_args'] = {'sunporno': {}}
 
     elif site_key == 'porntrex':
+        # PornTrex usa engine similar ao xVideos (kvs-player)
+        # Precisa de Origin e headers de same-site para o embed não bloquear
         opts['format'] = 'best'
         opts['http_headers'] = {
             **base_headers,
@@ -116,7 +125,6 @@ def extrair_link(url):
         thumbnail = info.get('thumbnail')
         direto = None
 
-        # Lógica avançada: prioriza mp4 ordenado por qualidade
         if formats:
             validos = [f for f in formats if f.get('url')]
             mp4s = [f for f in validos if f.get('ext') == 'mp4' or 'mp4' in (f.get('url') or '')]
@@ -127,11 +135,11 @@ def extrair_link(url):
             elif validos:
                 validos.sort(key=lambda f: f.get('height') or 0, reverse=True)
                 direto = validos[0]['url']
+            else:
+                direto = formats[-1].get('url')
 
-        # Fallback lógica simples do servidor original — garante compatibilidade
-        # com PornHub, RedTube, xVideos, PornOne e outros que já funcionavam
         if not direto:
-            direto = info.get('url') or (formats[-1]['url'] if formats else None)
+            direto = info.get('url')
 
         if not direto:
             raise Exception('Nenhum link direto encontrado')
@@ -140,7 +148,7 @@ def extrair_link(url):
 
 @app.route('/')
 def index():
-    return jsonify({'status': 'online', 'version': '3.0'})
+    return jsonify({'status': 'online', 'version': '2.1'})
 
 @app.route('/extract')
 def extract():
@@ -168,6 +176,7 @@ def extract():
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 
+# Endpoint de debug — envia o erro real para diagnóstico
 @app.route('/debug')
 def debug():
     url = request.args.get('url')

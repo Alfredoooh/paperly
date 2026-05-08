@@ -1,3 +1,4 @@
+# shorties_server.py
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import re, urllib.request, threading, time, random, os
@@ -77,7 +78,7 @@ def extrair_rapido(viewkey):
 
     return direct, title, thumb, likes, views, exp
 
-def worker():
+def worker_fn():
     page = random.randint(1, 20)
     while True:
         try:
@@ -177,7 +178,7 @@ def proxy():
         return jsonify({'erro': str(e)}), 500
 
 if __name__ == '__main__':
-    threading.Thread(target=worker, daemon=True).start()
+    threading.Thread(target=worker_fn, daemon=True).start()
     threading.Thread(target=renewer, daemon=True).start()
     port = int(os.environ.get('PORT', 5000))
     print(f'[SERVER] http://0.0.0.0:{port}')

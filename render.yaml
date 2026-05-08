@@ -3,7 +3,7 @@ services:
     name: shorties-server
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python shorties_server.py
+    startCommand: gunicorn shorties_server:app
     envVars:
       - key: PORT
         value: 10000

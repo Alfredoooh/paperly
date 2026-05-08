@@ -20,9 +20,12 @@ HEADERS = {
 }
 
 def fetch_viewkeys_page(page):
+    print(f'[WORKER] A buscar página {page}...')
     req = urllib.request.Request(f'https://www.pornhub.com/shorties?page={page}', headers=HEADERS)
     html = urllib.request.urlopen(req, timeout=10).read().decode('utf-8', errors='ignore')
-    return list(dict.fromkeys(re.findall(r'viewkey=([a-zA-Z0-9]{8,})', html)))
+    keys = list(dict.fromkeys(re.findall(r'viewkey=([a-zA-Z0-9]{8,})', html)))
+    print(f'[WORKER] Encontradas {len(keys)} viewkeys na página {page}')
+    return keys
 
 def extrair_rapido(viewkey):
     req = urllib.request.Request(f'https://www.pornhub.com/embed/{viewkey}', headers=HEADERS)
@@ -104,8 +107,10 @@ def worker():
                                         })
                                 seen_keys.add(vk)
                                 print(f'[+] {vk} q:{len(queue)}')
-                    except:
-                        pass
+                        else:
+                            print(f'[SKIP] {vk} sem direct link')
+                    except Exception as e:
+                        print(f'[ERR] {vk}: {e}')
                     time.sleep(0.3)
                 page = random.randint(1, 20)
             else:

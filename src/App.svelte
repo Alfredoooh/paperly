@@ -13,14 +13,27 @@
   let route  = 'splash';
   let user   = null;
   let isDark = false;
+  // ChatPage montada uma vez e mantida viva com display:none
+  let chatMounted = false;
 
   onMount(() => {
     const saved = localStorage.getItem('nexa_theme');
     isDark = saved === 'dark' ? true : saved === 'light' ? false : window.matchMedia('(prefers-color-scheme: dark)').matches;
     applyTheme();
-    const savedUser = JSON.parse(localStorage.getItem('nexa_user') || 'null') || JSON.parse(localStorage.getItem('ipc_user') || 'null');
-    if (savedUser?.token) { localStorage.removeItem('ipc_user'); user = savedUser; route = 'chat'; }
-    else { route = 'login'; }
+    let savedUser = null;
+    try { savedUser = JSON.parse(localStorage.getItem('nexa_user') || 'null'); } catch(e) {}
+    if (!savedUser?.token) {
+      try { savedUser = JSON.parse(localStorage.getItem('ipc_user') || 'null'); } catch(e) {}
+    }
+    if (savedUser?.token) {
+      localStorage.removeItem('ipc_user');
+      localStorage.setItem('nexa_user', JSON.stringify(savedUser));
+      user = savedUser;
+      route = 'chat';
+      chatMounted = true;
+    } else {
+      route = 'login';
+    }
     window.addEventListener('beforeunload', () => localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light'));
     document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'd') { e.preventDefault(); isDark = !isDark; applyTheme(); } });
   });
@@ -34,9 +47,10 @@
 
   function handleNav(e) {
     const { to, data } = e.detail;
-    if (data?.user)               { user = data.user; }
+    if (data?.user)               { user = data.user; localStorage.setItem('nexa_user', JSON.stringify(data.user)); }
     if (data?.isDark !== undefined){ isDark = data.isDark; applyTheme(); localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light'); }
     if (data?.logout)             { user = null; localStorage.removeItem('nexa_user'); }
+    if (to === 'chat') chatMounted = true;
     route = to;
   }
 </script>
@@ -47,9 +61,16 @@
   <LoginPage      {isDark}        on:nav={handleNav} />
 {:else if route === 'register'}
   <RegisterPage   {isDark}        on:nav={handleNav} />
-{:else if route === 'chat'}
-  <ChatPage       {isDark} {user} on:nav={handleNav} />
-{:else if route === 'music'}
+{/if}
+
+<!-- ChatPage mantida sempre viva após primeira montagem — nunca destruída -->
+{#if chatMounted}
+  <div style="display:{route === 'chat' ? 'contents' : 'none'}">
+    <ChatPage {isDark} {user} on:nav={handleNav} />
+  </div>
+{/if}
+
+{#if route === 'music'}
   <MusicPage      {isDark} {user} on:nav={handleNav} />
 {:else if route === 'games'}
   <GamesPage      {isDark} {user} on:nav={handleNav} />
@@ -62,7 +83,6 @@
 {/if}
 
 <style>
-  /* Apenas o que pertence ao root — todo o resto fica em cada Page */
   :global(@font-face) {
     font-family: 'TimesNewRoman';
     src: url('/fonts/pattern/times_new_roman.ttf') format('truetype');

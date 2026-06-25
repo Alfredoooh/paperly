@@ -13,7 +13,6 @@
   let route  = 'splash';
   let user   = null;
   let isDark = false;
-  // ChatPage montada uma vez e mantida viva com display:none
   let chatMounted = false;
 
   onMount(() => {
@@ -56,16 +55,16 @@
 </script>
 
 {#if route === 'splash'}
-  <SplashPage     {isDark}        on:nav={handleNav} />
+  <SplashPage     {isDark} on:nav={handleNav} />
 {:else if route === 'login'}
-  <LoginPage      {isDark}        on:nav={handleNav} />
+  <LoginPage      {isDark} on:nav={handleNav} />
 {:else if route === 'register'}
-  <RegisterPage   {isDark}        on:nav={handleNav} />
+  <RegisterPage   {isDark} on:nav={handleNav} />
 {/if}
 
-<!-- ChatPage mantida sempre viva após primeira montagem — nunca destruída -->
+<!-- ChatPage sempre viva, escondida com visibility quando não ativa -->
 {#if chatMounted}
-  <div style="display:{route === 'chat' ? 'contents' : 'none'}">
+  <div class="page-slot" class:page-active={route === 'chat'}>
     <ChatPage {isDark} {user} on:nav={handleNav} />
   </div>
 {/if}
@@ -112,4 +111,17 @@
   :global(body.light) { background:var(--bg-light); color:var(--text-primary-light); --surface2:#EFEFEF; }
   :global(body.dark)  { background:var(--bg-dark);  color:var(--text-primary-dark);  --surface2:#22222A; }
   :global(#app) { width:100vw; height:100dvh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+
+  /* slot que mantém ChatPage viva */
+  .page-slot {
+    position:fixed; inset:0;
+    visibility:hidden;
+    pointer-events:none;
+    z-index:0;
+  }
+  .page-slot.page-active {
+    visibility:visible;
+    pointer-events:auto;
+    z-index:1;
+  }
 </style>

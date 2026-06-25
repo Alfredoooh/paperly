@@ -63,7 +63,6 @@
 
 <style>
   /* Apenas o que pertence ao root — todo o resto fica em cada Page */
-  :global(@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'));
   :global(@font-face) {
     font-family: 'TimesNewRoman';
     src: url('/fonts/pattern/times_new_roman.ttf') format('truetype');

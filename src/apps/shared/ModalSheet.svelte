@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, afterUpdate } from 'svelte';
   export let isDark = false;
   export let open   = false;
 
@@ -7,9 +7,16 @@
 
   function close() { dispatch('close'); }
 
-  // drag-to-dismiss
   let startY = 0, dy = 0, dragging = false, startH = 0;
   let sheetEl;
+
+  // Sempre que open passa a true, limpa qualquer transform inline deixado pelo drag
+  afterUpdate(() => {
+    if (open && sheetEl) {
+      sheetEl.style.transform = '';
+      sheetEl.style.transition = '';
+    }
+  });
 
   function onDown(e) {
     dragging = true; startY = e.touches?.[0]?.clientY ?? e.clientY;
@@ -26,8 +33,12 @@
     if (!dragging) return; dragging = false;
     if (sheetEl) sheetEl.style.transition = '';
     const threshold = Math.min(140, startH * 0.3);
-    if (dy > threshold) { if (sheetEl) sheetEl.style.transform = 'translateY(100%)'; setTimeout(close, 350); }
-    else { if (sheetEl) sheetEl.style.transform = ''; }
+    if (dy > threshold) {
+      if (sheetEl) sheetEl.style.transform = 'translateY(100%)';
+      setTimeout(close, 350);
+    } else {
+      if (sheetEl) sheetEl.style.transform = '';
+    }
     dy = 0;
   }
 </script>
@@ -46,12 +57,12 @@
     background:rgba(0,0,0,0.08); z-index:200;
     opacity:0; pointer-events:none;
     backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
-    transition:opacity .4s ease, backdrop-filter .4s ease, pointer-events 0s .4s;
+    transition:opacity .4s ease, backdrop-filter .4s ease;
   }
   .overlay.open {
     opacity:1; pointer-events:auto;
     backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-    transition:opacity .3s ease, backdrop-filter .3s ease, pointer-events 0s 0s;
+    transition:opacity .3s ease, backdrop-filter .3s ease;
   }
 
   .sheet {
@@ -60,6 +71,7 @@
     transition:transform .4s cubic-bezier(0.4,0,0.2,1);
     border-radius:12px 12px 0 0; max-height:85vh; overflow-y:auto;
     background:#FFFFFF;
+    will-change:transform;
   }
   .sheet.dark { background:#1C1C1E; }
   .sheet.open { transform:translateY(0); }

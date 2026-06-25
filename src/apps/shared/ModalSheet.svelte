@@ -46,9 +46,13 @@
     background:rgba(0,0,0,0.08); z-index:200;
     opacity:0; pointer-events:none;
     backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
-    transition:opacity .3s ease, backdrop-filter .3s ease;
+    transition:opacity .4s ease, backdrop-filter .4s ease, pointer-events 0s .4s;
   }
-  .overlay.open { opacity:1; pointer-events:auto; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .overlay.open {
+    opacity:1; pointer-events:auto;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    transition:opacity .3s ease, backdrop-filter .3s ease, pointer-events 0s 0s;
+  }
 
   .sheet {
     position:fixed; bottom:0; left:0; right:0; z-index:201;
@@ -67,6 +71,5 @@
   @media (min-width:768px) {
     .sheet { left:50%; right:auto; width:400px; transform:translateX(-50%) translateY(100%); }
     .sheet.open { transform:translateX(-50%) translateY(0); }
-    .overlay.open { backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
   }
 </style>

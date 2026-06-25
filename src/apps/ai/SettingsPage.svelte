@@ -168,9 +168,9 @@
 
 <!-- Plans modal -->
 {#if showPlansModal}
+  {@const p = PLANS_DATA[activePlan]}
   <div class="plans-overlay" on:click={() => showPlansModal=false}></div>
   <div class="plans-box" style="background:{isDark?'#0A0B0E':'#F5F6FA'};color:{c.textPrimary}">
-    {@const p = PLANS_DATA[activePlan]}
     <div class="plans-hero" style="background:radial-gradient(circle at 20% 0%,{activePlan==='basic'?'rgba(47,123,246,.22)':'rgba(16,185,129,.22)'} 0%,rgba(0,0,0,0) 45%),{isDark?'#0A0B0E':'#F5F6FA'}">
       <button class="settings-icon-btn pulse-tap" style="background:{isDark?'#171A21':'#FFFFFF'};color:{c.textPrimary}" on:click={() => showPlansModal=false}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

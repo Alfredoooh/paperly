@@ -44,9 +44,13 @@
 
   <div class="header">
     <span class="header-title">Music</span>
-    <button class="apps-btn" style="background:{c.appbarBtnBg}" on:click={() => appsPopupOpen = true}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
+    <span
+      class="icon-mask apps-icon"
+      style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');"
+      on:click={() => appsPopupOpen = true}
+      role="button"
+      tabindex="0"
+    ></span>
   </div>
 
   <div class="body">
@@ -89,12 +93,13 @@
   .drawer.dark { background:#111111; border-right-color:rgba(255,255,255,0.07); }
   .drawer.open { transform:translateX(0); }
 
-  .header { padding:52px 16px 10px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+  .header { padding:20px 20px 10px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
   .header-title { font-size:26px; font-weight:700; letter-spacing:-0.5px; color:#000; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
   .dark .header-title { color:#fff; }
 
-  .apps-btn { width:36px; height:36px; border-radius:10px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity 0.15s; }
-  .apps-btn:active { opacity:0.6; }
+  .apps-icon { width:22px; height:22px; background:rgba(60,60,67,0.55); cursor:pointer; transition:opacity 0.15s; }
+  .apps-icon:active { opacity:0.5; }
+  .dark .apps-icon { background:rgba(235,235,245,0.55); }
 
   .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:8px 0 16px; display:flex; flex-direction:column; }
 

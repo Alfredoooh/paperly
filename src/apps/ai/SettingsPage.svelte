@@ -112,13 +112,11 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
-          fill={isDark ? '#fff' : '#000'}
-        />
-      </svg>
-    </button>
+  <span 
+    class="icon-mask" 
+    style="mask-image:url('/icons/svg/arrow_left.svg'); -webkit-mask-image:url('/icons/svg/arrow_left.svg'); width:20px; height:20px; background: {isDark ? '#fff' : '#000'};"
+  ></span>
+</button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" on:click={handleLogout}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:#FF3B30"></span>

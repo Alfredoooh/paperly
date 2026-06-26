@@ -52,8 +52,6 @@
     if (to === 'chat') chatMounted = true;
     route = to;
   }
-
-  $: chatHidden = route !== 'chat';
 </script>
 
 {#if route === 'splash'}
@@ -64,8 +62,11 @@
   <RegisterPage   {isDark} on:nav={handleNav} />
 {/if}
 
+<!-- wrapper display:none esconde o fixed ChatPage sem o destruir -->
 {#if chatMounted}
-  <ChatPage {isDark} {user} hidden={chatHidden} on:nav={handleNav} />
+  <div style="display:{route === 'chat' ? 'contents' : 'none'}">
+    <ChatPage {isDark} {user} on:nav={handleNav} />
+  </div>
 {/if}
 
 {#if route === 'music'}

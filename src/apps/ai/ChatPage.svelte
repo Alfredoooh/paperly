@@ -10,7 +10,6 @@
 
   export let isDark = false;
   export let user   = null;
-  export let hidden  = false;
 
   const dispatch = createEventDispatcher();
 
@@ -503,7 +502,7 @@
 
 <!-- ══════════════════════════════════════════════════════ TEMPLATE ══════ -->
 
-<div class="chat-root" class:dark={isDark} class:page-hidden={hidden}>
+<div class="chat-root" class:dark={isDark}>
 
   <!-- AppBar gradient -->
   <div class="appbar-gradient" class:dark={isDark}></div>
@@ -842,7 +841,6 @@
 
 <style>
   .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
-  .chat-root.page-hidden { z-index:-1 !important; pointer-events:none !important; }
   .chat-root.dark { background:#0F0F0F; }
 
   .appbar-gradient { position:absolute; top:0; left:0; right:0; height:90px; pointer-events:none; z-index:39; }

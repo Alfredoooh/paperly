@@ -17,16 +17,6 @@
   let chatMounted = false;
   let ready       = false; // evita flash antes de ler localStorage
 
-  if (typeof window !== 'undefined') {
-    const savedTheme = localStorage.getItem('nexa_theme');
-    isDark = savedTheme === 'dark'
-      ? true
-      : savedTheme === 'light'
-        ? false
-        : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    syncTheme(isDark);
-  }
-
   onMount(() => {
     // ── Tema ──
     const saved = localStorage.getItem('nexa_theme');
@@ -156,47 +146,12 @@
     font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
     margin:0; padding:0; overflow:hidden; width:100vw;
     position:fixed; height:100dvh;
-    background:var(--bg-dark);
-    color:var(--text-primary-dark);
     transition:background-color .3s ease,color .3s ease;
+    background:var(--app-bg);
+    color:var(--app-text);
   }
-  :global(body.light) { background:var(--bg-light); color:var(--text-primary-light); --surface2:#EFEFEF; }
-  :global(body.dark)  { background:var(--bg-dark);  color:var(--text-primary-dark);  --surface2:#22222A; }
-  :global(#app) { width:100vw; height:100dvh; display:flex; flex-direction:column; position:relative; overflow:hidden; background:var(--bg-dark); }
-  :global(body.light #app) { background:var(--bg-light); }
-  :global(body.dark #app) { background:var(--bg-dark); }
-  :global(body.dark .chat-root),
-  :global(body.dark .chat-root.dark),
-  :global(body.dark .messages-wrap),
-  :global(body.dark .empty-state),
-  :global(body.dark .assistant-row),
-  :global(body.dark .user-row),
-  :global(body.dark .sheet),
-  :global(body.dark .modal),
-  :global(body.dark .panel),
-  :global(body.dark .card),
-  :global(body.dark .drawer),
-  :global(body.dark .popup),
-  :global(body.dark .dialog),
-  :global(body.dark .content),
-  :global(body.dark .container),
-  :global(body.dark main),
-  :global(body.dark section),
-  :global(body.dark article),
-  :global(body.dark nav),
-  :global(body.dark header),
-  :global(body.dark footer) {
-    background:var(--bg-dark) !important;
-    color:var(--text-primary-dark) !important;
-  }
-  :global(body.dark .bottom-bar.light),
-  :global(body.dark .cd-box),
-  :global(body.dark .conv-opts-card),
-  :global(body.dark .rec-overlay),
-  :global(body.dark .auth-page) {
-    background:var(--surface-dark) !important;
-  }
-  :global(body.dark .rec-overlay) { background:var(--bg-dark) !important; }
-  :global(body.dark .cd-overlay) { background:rgba(0,0,0,.4) !important; }
-  :global(body.dark .appbar-gradient:not(.dark)) { background:linear-gradient(to bottom,rgba(15,15,15,1) 0%,rgba(15,15,15,.95) 45%,rgba(15,15,15,0) 100%) !important; }
+  :global(body.light) { --surface2:#EFEFEF; }
+  :global(body.dark)  { --surface2:#22222A; }
+  :global(html) { background:var(--app-bg); }
+  :global(#app) { width:100vw; height:100dvh; display:flex; flex-direction:column; position:relative; overflow:hidden; background:var(--app-bg); color:var(--app-text); }
 </style>

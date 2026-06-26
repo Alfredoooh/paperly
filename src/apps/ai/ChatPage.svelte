@@ -626,7 +626,7 @@
 </script>
 
 <!-- ══════════════════════ TEMPLATE ══════════════════════ -->
-<div class="chat-root" class:dark={isDark}>
+<div class="chat-root" class:dark={isDark} style="background:{c.background};color:{c.textPrimary}">
 
   <div class="appbar-gradient" class:dark={isDark}></div>
 
@@ -951,11 +951,11 @@
       </div>
       <div class="rec-top-bar">
         <button class="rec-top-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:20px;height:20px;background:#fff"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:20px;height:20px;background:{isDark ? '#F3F4F6' : '#111827'}"></span>
         </button>
         <span class="rec-timer">{recTimerStr}</span>
         <button class="rec-top-btn pulse-tap" on:click={stopRecording}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#F3F4F6' : '#111827'} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
       </div>
     </div>
@@ -975,9 +975,6 @@
 <style>
   .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; background:var(--bg-light); }
   .chat-root.dark { background:var(--bg-dark); }
-  .messages-wrap { background:inherit; }
-  .empty-state { background:transparent; }
-  .assistant-row, .user-row { background:transparent; }
 
   .appbar-gradient { position:absolute; top:0; left:0; right:0; height:90px; pointer-events:none; z-index:39; }
   .appbar-gradient:not(.dark) { background:linear-gradient(to bottom,rgba(249,250,251,1) 0%,rgba(249,250,251,.95) 45%,rgba(249,250,251,0) 100%); }
@@ -1092,8 +1089,8 @@
   .action-btn:hover { opacity:1; }
 
   .bottom-bar { position:absolute; bottom:0; left:16px; right:16px; z-index:50; margin-bottom:20px; border-radius:22px; display:flex; flex-direction:column; transition:background-color .3s ease,box-shadow .3s ease,bottom .18s ease; }
-  .bottom-bar.light { background:var(--surface-light); box-shadow:0 4px 24px rgba(0,0,0,.08); }
-  .bottom-bar.dark  { background:var(--surface-dark); box-shadow:0 4px 24px rgba(0,0,0,.30); }
+  .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }
+  .bottom-bar.dark  { background:#1F1F1F; box-shadow:0 4px 24px rgba(0,0,0,.30); }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:12px 18px 0; width:100%; font-family:inherit; -webkit-user-select:text; user-select:text; max-height:150px; overflow-y:auto; }
   .chat-input:not(.dark) { color:#1F2937; }
   .chat-input.dark { color:#F3F4F6; }
@@ -1131,8 +1128,8 @@
   .cd-btn { flex:1; border:none; border-radius:10px; padding:11px 0; font-size:14.5px; font-weight:600; cursor:pointer; font-family:inherit; }
   .cd-cancel { background:rgba(127,127,127,.14); }
 
-  .rec-overlay { position:fixed; inset:0; z-index:300; background:var(--bg-light); display:flex; flex-direction:column; overflow:hidden; }
-  .rec-overlay.dark { background:var(--bg-dark); }
+  .rec-overlay { position:fixed; inset:0; z-index:300; background:var(--app-bg); display:flex; flex-direction:column; overflow:hidden; }
+  .rec-overlay.dark { background:#0F0F0F; }
   .rec-top-bar { position:absolute; top:0; left:0; right:0; height:72px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; z-index:10; }
   .rec-top-btn { width:46px; height:46px; border-radius:50%; border:none; background:rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
   .rec-overlay.dark .rec-top-btn { background:rgba(255,255,255,.12); }
@@ -1153,11 +1150,4 @@
   .pulse-tap { cursor:pointer; transition:transform .11s cubic-bezier(0.4,0,.2,1),opacity .11s cubic-bezier(0.4,0,.2,1); }
   .pulse-tap:active { transform:scale(0.97); opacity:.86; }
   .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
-
-  :global(body.dark .assistant-content .code-block-wrapper),
-  :global(body.dark .assistant-content .code-block-header),
-  :global(body.dark .assistant-content .code-block),
-  :global(body.dark .assistant-content .widget-card) {
-    background: rgba(255,255,255,.04) !important;
-  }
 </style>

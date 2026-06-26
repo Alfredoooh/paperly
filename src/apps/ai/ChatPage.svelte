@@ -10,6 +10,7 @@
 
   export let isDark = false;
   export let user   = null;
+  export let hidden  = false;
 
   const dispatch = createEventDispatcher();
 
@@ -502,7 +503,7 @@
 
 <!-- ══════════════════════════════════════════════════════ TEMPLATE ══════ -->
 
-<div class="chat-root" class:dark={isDark}>
+<div class="chat-root" class:dark={isDark} class:page-hidden={hidden}>
 
   <!-- AppBar gradient -->
   <div class="appbar-gradient" class:dark={isDark}></div>
@@ -617,7 +618,8 @@
                   class="assistant-content"
                   class:cursor-blink={msg.isStreaming && msg.content}
                   style="font-size:15px;line-height:1.65;color:{isDark ? c.textPrimary : '#212730'}"
-                >{@html renderMarkdown(msg.content)}</div>
+                  {@html renderMarkdown(msg.content)}
+                ></div>
                 {#if !msg.isStreaming && msg.content}
                   <div class="action-row">
                     {#each [['copy','Copiar',()=>copyText(msg.content)],['thumbs_up','Gosto',()=>{}],['thumbs_down','Não gosto',()=>{}],['share','Partilhar',()=>shareText(msg.content)],['regenerate','Regenerar',regenerate]] as [icon,title,fn]}
@@ -841,6 +843,7 @@
 
 <style>
   .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-root.page-hidden { pointer-events:none; visibility:hidden; }
   .chat-root.dark { background:#0F0F0F; }
 
   .appbar-gradient { position:absolute; top:0; left:0; right:0; height:90px; pointer-events:none; z-index:39; }

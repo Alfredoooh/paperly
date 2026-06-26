@@ -52,6 +52,8 @@
     if (to === 'chat') chatMounted = true;
     route = to;
   }
+
+  $: chatHidden = route !== 'chat';
 </script>
 
 {#if route === 'splash'}
@@ -62,11 +64,8 @@
   <RegisterPage   {isDark} on:nav={handleNav} />
 {/if}
 
-<!-- ChatPage sempre viva, escondida com visibility quando não ativa -->
 {#if chatMounted}
-  <div class="page-slot" class:page-active={route === 'chat'}>
-    <ChatPage {isDark} {user} on:nav={handleNav} />
-  </div>
+  <ChatPage {isDark} {user} hidden={chatHidden} on:nav={handleNav} />
 {/if}
 
 {#if route === 'music'}
@@ -111,17 +110,4 @@
   :global(body.light) { background:var(--bg-light); color:var(--text-primary-light); --surface2:#EFEFEF; }
   :global(body.dark)  { background:var(--bg-dark);  color:var(--text-primary-dark);  --surface2:#22222A; }
   :global(#app) { width:100vw; height:100dvh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-
-  /* slot que mantém ChatPage viva */
-  .page-slot {
-    position:fixed; inset:0;
-    visibility:hidden;
-    pointer-events:none;
-    z-index:0;
-  }
-  .page-slot.page-active {
-    visibility:visible;
-    pointer-events:auto;
-    z-index:1;
-  }
 </style>

@@ -21,6 +21,7 @@
   function longPressConv(conv) { dispatch('convOptions', { conv }); }
   function toggleConvSection() { conversationsCollapsed = !conversationsCollapsed; }
 
+  // Long press
   function makeLongPress(conv) {
     let t = null, did = false;
     return {
@@ -38,7 +39,7 @@
 <!-- Drawer -->
 <div class="drawer" class:open class:light={!isDark} class:dark={isDark}>
 
-  <!-- Apps bar -->
+  <!-- Apps bar (barra lateral esquerda com ícones) -->
   <div class="apps-bar">
     {#each DRAWER_APPS as app, i}
       {#if i === 1}<div class="apps-divider"></div>{/if}
@@ -57,6 +58,7 @@
   <div class="drawer-main" class:compact={activeApp !== 'ai'}>
 
     {#if activeApp !== 'ai'}
+      <!-- Drawer compacto para apps não-AI -->
       <div class="dh">
         <div class="dh-left">
           <img src={DRAWER_APPS.find(a=>a.id===activeApp)?.icon} class="logo-compact" alt="" />
@@ -74,6 +76,7 @@
       </div>
 
     {:else}
+      <!-- Drawer completo para AI -->
       <div class="dh">
         <div class="dh-left"></div>
         <button class="pulse-tap icon-btn" style="color:{c.iconTint}" on:click={() => dispatch('newChat')}>
@@ -102,6 +105,7 @@
 
       <div class="section-divider" style="background:{c.divider}"></div>
 
+      <!-- Conversas colapsáveis -->
       <div class="conv-header pulse-tap" on:click={toggleConvSection}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/meassage.svg');-webkit-mask-image:url('/icons/svg/meassage.svg');width:16px;height:16px;background:{c.settings_section_label}"></span>
         <span class="conv-label" style="color:{c.settings_section_label}">CONVERSAS</span>
@@ -162,11 +166,10 @@
   .drawer.light { background:#F3F4F6; border-right-color:#E5E7EB; }
   .drawer.dark  { background:#141414; border-right-color:#1f1f1f; }
 
-  /* Apps bar */
   .apps-bar {
     width:64px; flex-shrink:0;
     display:flex; flex-direction:column; align-items:center;
-    padding:20px 0 16px; gap:10px;
+    padding:20px 0 16px; gap:4px;
     overflow-y:auto; -webkit-overflow-scrolling:touch;
     scrollbar-width:none; background:inherit;
   }
@@ -174,30 +177,37 @@
   .drawer.light .apps-bar { border-right:1px solid #E5E7EB; }
   .drawer.dark  .apps-bar { border-right:1px solid #2C2C2E; }
 
-  /* App item — estilo stories Instagram */
   .apps-item {
-    width:44px; height:44px;
-    border-radius:50%;
+    width:48px; height:48px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; flex-shrink:0;
-    /* borda verde stories quando ativo */
-    outline:3px solid transparent;
-    outline-offset:2px;
-    transition:outline-color .2s ease, transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s cubic-bezier(0.4,0,.2,1);
+    position:relative; padding:0;
+    background:transparent;
+    transition:transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s cubic-bezier(0.4,0,.2,1);
   }
-  .apps-item.active {
-    outline-color:#22C55E;
-    animation:storyPulse 1.8s ease-in-out infinite;
+  /* anel gradiente Instagram colado ao ícone */
+  .apps-item::before {
+    content:'';
+    position:absolute; inset:-3px;
+    border-radius:50%;
+    background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);
+    opacity:0;
+    transition:opacity .2s ease;
+    z-index:0;
   }
-  .apps-item:active { transform:scale(0.92); opacity:.82; }
-  .apps-item img { width:36px; height:36px; border-radius:50%; object-fit:cover; display:block; }
-
-  @keyframes storyPulse {
-    0%,100% { outline-color:#22C55E; outline-width:3px; }
-    50%      { outline-color:#4ADE80; outline-width:3.5px; }
+  .apps-item::after {
+    content:'';
+    position:absolute; inset:-1px;
+    border-radius:50%;
+    z-index:1;
   }
-
-  .apps-divider { width:28px; height:1px; background:#E5E7EB; flex-shrink:0; }
+  .drawer.light .apps-item::after { background:#F3F4F6; }
+  .drawer.dark  .apps-item::after { background:#141414; }
+  .apps-item.active::before { opacity:1; }
+  .apps-item img { width:34px; height:34px; border-radius:50%; object-fit:cover; position:relative; z-index:2; }
+  /* pulse-tap local para apps-item — só anima no clique */
+  .apps-item.pulse-tap:active { transform:scale(0.88); opacity:.75; }
+  .apps-divider { width:32px; height:1px; background:#E5E7EB; margin:2px 0; flex-shrink:0; }
   .drawer.dark .apps-divider { background:#2C2C2E; }
 
   .drawer-main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
@@ -228,7 +238,8 @@
 
   .conv-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; gap:10px; opacity:.45; font-size:13px; text-align:center; }
 
-  .pulse-tap { cursor:pointer; transition:transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s cubic-bezier(0.4,0,.2,1); }
+  /* pulse-tap e icon-mask são globais usados aqui inline */
+  .pulse-tap { cursor:pointer; transition:transform .11s cubic-bezier(0.4,0,0.2,1), opacity .11s cubic-bezier(0.4,0,0.2,1); }
   .pulse-tap:active { transform:scale(0.97); opacity:.86; }
   .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

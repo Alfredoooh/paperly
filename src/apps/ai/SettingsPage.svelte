@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { fade, scale } from 'svelte/transition';
   import { getThemeColors } from '../../core/theme.js';
   import { AuthApiService } from '../../core/api.js';
@@ -14,10 +14,10 @@
 
   $: c = getThemeColors(isDark);
   $: credits      = user?.credits ?? 0;
-  $: maxCredits   = 100; // ajusta conforme o plano
+  $: maxCredits   = 100;
   $: creditsPct   = Math.min(Math.max(credits / maxCredits, 0), 1);
   $: creditsColor = credits <= 10 ? '#FF3B30' : credits <= 30 ? '#FF9500' : '#34C759';
-  $: creditsLabel = credits <= 10 ? 'Créditos a acabar' : `${credits} créditos`;
+  $: creditsLabel = credits <= 10 ? 'A acabar' : `${credits} créditos`;
 
   const AVATAR_COLORS = [
     '#FF3B30','#FF9500','#FFCC00','#34C759',
@@ -35,23 +35,20 @@
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: avatarColor = getAvatarColor(userName);
 
-  // ── Loader state ──
-  let loading      = true;
-  let loadingMsg   = '';
+  // ── Loader ──
+  let loading    = true;
+  let loadingMsg = '';
+  onMount(() => { setTimeout(() => { loading = false; }, 700); });
 
-  // Simula load inicial
-  import { onMount } from 'svelte';
-  onMount(() => {
-    setTimeout(() => { loading = false; }, 700);
-  });
+  // ── Popups ──
+  let showThemePicker = false;
+  let showLangPicker  = false;
+  let showPlansModal  = false;
+  let langSearch      = '';
+  let currentLanguage = localStorage.getItem('nexa_language') || 'pt';
 
-  // ── Popup anchored state ──
-  let showThemePicker  = false;
-  let showLangPicker   = false;
-  let showPlansModal   = false;
-  let langSearch       = '';
-  let currentLanguage  = localStorage.getItem('nexa_language') || 'pt';
-  let popupAnchor      = { x: 0, y: 0 }; // posição do clique
+  // posição do popup: { top, left, right } em px relativos ao viewport
+  let popupPos = { top: 0, right: 0 };
 
   $: filteredLangs = AVAILABLE_LANGUAGES.filter(l => {
     const f = langSearch.trim().toLowerCase();
@@ -60,10 +57,10 @@
 
   function openPopup(type, event) {
     const rect = event.currentTarget.getBoundingClientRect();
-    // ancora ao centro vertical da row, lado direito
-    popupAnchor = {
-      x: rect.right - 16,
-      y: rect.top + rect.height / 2
+    // popup surge mesmo abaixo da row, alinhado à direita da row
+    popupPos = {
+      top:   rect.bottom + 4,
+      right: window.innerWidth - rect.right + 10
     };
     if (type === 'theme') { showLangPicker = false; showThemePicker = true; }
     if (type === 'lang')  { langSearch = ''; showThemePicker = false; showLangPicker = true; }
@@ -73,7 +70,7 @@
     currentLanguage = code;
     localStorage.setItem('nexa_language', code);
     showLangPicker = false;
-    showToast(`Idioma: ${AVAILABLE_LANGUAGES.find(l=>l.code===code)?.name}`);
+    showToast(`Idioma: ${AVAILABLE_LANGUAGES.find(l => l.code === code)?.name}`);
   }
 
   async function handleLogout() {
@@ -82,34 +79,16 @@
     loadingMsg = 'A terminar sessão…';
     loading    = true;
     if (user) await AuthApiService.logout(user.token);
-    await tick();
-    setTimeout(() => {
-      loading = false;
-      dispatch('logout');
-    }, 800);
-  }
-
-  // Calcula posição do popup para não sair do ecrã
-  function popupStyle(anchor, width = 220, height = 120) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let left = anchor.x - width; // abre para a esquerda do ponto
-    let top  = anchor.y - height / 2;
-    if (left < 12) left = 12;
-    if (top < 12)  top  = 12;
-    if (top + height > vh - 12) top = vh - height - 12;
-    return `left:${left}px;top:${top}px;width:${width}px;`;
+    setTimeout(() => { loading = false; dispatch('logout'); }, 800);
   }
 </script>
 
-<!-- ══════════════════════════════════════════
-     LOADER OVERLAY (abertura + logout)
-══════════════════════════════════════════ -->
+<!-- ── Loader ── -->
 {#if loading}
   <div class="loader-overlay" class:dark={isDark} transition:fade={{ duration: 200 }}>
-    <div class="ios-spinner" class:dark={isDark}>
+    <div class="ios-spinner">
       {#each Array(12) as _, i}
-        <div class="spoke" style="--i:{i};--color:{isDark ? '#ffffff' : '#000000'}"></div>
+        <div class="spoke" style="--i:{i};--c:{isDark ? '#fff' : '#000'}"></div>
       {/each}
     </div>
     {#if loadingMsg}
@@ -118,33 +97,23 @@
   </div>
 {/if}
 
-<!-- ══════════════════════════════════════════
-     PÁGINA PRINCIPAL
-══════════════════════════════════════════ -->
+<!-- ── Page ── -->
 {#if !loading}
 <div class="page" class:dark={isDark} transition:fade={{ duration: 180 }}>
 
-  <!-- Header -->
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <span
-        class="icon-mask"
-        style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:18px;height:18px;transform:rotate(180deg);"
-      ></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:18px;height:18px;transform:rotate(180deg);background:{isDark?'#fff':'#000'}"></span>
     </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" on:click={handleLogout}>
-      <span
-        class="icon-mask"
-        style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;"
-      ></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:#FF3B30"></span>
     </button>
   </div>
 
-  <!-- Scroll body -->
   <div class="body">
 
-    <!-- Avatar / user info -->
+    <!-- User -->
     <div class="user-block">
       <div class="avatar" style="background:{avatarColor}">{userInitial}</div>
       <div class="user-info">
@@ -155,40 +124,31 @@
       </div>
     </div>
 
-    <!-- Secção: Conta -->
+    <!-- Conta -->
     <div class="section-label">Conta</div>
     <div class="section">
-
-      <!-- Planos -->
       <button type="button" class="row" on:click={() => showPlansModal = true}>
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/tabs.svg');-webkit-mask-image:url('/icons/svg/tabs.svg');"></span>
         <span class="row-label">Planos</span>
         <span class="row-sub">Básico e Premium</span>
       </button>
 
-      <!-- Créditos — container com barra progressiva -->
-      <div class="credits-container" class:dark={isDark}>
-        <div class="credits-top">
-          <div class="credits-left">
-            <span class="icon-mask credits-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
-            <span class="credits-title" class:dark={isDark}>Saldo de créditos</span>
+      <!-- Créditos com barra inline -->
+      <div class="row credits-row">
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
+        <div class="credits-body">
+          <div class="credits-head">
+            <span class="row-label" style="flex:none">Saldo</span>
+            <span class="credits-val" style="color:{creditsColor}">{creditsLabel}</span>
           </div>
-          <span class="credits-value" style="color:{creditsColor}">{creditsLabel}</span>
-        </div>
-        <div class="progress-track" class:dark={isDark}>
-          <div
-            class="progress-fill"
-            style="width:{creditsPct * 100}%;background:{creditsColor};box-shadow:0 0 6px {creditsColor}66;"
-          ></div>
-        </div>
-        <div class="credits-bottom">
-          <span class="credits-hint" class:dark={isDark}>{credits} de {maxCredits} créditos disponíveis</span>
+          <div class="progress-track" class:dark={isDark}>
+            <div class="progress-fill" style="width:{creditsPct*100}%;background:{creditsColor};box-shadow:0 0 5px {creditsColor}55;"></div>
+          </div>
         </div>
       </div>
-
     </div>
 
-    <!-- Secção: Preferências -->
+    <!-- Preferências -->
     <div class="section-label">Preferências</div>
     <div class="section">
       <button type="button" class="row" on:click={(e) => openPopup('theme', e)}>
@@ -214,7 +174,7 @@
       </button>
     </div>
 
-    <!-- Secção: Informação -->
+    <!-- Informação -->
     <div class="section-label">Informação</div>
     <div class="section">
       <button type="button" class="row" on:click={() => showToast('Sobre a app em breve')}>
@@ -237,19 +197,21 @@
 </div>
 {/if}
 
-<!-- Plans modal — navega para outra tela, sem popup anchored -->
+<!-- Plans modal -->
 <PlansModal {isDark} {user} open={showPlansModal} on:close={() => showPlansModal=false} />
 
-<!-- ══════════════════════════════════════════
-     POPUP ANCHORED — Tema
-══════════════════════════════════════════ -->
+<!-- Popup overlay (invisível, fecha ao clicar fora) -->
+{#if showThemePicker || showLangPicker}
+  <div class="popup-overlay" on:click={() => { showThemePicker=false; showLangPicker=false; }}></div>
+{/if}
+
+<!-- Popup: Tema -->
 {#if showThemePicker}
-  <div class="popup-overlay" on:click={() => showThemePicker=false}></div>
   <div
-    class="popup-box anchored"
+    class="popup-box"
     class:dark={isDark}
-    style={popupStyle(popupAnchor, 200, 108)}
-    transition:scale={{ duration: 160, start: 0.88, opacity: 0 }}
+    style="top:{popupPos.top}px;right:{popupPos.right}px;"
+    transition:scale={{ duration: 150, start: 0.9, opacity: 0 }}
   >
     {#each [[false,'Claro'],[true,'Escuro']] as [dark, label], i}
       {#if i > 0}<div class="popup-sep"></div>{/if}
@@ -263,16 +225,13 @@
   </div>
 {/if}
 
-<!-- ══════════════════════════════════════════
-     POPUP ANCHORED — Idioma
-══════════════════════════════════════════ -->
+<!-- Popup: Idioma -->
 {#if showLangPicker}
-  <div class="popup-overlay" on:click={() => showLangPicker=false}></div>
   <div
-    class="popup-box anchored lang-box"
+    class="popup-box lang-box"
     class:dark={isDark}
-    style={popupStyle(popupAnchor, 240, Math.min(filteredLangs.length * 49 + 90, 340))}
-    transition:scale={{ duration: 160, start: 0.88, opacity: 0 }}
+    style="top:{popupPos.top}px;right:{popupPos.right}px;"
+    transition:scale={{ duration: 150, start: 0.9, opacity: 0 }}
   >
     <div class="lang-search-wrap">
       <input
@@ -305,79 +264,61 @@
 {/if}
 
 <style>
-  /* ══════════ LOADER OVERLAY ══════════ */
+  /* ── Loader ── */
   .loader-overlay {
     position: fixed; inset: 0; z-index: 200;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 14px;
-    background: #ffffff;
+    align-items: center; justify-content: center; gap: 14px;
+    background: #fff;
   }
-  .loader-overlay.dark { background: #111111; }
+  .loader-overlay.dark { background: #111; }
 
-  /* iOS spinner — 12 spokes */
-  .ios-spinner {
-    position: relative;
-    width: 32px; height: 32px;
-  }
+  .ios-spinner { position: relative; width: 32px; height: 32px; }
   .spoke {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 2.6px; height: 7px;
-    border-radius: 2px;
-    background: var(--color, #000);
+    position: absolute; top: 50%; left: 50%;
+    width: 2.6px; height: 7px; border-radius: 2px;
+    background: var(--c, #000);
     transform-origin: center -6px;
     transform: rotate(calc(var(--i) * 30deg)) translateY(-50%);
     animation: ios-fade 1s linear infinite;
     animation-delay: calc(var(--i) * -0.0833s);
     opacity: 0.15;
   }
-  @keyframes ios-fade {
-    0%   { opacity: 1; }
-    100% { opacity: 0.15; }
-  }
+  @keyframes ios-fade { 0% { opacity: 1; } 100% { opacity: 0.15; } }
 
-  .loading-msg {
-    font-size: 13px; color: rgba(60,60,67,0.5);
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  }
-  .loading-msg.dark { color: rgba(235,235,245,0.4); }
+  .loading-msg { font-size: 13px; color: rgba(60,60,67,.5); font-family: -apple-system, sans-serif; }
+  .loading-msg.dark { color: rgba(235,235,245,.4); }
 
-  /* ══════════ PAGE ══════════ */
+  /* ── Page ── */
   .page {
     position: fixed; inset: 0; z-index: 150;
     display: flex; flex-direction: column;
-    background: #ffffff;
+    background: #fff;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   }
-  .page.dark { background: #111111; }
+  .page.dark { background: #111; }
 
-  /* ══════════ HEADER ══════════ */
+  /* ── Header ── */
   .header {
-    display: flex; align-items: center;
+    display: flex; align-items: center; gap: 8px;
     padding: 16px 16px 10px;
     padding-top: calc(16px + env(safe-area-inset-top));
-    flex-shrink: 0; gap: 8px;
+    flex-shrink: 0;
   }
-  .header-title {
-    flex: 1; font-size: 17px; font-weight: 600;
-    color: #000; text-align: center; letter-spacing: -0.3px;
-  }
+  .header-title { flex: 1; font-size: 17px; font-weight: 600; color: #000; text-align: center; letter-spacing: -.3px; }
   .page.dark .header-title { color: #fff; }
 
   .back-btn, .logout-btn {
     width: 36px; height: 36px;
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; cursor: pointer; border-radius: 50%;
-    transition: background .12s ease;
+    transition: background .12s;
   }
-  .back-btn:active, .logout-btn:active { background: rgba(0,0,0,0.06); }
-  .page.dark .back-btn:active, .page.dark .logout-btn:active { background: rgba(255,255,255,0.08); }
-  .back-btn .icon-mask { background: #000; }
-  .page.dark .back-btn .icon-mask { background: #fff; }
-  .logout-btn .icon-mask { background: #FF3B30; }
+  .back-btn:active  { background: rgba(0,0,0,.06); }
+  .logout-btn:active { background: rgba(255,59,48,.08); }
+  .page.dark .back-btn:active { background: rgba(255,255,255,.08); }
 
-  /* ══════════ BODY ══════════ */
+  /* ── Body ── */
   .body {
     flex: 1; overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -385,192 +326,136 @@
     display: flex; flex-direction: column;
   }
 
-  /* ══════════ USER BLOCK ══════════ */
-  .user-block {
-    display: flex; align-items: center; gap: 12px;
-    padding: 16px 20px 20px;
-  }
+  /* ── User block ── */
+  .user-block { display: flex; align-items: center; gap: 12px; padding: 16px 20px 20px; }
   .avatar {
     width: 52px; height: 52px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 22px; font-weight: 700; color: #fff;
-    flex-shrink: 0; letter-spacing: -0.5px;
+    font-size: 22px; font-weight: 700; color: #fff; flex-shrink: 0;
   }
   .user-info { display: flex; flex-direction: column; min-width: 0; }
-  .user-name {
-    font-size: 16px; font-weight: 600; color: #000;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
+  .user-name { font-size: 16px; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .page.dark .user-name { color: #fff; }
-  .user-email {
-    font-size: 13px; color: rgba(60,60,67,0.5);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
-  }
-  .page.dark .user-email { color: rgba(235,235,245,0.4); }
+  .user-email { font-size: 13px; color: rgba(60,60,67,.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .page.dark .user-email { color: rgba(235,235,245,.4); }
 
-  /* ══════════ SECTION ══════════ */
+  /* ── Section ── */
   .section-label {
-    font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em;
-    text-transform: uppercase; color: rgba(60,60,67,0.5);
+    font-size: 11.5px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: rgba(60,60,67,.5);
     padding: 16px 20px 6px;
   }
-  .page.dark .section-label { color: rgba(235,235,245,0.4); }
+  .page.dark .section-label { color: rgba(235,235,245,.4); }
   .section { display: flex; flex-direction: column; padding: 0 12px; }
 
-  /* ══════════ ROW ══════════ */
+  /* ── Row ── */
   .row {
     width: 100%; display: flex; align-items: center; gap: 13px;
     padding: 13px 10px; background: transparent; border: none;
     cursor: pointer; text-align: left; border-radius: 10px;
     -webkit-user-select: none; user-select: none;
-    transition: background .12s ease; color: #000;
+    transition: background .12s; color: #000;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   }
   .page.dark .row { color: #fff; }
-  .row:active { background: rgba(0,0,0,0.05); }
-  .page.dark .row:active { background: rgba(255,255,255,0.06); }
+  .row:active { background: rgba(0,0,0,.05); }
+  .page.dark .row:active { background: rgba(255,255,255,.06); }
   .row.danger { color: #FF3B30; }
 
   .row-icon {
-    width: 17px; height: 17px;
-    background: rgba(60,60,67,0.55); flex-shrink: 0; display: block;
+    width: 17px; height: 17px; background: rgba(60,60,67,.55);
+    flex-shrink: 0; display: block;
     mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
-  .page.dark .row-icon { background: rgba(235,235,245,0.55); }
+  .page.dark .row-icon { background: rgba(235,235,245,.55); }
   .danger .row-icon { background: #FF3B30 !important; }
 
   .row-label { flex: 1; font-size: 15px; font-weight: 400; min-width: 0; }
   .row.danger .row-label { color: #FF3B30; }
-  .row-sub { font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0; }
-  .page.dark .row-sub { color: rgba(235,235,245,0.35); }
-  .row-trail { font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0; }
-  .page.dark .row-trail { color: rgba(235,235,245,0.35); }
+  .row-sub   { font-size: 13px; color: rgba(60,60,67,.45); flex-shrink: 0; }
+  .row-trail { font-size: 13px; color: rgba(60,60,67,.45); flex-shrink: 0; }
+  .page.dark .row-sub, .page.dark .row-trail { color: rgba(235,235,245,.35); }
 
-  /* ══════════ CREDITS CONTAINER ══════════ */
-  .credits-container {
-    margin: 4px 10px 6px;
-    padding: 13px 14px 11px;
-    border-radius: 12px;
-    background: rgba(0,0,0,0.03);
-    border: 0.5px solid rgba(0,0,0,0.06);
-  }
-  .credits-container.dark {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.07);
-  }
-  .credits-top {
-    display: flex; align-items: center;
-    justify-content: space-between; margin-bottom: 10px;
-  }
-  .credits-left {
-    display: flex; align-items: center; gap: 8px;
-  }
-  .credits-icon {
-    width: 15px; height: 15px; flex-shrink: 0; display: block;
-    mask-size: contain; -webkit-mask-size: contain;
-    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center;
-  }
-  .credits-title {
-    font-size: 13.5px; font-weight: 500; color: #000;
-  }
-  .credits-title.dark { color: #fff; }
-  .credits-value {
-    font-size: 13px; font-weight: 600;
-  }
+  /* ── Credits inline ── */
+  .credits-row { align-items: center; cursor: default; }
+  .credits-row:active { background: transparent !important; }
+  .credits-body { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .credits-head { display: flex; align-items: center; justify-content: space-between; }
+  .credits-val  { font-size: 13px; font-weight: 600; flex-shrink: 0; }
 
-  /* barra de progresso */
   .progress-track {
-    height: 5px; border-radius: 10px;
-    background: rgba(0,0,0,0.08); overflow: hidden;
+    height: 4px; border-radius: 10px;
+    background: rgba(0,0,0,.08); overflow: hidden;
   }
-  .progress-track.dark { background: rgba(255,255,255,0.1); }
+  .progress-track.dark { background: rgba(255,255,255,.1); }
   .progress-fill {
     height: 100%; border-radius: 10px;
-    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    transition: width .6s cubic-bezier(.34,1.56,.64,1);
     min-width: 4px;
   }
 
-  .credits-bottom { margin-top: 7px; }
-  .credits-hint {
-    font-size: 11.5px; color: rgba(60,60,67,0.4);
-  }
-  .credits-hint.dark { color: rgba(235,235,245,0.3); }
+  /* ── Popup overlay ── */
+  .popup-overlay { position: fixed; inset: 0; z-index: 160; }
 
-  /* ══════════ POPUP OVERLAY ══════════ */
-  .popup-overlay {
-    position: fixed; inset: 0; z-index: 160;
-    /* sem background para ficar invisível mas capturar clicks */
-  }
-
-  /* ══════════ POPUP BOX — ANCHORED ══════════ */
-  .popup-box.anchored {
+  /* ── Popup box ── */
+  .popup-box {
     position: fixed; z-index: 161;
+    width: 200px;
     border-radius: 14px; overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
-    background: #ffffff;
-    /* origin: canto superior direito (ponto de clique) */
+    background: #fff;
+    box-shadow: 0 8px 30px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
     transform-origin: top right;
   }
-  .popup-box.anchored.dark { background: #2c2c2e; }
+  .popup-box.dark { background: #2c2c2e; }
 
-  .popup-sep {
-    height: 0.5px;
-    background: rgba(0,0,0,0.08);
-    margin: 0 14px;
-  }
-  .popup-box.dark .popup-sep { background: rgba(255,255,255,0.08); }
+  .popup-sep { height: .5px; background: rgba(0,0,0,.08); margin: 0 14px; }
+  .popup-box.dark .popup-sep { background: rgba(255,255,255,.08); }
 
   .popup-row {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
     padding: 13px 16px; background: none; border: none;
     cursor: pointer; font-family: inherit;
-    transition: background .1s ease;
+    transition: background .1s;
   }
-  .popup-row:active { background: rgba(0,0,0,0.04); }
-  .popup-box.dark .popup-row:active { background: rgba(255,255,255,0.05); }
+  .popup-row:active { background: rgba(0,0,0,.04); }
+  .popup-box.dark .popup-row:active { background: rgba(255,255,255,.05); }
 
   .popup-label { font-size: 15px; font-weight: 400; color: #000; }
   .popup-box.dark .popup-label { color: #fff; }
 
-  /* ══════════ LANG PICKER ══════════ */
-  .lang-box {
-    display: flex; flex-direction: column;
-    max-height: 360px;
-  }
+  /* ── Lang box ── */
+  .lang-box { width: 240px; max-height: 340px; display: flex; flex-direction: column; }
   .lang-search-wrap { padding: 10px 12px 8px; flex-shrink: 0; }
   .lang-search {
     width: 100%; border: none; outline: none;
     border-radius: 8px; padding: 8px 11px;
     font-size: 14px; font-family: inherit;
-    background: rgba(0,0,0,0.05); color: #000;
-    -webkit-user-select: text; user-select: text;
+    background: rgba(0,0,0,.05); color: #000;
     box-sizing: border-box;
   }
-  .lang-search.dark { background: rgba(255,255,255,0.08); color: #fff; }
-  .lang-search::placeholder { color: rgba(60,60,67,0.4); }
-  .lang-search.dark::placeholder { color: rgba(235,235,245,0.3); }
+  .lang-search.dark { background: rgba(255,255,255,.08); color: #fff; }
+  .lang-search::placeholder { color: rgba(60,60,67,.4); }
+  .lang-search.dark::placeholder { color: rgba(235,235,245,.3); }
 
   .lang-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
-  .lang-empty {
-    padding: 16px; text-align: center; font-size: 13px;
-    color: rgba(60,60,67,0.4);
-  }
-  .popup-box.dark .lang-empty { color: rgba(235,235,245,0.3); }
+  .lang-empty { padding: 16px; text-align: center; font-size: 13px; color: rgba(60,60,67,.4); }
+  .popup-box.dark .lang-empty { color: rgba(235,235,245,.3); }
 
   .lang-info { display: flex; flex-direction: column; text-align: left; }
   .lang-name { font-size: 15px; font-weight: 400; color: #000; }
   .popup-box.dark .lang-name { color: #fff; }
   .lang-name.active { color: #007AFF; font-weight: 600; }
-  .lang-native { font-size: 12px; color: rgba(60,60,67,0.5); margin-top: 1px; }
-  .popup-box.dark .lang-native { color: rgba(235,235,245,0.35); }
+  .lang-native { font-size: 12px; color: rgba(60,60,67,.5); margin-top: 1px; }
+  .popup-box.dark .lang-native { color: rgba(235,235,245,.35); }
 
-  /* ══════════ ICON MASK UTILITY ══════════ */
+  /* ── Icon mask utility ── */
   .icon-mask {
-    display: block; mask-size: contain; -webkit-mask-size: contain;
+    display: block;
+    mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center; flex-shrink: 0;
+    mask-position: center; -webkit-mask-position: center;
+    flex-shrink: 0;
   }
 </style>

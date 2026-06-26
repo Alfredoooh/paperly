@@ -5,8 +5,6 @@
   export let isDark = false;
   export let user = null;
   export let open = false;
-  export let title = 'Menu';
-  export let subtitle = '';
   export let menuItems = [];
   export let conversations = [];
   export let currentConvId = '';
@@ -15,6 +13,25 @@
 
   $: c = getThemeColors(isDark);
   let conversationsCollapsed = false;
+
+  // ── Avatar ──
+  const AVATAR_COLORS = [
+    '#FF3B30','#FF9500','#FFCC00','#34C759',
+    '#00C7BE','#007AFF','#5856D6','#AF52DE',
+    '#FF2D55','#A2845E'
+  ];
+
+  function getAvatarColor(str) {
+    if (!str) return AVATAR_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  }
+
+  $: userName    = user?.name || user?.displayName || user?.email || 'U';
+  $: userEmail   = user?.email || '';
+  $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
+  $: avatarColor = getAvatarColor(userName);
 
   function closeDrawer() { dispatch('close'); }
 
@@ -52,7 +69,8 @@
 <div class="overlay" class:open on:click={closeDrawer}></div>
 
 <div class="drawer" class:open class:dark={isDark}>
-  <!-- Título -->
+
+  <!-- Header -->
   <div class="header">
     <span class="header-title">Menu</span>
   </div>
@@ -83,13 +101,6 @@
             {#if item.badge}
               <span class="row-badge">{item.badge}</span>
             {/if}
-            <span
-              class="icon-mask row-chevron"
-              style="
-                mask-image:url('/icons/svg/chevron_right.svg');
-                -webkit-mask-image:url('/icons/svg/chevron_right.svg');
-              "
-            ></span>
           </button>
         {/each}
       </div>
@@ -100,7 +111,6 @@
       <div class="section-label">Conversas</div>
 
       <div class="section">
-        <!-- Toggle header -->
         <button type="button" class="row" on:click={toggleConvSection}>
           <span
             class="icon-mask row-icon"
@@ -120,7 +130,6 @@
           ></span>
         </button>
 
-        <!-- List -->
         <div class="conv-outer" class:collapsed={conversationsCollapsed}>
           <div class="conv-inner">
             {#each conversations as conv}
@@ -157,6 +166,22 @@
     {/if}
 
   </div>
+
+  <!-- Avatar footer -->
+  {#if user}
+    <div class="user-footer" class:dark={isDark}>
+      <div class="avatar" style="background:{avatarColor}">
+        {userInitial}
+      </div>
+      <div class="user-info">
+        <span class="user-name">{userName}</span>
+        {#if userEmail && userEmail !== userName}
+          <span class="user-email">{userEmail}</span>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
 </div>
 
 <style>
@@ -213,7 +238,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    padding: 8px 0 32px;
+    padding: 8px 0 16px;
     display: flex;
     flex-direction: column;
   }
@@ -292,7 +317,7 @@
     color: rgba(235,235,245,0.6);
   }
 
-  /* ── Chevron ── */
+  /* ── Chevron (só conversas) ── */
   .row-chevron {
     width: 13px; height: 13px;
     background: rgba(60,60,67,0.28);
@@ -341,6 +366,67 @@
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
   .dark .empty { color: rgba(235,235,245,0.3); }
+
+  /* ── User footer ── */
+  .user-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+    border-top: 0.5px solid rgba(0,0,0,0.07);
+    background: #ffffff;
+  }
+  .user-footer.dark {
+    border-top-color: rgba(255,255,255,0.07);
+    background: #111111;
+  }
+
+  /* ── Avatar circular ── */
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.5px;
+  }
+
+  /* ── User info ── */
+  .user-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+  .user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .dark .user-name { color: #fff; }
+
+  .user-email {
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(60,60,67,0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .dark .user-email { color: rgba(235,235,245,0.4); }
 
   /* ── Icon mask utility ── */
   .icon-mask {

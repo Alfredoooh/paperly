@@ -44,7 +44,7 @@
     {#each DRAWER_APPS as app, i}
       {#if i === 1}<div class="apps-divider"></div>{/if}
       <div
-        class="apps-item pulse-tap"
+        class="apps-item"
         class:active={app.id === activeApp}
         title={app.title}
         on:click={() => switchApp(app.id)}
@@ -178,35 +178,24 @@
   .drawer.dark  .apps-bar { border-right:1px solid #2C2C2E; }
 
   .apps-item {
-    width:48px; height:48px; border-radius:50%;
+    width:44px; height:44px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; flex-shrink:0;
-    position:relative; padding:0;
-    background:transparent;
     transition:transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s cubic-bezier(0.4,0,.2,1);
+    padding:0; background:transparent;
   }
-  /* anel gradiente Instagram colado ao ícone */
-  .apps-item::before {
-    content:'';
-    position:absolute; inset:-3px;
-    border-radius:50%;
+  .apps-item:active { transform:scale(0.88); opacity:.78; }
+  .apps-item img {
+    width:40px; height:40px; border-radius:50%; object-fit:cover; display:block;
+    padding:2.5px;
+    background:transparent;
+    transition:background .2s ease, padding .2s ease;
+    box-sizing:border-box;
+  }
+  .apps-item.active img {
+    padding:2.5px;
     background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);
-    opacity:0;
-    transition:opacity .2s ease;
-    z-index:0;
   }
-  .apps-item::after {
-    content:'';
-    position:absolute; inset:-1px;
-    border-radius:50%;
-    z-index:1;
-  }
-  .drawer.light .apps-item::after { background:#F3F4F6; }
-  .drawer.dark  .apps-item::after { background:#141414; }
-  .apps-item.active::before { opacity:1; }
-  .apps-item img { width:34px; height:34px; border-radius:50%; object-fit:cover; position:relative; z-index:2; }
-  /* pulse-tap local para apps-item — só anima no clique */
-  .apps-item.pulse-tap:active { transform:scale(0.88); opacity:.75; }
   .apps-divider { width:32px; height:1px; background:#E5E7EB; margin:2px 0; flex-shrink:0; }
   .drawer.dark .apps-divider { background:#2C2C2E; }
 

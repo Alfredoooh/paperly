@@ -841,8 +841,8 @@
 </div>
 
 <style>
-  .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
-  .chat-root.page-hidden { pointer-events:none; visibility:hidden; }
+  .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; z-index:1; }
+  .chat-root.page-hidden { z-index:-1; pointer-events:none; }
   .chat-root.dark { background:#0F0F0F; }
 
   .appbar-gradient { position:absolute; top:0; left:0; right:0; height:90px; pointer-events:none; z-index:39; }

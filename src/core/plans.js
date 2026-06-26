@@ -28,9 +28,9 @@ export const DRAWER_APPS = [
   { id: 'ai',         label: 'AI',         icon: '/icons/png/logo.png',       title: 'AI',         fullDrawer: true },
   { id: 'music',      label: 'Music',      icon: '/icons/png/music.png',      title: 'Music' },
   { id: 'games',      label: 'Games',      icon: '/icons/png/games.png',      title: 'Games' },
-  { id: 'media',      label: 'Media',      icon: '/icons/svg/web.svg',        title: 'Media' },
-  { id: 'news',       label: 'News',       icon: '/icons/svg/web.svg',        title: 'News' },
-  { id: 'downloader', label: 'Downloader', icon: '/icons/svg/download.svg',   title: 'Downloader' },
+  { id: 'media',      label: 'Media',      icon: '/icons/png/media.png',      title: 'Media' },
+  { id: 'news',       label: 'News',       icon: '/icons/png/news.png',       title: 'News' },
+  { id: 'downloader', label: 'Downloader', icon: '/icons/png/downloader.png', title: 'Downloader' },
 ];
 
 export const PLANS_DATA = {

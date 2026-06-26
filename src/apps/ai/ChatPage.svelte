@@ -6,7 +6,6 @@
   import { AVAILABLE_MODELS, AVAILABLE_LANGUAGES, DRAWER_APPS } from '../../core/plans.js';
   import Drawer       from '../shared/Drawer.svelte';
   import ModalSheet   from '../shared/ModalSheet.svelte';
-  import AppsSheet    from '../shared/AppsSheet.svelte';
   import SettingsPage from './SettingsPage.svelte';
 
   export let isDark = false;
@@ -28,6 +27,14 @@
   let activeApp        = localStorage.getItem('nexa_active_app') || 'ai';
   let conversations    = [];
   let showSettings     = false;
+
+  const drawerMenuItems = [
+    { icon: 'new_chat', label: 'Nova conversa', action: () => newChat() },
+    { icon: 'user', label: 'Perfil', action: () => { showSettings = true; } },
+    { icon: 'folder', label: 'Projetos', action: () => showToast('Projetos em breve'), keepOpen: true },
+    { icon: 'extras', label: 'Extras', action: () => { sheetMode = 'extras'; showSheet = true; } },
+    { icon: 'settings', label: 'Definições', action: () => { showSettings = true; } },
+  ];
 
   let displayMessages  = [];
   let chatHistory      = [];
@@ -428,12 +435,16 @@
     }
   }
 
-  function handleSwitchApp(e) {
-    const id = e.detail.id;
-    activeApp = id; localStorage.setItem('nexa_active_app', id);
+  function openApp(id) {
+    activeApp = id;
+    localStorage.setItem('nexa_active_app', id);
+    showSheet = false;
     drawerOpen = false;
-    if (id !== 'ai') dispatch('nav', { to: id, data: { user: effectiveUser } });
-    else showToast('IA ativa');
+    if (id !== 'ai') {
+      dispatch('nav', { to: id, data: { user: effectiveUser } });
+    } else {
+      showToast('IA ativa');
+    }
   }
 
   function handleOpenConv(e) {
@@ -627,7 +638,7 @@
 </script>
 
 <!-- ══════════════════════ TEMPLATE ══════════════════════ -->
-<div class="chat-root" class:dark={isDark}>
+<div class="chat-root" class:dark={isDark} style="background:{c.background};color:{c.textPrimary}">
 
   <div class="appbar-gradient" class:dark={isDark}></div>
 
@@ -666,16 +677,13 @@
   </div>
 
   <Drawer
-    {isDark} user={effectiveUser} open={drawerOpen} {activeApp}
+    {isDark} user={effectiveUser} open={drawerOpen}
+    title="AI" subtitle="Conversas e ferramentas"
+    menuItems={drawerMenuItems}
     {conversations} currentConvId={currentConvId}
     on:close={() => drawerOpen=false}
-    on:switchApp={handleSwitchApp}
     on:openConv={handleOpenConv}
     on:convOptions={handleConvOptions}
-    on:newChat={newChat}
-    on:settings={() => { drawerOpen=false; showSettings=true; }}
-    on:projects={() => showToast('Projetos em breve')}
-    on:extras={() => { drawerOpen=false; sheetMode='extras'; showSheet=true; }}
   />
 
   <!-- Messages -->
@@ -795,7 +803,7 @@
       </button>
       <div class="flex1"></div>
       <button class="edit-btn pulse-tap" style="background:{c.tabPreviewPillBg};color:{c.textPrimary}" on:click={() => { sheetMode='apps'; showSheet=true; }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/tabs.svg');-webkit-mask-image:url('/icons/svg/tabs.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
         <span class="edit-label">Apps</span>
       </button>
       <div style="width:8px"></div>
@@ -904,10 +912,23 @@
       </div>
 
     {:else if sheetMode === 'apps'}
-      <AppsSheet {isDark} currentApp={activeApp} on:selectApp={(e) => {
-        showSheet = false;
-        if (e.detail.id !== 'ai') dispatch('nav', { to: e.detail.id, data: { user: effectiveUser } });
-      }} />
+      <div class="sheet-title" style="color:{c.textPrimary}">Apps</div>
+      <div class="apps-grid">
+        {#each DRAWER_APPS as app}
+          <button
+            type="button"
+            class="app-card pulse-tap"
+            class:active={app.id === activeApp}
+            style="border-color:{app.id===activeApp?c.primary:c.divider};background:{app.id===activeApp?(isDark?'rgba(47,123,246,0.14)':'rgba(47,123,246,0.08)'):(isDark?'#1C1C1E':'#FFFFFF')}"
+            on:click={() => openApp(app.id)}
+          >
+            <img src={app.icon} alt={app.title} class="app-card-icon" />
+            <div class="app-card-title" style="color:{c.textPrimary}">{app.title}</div>
+            <div class="app-card-sub" style="color:{c.textSecondary}">{app.id === 'ai' ? 'Inteligência artificial' : 'Abrir aplicativo'}</div>
+          </button>
+        {/each}
+      </div>
+      <div style="height:12px"></div>
     {/if}
   </ModalSheet>
 
@@ -954,11 +975,11 @@
       </div>
       <div class="rec-top-bar">
         <button class="rec-top-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:20px;height:20px;background:#fff"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:20px;height:20px;background:{isDark ? '#F3F4F6' : '#111827'}"></span>
         </button>
         <span class="rec-timer">{recTimerStr}</span>
         <button class="rec-top-btn pulse-tap" on:click={stopRecording}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#F3F4F6' : '#111827'} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
       </div>
     </div>
@@ -1111,6 +1132,15 @@
   .send-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; }
 
   .sheet-title { padding:4px 20px 12px; font-size:17px; font-weight:700; }
+  .apps-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:0 16px 4px; }
+  .app-card {
+    display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+    padding:14px; border-radius:18px; border:1px solid; cursor:pointer; text-align:left;
+  }
+  .app-card.active { box-shadow:0 12px 28px rgba(47,123,246,.12); }
+  .app-card-icon { width:38px; height:38px; border-radius:12px; object-fit:cover; display:block; }
+  .app-card-title { font-size:14px; font-weight:700; line-height:1.1; }
+  .app-card-sub { font-size:11px; line-height:1.35; opacity:.82; }
   .sheet-row { display:flex; align-items:center; padding:14px 20px; }
   .sheet-sep { height:1px; margin-left:56px; }
 
@@ -1131,7 +1161,7 @@
   .cd-btn { flex:1; border:none; border-radius:10px; padding:11px 0; font-size:14.5px; font-weight:600; cursor:pointer; font-family:inherit; }
   .cd-cancel { background:rgba(127,127,127,.14); }
 
-  .rec-overlay { position:fixed; inset:0; z-index:300; background:#ffffff; display:flex; flex-direction:column; overflow:hidden; }
+  .rec-overlay { position:fixed; inset:0; z-index:300; background:var(--app-bg); display:flex; flex-direction:column; overflow:hidden; }
   .rec-overlay.dark { background:#0F0F0F; }
   .rec-top-bar { position:absolute; top:0; left:0; right:0; height:72px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; z-index:10; }
   .rec-top-btn { width:46px; height:46px; border-radius:50%; border:none; background:rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }

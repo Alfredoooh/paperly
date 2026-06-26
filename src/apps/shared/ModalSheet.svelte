@@ -70,7 +70,7 @@
     transform:translateY(100%);
     transition:transform .4s cubic-bezier(0.4,0,0.2,1);
     border-radius:12px 12px 0 0; max-height:85vh; overflow-y:auto;
-    background:#FFFFFF;
+    background:var(--app-surface, #FFFFFF);
     will-change:transform;
   }
   .sheet.dark { background:#1C1C1E; }

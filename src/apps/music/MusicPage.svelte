@@ -3,7 +3,6 @@
   import { getThemeColors } from '../../core/theme.js';
   import { showToast } from '../../core/utils.js';
   import Drawer from '../shared/Drawer.svelte';
-  import SettingsPage from '../ai/SettingsPage.svelte';
 
   export let isDark = false;
   export let user   = null;
@@ -30,8 +29,13 @@
     'linear-gradient(135deg,#EC4899,#F472B6)',
   ];
 
-  let filter = '', drawerOpen = false, nowPlaying = null, showSearch = false, showSettings = false;
+  let filter = '', drawerOpen = false, nowPlaying = null, showSearch = false;
   $: filtered = tracks.filter(t => !filter.trim() || [t.title,t.artist,t.tag].some(v=>v.toLowerCase().includes(filter.trim().toLowerCase())));
+  const drawerMenuItems = [
+    { icon: 'search', label: 'Pesquisar', action: () => { showSearch = true; } },
+    { icon: 'bookmark', label: 'Favoritos', action: () => showToast('Favoritos em breve') },
+    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
+  ];
 </script>
 
 <div class="music-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -50,10 +54,10 @@
     </button>
   </div>
 
-  <Drawer {isDark} {user} open={drawerOpen} activeApp="music"
+  <Drawer {isDark} {user} open={drawerOpen}
+    title="Music" subtitle="Pesquisar e ouvir"
+    menuItems={drawerMenuItems}
     on:close={() => drawerOpen=false}
-    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
-    on:settings={() => { drawerOpen=false; showSettings=true; }}
   />
 
   <div class="content">
@@ -105,7 +109,7 @@
   .appbar-gradient.dark { background:linear-gradient(to bottom,rgba(15,15,15,1) 0%,rgba(15,15,15,.95) 45%,rgba(15,15,15,0) 100%); }
   .appbar { position:absolute; top:0; left:0; right:0; z-index:40; height:60px; display:flex; align-items:center; padding:0 8px; }
   .icon-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; background:none; }
-  .content { padding-top:68px; padding-bottom:104px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; }
+  .content { padding-top:68px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; }
   .search-bar { display:flex; align-items:center; gap:10px; margin:8px 16px 0; border-radius:14px; padding:0 14px; height:44px; }
   .search-bar input { flex:1; border:none; outline:none; background:transparent; font-size:14px; font-family:inherit; -webkit-user-select:text; user-select:text; }
   .search-bar input::placeholder { color:rgba(127,127,127,.7); }
@@ -129,10 +133,3 @@
   .pulse-tap:active { transform:scale(0.97); opacity:.86; }
   .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>
-{#if showSettings}
-  <SettingsPage {isDark} {user}
-    on:close={() => showSettings=false}
-    on:themeChange={(e) => dispatch('nav', { to: 'music', data: { isDark: e.detail.isDark } })}
-    on:logout={() => dispatch('nav', { to: 'login', data: { logout: true } })}
-  />
-{/if}

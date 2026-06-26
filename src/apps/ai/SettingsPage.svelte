@@ -16,7 +16,7 @@
   $: credits      = user?.credits ?? 0;
   $: maxCredits   = 100;
   $: creditsPct   = Math.min(Math.max(credits / maxCredits, 0), 1);
-  $: creditsColor = credits <= 10 ? '#FF3B30' : credits <= 30 ? '#FF9500' : '#34C759';
+  $: creditsColor = credits <= 10 ? '#FF3B30' : credits <= 30 ? '#FF9500' : '#007AFF';
   $: creditsLabel = credits <= 10 ? 'A acabar' : `${credits} créditos`;
 
   const AVATAR_COLORS = [
@@ -84,22 +84,19 @@
 <!-- ── Loader ── -->
 {#if loading}
   <div class="loader-overlay" class:dark={isDark} transition:fade={{ duration: 200 }}>
-    <div class="md-spinner" class:dark={isDark}>
-      <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-        <circle
-          class="md-track"
-          cx="18" cy="18" r="15"
-          fill="none"
-          stroke-width="3"
-        />
-        <circle
-          class="md-arc"
-          cx="18" cy="18" r="15"
-          fill="none"
-          stroke-width="3"
-          stroke-linecap="round"
-        />
-      </svg>
+    <div class="loader" class:dark={isDark}>
+      <div class="bar1"></div>
+      <div class="bar2"></div>
+      <div class="bar3"></div>
+      <div class="bar4"></div>
+      <div class="bar5"></div>
+      <div class="bar6"></div>
+      <div class="bar7"></div>
+      <div class="bar8"></div>
+      <div class="bar9"></div>
+      <div class="bar10"></div>
+      <div class="bar11"></div>
+      <div class="bar12"></div>
     </div>
     {#if loadingMsg}
       <span class="loading-msg" class:dark={isDark}>{loadingMsg}</span>
@@ -113,7 +110,6 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <!-- Material arrow_back -->
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path
           d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
@@ -288,43 +284,47 @@
   }
   .loader-overlay.dark { background: #111; }
 
-  /* Material 3 Circular Progress Indicator — 32px, arco animado */
-  .md-spinner {
-    width: 32px;
-    height: 32px;
-    animation: md-rotate 1.4s linear infinite;
+  .loader {
+    position: relative;
+    width: 54px;
+    height: 54px;
+    border-radius: 10px;
   }
 
-  /* track: círculo de fundo subtil */
-  .md-track {
-    stroke: rgba(0, 0, 0, 0.08);
-  }
-  .md-spinner.dark .md-track {
-    stroke: rgba(255, 255, 255, 0.1);
-  }
-
-  /* arc: o arco que cresce e encolhe — cor primária */
-  .md-arc {
-    stroke: #007AFF;
-    stroke-dasharray: 80 94.25;
-    stroke-dashoffset: 0;
-    animation: md-arc-anim 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    transform-origin: center;
+  .loader div {
+    width: 8%;
+    height: 24%;
+    background: rgba(0, 0, 0, 0.55);
+    position: absolute;
+    left: 50%;
+    top: 30%;
+    opacity: 0;
+    border-radius: 50px;
+    box-shadow: 0 0 3px rgba(0,0,0,0.2);
+    animation: fade458 1s linear infinite;
   }
 
-  /* Rotação contínua do SVG inteiro */
-  @keyframes md-rotate {
-    from { transform: rotate(-90deg); }
-    to   { transform: rotate(270deg); }
+  .loader.dark div {
+    background: rgba(255, 255, 255, 0.55);
   }
 
-  /* O arco pulsa entre curto (~10%) e longo (~75%) do perímetro
-     Perímetro do círculo r=15: 2π×15 ≈ 94.25px */
-  @keyframes md-arc-anim {
-    0%   { stroke-dasharray:  9 94.25; stroke-dashoffset:  0;     }
-    50%  { stroke-dasharray: 70 94.25; stroke-dashoffset: -25;    }
-    100% { stroke-dasharray:  9 94.25; stroke-dashoffset: -94.25; }
+  @keyframes fade458 {
+    from { opacity: 1; }
+    to   { opacity: 0.25; }
   }
+
+  .loader .bar1  { transform: rotate(0deg)   translate(0, -130%); animation-delay: 0s;     }
+  .loader .bar2  { transform: rotate(30deg)  translate(0, -130%); animation-delay: -1.1s;  }
+  .loader .bar3  { transform: rotate(60deg)  translate(0, -130%); animation-delay: -1s;    }
+  .loader .bar4  { transform: rotate(90deg)  translate(0, -130%); animation-delay: -0.9s;  }
+  .loader .bar5  { transform: rotate(120deg) translate(0, -130%); animation-delay: -0.8s;  }
+  .loader .bar6  { transform: rotate(150deg) translate(0, -130%); animation-delay: -0.7s;  }
+  .loader .bar7  { transform: rotate(180deg) translate(0, -130%); animation-delay: -0.6s;  }
+  .loader .bar8  { transform: rotate(210deg) translate(0, -130%); animation-delay: -0.5s;  }
+  .loader .bar9  { transform: rotate(240deg) translate(0, -130%); animation-delay: -0.4s;  }
+  .loader .bar10 { transform: rotate(270deg) translate(0, -130%); animation-delay: -0.3s;  }
+  .loader .bar11 { transform: rotate(300deg) translate(0, -130%); animation-delay: -0.2s;  }
+  .loader .bar12 { transform: rotate(330deg) translate(0, -130%); animation-delay: -0.1s;  }
 
   .loading-msg {
     font-size: 13px;

@@ -47,7 +47,6 @@
   let langSearch      = '';
   let currentLanguage = localStorage.getItem('nexa_language') || 'pt';
 
-  // posição do popup: { top, left, right } em px relativos ao viewport
   let popupPos = { top: 0, right: 0 };
 
   $: filteredLangs = AVAILABLE_LANGUAGES.filter(l => {
@@ -57,7 +56,6 @@
 
   function openPopup(type, event) {
     const rect = event.currentTarget.getBoundingClientRect();
-    // popup surge mesmo abaixo da row, alinhado à direita da row
     popupPos = {
       top:   rect.bottom + 4,
       right: window.innerWidth - rect.right + 10
@@ -88,7 +86,7 @@
   <div class="loader-overlay" class:dark={isDark} transition:fade={{ duration: 200 }}>
     <div class="ios-spinner">
       {#each Array(12) as _, i}
-        <div class="spoke" style="--i:{i};--c:{isDark ? '#fff' : '#000'}"></div>
+        <div class="spoke" style="--i:{i}"></div>
       {/each}
     </div>
     {#if loadingMsg}
@@ -133,7 +131,6 @@
         <span class="row-sub">Básico e Premium</span>
       </button>
 
-      <!-- Créditos com barra inline -->
       <div class="row credits-row">
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
         <div class="credits-body">
@@ -200,7 +197,7 @@
 <!-- Plans modal -->
 <PlansModal {isDark} {user} open={showPlansModal} on:close={() => showPlansModal=false} />
 
-<!-- Popup overlay (invisível, fecha ao clicar fora) -->
+<!-- Popup overlay -->
 {#if showThemePicker || showLangPicker}
   <div class="popup-overlay" on:click={() => { showThemePicker=false; showLangPicker=false; }}></div>
 {/if}
@@ -268,26 +265,52 @@
   .loader-overlay {
     position: fixed; inset: 0; z-index: 200;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 14px;
+    align-items: center; justify-content: center; gap: 18px;
     background: #fff;
   }
   .loader-overlay.dark { background: #111; }
 
-  .ios-spinner { position: relative; width: 32px; height: 32px; }
-  .spoke {
-    position: absolute; top: 50%; left: 50%;
-    width: 2.6px; height: 7px; border-radius: 2px;
-    background: var(--c, #000);
-    transform-origin: center -6px;
-    transform: rotate(calc(var(--i) * 30deg)) translateY(-50%);
-    animation: ios-fade 1s linear infinite;
-    animation-delay: calc(var(--i) * -0.0833s);
-    opacity: 0.15;
+  /* Spinner iOS nativo: 44px total, spokes de 3.5×10px, raio de 11px */
+  .ios-spinner {
+    position: relative;
+    width: 44px;
+    height: 44px;
   }
-  @keyframes ios-fade { 0% { opacity: 1; } 100% { opacity: 0.15; } }
+  .spoke {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3px;
+    height: 10px;
+    border-radius: 1.5px;
+    /* cor via CSS var herdada do pai — definida inline no elemento pai */
+    background: currentColor;
+    /* centro de rotação = ponto médio do spoke no eixo Y, deslocado 11px para cima do centro */
+    transform-origin: 50% calc(50% + 11px);
+    transform: rotate(calc(var(--i) * 30deg)) translateX(-50%);
+    animation: ios-spoke-fade 1.2s linear infinite;
+    /* cada spoke começa com o seu delay negativo para que o spoke 0 seja o mais brilhante */
+    animation-delay: calc(var(--i) * -0.1s);
+    opacity: 0;
+  }
 
-  .loading-msg { font-size: 13px; color: rgba(60,60,67,.5); font-family: -apple-system, sans-serif; }
-  .loading-msg.dark { color: rgba(235,235,245,.4); }
+  /* Loader light: spokes pretos; loader dark: spokes brancos */
+  .loader-overlay:not(.dark) .ios-spinner { color: #000; }
+  .loader-overlay.dark       .ios-spinner { color: #fff; }
+
+  @keyframes ios-spoke-fade {
+    0%   { opacity: 1;    }
+    100% { opacity: 0.12; }
+  }
+
+  .loading-msg {
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(60,60,67,.55);
+    font-family: -apple-system, sans-serif;
+    letter-spacing: -.1px;
+  }
+  .loading-msg.dark { color: rgba(235,235,245,.45); }
 
   /* ── Page ── */
   .page {

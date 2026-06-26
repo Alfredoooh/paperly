@@ -13,8 +13,24 @@
 
   $: c = getThemeColors(isDark);
   $: credits      = user?.credits ?? 0;
-  $: creditsColor = credits <= 10 ? '#EF4444' : credits <= 30 ? '#F59E0B' : c.primary;
-  $: creditsLabel = credits <= 10 ? '⚠️ Créditos a acabar' : `${credits} créditos disponíveis`;
+  $: creditsColor = credits <= 10 ? '#FF3B30' : credits <= 30 ? '#FF9500' : '#34C759';
+  $: creditsLabel = credits <= 10 ? 'Créditos a acabar' : `${credits} créditos`;
+
+  const AVATAR_COLORS = [
+    '#FF3B30','#FF9500','#FFCC00','#34C759',
+    '#00C7BE','#007AFF','#5856D6','#AF52DE',
+    '#FF2D55','#A2845E'
+  ];
+  function getAvatarColor(str) {
+    if (!str) return AVATAR_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  }
+  $: userName    = user?.name || user?.displayName || user?.email || 'U';
+  $: userEmail   = user?.email || '';
+  $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
+  $: avatarColor = getAvatarColor(userName);
 
   let showThemePicker  = false;
   let showLangPicker   = false;
@@ -38,93 +54,119 @@
     if (user) await AuthApiService.logout(user.token);
     dispatch('logout');
   }
-
-  $: cardBg   = isDark ? '#0F1115' : '#F5F7FC';
-  $: panelBg  = isDark ? '#151821' : '#FFFFFF';
-  $: divColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  $: heroBg   = isDark ? 'linear-gradient(180deg,#0F1115,#0B0D11)' : 'linear-gradient(180deg,#F5F7FC,#F5F7FC)';
 </script>
 
-<div class="settings-backdrop open">
-  <div class="settings-card" style="background:{cardBg};color:{c.textPrimary}">
+<div class="page" class:dark={isDark}>
 
-    <!-- Header -->
-    <div class="settings-hero" style="background:{heroBg}">
-      <div class="hero-row">
-        <h1 class="settings-title" style="color:{c.textPrimary}">Definições</h1>
-        <div class="hero-btns">
-          <button class="icon-btn pulse-tap" style="background:{isDark?'#1D212A':'#FFFFFF'};color:#EF4444" on:click={handleLogout}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
-          <button class="icon-btn pulse-tap" style="background:{isDark?'#1D212A':'#FFFFFF'};color:{c.textPrimary}" on:click={() => dispatch('close')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
+  <!-- Header -->
+  <div class="header">
+    <button type="button" class="back-btn" on:click={() => dispatch('close')}>
+      <span
+        class="icon-mask"
+        style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:18px;height:18px;transform:rotate(180deg);"
+      ></span>
+    </button>
+    <span class="header-title">Definições</span>
+    <button type="button" class="logout-btn" on:click={handleLogout}>
+      <span
+        class="icon-mask"
+        style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;"
+      ></span>
+    </button>
+  </div>
+
+  <!-- Scroll body -->
+  <div class="body">
+
+    <!-- Avatar / user info -->
+    <div class="user-block">
+      <div class="avatar" style="background:{avatarColor}">{userInitial}</div>
+      <div class="user-info">
+        <span class="user-name">{userName}</span>
+        {#if userEmail && userEmail !== userName}
+          <span class="user-email">{userEmail}</span>
+        {/if}
       </div>
     </div>
 
-    <!-- Scroll -->
-    <div class="settings-scroll">
-      <div class="panel" style="background:{panelBg}">
-        <!-- Credits -->
-        <div class="row" style="border-bottom:1px solid {divColor}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={creditsColor} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          <span class="row-label" style="color:{c.textPrimary}">Saldo</span>
-          <span style="font-size:14px;font-weight:750;color:{creditsColor}">{creditsLabel}</span>
-        </div>
-        <!-- Plans -->
-        <button class="row row-btn pulse-tap" style="border-bottom:1px solid {divColor}" on:click={() => showPlansModal=true}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/tabs.svg');-webkit-mask-image:url('/icons/svg/tabs.svg');background:{c.iconTint};width:20px;height:20px;flex-shrink:0"></span>
-          <div style="flex:1;text-align:left">
-            <div style="font-size:15px;color:{c.textPrimary};font-weight:700">Planos</div>
-            <div style="font-size:12.5px;color:{c.textSecondary};margin-top:2px">Básico e Premium</div>
-          </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c.iconTintSecondary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <!-- Tiles -->
-        <div style="padding:10px 0">
-          {#each [['appearance','Aparência','theme'],['language','Idioma','language'],['privacy','Privacidade','privacy'],['security','Segurança','security']] as [icon,label,action], i}
-            <button class="row row-btn pulse-tap" style="{i<3?`border-bottom:1px solid ${divColor}`:''}" on:click={() => {
-              if (action==='theme') showThemePicker=true;
-              else if (action==='language') { langSearch=''; showLangPicker=true; }
-              else showToast(`${label} em breve`);
-            }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');background:{c.iconTint};width:20px;height:20px;flex-shrink:0"></span>
-              <span style="margin-left:14px;flex:1;font-size:15px;color:{c.textPrimary};text-align:left">{label}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c.iconTintSecondary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          {/each}
-        </div>
-      </div>
+    <!-- Secção: Conta -->
+    <div class="section-label">Conta</div>
+    <div class="section">
+      <button type="button" class="row" on:click={() => showPlansModal = true}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/tabs.svg');-webkit-mask-image:url('/icons/svg/tabs.svg');"></span>
+        <span class="row-label">Planos</span>
+        <span class="row-sub">Básico e Premium</span>
+      </button>
 
-      <p class="section-label" style="color:{isDark?'#8E95A3':'#6C7381'}">INFORMAÇÃO</p>
-      <div class="panel" style="background:{panelBg}">
-        {#each [['about','Sobre a app'],['web','Web & links'],['warning','Ajuda e suporte']] as [icon,label], i}
-          <button class="row row-btn pulse-tap" style="{i<2?`border-bottom:1px solid ${divColor}`:''}" on:click={() => showToast(`${label} em breve`)}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');background:{c.iconTint};width:20px;height:20px;flex-shrink:0"></span>
-            <span style="margin-left:14px;flex:1;font-size:15px;color:{c.textPrimary};text-align:left">{label}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c.iconTintSecondary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        {/each}
-      </div>
+      <button type="button" class="row">
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
+        <span class="row-label">Saldo</span>
+        <span class="row-trail" style="color:{creditsColor}">{creditsLabel}</span>
+      </button>
     </div>
+
+    <!-- Secção: Preferências -->
+    <div class="section-label">Preferências</div>
+    <div class="section">
+      <button type="button" class="row" on:click={() => showThemePicker = true}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');"></span>
+        <span class="row-label">Aparência</span>
+        <span class="row-trail">{isDark ? 'Escuro' : 'Claro'}</span>
+      </button>
+
+      <button type="button" class="row" on:click={() => { langSearch = ''; showLangPicker = true; }}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/language.svg');-webkit-mask-image:url('/icons/svg/language.svg');"></span>
+        <span class="row-label">Idioma</span>
+        <span class="row-trail">{AVAILABLE_LANGUAGES.find(l=>l.code===currentLanguage)?.name || 'Português'}</span>
+      </button>
+
+      <button type="button" class="row" on:click={() => showToast('Privacidade em breve')}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/privacy.svg');-webkit-mask-image:url('/icons/svg/privacy.svg');"></span>
+        <span class="row-label">Privacidade</span>
+      </button>
+
+      <button type="button" class="row" on:click={() => showToast('Segurança em breve')}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/security.svg');-webkit-mask-image:url('/icons/svg/security.svg');"></span>
+        <span class="row-label">Segurança</span>
+      </button>
+    </div>
+
+    <!-- Secção: Informação -->
+    <div class="section-label">Informação</div>
+    <div class="section">
+      <button type="button" class="row" on:click={() => showToast('Sobre a app em breve')}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/about.svg');-webkit-mask-image:url('/icons/svg/about.svg');"></span>
+        <span class="row-label">Sobre a app</span>
+      </button>
+
+      <button type="button" class="row" on:click={() => showToast('Web & links em breve')}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/web.svg');-webkit-mask-image:url('/icons/svg/web.svg');"></span>
+        <span class="row-label">Web & links</span>
+      </button>
+
+      <button type="button" class="row danger" on:click={handleLogout}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');background:#FF3B30;"></span>
+        <span class="row-label">Terminar sessão</span>
+      </button>
+    </div>
+
   </div>
 </div>
 
-<!-- Plans modal — componente próprio com styles isolados -->
+<!-- Plans modal -->
 <PlansModal {isDark} {user} open={showPlansModal} on:close={() => showPlansModal=false} />
 
 <!-- Theme picker -->
 {#if showThemePicker}
   <div class="popup-overlay" on:click={() => showThemePicker=false}></div>
-  <div class="popup-box" style="background:{isDark?'#151821':'#FFFFFF'}">
-    <div class="popup-title" style="color:{c.textPrimary}">Tema</div>
-    {#each [[false,'Claro'],[true,'Escuro']] as [dark,label]}
-      <div style="border-top:1px solid {divColor}"></div>
-      <button class="popup-row pulse-tap" on:click={() => { showThemePicker=false; dispatch('themeChange',{isDark:dark}); }}>
-        <span style="font-size:15px;flex:1;color:{c.textPrimary};text-align:left">{label}</span>
+  <div class="popup-box" class:dark={isDark}>
+    <div class="popup-title">Tema</div>
+    {#each [[false,'Claro'],[true,'Escuro']] as [dark, label]}
+      <div class="popup-sep"></div>
+      <button type="button" class="popup-row" on:click={() => { showThemePicker=false; dispatch('themeChange',{isDark:dark}); }}>
+        <span class="popup-label">{label}</span>
         {#if isDark === dark}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c.primary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         {/if}
       </button>
     {/each}
@@ -134,24 +176,29 @@
 <!-- Language picker -->
 {#if showLangPicker}
   <div class="popup-overlay" on:click={() => showLangPicker=false}></div>
-  <div class="popup-box lang-box" style="background:{isDark?'#151821':'#FFFFFF'}">
-    <div class="popup-title" style="color:{c.textPrimary}">Idioma</div>
-    <div style="padding:0 16px 10px;flex-shrink:0">
-      <input class="lang-search" style="background:{isDark?'#232833':'#F2F4FA'};color:{c.textPrimary}" placeholder="Pesquisar idioma..." bind:value={langSearch} />
+  <div class="popup-box lang-box" class:dark={isDark}>
+    <div class="popup-title">Idioma</div>
+    <div class="lang-search-wrap">
+      <input
+        class="lang-search"
+        class:dark={isDark}
+        placeholder="Pesquisar idioma..."
+        bind:value={langSearch}
+      />
     </div>
-    <div class="lang-list" style="border-top:1px solid {divColor}">
+    <div class="lang-list">
       {#if !filteredLangs.length}
-        <div style="padding:24px 20px;text-align:center;font-size:13px;color:{c.textSecondary}">Nenhum idioma encontrado</div>
+        <div class="lang-empty">Nenhum idioma encontrado</div>
       {:else}
         {#each filteredLangs as lang, i}
-          {#if i > 0}<div style="height:1px;background:{divColor}"></div>{/if}
-          <button class="popup-row pulse-tap" on:click={() => setLang(lang.code)}>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:15px;font-weight:600;color:{lang.code===currentLanguage?c.primary:c.textPrimary}">{lang.name}</div>
-              <div style="font-size:12.5px;color:{c.textSecondary};margin-top:1px">{lang.native}</div>
+          {#if i > 0}<div class="popup-sep"></div>{/if}
+          <button type="button" class="popup-row" on:click={() => setLang(lang.code)}>
+            <div class="lang-info">
+              <span class="lang-name" class:active={lang.code === currentLanguage}>{lang.name}</span>
+              <span class="lang-native">{lang.native}</span>
             </div>
             {#if lang.code === currentLanguage}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c.primary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             {/if}
           </button>
         {/each}
@@ -161,30 +208,214 @@
 {/if}
 
 <style>
-  .settings-backdrop { position:fixed; inset:0; z-index:150; background:rgba(0,0,0,.22); opacity:0; pointer-events:none; backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px); transition:opacity .28s ease,backdrop-filter .28s ease; display:flex; align-items:stretch; justify-content:stretch; padding:0; }
-  .settings-backdrop.open { opacity:1; pointer-events:auto; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-  .settings-card { width:100%; height:100%; border-radius:0; overflow:hidden; display:flex; flex-direction:column; }
-  .settings-hero { padding:calc(14px + env(safe-area-inset-top)) 16px 18px; flex-shrink:0; }
-  .hero-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .settings-title { margin:0; font-size:22px; font-weight:850; letter-spacing:-.03em; }
-  .hero-btns { display:flex; align-items:center; gap:8px; }
-  .icon-btn { width:42px; height:42px; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; border-radius:50%; box-shadow:0 10px 24px rgba(0,0,0,.12); }
-  .settings-scroll { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 16px calc(22px + env(safe-area-inset-bottom)); }
-  .panel { border-radius:26px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.08); }
-  .row { display:flex; align-items:center; padding:16px; }
-  .row-btn { width:100%; background:none; border:none; cursor:pointer; }
-  .row-label { margin-left:14px; flex:1; font-size:15px; font-weight:650; }
-  .section-label { font-size:11px; font-weight:750; letter-spacing:.08em; margin:18px 4px 10px; text-transform:uppercase; }
+  /* ── Page ── */
+  .page {
+    position: fixed; inset: 0; z-index: 150;
+    display: flex; flex-direction: column;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  }
+  .page.dark { background: #111111; }
 
-  .popup-overlay { position:fixed; inset:0; z-index:230; background:rgba(0,0,0,.06); backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); }
-  .popup-box { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:min(86vw,340px); z-index:231; border-radius:18px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.28); padding:8px 0 12px; }
-  .popup-title { padding:10px 20px 12px; font-size:16px; font-weight:700; }
-  .popup-row { width:100%; display:flex; align-items:center; padding:13px 20px; background:none; border:none; cursor:pointer; font-family:inherit; }
-  .lang-box { max-height:70vh; display:flex; flex-direction:column; padding:8px 0 4px; }
-  .lang-search { width:100%; border:none; outline:none; border-radius:10px; padding:10px 13px; font-size:14px; font-family:inherit; -webkit-user-select:text; user-select:text; }
-  .lang-list { overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch; }
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center;
+    padding: 16px 16px 10px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    flex-shrink: 0;
+    gap: 8px;
+  }
+  .header-title {
+    flex: 1; font-size: 17px; font-weight: 600;
+    color: #000; text-align: center; letter-spacing: -0.3px;
+  }
+  .page.dark .header-title { color: #fff; }
 
-  .pulse-tap { cursor:pointer; transition:transform .11s cubic-bezier(0.4,0,.2,1),opacity .11s cubic-bezier(0.4,0,.2,1); }
-  .pulse-tap:active { transform:scale(0.97); opacity:.86; }
-  .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
+  .back-btn, .logout-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; border-radius: 50%;
+    transition: background .12s ease;
+    color: #000;
+  }
+  .page.dark .back-btn, .page.dark .logout-btn { color: #fff; }
+  .back-btn:active, .logout-btn:active { background: rgba(0,0,0,0.06); }
+  .page.dark .back-btn:active, .page.dark .logout-btn:active { background: rgba(255,255,255,0.08); }
+  .back-btn .icon-mask { background: #000; }
+  .page.dark .back-btn .icon-mask { background: #fff; }
+  .logout-btn .icon-mask { background: #FF3B30; }
+
+  /* ── Scroll body ── */
+  .body {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 0 40px;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── User block ── */
+  .user-block {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px 20px;
+  }
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: #fff;
+    flex-shrink: 0; letter-spacing: -0.5px;
+  }
+  .user-info { display: flex; flex-direction: column; min-width: 0; }
+  .user-name {
+    font-size: 16px; font-weight: 600; color: #000;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .page.dark .user-name { color: #fff; }
+  .user-email {
+    font-size: 13px; color: rgba(60,60,67,0.5);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+  }
+  .page.dark .user-email { color: rgba(235,235,245,0.4); }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: rgba(60,60,67,0.5);
+    padding: 16px 20px 6px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .page.dark .section-label { color: rgba(235,235,245,0.4); }
+
+  /* ── Section ── */
+  .section { display: flex; flex-direction: column; padding: 0 12px; }
+
+  /* ── Row ── */
+  .row {
+    width: 100%; display: flex; align-items: center; gap: 13px;
+    padding: 13px 10px; background: transparent; border: none;
+    cursor: pointer; text-align: left; border-radius: 10px;
+    -webkit-user-select: none; user-select: none;
+    transition: background .12s ease;
+    color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  }
+  .page.dark .row { color: #fff; }
+  .row:active { background: rgba(0,0,0,0.05); }
+  .page.dark .row:active { background: rgba(255,255,255,0.06); }
+  .row.danger { color: #FF3B30; }
+
+  /* ── Row icon — mesmo tamanho dos extras (17px) ── */
+  .row-icon {
+    width: 17px; height: 17px;
+    background: rgba(60,60,67,0.55);
+    flex-shrink: 0;
+    display: block;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+  }
+  .page.dark .row-icon { background: rgba(235,235,245,0.55); }
+  .danger .row-icon { background: #FF3B30 !important; }
+
+  .row-label { flex: 1; font-size: 15px; font-weight: 400; min-width: 0; }
+  .row.danger .row-label { color: #FF3B30; }
+
+  .row-sub {
+    font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0;
+  }
+  .page.dark .row-sub { color: rgba(235,235,245,0.35); }
+
+  .row-trail {
+    font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0;
+  }
+  .page.dark .row-trail { color: rgba(235,235,245,0.35); }
+
+  /* ── Popup overlay ── */
+  .popup-overlay {
+    position: fixed; inset: 0; z-index: 160;
+    background: rgba(0,0,0,0.06);
+    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  }
+
+  /* ── Popup box ── */
+  .popup-box {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(86vw, 320px);
+    z-index: 161;
+    background: #ffffff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    padding: 0;
+  }
+  .popup-box.dark { background: #1c1c1e; }
+
+  .popup-title {
+    padding: 14px 20px 10px;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: rgba(60,60,67,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .popup-box.dark .popup-title { color: rgba(235,235,245,0.4); }
+
+  .popup-sep {
+    height: 0.5px;
+    background: rgba(0,0,0,0.08);
+    margin: 0 16px;
+  }
+  .popup-box.dark .popup-sep { background: rgba(255,255,255,0.08); }
+
+  .popup-row {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; background: none; border: none;
+    cursor: pointer; font-family: inherit;
+    transition: background .12s ease;
+  }
+  .popup-row:active { background: rgba(0,0,0,0.04); }
+  .popup-box.dark .popup-row:active { background: rgba(255,255,255,0.05); }
+
+  .popup-label {
+    font-size: 15px; font-weight: 400; color: #000;
+  }
+  .popup-box.dark .popup-label { color: #fff; }
+
+  /* ── Lang picker ── */
+  .lang-box {
+    max-height: 70vh;
+    display: flex; flex-direction: column;
+  }
+  .lang-search-wrap { padding: 0 16px 10px; flex-shrink: 0; }
+  .lang-search {
+    width: 100%; border: none; outline: none;
+    border-radius: 10px; padding: 9px 13px;
+    font-size: 14px; font-family: inherit;
+    background: rgba(0,0,0,0.05);
+    color: #000;
+    -webkit-user-select: text; user-select: text;
+  }
+  .lang-search.dark { background: rgba(255,255,255,0.08); color: #fff; }
+  .lang-search::placeholder { color: rgba(60,60,67,0.4); }
+  .lang-search.dark::placeholder { color: rgba(235,235,245,0.3); }
+
+  .lang-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+  .lang-empty {
+    padding: 20px; text-align: center; font-size: 13px;
+    color: rgba(60,60,67,0.4);
+  }
+  .popup-box.dark .lang-empty { color: rgba(235,235,245,0.3); }
+
+  .lang-info { display: flex; flex-direction: column; text-align: left; }
+  .lang-name { font-size: 15px; font-weight: 400; color: #000; }
+  .popup-box.dark .lang-name { color: #fff; }
+  .lang-name.active { color: #007AFF; font-weight: 600; }
+  .lang-native { font-size: 12.5px; color: rgba(60,60,67,0.5); margin-top: 1px; }
+  .popup-box.dark .lang-native { color: rgba(235,235,245,0.35); }
+
+  /* ── Icon mask utility ── */
+  .icon-mask {
+    display: block; mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center; flex-shrink: 0;
+  }
 </style>

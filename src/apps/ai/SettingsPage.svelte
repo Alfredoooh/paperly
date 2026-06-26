@@ -84,10 +84,22 @@
 <!-- ── Loader ── -->
 {#if loading}
   <div class="loader-overlay" class:dark={isDark} transition:fade={{ duration: 200 }}>
-    <div class="ios-spinner">
-      {#each Array(12) as _, i}
-        <div class="spoke" style="--i:{i}"></div>
-      {/each}
+    <div class="md-spinner" class:dark={isDark}>
+      <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <circle
+          class="md-track"
+          cx="18" cy="18" r="15"
+          fill="none"
+          stroke-width="3"
+        />
+        <circle
+          class="md-arc"
+          cx="18" cy="18" r="15"
+          fill="none"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </svg>
     </div>
     {#if loadingMsg}
       <span class="loading-msg" class:dark={isDark}>{loadingMsg}</span>
@@ -101,7 +113,13 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:18px;height:18px;transform:rotate(180deg);background:{isDark?'#fff':'#000'}"></span>
+      <!-- Material arrow_back -->
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
+          fill={isDark ? '#fff' : '#000'}
+        />
+      </svg>
     </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" on:click={handleLogout}>
@@ -265,52 +283,57 @@
   .loader-overlay {
     position: fixed; inset: 0; z-index: 200;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 18px;
+    align-items: center; justify-content: center; gap: 16px;
     background: #fff;
   }
   .loader-overlay.dark { background: #111; }
 
-  /* Spinner iOS nativo: 44px total, spokes de 3.5×10px, raio de 11px */
-  .ios-spinner {
-    position: relative;
-    width: 44px;
-    height: 44px;
-  }
-  .spoke {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 3px;
-    height: 10px;
-    border-radius: 1.5px;
-    /* cor via CSS var herdada do pai — definida inline no elemento pai */
-    background: currentColor;
-    /* centro de rotação = ponto médio do spoke no eixo Y, deslocado 11px para cima do centro */
-    transform-origin: 50% calc(50% + 11px);
-    transform: rotate(calc(var(--i) * 30deg)) translateX(-50%);
-    animation: ios-spoke-fade 1.2s linear infinite;
-    /* cada spoke começa com o seu delay negativo para que o spoke 0 seja o mais brilhante */
-    animation-delay: calc(var(--i) * -0.1s);
-    opacity: 0;
+  /* Material 3 Circular Progress Indicator — 32px, arco animado */
+  .md-spinner {
+    width: 32px;
+    height: 32px;
+    animation: md-rotate 1.4s linear infinite;
   }
 
-  /* Loader light: spokes pretos; loader dark: spokes brancos */
-  .loader-overlay:not(.dark) .ios-spinner { color: #000; }
-  .loader-overlay.dark       .ios-spinner { color: #fff; }
+  /* track: círculo de fundo subtil */
+  .md-track {
+    stroke: rgba(0, 0, 0, 0.08);
+  }
+  .md-spinner.dark .md-track {
+    stroke: rgba(255, 255, 255, 0.1);
+  }
 
-  @keyframes ios-spoke-fade {
-    0%   { opacity: 1;    }
-    100% { opacity: 0.12; }
+  /* arc: o arco que cresce e encolhe — cor primária */
+  .md-arc {
+    stroke: #007AFF;
+    stroke-dasharray: 80 94.25;
+    stroke-dashoffset: 0;
+    animation: md-arc-anim 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform-origin: center;
+  }
+
+  /* Rotação contínua do SVG inteiro */
+  @keyframes md-rotate {
+    from { transform: rotate(-90deg); }
+    to   { transform: rotate(270deg); }
+  }
+
+  /* O arco pulsa entre curto (~10%) e longo (~75%) do perímetro
+     Perímetro do círculo r=15: 2π×15 ≈ 94.25px */
+  @keyframes md-arc-anim {
+    0%   { stroke-dasharray:  9 94.25; stroke-dashoffset:  0;     }
+    50%  { stroke-dasharray: 70 94.25; stroke-dashoffset: -25;    }
+    100% { stroke-dasharray:  9 94.25; stroke-dashoffset: -94.25; }
   }
 
   .loading-msg {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
-    color: rgba(60,60,67,.55);
+    color: rgba(60,60,67,.5);
     font-family: -apple-system, sans-serif;
     letter-spacing: -.1px;
   }
-  .loading-msg.dark { color: rgba(235,235,245,.45); }
+  .loading-msg.dark { color: rgba(235,235,245,.4); }
 
   /* ── Page ── */
   .page {

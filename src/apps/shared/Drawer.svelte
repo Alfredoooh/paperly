@@ -69,10 +69,8 @@
     };
   }
 
-  // Filtra itens que não sejam settings nem perfil
   $: filteredItems = (menuItems || []).filter(item => {
     const l = (item.label || '').toLowerCase();
-    const a = (item.action?.toString() || '').toLowerCase();
     return !['settings','definições','definicoes','perfil','profile','configurações','configuracoes'].some(k => l.includes(k));
   });
 </script>
@@ -81,12 +79,10 @@
 
 <div class="drawer" class:open class:dark={isDark}>
 
-  <!-- Header -->
   <div class="header">
     <span class="header-title">Menu</span>
   </div>
 
-  <!-- Scroll body -->
   <div class="body">
 
     {#if filteredItems.length}
@@ -172,10 +168,6 @@
           <span class="user-email">{userEmail}</span>
         {/if}
       </div>
-      <span
-        class="icon-mask settings-icon"
-        style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');"
-      ></span>
     </button>
   {/if}
 
@@ -286,12 +278,16 @@
   /* ── User footer ── */
   .user-footer {
     flex-shrink: 0;
-    display: flex; align-items: center; gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
     border-top: 0.5px solid rgba(0,0,0,0.07);
+    border-left: none; border-right: none; border-bottom: none;
     background: #ffffff;
-    width: 100%; border-left: none; border-right: none; border-bottom: none;
+    width: 100%;
     cursor: pointer;
+    text-align: left;
     transition: background .12s ease;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
@@ -299,7 +295,6 @@
   .user-footer.dark { border-top-color: rgba(255,255,255,0.07); background: #111111; }
   .user-footer.dark:active { background: rgba(255,255,255,0.05); }
 
-  /* ── Avatar ── */
   .avatar {
     width: 34px; height: 34px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -308,7 +303,11 @@
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  .user-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .user-info {
+    display: flex; flex-direction: column;
+    min-width: 0; flex: 1;
+    text-align: left;
+  }
   .user-name {
     font-size: 13.5px; font-weight: 600; color: #000;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -319,13 +318,6 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
   }
   .dark .user-email { color: rgba(235,235,245,0.4); }
-
-  .settings-icon {
-    width: 16px; height: 16px;
-    background: rgba(60,60,67,0.3);
-    flex-shrink: 0;
-  }
-  .user-footer.dark .settings-icon { background: rgba(235,235,245,0.3); }
 
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;

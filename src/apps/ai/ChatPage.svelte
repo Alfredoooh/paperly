@@ -618,8 +618,7 @@
                   class="assistant-content"
                   class:cursor-blink={msg.isStreaming && msg.content}
                   style="font-size:15px;line-height:1.65;color:{isDark ? c.textPrimary : '#212730'}"
-                  {@html renderMarkdown(msg.content)}
-                ></div>
+                >{@html renderMarkdown(msg.content)}</div>
                 {#if !msg.isStreaming && msg.content}
                   <div class="action-row">
                     {#each [['copy','Copiar',()=>copyText(msg.content)],['thumbs_up','Gosto',()=>{}],['thumbs_down','Não gosto',()=>{}],['share','Partilhar',()=>shareText(msg.content)],['regenerate','Regenerar',regenerate]] as [icon,title,fn]}

@@ -25,6 +25,11 @@
   
   let activeTab = 'videos',
     drawerOpen = false;
+  const drawerMenuItems = [
+    { icon: 'image', label: 'Vídeos', action: () => { activeTab = 'videos'; } },
+    { icon: 'folder', label: 'Ficheiros', action: () => { activeTab = 'files'; } },
+    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
+  ];
 </script>
 
 <div class="media-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -43,9 +48,10 @@
     </button>
   </div>
   
-  <Drawer {isDark} {user} open={drawerOpen} activeApp="media" on:close={()=> drawerOpen=false}
-    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
-    on:settings={() => { drawerOpen=false; showToast('Definições em breve'); }}
+  <Drawer {isDark} {user} open={drawerOpen}
+    title="Media" subtitle="Vídeos e ficheiros"
+    menuItems={drawerMenuItems}
+    on:close={()=> drawerOpen=false}
     />
     
     <div class="tabs" style="border-color:{c.divider}">

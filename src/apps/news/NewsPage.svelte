@@ -25,6 +25,11 @@
     drawerOpen = false;
   $: filteredArts = activeCat === 'Todos' ? articles : articles.filter(a => a.cat === activeCat);
   $: showFeatured = activeCat === 'Todos' || activeCat === featured.cat;
+  const drawerMenuItems = [
+    { icon: 'web', label: 'Últimas', action: () => { activeCat = 'Todos'; } },
+    { icon: 'bookmark', label: 'Guardadas', action: () => showToast('Guardadas em breve') },
+    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
+  ];
 </script>
 
 <div class="news-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -43,9 +48,10 @@
     </button>
   </div>
   
-  <Drawer {isDark} {user} open={drawerOpen} activeApp="news" on:close={()=> drawerOpen=false}
-    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
-    on:settings={() => { drawerOpen=false; showToast('Definições em breve'); }}
+  <Drawer {isDark} {user} open={drawerOpen}
+    title="News" subtitle="Notícias do dia"
+    menuItems={drawerMenuItems}
+    on:close={()=> drawerOpen=false}
     />
     
     <div class="content">

@@ -31,6 +31,11 @@
 
   let filter = '', drawerOpen = false, nowPlaying = null, showSearch = false;
   $: filtered = tracks.filter(t => !filter.trim() || [t.title,t.artist,t.tag].some(v=>v.toLowerCase().includes(filter.trim().toLowerCase())));
+  const drawerMenuItems = [
+    { icon: 'search', label: 'Pesquisar', action: () => { showSearch = true; } },
+    { icon: 'bookmark', label: 'Favoritos', action: () => showToast('Favoritos em breve') },
+    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
+  ];
 </script>
 
 <div class="music-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -49,10 +54,10 @@
     </button>
   </div>
 
-  <Drawer {isDark} {user} open={drawerOpen} activeApp="music"
+  <Drawer {isDark} {user} open={drawerOpen}
+    title="Music" subtitle="Pesquisar e ouvir"
+    menuItems={drawerMenuItems}
     on:close={() => drawerOpen=false}
-    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
-    on:settings={() => { drawerOpen=false; showToast('Definições em breve'); }}
   />
 
   <div class="content">

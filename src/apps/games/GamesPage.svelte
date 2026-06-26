@@ -26,6 +26,11 @@
     drawerOpen = false;
   $: filtered = activeCat === 'Todos' ? games : games.filter(g => g.genre === activeCat);
   $: sectionLabel = activeCat === 'Todos' ? 'Todos os Jogos' : activeCat;
+  const drawerMenuItems = [
+    { icon: 'game_filled', label: 'Todos os Jogos', action: () => { activeCat = 'Todos'; } },
+    { icon: 'bookmark', label: 'Favoritos', action: () => showToast('Favoritos em breve') },
+    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
+  ];
 </script>
 
 <div class="games-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -44,9 +49,10 @@
     </button>
   </div>
   
-  <Drawer {isDark} {user} open={drawerOpen} activeApp="games" on:close={()=> drawerOpen=false}
-    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
-    on:settings={() => { drawerOpen=false; showToast('Definições em breve'); }}
+  <Drawer {isDark} {user} open={drawerOpen}
+    title="Games" subtitle="Explorar jogos"
+    menuItems={drawerMenuItems}
+    on:close={()=> drawerOpen=false}
     />
     
     <div class="content">

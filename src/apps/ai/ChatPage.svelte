@@ -28,6 +28,14 @@
   let conversations    = [];
   let showSettings     = false;
 
+  const drawerMenuItems = [
+    { icon: 'new_chat', label: 'Nova conversa', action: () => newChat() },
+    { icon: 'user', label: 'Perfil', action: () => { showSettings = true; } },
+    { icon: 'folder', label: 'Projetos', action: () => showToast('Projetos em breve'), keepOpen: true },
+    { icon: 'extras', label: 'Extras', action: () => { sheetMode = 'extras'; showSheet = true; } },
+    { icon: 'settings', label: 'Definições', action: () => { showSettings = true; } },
+  ];
+
   let displayMessages  = [];
   let chatHistory      = [];
   let currentConvId    = '';
@@ -427,12 +435,16 @@
     }
   }
 
-  function handleSwitchApp(e) {
-    const id = e.detail.id;
-    activeApp = id; localStorage.setItem('nexa_active_app', id);
+  function openApp(id) {
+    activeApp = id;
+    localStorage.setItem('nexa_active_app', id);
+    showSheet = false;
     drawerOpen = false;
-    if (id !== 'ai') dispatch('nav', { to: id, data: { user: effectiveUser } });
-    else showToast('IA ativa');
+    if (id !== 'ai') {
+      dispatch('nav', { to: id, data: { user: effectiveUser } });
+    } else {
+      showToast('IA ativa');
+    }
   }
 
   function handleOpenConv(e) {
@@ -665,16 +677,13 @@
   </div>
 
   <Drawer
-    {isDark} user={effectiveUser} open={drawerOpen} {activeApp}
+    {isDark} user={effectiveUser} open={drawerOpen}
+    title="AI" subtitle="Conversas e ferramentas"
+    menuItems={drawerMenuItems}
     {conversations} currentConvId={currentConvId}
     on:close={() => drawerOpen=false}
-    on:switchApp={handleSwitchApp}
     on:openConv={handleOpenConv}
     on:convOptions={handleConvOptions}
-    on:newChat={newChat}
-    on:settings={() => { drawerOpen=false; showSettings=true; }}
-    on:projects={() => showToast('Projetos em breve')}
-    on:extras={() => { drawerOpen=false; sheetMode='extras'; showSheet=true; }}
   />
 
   <!-- Messages -->
@@ -793,9 +802,9 @@
         <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:{c.iconTint}"></span>
       </button>
       <div class="flex1"></div>
-      <button class="edit-btn pulse-tap" style="background:{c.tabPreviewPillBg};color:{c.textPrimary}" on:click={() => { sheetMode='edit'; showSheet=true; }}>
+      <button class="edit-btn pulse-tap" style="background:{c.tabPreviewPillBg};color:{c.textPrimary}" on:click={() => { sheetMode='apps'; showSheet=true; }}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
-        <span class="edit-label">Edit</span>
+        <span class="edit-label">Apps</span>
       </button>
       <div style="width:8px"></div>
       {#if inputText.trim() || pendingAttachments.length}
@@ -902,9 +911,24 @@
         {/each}
       </div>
 
-    {:else if sheetMode === 'edit'}
-      <div class="sheet-title" style="color:{c.textPrimary}">Edit</div>
-      <div style="height:60vh"></div>
+    {:else if sheetMode === 'apps'}
+      <div class="sheet-title" style="color:{c.textPrimary}">Apps</div>
+      <div class="apps-grid">
+        {#each DRAWER_APPS as app}
+          <button
+            type="button"
+            class="app-card pulse-tap"
+            class:active={app.id === activeApp}
+            style="border-color:{app.id===activeApp?c.primary:c.divider};background:{app.id===activeApp?(isDark?'rgba(47,123,246,0.14)':'rgba(47,123,246,0.08)'):(isDark?'#1C1C1E':'#FFFFFF')}"
+            on:click={() => openApp(app.id)}
+          >
+            <img src={app.icon} alt={app.title} class="app-card-icon" />
+            <div class="app-card-title" style="color:{c.textPrimary}">{app.title}</div>
+            <div class="app-card-sub" style="color:{c.textSecondary}">{app.id === 'ai' ? 'Inteligência artificial' : 'Abrir aplicativo'}</div>
+          </button>
+        {/each}
+      </div>
+      <div style="height:12px"></div>
     {/if}
   </ModalSheet>
 
@@ -1108,6 +1132,15 @@
   .send-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; }
 
   .sheet-title { padding:4px 20px 12px; font-size:17px; font-weight:700; }
+  .apps-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:0 16px 4px; }
+  .app-card {
+    display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+    padding:14px; border-radius:18px; border:1px solid; cursor:pointer; text-align:left;
+  }
+  .app-card.active { box-shadow:0 12px 28px rgba(47,123,246,.12); }
+  .app-card-icon { width:38px; height:38px; border-radius:12px; object-fit:cover; display:block; }
+  .app-card-title { font-size:14px; font-weight:700; line-height:1.1; }
+  .app-card-sub { font-size:11px; line-height:1.35; opacity:.82; }
   .sheet-row { display:flex; align-items:center; padding:14px 20px; }
   .sheet-sep { height:1px; margin-left:56px; }
 

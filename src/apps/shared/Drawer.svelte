@@ -63,8 +63,7 @@
     <!-- Menu items -->
     {#if menuItems.length}
       <div class="section">
-        {#each menuItems as item, i}
-          {#if i > 0}<div class="sep"></div>{/if}
+        {#each menuItems as item}
           <button
             type="button"
             class="row"
@@ -127,7 +126,6 @@
             {#each conversations as conv}
               {@const lp = makeLongPress(conv)}
               {@const active = conv.id === currentConvId}
-              <div class="sep"></div>
               <button
                 type="button"
                 class="row conv-row"
@@ -151,7 +149,6 @@
             {/each}
 
             {#if conversations.length === 0}
-              <div class="sep"></div>
               <div class="empty">Ainda não há conversas</div>
             {/if}
           </div>
@@ -233,20 +230,12 @@
   }
   .dark .section-label { color: rgba(235,235,245,0.4); }
 
-  /* ── Section (no card, just rows) ── */
+  /* ── Section ── */
   .section {
     display: flex;
     flex-direction: column;
     padding: 0 12px;
   }
-
-  /* ── Separator ── */
-  .sep {
-    height: 0.5px;
-    background: rgba(0,0,0,0.07);
-    margin: 0 8px;
-  }
-  .dark .sep { background: rgba(255,255,255,0.07); }
 
   /* ── Row ── */
   .row {

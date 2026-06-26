@@ -1,3 +1,4 @@
+
 <script>
   import { onMount, afterUpdate, createEventDispatcher } from 'svelte';
   import { getThemeColors } from '../../core/theme.js';
@@ -20,9 +21,6 @@
 
   // Usa effectiveUser em vez de user em todo o código
   $: c = getThemeColors(isDark);
-
-  // Sincroniza variável global para os widgets (widgets.js)
-  $: if (typeof window !== 'undefined') window.isDarkMode = isDark;
 
   let currentModelId   = localStorage.getItem('nexa_model') || 'gemini-2.5-flash';
   let currentLanguage  = localStorage.getItem('nexa_language') || 'pt';
@@ -70,6 +68,7 @@
   let recInterval = null;
   let recCanvasEl;
   let wavePhaseLocal = 0, waveSmoothAmpLocal = 6, waveSmoothBoostLocal = 0, waveSmoothScaleLocal = 1;
+  let keyboardUpdateRaf = 0;
 
   $: hasMessages = displayMessages.length > 0;
   $: greeting = (() => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; })();
@@ -80,53 +79,28 @@
     setupVH();
     setupKeyboard();
     setupWidgetSettings();
-    window.addEventListener('resize', setupVH);
-    window.addEventListener('orientationchange', () => setTimeout(setupVH, 120));
 
-    // Carrega o script de widgets se ainda não estiver presente
-    if (!window._widgetsLoaded) {
-      const script = document.createElement('script');
-      script.src = '/js/widgets.js';  // ajuste o caminho conforme necessário
-      script.onload = () => { window._widgetsLoaded = true; };
-      document.head.appendChild(script);
+    const onResize = () => setupVH();
+    const onOrientation = () => setTimeout(setupVH, 120);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onOrientation);
+
+    const vv = window.visualViewport;
+    const onViewportChange = () => setupKeyboard();
+    if (vv) {
+      vv.addEventListener('resize', onViewportChange);
+      vv.addEventListener('scroll', onViewportChange);
     }
-  });
 
-  afterUpdate(() => {
-    // Processa placeholders de widgets injetados via @html
-    const placeholders = document.querySelectorAll('.widget-placeholder:not([data-processed])');
-    if (placeholders.length === 0) return;
-
-    const widgetMap = {
-      'widget_table':    'renderNativeTable',
-      'widget_bar':      'renderNativeBarChart',
-      'widget_pie':      'renderNativePieChart',
-      'widget_sheet':    'renderNativeSheet',
-      'widget_code':     'renderNativeCodeBlock',
-      'widget_market':   'renderNativeMarket',
-      'widget_calendar': 'renderNativeCalendar',
-      'widget_timer':    'renderNativeTimer',
-      'widget_mindmap':  'renderNativeMindMap',
-      'widget_graph':    'renderNativeMathGraph',
-      'widget_map':      'renderNativeMapPlaceholder'
-    };
-
-    placeholders.forEach(el => {
-      const type = el.dataset.widgetType;
-      const funcName = widgetMap[type];
-      if (funcName && typeof window[funcName] === 'function') {
-        try {
-          const json = JSON.parse(el.dataset.widgetJson || '{}');
-          window[funcName](el, json);
-          el.setAttribute('data-processed', 'true');
-        } catch (e) {
-          console.error('Erro ao processar widget', type, e);
-          el.innerHTML = `<div class="widget-error">Widget inválido</div>`;
-        }
-      } else {
-        el.innerHTML = `<div class="widget-error">Widget desconhecido: ${type}</div>`;
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onOrientation);
+      if (vv) {
+        vv.removeEventListener('resize', onViewportChange);
+        vv.removeEventListener('scroll', onViewportChange);
       }
-    });
+      if (keyboardUpdateRaf) cancelAnimationFrame(keyboardUpdateRaf);
+    };
   });
 
   function setupVH() {
@@ -135,22 +109,20 @@
   }
 
   function setupKeyboard() {
-    let lastOffset = -1;
     const compute = () => {
       if (!window.visualViewport) return 0;
       const vv = window.visualViewport;
       return Math.round(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
     };
-    const apply = (offset) => {
-      if (offset === lastOffset) return; lastOffset = offset;
-      const bbEl = document.getElementById('bottomBar');
-      if (bbEl) bbEl.style.bottom = offset > 40 ? offset + 'px' : '0px';
-      // Removido: messagesEl.style.paddingBottom não é mais alterado
+
+    const apply = () => {
+      const offset = window.visualViewport ? compute() : 0;
+      const safeOffset = offset > 40 ? offset : 0;
+      document.documentElement.style.setProperty('--nexa-keyboard-offset', safeOffset + 'px');
     };
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => requestAnimationFrame(() => apply(compute())));
-      window.visualViewport.addEventListener('scroll', () => requestAnimationFrame(() => apply(compute())));
-    }
+
+    if (keyboardUpdateRaf) cancelAnimationFrame(keyboardUpdateRaf);
+    keyboardUpdateRaf = requestAnimationFrame(apply);
   }
 
   let widgetSettings = {};
@@ -159,7 +131,41 @@
   }
   function isWidgetEnabled(type) { return widgetSettings[type] !== false; }
 
-  // ── Markdown (mantido o parser existente, apenas a geração de widgets foi alterada) ──
+  let widgetMountRaf = 0;
+  function queueWidgetMount() {
+    if (widgetMountRaf) cancelAnimationFrame(widgetMountRaf);
+    widgetMountRaf = requestAnimationFrame(mountWidgets);
+  }
+
+  function mountWidgets() {
+    if (!messagesEl || typeof window === 'undefined') return;
+    const registry = window.__nexaWidgetRenderers || {};
+    const placeholders = messagesEl.querySelectorAll('.native-widget-placeholder');
+    placeholders.forEach(ph => {
+      const type = ph.dataset.widgetType || '';
+      const encoded = ph.dataset.widgetJson || '';
+      const renderer = registry[type];
+      if (!renderer) return;
+      try {
+        const data = JSON.parse(decodeURIComponent(encoded));
+        const container = document.createElement('div');
+        renderer(container, data);
+        const node = container.firstElementChild || container;
+        ph.replaceWith(node);
+      } catch (e) {
+        const err = document.createElement('div');
+        err.className = 'widget-error';
+        err.textContent = 'Erro ao carregar widget';
+        ph.replaceWith(err);
+      }
+    });
+  }
+
+  afterUpdate(() => {
+    queueWidgetMount();
+  });
+
+  // ── Markdown (igual ao anterior) ──
   const ALL_WIDGETS = new Set(['widget_table','widget_code','widget_bar','widget_pie','widget_sheet','widget_market','widget_calendar','widget_timer','widget_mindmap','widget_graph','widget_map']);
 
   function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -240,17 +246,20 @@
     text = parts.join('');
     text = text.replace(/\u0000CB(\d+)\u0000/g,(_,idx)=>{
       const blk=codeBlocks[Number(idx)];
-      if(ALL_WIDGETS.has(blk.lang) && isWidgetEnabled(blk.lang)) {
-        // Placeholder que será substituído pelo widgets.js
-        const safeJson = escapeAttr(blk.code);
-        return `<div class="widget-placeholder" data-widget-type="${blk.lang}" data-widget-json="${safeJson}"></div>`;
-      }
+      if(ALL_WIDGETS.has(blk.lang)&&isWidgetEnabled(blk.lang)) return buildNativeWidget(blk.lang, blk.code);
       const safe=escapeHtml(blk.code);
       const hdr=blk.lang?`<div class="code-block-header"><span class="code-lang-label">${escapeHtml(blk.lang)}</span><button class="code-copy-btn pulse-tap" onclick="window._copyCodeBtn(this)"><span class="icon-mask" style="mask-image:url('/icons/svg/copy.svg');-webkit-mask-image:url('/icons/svg/copy.svg');width:13px;height:13px;background:currentColor;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span></button></div>`:'';
       return `<div class="code-block-wrapper">${hdr}<pre class="code-block"><code>${safe}</code></pre></div>`;
     });
     text = text.replace(/\u0000MB(\d+)\u0000/g,(_,idx)=>{const blk=mathBlocks[Number(idx)];const rendered=renderMathToken(blk.content);return blk.display?`<div class="math-display">${rendered}</div>`:`<span class="math-inline">${rendered}</span>`;});
     return text;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // WIDGETS NATIVOS — renderiza HTML inline dentro do chat
+  // ══════════════════════════════════════════════════════
+  function buildNativeWidget(type, rawJson) {
+    return `<div class="native-widget-placeholder" data-widget-type="${escapeAttr(type)}" data-widget-json="${escapeAttr(encodeURIComponent(rawJson))}"></div>`;
   }
 
   // Expõe funções globais para onclick inline
@@ -555,7 +564,7 @@
 </script>
 
 <!-- ══════════════════════ TEMPLATE ══════════════════════ -->
-<div class="chat-root" class:dark={isDark} style="background:{c.background};color:{c.textPrimary}">
+<div class="chat-root" class:dark={isDark} style="background:{c.background};color:{c.textPrimary};--nexa-keyboard-offset:0px;">
 
   <div class="appbar-gradient" class:dark={isDark}></div>
 
@@ -931,7 +940,7 @@
   .px2 { padding:0 8px; }
   .circ { border-radius:50%; overflow:hidden; }
 
-  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
+  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:196px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior:contain; }
   .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; min-height:100%; }
   .empty-logo { width:72px; height:72px; margin-bottom:16px; }
   .greeting { font-size:48px; font-weight:700; text-align:center; margin:0 0 8px; }
@@ -939,13 +948,13 @@
   .messages-list { padding:0; }
 
   .user-row { padding:8px 16px; display:flex; justify-content:flex-end; }
-  .user-bubble { max-width:82%; border-radius:20px; padding:12px 16px; cursor:pointer; }
+  .user-bubble { max-width:82%; border-radius:20px; padding:12px 16px; cursor:pointer; transition:transform .18s ease, box-shadow .22s ease, background-color .22s ease; }
   .att-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
   .att-img { width:84px; height:84px; object-fit:cover; border-radius:12px; }
   .att-chip { display:flex; align-items:center; gap:6px; padding:7px 10px; border-radius:10px; }
   .user-text { margin:0; font-size:14px; line-height:1.5; white-space:pre-wrap; -webkit-user-select:text; user-select:text; }
 
-  .assistant-row { padding:12px 16px 4px; }
+  .assistant-row { padding:12px 16px 4px; scroll-margin-bottom:190px; }
   .thinking-placeholder { display:flex; align-items:center; gap:10px; padding:4px 0 8px; }
   .think-dot-wrap { display:flex; gap:4px; }
   .think-dot { width:8px; height:8px; border-radius:50%; animation:dotPulse 1.2s ease-in-out infinite; }
@@ -981,6 +990,47 @@
   .assistant-content :global(.math-radicand) { border-top:1px solid currentColor; padding:0 2px; }
   .assistant-content :global(.math-display) { display:block; text-align:center; margin:12px 0; font-size:1.1em; overflow-x:auto; }
   .assistant-content :global(.math-inline) { display:inline; }
+  /* Widgets */
+  .assistant-content :global(.widget-card) { border-radius:16px; padding:14px; margin:8px 0 12px; overflow:hidden; }
+  .assistant-content :global(.widget-title) { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-bottom:10px; }
+  .assistant-content :global(.widget-error) { font-size:13px; color:#EF4444; padding:8px; }
+  .assistant-content :global(.w-table-wrap) { overflow-x:auto; margin:8px 0 12px; }
+  .assistant-content :global(.w-table) { border-collapse:collapse; min-width:100%; font-size:13px; }
+  .assistant-content :global(.w-table th) { padding:7px 10px; font-weight:600; border-bottom:2px solid rgba(127,127,127,.2); text-align:left; white-space:nowrap; }
+  .assistant-content :global(.w-table td) { padding:6px 10px; border-bottom:1px solid rgba(127,127,127,.1); }
+  .assistant-content :global(.wbar-chart) { display:flex; align-items:flex-end; gap:8px; height:100px; padding-top:8px; }
+  .assistant-content :global(.wbar-item) { display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
+  .assistant-content :global(.wbar-bar-wrap) { flex:1; width:100%; display:flex; align-items:flex-end; }
+  .assistant-content :global(.wbar-bar) { width:100%; border-radius:4px 4px 0 0; min-height:4px; transition:height .3s; }
+  .assistant-content :global(.wbar-label) { font-size:10px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .assistant-content :global(.wbar-val) { font-size:11px; font-weight:600; }
+  .assistant-content :global(.wpie-wrap) { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .assistant-content :global(.wpie-svg) { width:100px; height:100px; flex-shrink:0; }
+  .assistant-content :global(.wpie-legend) { flex:1; min-width:0; }
+  .assistant-content :global(.wpie-leg-item) { display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:4px; }
+  .assistant-content :global(.wpie-dot) { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .assistant-content :global(.wsheet-title) { font-size:15px; font-weight:700; margin-bottom:6px; }
+  .assistant-content :global(.wsheet-line) { font-size:13px; margin-bottom:3px; line-height:1.5; }
+  .assistant-content :global(.wmarket) {}
+  .assistant-content :global(.wmarket-header) { display:flex; justify-content:space-between; align-items:flex-start; }
+  .assistant-content :global(.wmarket-symbol) { font-size:18px; font-weight:800; }
+  .assistant-content :global(.wmarket-name) { font-size:12px; margin-top:2px; }
+  .assistant-content :global(.wmarket-price) { font-size:18px; font-weight:700; text-align:right; }
+  .assistant-content :global(.wmarket-change) { font-size:12px; text-align:right; margin-top:2px; }
+  .assistant-content :global(.wmarket-type) { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-top:8px; }
+  .assistant-content :global(.wcal-event) { display:flex; align-items:center; gap:10px; padding:6px 0; }
+  .assistant-content :global(.wcal-dot) { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .assistant-content :global(.wcal-name) { font-size:14px; font-weight:600; }
+  .assistant-content :global(.wcal-meta) { font-size:12px; margin-top:1px; }
+  .assistant-content :global(.wtimer) { text-align:center; }
+  .assistant-content :global(.wtimer-display) { font-size:36px; font-weight:800; font-variant-numeric:tabular-nums; margin:8px 0; }
+  .assistant-content :global(.wtimer-btn) { font-size:22px; background:none; border:none; cursor:pointer; padding:6px 18px; border-radius:10px; background:rgba(47,123,246,.12); color:#2F7BF6; }
+  .assistant-content :global(.wmm-node) { display:flex; align-items:center; gap:8px; padding:4px 0; }
+  .assistant-content :global(.wmm-dot) { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .assistant-content :global(.wmm-label) { font-size:14px; }
+  .assistant-content :global(.wgraph-svg) { width:100%; height:auto; display:block; }
+  .assistant-content :global(.wmap-card) { padding:12px; }
+  .assistant-content :global(.wmap-frame) { width:100%; height:200px; border:none; border-radius:10px; display:block; }
 
   .cursor-blink::after { content:'|'; animation:blink 1s step-end infinite; color:#2F7BF6; font-weight:300; }
   @keyframes blink { 50%{opacity:0} }
@@ -989,14 +1039,10 @@
   .action-btn { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:transparent; border:none; cursor:pointer; padding:0; opacity:.65; flex-shrink:0; }
   .action-btn:hover { opacity:1; }
 
-  .bottom-bar {
-    position:absolute; bottom:0; left:16px; right:16px; z-index:50; margin-bottom:20px;
-    border-radius:22px; display:flex; flex-direction:column;
-    transition: background-color .3s ease, box-shadow .3s ease, bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  }
+  .bottom-bar { position:fixed; left:16px; right:16px; bottom:calc(20px + env(safe-area-inset-bottom) + var(--nexa-keyboard-offset, 0px)); z-index:50; border-radius:22px; display:flex; flex-direction:column; transform:translate3d(0,0,0); will-change:transform; transition:transform .36s cubic-bezier(.22,1,.36,1),background-color .3s ease,box-shadow .3s ease,filter .3s ease; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
   .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }
   .bottom-bar.dark  { background:#1F1F1F; box-shadow:0 4px 24px rgba(0,0,0,.30); }
-  .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:12px 18px 0; width:100%; font-family:inherit; -webkit-user-select:text; user-select:text; max-height:150px; overflow-y:auto; }
+  .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:12px 18px 0; width:100%; font-family:inherit; -webkit-user-select:text; user-select:text; max-height:150px; overflow-y:auto; transition:height .16s ease, color .25s ease, opacity .2s ease; }
   .chat-input:not(.dark) { color:#1F2937; }
   .chat-input.dark { color:#F3F4F6; }
   .chat-input:not(.dark)::placeholder { color:#9A9A9A; }

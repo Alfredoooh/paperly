@@ -112,11 +112,11 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-  <span 
-    class="icon-mask" 
-    style="mask-image:url('/icons/svg/arrow_left.svg'); -webkit-mask-image:url('/icons/svg/arrow_left.svg'); width:20px; height:20px; background: {isDark ? '#fff' : '#000'};"
-  ></span>
-</button>
+      <span 
+        class="icon-mask" 
+        style="mask-image:url('/icons/svg/arrow_left.svg'); -webkit-mask-image:url('/icons/svg/arrow_left.svg'); width:20px; height:20px; background: {isDark ? '#fff' : '#000'};"
+      ></span>
+    </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" on:click={handleLogout}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:#FF3B30"></span>
@@ -229,7 +229,10 @@
       <button type="button" class="popup-row" on:click={() => { showThemePicker=false; dispatch('themeChange',{isDark:dark}); }}>
         <span class="popup-label">{label}</span>
         {#if isDark === dark}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span 
+            class="icon-mask check-icon" 
+            style="mask-image:url('/icons/svg/check.svg'); -webkit-mask-image:url('/icons/svg/check.svg'); width:16px; height:16px; background:#007AFF;"
+          ></span>
         {/if}
       </button>
     {/each}
@@ -266,7 +269,10 @@
               <span class="lang-native">{lang.native}</span>
             </div>
             {#if lang.code === currentLanguage}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span 
+                class="icon-mask check-icon" 
+                style="mask-image:url('/icons/svg/check.svg'); -webkit-mask-image:url('/icons/svg/check.svg'); width:16px; height:16px; background:#007AFF;"
+              ></span>
             {/if}
           </button>
         {/each}
@@ -509,5 +515,8 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
     flex-shrink: 0;
+  }
+  .check-icon {
+    background: #007AFF;
   }
 </style>

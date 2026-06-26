@@ -47,7 +47,7 @@
   let langSearch      = '';
   let currentLanguage = localStorage.getItem('nexa_language') || 'pt';
 
-  let popupPos = { top: 0, right: 0 };
+  let popupPos = { top: 0, right: 0, maxHeight: 340 };
 
   $: filteredLangs = AVAILABLE_LANGUAGES.filter(l => {
     const f = langSearch.trim().toLowerCase();
@@ -56,9 +56,11 @@
 
   function openPopup(type, event) {
     const rect = event.currentTarget.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 16;
     popupPos = {
-      top:   rect.bottom + 4,
-      right: window.innerWidth - rect.right + 10
+      top:       rect.bottom + 4,
+      right:     window.innerWidth - rect.right + 10,
+      maxHeight: Math.max(160, spaceBelow)
     };
     if (type === 'theme') { showLangPicker = false; showThemePicker = true; }
     if (type === 'lang')  { langSearch = ''; showThemePicker = false; showLangPicker = true; }
@@ -241,7 +243,7 @@
   <div
     class="popup-box lang-box"
     class:dark={isDark}
-    style="top:{popupPos.top}px;right:{popupPos.right}px;"
+    style="top:{popupPos.top}px;right:{popupPos.right}px;max-height:{popupPos.maxHeight}px;"
     transition:scale={{ duration: 150, start: 0.9, opacity: 0 }}
   >
     <div class="lang-search-wrap">
@@ -250,7 +252,8 @@
         class:dark={isDark}
         placeholder="Pesquisar idioma..."
         bind:value={langSearch}
-        autofocus
+        readonly
+        on:focus={(e) => e.currentTarget.removeAttribute('readonly')}
       />
     </div>
     <div class="lang-list">
@@ -286,9 +289,9 @@
 
   .loader {
     position: relative;
-    width: 54px;
-    height: 54px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
   }
 
   .loader div {
@@ -304,31 +307,28 @@
     animation: fade458 1s linear infinite;
   }
 
-  .loader.dark div {
-    background: rgba(255, 255, 255, 0.55);
-  }
+  .loader.dark div { background: rgba(255, 255, 255, 0.55); }
 
   @keyframes fade458 {
     from { opacity: 1; }
     to   { opacity: 0.25; }
   }
 
-  .loader .bar1  { transform: rotate(0deg)   translate(0, -130%); animation-delay: 0s;     }
-  .loader .bar2  { transform: rotate(30deg)  translate(0, -130%); animation-delay: -1.1s;  }
-  .loader .bar3  { transform: rotate(60deg)  translate(0, -130%); animation-delay: -1s;    }
-  .loader .bar4  { transform: rotate(90deg)  translate(0, -130%); animation-delay: -0.9s;  }
-  .loader .bar5  { transform: rotate(120deg) translate(0, -130%); animation-delay: -0.8s;  }
-  .loader .bar6  { transform: rotate(150deg) translate(0, -130%); animation-delay: -0.7s;  }
-  .loader .bar7  { transform: rotate(180deg) translate(0, -130%); animation-delay: -0.6s;  }
-  .loader .bar8  { transform: rotate(210deg) translate(0, -130%); animation-delay: -0.5s;  }
-  .loader .bar9  { transform: rotate(240deg) translate(0, -130%); animation-delay: -0.4s;  }
-  .loader .bar10 { transform: rotate(270deg) translate(0, -130%); animation-delay: -0.3s;  }
-  .loader .bar11 { transform: rotate(300deg) translate(0, -130%); animation-delay: -0.2s;  }
-  .loader .bar12 { transform: rotate(330deg) translate(0, -130%); animation-delay: -0.1s;  }
+  .loader .bar1  { transform: rotate(0deg)   translate(0, -130%); animation-delay: 0s;    }
+  .loader .bar2  { transform: rotate(30deg)  translate(0, -130%); animation-delay: -1.1s; }
+  .loader .bar3  { transform: rotate(60deg)  translate(0, -130%); animation-delay: -1s;   }
+  .loader .bar4  { transform: rotate(90deg)  translate(0, -130%); animation-delay: -0.9s; }
+  .loader .bar5  { transform: rotate(120deg) translate(0, -130%); animation-delay: -0.8s; }
+  .loader .bar6  { transform: rotate(150deg) translate(0, -130%); animation-delay: -0.7s; }
+  .loader .bar7  { transform: rotate(180deg) translate(0, -130%); animation-delay: -0.6s; }
+  .loader .bar8  { transform: rotate(210deg) translate(0, -130%); animation-delay: -0.5s; }
+  .loader .bar9  { transform: rotate(240deg) translate(0, -130%); animation-delay: -0.4s; }
+  .loader .bar10 { transform: rotate(270deg) translate(0, -130%); animation-delay: -0.3s; }
+  .loader .bar11 { transform: rotate(300deg) translate(0, -130%); animation-delay: -0.2s; }
+  .loader .bar12 { transform: rotate(330deg) translate(0, -130%); animation-delay: -0.1s; }
 
   .loading-msg {
-    font-size: 13px;
-    font-weight: 400;
+    font-size: 13px; font-weight: 400;
     color: rgba(60,60,67,.5);
     font-family: -apple-system, sans-serif;
     letter-spacing: -.1px;
@@ -360,7 +360,7 @@
     background: none; border: none; cursor: pointer; border-radius: 50%;
     transition: background .12s;
   }
-  .back-btn:active  { background: rgba(0,0,0,.06); }
+  .back-btn:active   { background: rgba(0,0,0,.06); }
   .logout-btn:active { background: rgba(255,59,48,.08); }
   .page.dark .back-btn:active { background: rgba(255,255,255,.08); }
 
@@ -472,7 +472,11 @@
   .popup-box.dark .popup-label { color: #fff; }
 
   /* ── Lang box ── */
-  .lang-box { width: 240px; max-height: 340px; display: flex; flex-direction: column; }
+  .lang-box {
+    width: 240px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
   .lang-search-wrap { padding: 10px 12px 8px; flex-shrink: 0; }
   .lang-search {
     width: 100%; border: none; outline: none;
@@ -485,7 +489,11 @@
   .lang-search::placeholder { color: rgba(60,60,67,.4); }
   .lang-search.dark::placeholder { color: rgba(235,235,245,.3); }
 
-  .lang-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+  .lang-list {
+    overflow-y: auto; flex: 1;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
   .lang-empty { padding: 16px; text-align: center; font-size: 13px; color: rgba(60,60,67,.4); }
   .popup-box.dark .lang-empty { color: rgba(235,235,245,.3); }
 

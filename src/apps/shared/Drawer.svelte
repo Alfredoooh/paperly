@@ -71,44 +71,66 @@
 
 <div class="drawer" class:open class:light={!isDark} class:dark={isDark}>
   <div class="drawer-main">
+
+    <!-- Header -->
     <div class="dh">
-      <div class="dh-left">
-        <div class="drawer-badge" style="background:{isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};color:{c.textPrimary}">
-          {(title || 'M').slice(0, 1)}
-        </div>
-        <div class="head-copy">
-          <div class="head-title" style="color:{c.textPrimary}">{title}</div>
-          {#if subtitle}
-            <div class="head-sub" style="color:{c.textSecondary}">{subtitle}</div>
-          {/if}
-        </div>
-      </div>
+      <span class="dh-title">Menu</span>
     </div>
 
+    <!-- Menu Items -->
     {#if menuItems.length}
-      <div class="menu-section">
+      <div class="apple-group" style="
+        background:{isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+        border:1px solid {isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'};
+      ">
         {#each menuItems as item, i}
-          {#if i > 0}<div class="section-divider" style="background:{c.divider}"></div>{/if}
+          {#if i > 0}
+            <div class="apple-separator" style="background:{isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}"></div>
+          {/if}
           <button
             type="button"
-            class="menu-item pulse-tap"
-            style="color:{item.danger ? '#EF4444' : c.drawerText}"
+            class="apple-row"
+            style="color:{item.danger ? '#FF3B30' : (isDark ? '#fff' : '#000')}"
             on:click={() => triggerItem(item)}
           >
             {#if item.icon}
-              <span
-                class="icon-mask"
-                style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:18px;height:18px;background:{item.danger ? '#EF4444' : c.iconTint}"
-              ></span>
+              <div class="apple-icon-wrap" style="background:{item.danger ? '#FF3B30' : (isDark ? '#636366' : '#8E8E93')}">
+                <span
+                  class="icon-mask"
+                  style="
+                    mask-image:url('/icons/svg/{item.icon}.svg');
+                    -webkit-mask-image:url('/icons/svg/{item.icon}.svg');
+                    width:14px; height:14px;
+                    background:#fff;
+                  "
+                ></span>
+              </div>
             {/if}
-            <span class="menu-label">{item.label}</span>
+            <span class="apple-row-label">{item.label}</span>
             {#if item.badge}
-              <span class="menu-badge">{item.badge}</span>
+              <span class="apple-badge" style="background:{isDark ? '#636366' : '#C7C7CC'};color:{isDark ? '#fff' : '#3C3C43'}">
+                {item.badge}
+              </span>
             {/if}
             {#if item.trailingIcon}
               <span
                 class="icon-mask"
-                style="mask-image:url('/icons/svg/{item.trailingIcon}.svg');-webkit-mask-image:url('/icons/svg/{item.trailingIcon}.svg');width:14px;height:14px;background:{c.iconTintSecondary}"
+                style="
+                  mask-image:url('/icons/svg/{item.trailingIcon}.svg');
+                  -webkit-mask-image:url('/icons/svg/{item.trailingIcon}.svg');
+                  width:13px; height:13px;
+                  background:{isDark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)'};
+                "
+              ></span>
+            {:else}
+              <span
+                class="icon-mask chevron-trail"
+                style="
+                  mask-image:url('/icons/svg/chevron_right.svg');
+                  -webkit-mask-image:url('/icons/svg/chevron_right.svg');
+                  width:13px; height:13px;
+                  background:{isDark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)'};
+                "
               ></span>
             {/if}
           </button>
@@ -116,40 +138,61 @@
       </div>
     {/if}
 
+    <!-- Conversations Section -->
     {#if conversations.length}
-      {#if menuItems.length}<div class="section-divider section-gap" style="background:{c.divider}"></div>{/if}
-
-      <div class="conv-header pulse-tap" on:click={toggleConvSection}>
-        <span
-          class="icon-mask"
-          style="mask-image:url('/icons/svg/meassage.svg');-webkit-mask-image:url('/icons/svg/meassage.svg');width:16px;height:16px;background:{c.settings_section_label}"
-        ></span>
-        <span class="conv-label" style="color:{c.settings_section_label}">CONVERSAS</span>
-        <span
-          class="icon-mask conv-chevron"
-          class:collapsed={conversationsCollapsed}
-          style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:11px;height:11px;background:{c.settings_section_label}"
-        ></span>
+      <div class="conv-section-label" style="color:{isDark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)'}">
+        Conversas
       </div>
 
-      <div class="conv-list-outer" class:collapsed={conversationsCollapsed}>
-        <div class="conv-list">
-          {#if conversations.length === 0}
-            <div class="conv-empty" style="color:{c.textHint}">
-              <span
-                class="icon-mask"
-                style="mask-image:url('/icons/svg/new_chat.svg');-webkit-mask-image:url('/icons/svg/new_chat.svg');width:28px;height:28px;background:{c.textHint}"
-              ></span>
-              <span>Ainda não há conversas</span>
-            </div>
-          {:else}
+      <div class="apple-group" style="
+        background:{isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+        border:1px solid {isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'};
+      ">
+        <!-- Collapse toggle row -->
+        <button
+          type="button"
+          class="apple-row conv-toggle"
+          style="color:{isDark ? '#fff' : '#000'}"
+          on:click={toggleConvSection}
+        >
+          <div class="apple-icon-wrap" style="background:{isDark ? '#3A3A3C' : '#8E8E93'}">
+            <span
+              class="icon-mask"
+              style="
+                mask-image:url('/icons/svg/meassage.svg');
+                -webkit-mask-image:url('/icons/svg/meassage.svg');
+                width:14px; height:14px;
+                background:#fff;
+              "
+            ></span>
+          </div>
+          <span class="apple-row-label">Histórico</span>
+          <span
+            class="icon-mask conv-chevron"
+            class:collapsed={conversationsCollapsed}
+            style="
+              mask-image:url('/icons/svg/chevron_right.svg');
+              -webkit-mask-image:url('/icons/svg/chevron_right.svg');
+              width:13px; height:13px;
+              background:{isDark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)'};
+            "
+          ></span>
+        </button>
+
+        <!-- Conversation list -->
+        <div class="conv-list-outer" class:collapsed={conversationsCollapsed}>
+          <div class="conv-inner">
             {#each conversations as conv}
               {@const lp = makeLongPress(conv)}
               {@const isActive = conv.id === currentConvId}
+              <div class="apple-separator" style="background:{isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}"></div>
               <button
                 type="button"
-                class="conv-item pulse-tap"
-                style="background:{isActive ? (c.extrasCardActiveText + '12') : 'transparent'}"
+                class="apple-row conv-row"
+                style="
+                  color:{isActive ? '#007AFF' : (isDark ? '#fff' : '#000')};
+                  background:{isActive ? (isDark ? 'rgba(0,122,255,0.12)' : 'rgba(0,122,255,0.07)') : 'transparent'};
+                "
                 on:pointerdown={lp.down}
                 on:pointerup={lp.up}
                 on:pointermove={lp.move}
@@ -158,89 +201,226 @@
                 {#if conv.pinned}
                   <span
                     class="icon-mask pin-icon"
-                    style="mask-image:url('/icons/svg/pin_filled.svg');-webkit-mask-image:url('/icons/svg/pin_filled.svg');background:{isActive ? c.extrasCardActiveText : c.iconTintSecondary}"
+                    style="
+                      mask-image:url('/icons/svg/pin_filled.svg');
+                      -webkit-mask-image:url('/icons/svg/pin_filled.svg');
+                      width:11px; height:11px;
+                      background:{isActive ? '#007AFF' : (isDark ? 'rgba(235,235,245,0.4)' : 'rgba(60,60,67,0.4)')}
+                    "
                   ></span>
                 {/if}
-                <span class="conv-title" style="color:{isActive ? c.extrasCardActiveText : c.drawerText}">{conv.title}</span>
+                <span class="conv-title-text">{conv.title}</span>
+                {#if isActive}
+                  <span
+                    class="icon-mask"
+                    style="
+                      mask-image:url('/icons/svg/chevron_right.svg');
+                      -webkit-mask-image:url('/icons/svg/chevron_right.svg');
+                      width:13px; height:13px;
+                      background:rgba(0,122,255,0.5);
+                    "
+                  ></span>
+                {/if}
               </button>
             {/each}
-          {/if}
+
+            {#if conversations.length === 0}
+              <div class="apple-separator" style="background:{isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}"></div>
+              <div class="conv-empty" style="color:{isDark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)'}">
+                Ainda não há conversas
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
     {/if}
+
   </div>
 </div>
 
 <style>
+  /* ── Overlay ── */
   .drawer-overlay {
-    position:fixed; top:0; left:0; right:0; bottom:0;
-    background:rgba(0,0,0,0.08); z-index:100;
-    opacity:0; pointer-events:none;
-    backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
-    transition:opacity .28s ease, backdrop-filter .28s ease;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 100;
+    opacity: 0; pointer-events: none;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    transition: opacity .3s ease, backdrop-filter .3s ease;
   }
-  .drawer-overlay.open { opacity:1; pointer-events:auto; backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); }
+  .drawer-overlay.open {
+    opacity: 1; pointer-events: auto;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
 
+  /* ── Drawer Shell ── */
   .drawer {
-    position:fixed; top:0; left:0; bottom:0;
-    width:82vw; max-width:400px; z-index:101;
-    transform:translateX(-100%);
-    transition:transform .3s cubic-bezier(0.4,0,0.2,1);
-    display:flex; flex-direction:row; overflow:hidden;
-    border-right:1px solid transparent;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 80vw; max-width: 340px;
+    z-index: 101;
+    transform: translateX(-100%);
+    transition: transform .32s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column;
+    overflow: hidden;
   }
-  .drawer.open { transform:translateX(0); }
-  .drawer.light { background:#F3F4F6; border-right-color:#E5E7EB; }
-  .drawer.dark  { background:#141414; border-right-color:#1f1f1f; }
+  .drawer.open { transform: translateX(0); }
 
-  .drawer-main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
-  .dh { display:flex; align-items:center; justify-content:space-between; padding:20px 16px 12px 18px; flex-shrink:0; }
-  .dh-left { display:flex; align-items:center; gap:12px; min-width:0; }
-  .drawer-badge {
-    width:38px; height:38px; border-radius:14px; display:flex; align-items:center; justify-content:center;
-    font-size:16px; font-weight:800; flex-shrink:0;
+  .drawer.light {
+    background: rgba(242,242,247,0.92);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-right: 0.5px solid rgba(0,0,0,0.12);
   }
-  .head-copy { min-width:0; }
-  .head-title { font-size:16px; font-weight:800; line-height:1.1; }
-  .head-sub { font-size:12px; font-weight:500; margin-top:3px; }
-
-  .menu-section { padding:4px 12px 8px; flex-shrink:0; }
-  .menu-item {
-    width:100%; display:flex; align-items:center; gap:14px;
-    padding:12px; border-radius:12px; cursor:pointer; font-size:14.5px; font-weight:500;
-    transition:background .15s, transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s cubic-bezier(0.4,0,.2,1);
-    margin-bottom:2px; border:none; background:transparent; text-align:left;
+  .drawer.dark {
+    background: rgba(18,18,18,0.88);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    border-right: 0.5px solid rgba(255,255,255,0.08);
   }
-  .menu-item:hover, .menu-item:active { background:rgba(127,127,127,0.08); }
-  .menu-label { flex:1; min-width:0; }
-  .menu-badge {
-    font-size:10px; font-weight:700; padding:3px 8px; border-radius:999px;
-    background:rgba(127,127,127,0.12); color:inherit; flex-shrink:0;
+
+  /* ── Main scroll area ── */
+  .drawer-main {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 16px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
-  .section-divider { height:1px; margin:4px 0; flex-shrink:0; }
-  .section-gap { margin:8px 12px 0; }
 
-  .conv-header { display:flex; align-items:center; gap:9px; padding:10px 24px 8px; cursor:pointer; flex-shrink:0; }
-  .conv-label { font-size:11px; font-weight:600; letter-spacing:.08em; flex:1; }
-  .conv-chevron { transition:transform .25s cubic-bezier(0.4,0,0.2,1); transform:rotate(90deg); }
-  .conv-chevron.collapsed { transform:rotate(0deg); }
-
-  .conv-list-outer { display:grid; grid-template-rows:1fr; transition:grid-template-rows .32s cubic-bezier(0.4,0,0.2,1); min-height:0; flex:1; }
-  .conv-list-outer.collapsed { grid-template-rows:0fr; }
-  .conv-list { overflow-y:auto; overflow-x:hidden; min-height:0; -webkit-overflow-scrolling:touch; }
-
-  .conv-item {
-    width:100%; padding:11px 24px; cursor:pointer; display:flex; align-items:center; gap:7px;
-    transition:background .15s; -webkit-user-select:none; user-select:none;
-    border:none; background:transparent; text-align:left;
+  /* ── Header ── */
+  .dh {
+    padding: 52px 4px 22px;
+    flex-shrink: 0;
   }
-  .conv-item:active { background:rgba(127,127,127,0.06); }
-  .pin-icon { width:11px; height:11px; flex-shrink:0; }
-  .conv-title { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
+  .dh-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
+  }
+  .drawer.light .dh-title { color: #000; }
+  .drawer.dark  .dh-title { color: #fff; }
 
-  .conv-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; gap:10px; opacity:.45; font-size:13px; text-align:center; }
+  /* ── Apple grouped card ── */
+  .apple-group {
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
 
-  .pulse-tap { cursor:pointer; transition:transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s cubic-bezier(0.4,0,.2,1); }
-  .pulse-tap:active { transform:scale(0.97); opacity:.86; }
-  .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
+  /* ── Row ── */
+  .apple-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background .14s ease, opacity .1s ease;
+    min-height: 48px;
+  }
+  .apple-row:active {
+    background: rgba(127,127,127,0.12) !important;
+    opacity: 0.85;
+  }
+
+  /* ── Icon wrap (rounded square like iOS) ── */
+  .apple-icon-wrap {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── Row label ── */
+  .apple-row-label {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 400;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+    min-width: 0;
+  }
+
+  /* ── Badge ── */
+  .apple-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  /* ── Separator ── */
+  .apple-separator {
+    height: 0.5px;
+    margin-left: 56px;
+  }
+
+  /* ── Section label above group ── */
+  .conv-section-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 18px 4px 6px;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  }
+
+  /* ── Conversations collapse ── */
+  .conv-chevron {
+    transition: transform .25s cubic-bezier(0.4,0,0.2,1);
+    transform: rotate(90deg);
+  }
+  .conv-chevron.collapsed { transform: rotate(0deg); }
+
+  .conv-list-outer {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows .3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .conv-list-outer.collapsed { grid-template-rows: 0fr; }
+  .conv-inner { overflow: hidden; min-height: 0; }
+
+  /* ── Conversation row ── */
+  .conv-row { border-radius: 0; }
+  .conv-title-text {
+    flex: 1;
+    font-size: 14.5px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  }
+  .pin-icon { flex-shrink: 0; }
+
+  /* ── Empty state ── */
+  .conv-empty {
+    padding: 20px 14px;
+    font-size: 14px;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  }
+
+  /* ── Icon mask utility ── */
+  .icon-mask {
+    display: block;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
+    flex-shrink: 0;
+  }
 </style>

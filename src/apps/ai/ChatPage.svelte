@@ -1583,7 +1583,7 @@
 
   /* messages-wrap ocupa o espaço sobrante (flex:1) — encolhe/cresce
      automaticamente conforme o chat-root muda de altura com o teclado */
-  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
+  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior:contain; }
   .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; min-height:100%; }
   .empty-logo { width:72px; height:72px; margin-bottom:16px; }
   .greeting { font-size:48px; font-weight:700; text-align:center; margin:0 0 8px; }
@@ -1645,10 +1645,12 @@
 
   /* Bottom bar — preso ao fundo do chat-root. Sobe naturalmente quando
      o chat-root é redimensionado pelo teclado (ver setupKeyboard no script). */
-  .bottom-bar {
+.bottom-bar {
     position:absolute; bottom:0; left:16px; right:16px; z-index:50;
     margin-bottom:20px; border-radius:22px; display:flex; flex-direction:column;
     transition:background-color .3s ease, box-shadow .3s ease;
+    touch-action:none;
+    overscroll-behavior:none;
   }
   .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }
   .bottom-bar.dark  { background:#1F1F1F; box-shadow:0 4px 24px rgba(0,0,0,.30); }

@@ -31,22 +31,20 @@
 
   let showProfilePopup = false;
   let showAppsPopup    = false;
-
-  let profilePopupPos = { top: 0, left: 0 };
-  let appsPopupPos    = { top: 0, left: 0 };
+  let footerBottom     = 0;
+  let footerLeft       = 0;
 
   function openProfilePopup(e) {
     const rect = e.currentTarget.getBoundingClientRect();
-    profilePopupPos = { top: rect.top - 8, left: rect.left };
-    showAppsPopup   = false;
+    footerBottom = window.innerHeight - rect.top + 8;
+    footerLeft   = rect.left + 12;
+    showAppsPopup    = false;
     showProfilePopup = true;
   }
 
-  function openAppsPopup(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    appsPopupPos    = { top: rect.bottom + 8, left: rect.left };
+  function goToApps() {
     showProfilePopup = false;
-    showAppsPopup   = true;
+    showAppsPopup    = true;
   }
 
   function closeAllPopups() {
@@ -65,39 +63,35 @@
   }
 </script>
 
-<!-- Overlay do drawer -->
 <div class="overlay" class:open on:click|self={closeDrawer}></div>
 
-<!-- Popups overlay (fecha ao clicar fora) -->
 {#if showProfilePopup || showAppsPopup}
   <div class="popup-overlay" on:click={closeAllPopups}></div>
 {/if}
 
-<!-- Popup de perfil -->
 {#if showProfilePopup}
   <div
     class="popup-box"
     class:dark={isDark}
-    style="top:{profilePopupPos.top}px;left:{profilePopupPos.left}px;transform:translateY(-100%)"
+    style="bottom:{footerBottom}px;left:{footerLeft}px;"
   >
     <button type="button" class="popup-row" class:dark={isDark} on:click={openSettings}>
       <span class="icon-mask popup-row-icon" style="mask-image:url('/icons/svg/settings.svg');-webkit-mask-image:url('/icons/svg/settings.svg');"></span>
       <span class="popup-label" class:dark={isDark}>Definições</span>
     </button>
     <div class="popup-sep" class:dark={isDark}></div>
-    <button type="button" class="popup-row" class:dark={isDark} on:click={(e) => { showProfilePopup=false; showAppsPopup=true; appsPopupPos={ top: profilePopupPos.top, left: profilePopupPos.left }; }}>
+    <button type="button" class="popup-row" class:dark={isDark} on:click={goToApps}>
       <span class="icon-mask popup-row-icon" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');"></span>
       <span class="popup-label" class:dark={isDark}>Apps</span>
     </button>
   </div>
 {/if}
 
-<!-- Popup de apps -->
 {#if showAppsPopup}
   <div
     class="popup-box apps-popup"
     class:dark={isDark}
-    style="top:{appsPopupPos.top}px;left:{appsPopupPos.left}px;transform:translateY(-100%)"
+    style="bottom:{footerBottom}px;left:{footerLeft}px;"
   >
     <div class="popup-section-label" class:dark={isDark}>Plataformas</div>
     <div class="apps-list">
@@ -105,8 +99,6 @@
         <button
           type="button"
           class="app-row"
-          class:active={app.id === 'music'}
-          class:dark={isDark}
           on:click={() => navigateApp(app)}
         >
           <div class="app-icon-wrap" style="background:{isDark ? '#2C2C2E' : '#F0F0F5'}">
@@ -126,18 +118,10 @@
   </div>
 {/if}
 
-<!-- Drawer -->
 <div class="drawer" class:open class:dark={isDark}>
 
   <div class="header">
     <span class="header-title">Music</span>
-    <span
-      class="icon-mask apps-icon"
-      style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');"
-      role="button"
-      tabindex="0"
-      on:click={openAppsPopup}
-    ></span>
   </div>
 
   <div class="body">
@@ -181,13 +165,9 @@
   .drawer.dark { background:#111111; border-right-color:rgba(255,255,255,0.07); }
   .drawer.open { transform:translateX(0); }
 
-  .header { padding:20px 20px 10px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+  .header { padding:20px 20px 10px; flex-shrink:0; }
   .header-title { font-size:26px; font-weight:700; letter-spacing:-0.5px; color:#000; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
   .dark .header-title { color:#fff; }
-
-  .apps-icon { width:22px; height:22px; background:rgba(60,60,67,0.55); cursor:pointer; transition:opacity 0.15s; }
-  .apps-icon:active { opacity:0.5; }
-  .dark .apps-icon { background:rgba(235,235,245,0.55); }
 
   .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:8px 0 16px; display:flex; flex-direction:column; }
 
@@ -225,10 +205,20 @@
   /* Popups */
   .popup-overlay { position:fixed; inset:0; z-index:200; }
 
-  .popup-box { position:fixed; z-index:201; width:210px; border-radius:14px; overflow:hidden; background:#fff; box-shadow:0 8px 30px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08); animation:popIn .18s cubic-bezier(0.34,1.56,0.64,1); }
+  .popup-box {
+    position:fixed; z-index:201; width:210px;
+    border-radius:14px; overflow:hidden;
+    background:#fff;
+    box-shadow:0 8px 30px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
+    transform-origin: bottom left;
+    animation: popInBottomLeft .2s cubic-bezier(0.34,1.56,0.64,1);
+  }
   .popup-box.dark { background:#2c2c2e; }
 
-  @keyframes popIn { from { opacity:0; transform:translateY(-100%) scale(0.92); } to { opacity:1; transform:translateY(-100%) scale(1); } }
+  @keyframes popInBottomLeft {
+    from { opacity:0; transform:scale(0.75); }
+    to   { opacity:1; transform:scale(1); }
+  }
 
   .popup-sep { height:0.5px; background:rgba(0,0,0,0.08); margin:0 14px; }
   .popup-sep.dark { background:rgba(255,255,255,0.08); }

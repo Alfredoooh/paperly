@@ -177,12 +177,10 @@
     position: fixed; inset: 0; z-index: 100;
     opacity: 0; pointer-events: none;
     background: rgba(0,0,0,0.18);
-    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
-    transition: opacity .28s ease, backdrop-filter .28s ease;
+    transition: opacity .28s ease;
   }
   .overlay.open {
     opacity: 1; pointer-events: auto;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
 
   .drawer {

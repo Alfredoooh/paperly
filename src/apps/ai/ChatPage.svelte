@@ -1,5 +1,5 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, afterUpdate, createEventDispatcher } from 'svelte';
   import { getThemeColors } from '../../core/theme.js';
   import { GeminiApiService, AuthApiService, CreditsApiService } from '../../core/api.js';
   import { showToast } from '../../core/utils.js';
@@ -20,6 +20,9 @@
 
   // Usa effectiveUser em vez de user em todo o código
   $: c = getThemeColors(isDark);
+
+  // Sincroniza variável global para os widgets (widgets.js)
+  $: if (typeof window !== 'undefined') window.isDarkMode = isDark;
 
   let currentModelId   = localStorage.getItem('nexa_model') || 'gemini-2.5-flash';
   let currentLanguage  = localStorage.getItem('nexa_language') || 'pt';
@@ -79,6 +82,51 @@
     setupWidgetSettings();
     window.addEventListener('resize', setupVH);
     window.addEventListener('orientationchange', () => setTimeout(setupVH, 120));
+
+    // Carrega o script de widgets se ainda não estiver presente
+    if (!window._widgetsLoaded) {
+      const script = document.createElement('script');
+      script.src = '/js/widgets.js';  // ajuste o caminho conforme necessário
+      script.onload = () => { window._widgetsLoaded = true; };
+      document.head.appendChild(script);
+    }
+  });
+
+  afterUpdate(() => {
+    // Processa placeholders de widgets injetados via @html
+    const placeholders = document.querySelectorAll('.widget-placeholder:not([data-processed])');
+    if (placeholders.length === 0) return;
+
+    const widgetMap = {
+      'widget_table':    'renderNativeTable',
+      'widget_bar':      'renderNativeBarChart',
+      'widget_pie':      'renderNativePieChart',
+      'widget_sheet':    'renderNativeSheet',
+      'widget_code':     'renderNativeCodeBlock',
+      'widget_market':   'renderNativeMarket',
+      'widget_calendar': 'renderNativeCalendar',
+      'widget_timer':    'renderNativeTimer',
+      'widget_mindmap':  'renderNativeMindMap',
+      'widget_graph':    'renderNativeMathGraph',
+      'widget_map':      'renderNativeMapPlaceholder'
+    };
+
+    placeholders.forEach(el => {
+      const type = el.dataset.widgetType;
+      const funcName = widgetMap[type];
+      if (funcName && typeof window[funcName] === 'function') {
+        try {
+          const json = JSON.parse(el.dataset.widgetJson || '{}');
+          window[funcName](el, json);
+          el.setAttribute('data-processed', 'true');
+        } catch (e) {
+          console.error('Erro ao processar widget', type, e);
+          el.innerHTML = `<div class="widget-error">Widget inválido</div>`;
+        }
+      } else {
+        el.innerHTML = `<div class="widget-error">Widget desconhecido: ${type}</div>`;
+      }
+    });
   });
 
   function setupVH() {
@@ -97,7 +145,7 @@
       if (offset === lastOffset) return; lastOffset = offset;
       const bbEl = document.getElementById('bottomBar');
       if (bbEl) bbEl.style.bottom = offset > 40 ? offset + 'px' : '0px';
-      if (messagesEl) messagesEl.style.paddingBottom = (170 + (offset > 40 ? offset : 0)) + 'px';
+      // Removido: messagesEl.style.paddingBottom não é mais alterado
     };
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', () => requestAnimationFrame(() => apply(compute())));
@@ -111,7 +159,7 @@
   }
   function isWidgetEnabled(type) { return widgetSettings[type] !== false; }
 
-  // ── Markdown (igual ao anterior) ──
+  // ── Markdown (mantido o parser existente, apenas a geração de widgets foi alterada) ──
   const ALL_WIDGETS = new Set(['widget_table','widget_code','widget_bar','widget_pie','widget_sheet','widget_market','widget_calendar','widget_timer','widget_mindmap','widget_graph','widget_map']);
 
   function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -192,146 +240,17 @@
     text = parts.join('');
     text = text.replace(/\u0000CB(\d+)\u0000/g,(_,idx)=>{
       const blk=codeBlocks[Number(idx)];
-      if(ALL_WIDGETS.has(blk.lang)&&isWidgetEnabled(blk.lang)) return buildNativeWidget(blk.lang, blk.code);
+      if(ALL_WIDGETS.has(blk.lang) && isWidgetEnabled(blk.lang)) {
+        // Placeholder que será substituído pelo widgets.js
+        const safeJson = escapeAttr(blk.code);
+        return `<div class="widget-placeholder" data-widget-type="${blk.lang}" data-widget-json="${safeJson}"></div>`;
+      }
       const safe=escapeHtml(blk.code);
       const hdr=blk.lang?`<div class="code-block-header"><span class="code-lang-label">${escapeHtml(blk.lang)}</span><button class="code-copy-btn pulse-tap" onclick="window._copyCodeBtn(this)"><span class="icon-mask" style="mask-image:url('/icons/svg/copy.svg');-webkit-mask-image:url('/icons/svg/copy.svg');width:13px;height:13px;background:currentColor;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span></button></div>`:'';
       return `<div class="code-block-wrapper">${hdr}<pre class="code-block"><code>${safe}</code></pre></div>`;
     });
     text = text.replace(/\u0000MB(\d+)\u0000/g,(_,idx)=>{const blk=mathBlocks[Number(idx)];const rendered=renderMathToken(blk.content);return blk.display?`<div class="math-display">${rendered}</div>`:`<span class="math-inline">${rendered}</span>`;});
     return text;
-  }
-
-  // ══════════════════════════════════════════════════════
-  // WIDGETS NATIVOS — renderiza HTML inline dentro do chat
-  // ══════════════════════════════════════════════════════
-  function buildNativeWidget(type, rawJson) {
-    let data;
-    try { data = JSON.parse(rawJson); } catch(e) { return `<div class="widget-error">Widget inválido: ${escapeHtml(type)}</div>`; }
-
-    const dark = isDark;
-    const bg   = dark ? '#1C1C1E' : '#F2F2F7';
-    const bg2  = dark ? '#2C2C2E' : '#FFFFFF';
-    const text = dark ? '#F2F2F2' : '#10151c';
-    const sub  = dark ? '#939393' : '#888888';
-    const div  = dark ? '#2A2A2A' : '#E5E5EA';
-
-    switch(type) {
-
-      case 'widget_table': {
-        const { headers=[], rows=[] } = data;
-        return `<div class="w-table-wrap"><table class="w-table"><thead><tr>${headers.map(h=>`<th>${escapeHtml(String(h))}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(cell=>`<td>${escapeHtml(String(cell))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-      }
-
-      case 'widget_code': {
-        const { language='', code='' } = data;
-        return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang-label">${escapeHtml(language)}</span><button class="code-copy-btn pulse-tap" onclick="window._copyWidgetCode(this,'${escapeAttr(code)}')"><span class="icon-mask" style="mask-image:url('/icons/svg/copy.svg');-webkit-mask-image:url('/icons/svg/copy.svg');width:13px;height:13px;background:currentColor;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span></button></div><pre class="code-block"><code>${escapeHtml(code)}</code></pre></div>`;
-      }
-
-      case 'widget_bar': {
-        const { data: items=[] } = data;
-        const max = Math.max(...items.map(i=>i.value), 1);
-        const bars = items.map(i=>`<div class="wbar-item"><div class="wbar-bar-wrap"><div class="wbar-bar" style="height:${Math.round((i.value/max)*100)}%;background:#2F7BF6"></div></div><div class="wbar-label" style="color:${sub}">${escapeHtml(String(i.label))}</div><div class="wbar-val" style="color:${text}">${i.value}</div></div>`).join('');
-        return `<div class="widget-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">Gráfico de Barras</div><div class="wbar-chart">${bars}</div></div>`;
-      }
-
-      case 'widget_pie': {
-        const { data: items=[] } = data;
-        const total = items.reduce((a,b)=>a+b.value,0)||1;
-        const colors = ['#2F7BF6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4'];
-        let cum = 0;
-        const slices = items.map((item,i)=>{
-          const pct = item.value/total;
-          const start = cum; cum += pct;
-          const a1 = start*2*Math.PI - Math.PI/2, a2 = cum*2*Math.PI - Math.PI/2;
-          const x1=50+48*Math.cos(a1), y1=50+48*Math.sin(a1), x2=50+48*Math.cos(a2), y2=50+48*Math.sin(a2);
-          const large = pct > 0.5 ? 1 : 0;
-          return `<path d="M50,50 L${x1.toFixed(2)},${y1.toFixed(2)} A48,48 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${colors[i%colors.length]}"/>`;
-        }).join('');
-        const legend = items.map((item,i)=>`<div class="wpie-leg-item"><span class="wpie-dot" style="background:${colors[i%colors.length]}"></span><span style="color:${text}">${escapeHtml(String(item.label))}</span><span style="color:${sub};margin-left:auto">${Math.round(item.value/total*100)}%</span></div>`).join('');
-        return `<div class="widget-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">Gráfico de Pizza</div><div class="wpie-wrap"><svg viewBox="0 0 100 100" class="wpie-svg">${slices}</svg><div class="wpie-legend">${legend}</div></div></div>`;
-      }
-
-      case 'widget_sheet': {
-        const { lines: ls=[] } = data;
-        const rows = ls.map(l=>l.title ? `<div class="wsheet-title" style="color:${text}">${escapeHtml(String(l.text))}</div>` : `<div class="wsheet-line" style="color:${sub}">${escapeHtml(String(l.text))}</div>`).join('');
-        return `<div class="widget-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">Folha de Notas</div>${rows}</div>`;
-      }
-
-      case 'widget_market': {
-        const { type: mtype='', symbol='', name='' } = data;
-        return `<div class="widget-card wmarket" style="background:${bg}" id="wm_${symbol}"><div class="wmarket-header"><div><div class="wmarket-symbol" style="color:${text}">${escapeHtml(symbol)}</div><div class="wmarket-name" style="color:${sub}">${escapeHtml(name)}</div></div><div class="wmarket-price-wrap"><div class="wmarket-price" style="color:${text}" id="wmp_${symbol}">A carregar…</div><div class="wmarket-change" id="wmc_${symbol}" style="color:${sub}"></div></div></div><div class="wmarket-type" style="color:#2F7BF6">${escapeHtml(mtype.toUpperCase())}</div></div>`;
-        // preço carregado via fetch assíncrono abaixo
-      }
-
-      case 'widget_calendar': {
-        const { events=[] } = data;
-        const evRows = events.map(ev=>`<div class="wcal-event"><div class="wcal-dot" style="background:${ev.color||'#2F7BF6'}"></div><div><div class="wcal-name" style="color:${text}">${escapeHtml(String(ev.name))}</div><div class="wcal-meta" style="color:${sub}">${escapeHtml(String(ev.date))}${ev.time?' · '+escapeHtml(ev.time):''}</div></div></div>`).join('');
-        return `<div class="widget-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">Calendário</div>${evRows||`<div style="color:${sub};font-size:13px">Sem eventos</div>`}</div>`;
-      }
-
-      case 'widget_timer': {
-        const { seconds=60, label='Temporizador' } = data;
-        const id = 'wt_' + Math.random().toString(36).slice(2,7);
-        setTimeout(() => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          let rem = seconds;
-          const disp = el.querySelector('.wtimer-display');
-          const btn  = el.querySelector('.wtimer-btn');
-          let running = false, iv = null;
-          const fmt = s => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
-          disp.textContent = fmt(rem);
-          btn.onclick = () => {
-            if (running) { clearInterval(iv); running=false; btn.textContent='▶'; }
-            else { if(rem===0)rem=seconds; running=true; btn.textContent='⏸'; iv=setInterval(()=>{ rem--; disp.textContent=fmt(rem); if(rem<=0){clearInterval(iv);running=false;btn.textContent='▶';showToast(`⏱ ${label} terminou!`);} },1000); }
-          };
-        }, 100);
-        return `<div class="widget-card wtimer" style="background:${bg}" id="${id}"><div class="widget-title" style="color:${sub}">${escapeHtml(label)}</div><div class="wtimer-display" style="color:${text}">00:00</div><button class="wtimer-btn pulse-tap">▶</button></div>`;
-      }
-
-      case 'widget_mindmap': {
-        const { title: mmTitle='', tree={} } = data;
-        function renderNode(node, depth=0) {
-          const indent = depth * 20;
-          const children = (node.children||[]).map(ch=>renderNode(ch,depth+1)).join('');
-          return `<div class="wmm-node" style="padding-left:${indent}px"><div class="wmm-dot" style="background:${node.color||'#2F7BF6'}"></div><span class="wmm-label" style="color:${text}">${escapeHtml(String(node.label||''))}</span></div>${children}`;
-        }
-        return `<div class="widget-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">Mapa Mental · ${escapeHtml(mmTitle)}</div>${renderNode(tree)}</div>`;
-      }
-
-      case 'widget_graph': {
-        const { expression='x', xMin=-10, xMax=10 } = data;
-        const W=280, H=160, pts=120;
-        const step=(xMax-xMin)/(pts-1);
-        let yVals=[];
-        for(let i=0;i<pts;i++){
-          const x=xMin+i*step;
-          try {
-            const s=expression.replace(/\^/g,'**').replace(/sin/gi,'Math.sin').replace(/cos/gi,'Math.cos').replace(/tan/gi,'Math.tan').replace(/abs/gi,'Math.abs').replace(/sqrt/gi,'Math.sqrt').replace(/pi/gi,'Math.PI').replace(/log/gi,'Math.log').replace(/exp/gi,'Math.exp');
-            yVals.push(new Function('x',`return ${s};`)(x));
-          } catch(e){ yVals.push(NaN); }
-        }
-        const valid=yVals.filter(y=>isFinite(y));
-        if(!valid.length) return `<div class="widget-card" style="background:${bg}"><div style="color:${sub}">Expressão inválida</div></div>`;
-        const yMin=Math.min(...valid), yMax=Math.max(...valid);
-        const pad=8;
-        const toX=i=>pad+(i/(pts-1))*(W-pad*2);
-        const toY=y=>H-pad-((y-yMin)/(yMax-yMin||1))*(H-pad*2);
-        let d='';
-        for(let i=0;i<pts;i++){if(isFinite(yVals[i])){d+=(d?'L':'M')+toX(i).toFixed(1)+','+toY(yVals[i]).toFixed(1);}}
-        const axisX=toY(0), axisY=toX(0);
-        return `<div class="widget-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">f(x) = ${escapeHtml(expression)}</div><svg viewBox="0 0 ${W} ${H}" class="wgraph-svg"><line x1="${pad}" y1="${axisX.toFixed(1)}" x2="${W-pad}" y2="${axisX.toFixed(1)}" stroke="${div}" stroke-width="1"/><line x1="${axisY.toFixed(1)}" y1="${pad}" x2="${axisY.toFixed(1)}" y2="${H-pad}" stroke="${div}" stroke-width="1"/><path d="${d}" fill="none" stroke="#2F7BF6" stroke-width="2" stroke-linejoin="round"/></svg></div>`;
-      }
-
-      case 'widget_map': {
-        const { lat=0, lng=0, zoom=13 } = data;
-        const url=`https://www.openstreetmap.org/export/embed.html?bbox=${lng-.05},${lat-.05},${lng+.05},${lat+.05}&layer=mapnik&marker=${lat},${lng}`;
-        return `<div class="widget-card wmap-card" style="background:${bg}"><div class="widget-title" style="color:${sub}">Mapa</div><iframe src="${url}" class="wmap-frame" loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe><div style="font-size:11px;color:${sub};margin-top:4px;text-align:right">${lat.toFixed(4)}, ${lng.toFixed(4)}</div></div>`;
-      }
-
-      default:
-        return `<div class="widget-error">Widget desconhecido: ${escapeHtml(type)}</div>`;
-    }
   }
 
   // Expõe funções globais para onclick inline
@@ -1012,7 +931,7 @@
   .px2 { padding:0 8px; }
   .circ { border-radius:50%; overflow:hidden; }
 
-  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; transition:padding-bottom .25s cubic-bezier(0.4,0,.2,1); }
+  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
   .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; min-height:100%; }
   .empty-logo { width:72px; height:72px; margin-bottom:16px; }
   .greeting { font-size:48px; font-weight:700; text-align:center; margin:0 0 8px; }
@@ -1062,47 +981,6 @@
   .assistant-content :global(.math-radicand) { border-top:1px solid currentColor; padding:0 2px; }
   .assistant-content :global(.math-display) { display:block; text-align:center; margin:12px 0; font-size:1.1em; overflow-x:auto; }
   .assistant-content :global(.math-inline) { display:inline; }
-  /* Widgets */
-  .assistant-content :global(.widget-card) { border-radius:16px; padding:14px; margin:8px 0 12px; overflow:hidden; }
-  .assistant-content :global(.widget-title) { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-bottom:10px; }
-  .assistant-content :global(.widget-error) { font-size:13px; color:#EF4444; padding:8px; }
-  .assistant-content :global(.w-table-wrap) { overflow-x:auto; margin:8px 0 12px; }
-  .assistant-content :global(.w-table) { border-collapse:collapse; min-width:100%; font-size:13px; }
-  .assistant-content :global(.w-table th) { padding:7px 10px; font-weight:600; border-bottom:2px solid rgba(127,127,127,.2); text-align:left; white-space:nowrap; }
-  .assistant-content :global(.w-table td) { padding:6px 10px; border-bottom:1px solid rgba(127,127,127,.1); }
-  .assistant-content :global(.wbar-chart) { display:flex; align-items:flex-end; gap:8px; height:100px; padding-top:8px; }
-  .assistant-content :global(.wbar-item) { display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
-  .assistant-content :global(.wbar-bar-wrap) { flex:1; width:100%; display:flex; align-items:flex-end; }
-  .assistant-content :global(.wbar-bar) { width:100%; border-radius:4px 4px 0 0; min-height:4px; transition:height .3s; }
-  .assistant-content :global(.wbar-label) { font-size:10px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-  .assistant-content :global(.wbar-val) { font-size:11px; font-weight:600; }
-  .assistant-content :global(.wpie-wrap) { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .assistant-content :global(.wpie-svg) { width:100px; height:100px; flex-shrink:0; }
-  .assistant-content :global(.wpie-legend) { flex:1; min-width:0; }
-  .assistant-content :global(.wpie-leg-item) { display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:4px; }
-  .assistant-content :global(.wpie-dot) { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-  .assistant-content :global(.wsheet-title) { font-size:15px; font-weight:700; margin-bottom:6px; }
-  .assistant-content :global(.wsheet-line) { font-size:13px; margin-bottom:3px; line-height:1.5; }
-  .assistant-content :global(.wmarket) {}
-  .assistant-content :global(.wmarket-header) { display:flex; justify-content:space-between; align-items:flex-start; }
-  .assistant-content :global(.wmarket-symbol) { font-size:18px; font-weight:800; }
-  .assistant-content :global(.wmarket-name) { font-size:12px; margin-top:2px; }
-  .assistant-content :global(.wmarket-price) { font-size:18px; font-weight:700; text-align:right; }
-  .assistant-content :global(.wmarket-change) { font-size:12px; text-align:right; margin-top:2px; }
-  .assistant-content :global(.wmarket-type) { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-top:8px; }
-  .assistant-content :global(.wcal-event) { display:flex; align-items:center; gap:10px; padding:6px 0; }
-  .assistant-content :global(.wcal-dot) { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-  .assistant-content :global(.wcal-name) { font-size:14px; font-weight:600; }
-  .assistant-content :global(.wcal-meta) { font-size:12px; margin-top:1px; }
-  .assistant-content :global(.wtimer) { text-align:center; }
-  .assistant-content :global(.wtimer-display) { font-size:36px; font-weight:800; font-variant-numeric:tabular-nums; margin:8px 0; }
-  .assistant-content :global(.wtimer-btn) { font-size:22px; background:none; border:none; cursor:pointer; padding:6px 18px; border-radius:10px; background:rgba(47,123,246,.12); color:#2F7BF6; }
-  .assistant-content :global(.wmm-node) { display:flex; align-items:center; gap:8px; padding:4px 0; }
-  .assistant-content :global(.wmm-dot) { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .assistant-content :global(.wmm-label) { font-size:14px; }
-  .assistant-content :global(.wgraph-svg) { width:100%; height:auto; display:block; }
-  .assistant-content :global(.wmap-card) { padding:12px; }
-  .assistant-content :global(.wmap-frame) { width:100%; height:200px; border:none; border-radius:10px; display:block; }
 
   .cursor-blink::after { content:'|'; animation:blink 1s step-end infinite; color:#2F7BF6; font-weight:300; }
   @keyframes blink { 50%{opacity:0} }
@@ -1111,7 +989,11 @@
   .action-btn { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:transparent; border:none; cursor:pointer; padding:0; opacity:.65; flex-shrink:0; }
   .action-btn:hover { opacity:1; }
 
-  .bottom-bar { position:absolute; bottom:0; left:16px; right:16px; z-index:50; margin-bottom:20px; border-radius:22px; display:flex; flex-direction:column; transition:background-color .3s ease,box-shadow .3s ease,bottom .18s ease; }
+  .bottom-bar {
+    position:absolute; bottom:0; left:16px; right:16px; z-index:50; margin-bottom:20px;
+    border-radius:22px; display:flex; flex-direction:column;
+    transition: background-color .3s ease, box-shadow .3s ease, bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
   .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }
   .bottom-bar.dark  { background:#1F1F1F; box-shadow:0 4px 24px rgba(0,0,0,.30); }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:12px 18px 0; width:100%; font-family:inherit; -webkit-user-select:text; user-select:text; max-height:150px; overflow-y:auto; }

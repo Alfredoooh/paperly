@@ -159,7 +159,7 @@
   function renderMarkdown(rawText) {
     if (!rawText) return '';
     const codeBlocks = [], mathBlocks = [];
-    let text = rawText.replace(/```([\w_]*?)[\r\n]+([\s\S]*?)```/g, (_, lang, code) => { const idx = codeBlocks.length; codeBlocks.push({lang:lang.trim(), code:code.replace(/\n$/','')}); return `\u0000CB${idx}\u0000`; });
+    let text = rawText.replace(/```([\w_]*?)[\r\n]+([\s\S]*?)```/g, (_, lang, code) => { const idx = codeBlocks.length; codeBlocks.push({lang: lang.trim(), code: code.replace(/\n$/, '')}); return `\u0000CB${idx}\u0000`; });
     text = text.replace(/\$\$([\s\S]+?)\$\$/g,(_,c)=>{ const idx=mathBlocks.length; mathBlocks.push({display:true,content:c}); return `\u0000MB${idx}\u0000`; });
     text = text.replace(/\$([^\$\n]+?)\$/g,(_,c)=>{ const idx=mathBlocks.length; mathBlocks.push({display:false,content:c}); return `\u0000MB${idx}\u0000`; });
     const lines = text.split('\n'); const parts = [];

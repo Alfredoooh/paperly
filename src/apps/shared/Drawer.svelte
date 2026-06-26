@@ -75,7 +75,7 @@
   });
 </script>
 
-<div class="overlay" class:open on:click={closeDrawer}></div>
+<div class="overlay" class:open on:click|self={closeDrawer}></div>
 
 <div class="drawer" class:open class:dark={isDark}>
 
@@ -158,7 +158,6 @@
 
   </div>
 
-  <!-- User footer -->
   {#if user}
     <button type="button" class="user-footer" class:dark={isDark} on:click={openSettings}>
       <div class="avatar" style="background:{avatarColor}">{userInitial}</div>
@@ -277,6 +276,8 @@
 
   /* ── User footer ── */
   .user-footer {
+    position: relative;
+    z-index: 102;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -303,11 +304,7 @@
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  .user-info {
-    display: flex; flex-direction: column;
-    min-width: 0; flex: 1;
-    text-align: left;
-  }
+  .user-info { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
   .user-name {
     font-size: 13.5px; font-weight: 600; color: #000;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

@@ -101,7 +101,7 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:18px;height:18px;transform:rotate(180deg);background:{isDark?'#fff':'#000'}"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:18px;height:18px;transform:rotate(180deg);background:{isDark?'#fff':'#000'}"></span>
     </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" on:click={handleLogout}>

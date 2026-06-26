@@ -14,11 +14,17 @@
   let user        = null;
   let isDark      = false;
   let chatMounted = false;
+  let ready       = false; // evita flash antes de ler localStorage
 
   onMount(() => {
+    // ── Tema ──
     const saved = localStorage.getItem('nexa_theme');
-    isDark = saved === 'dark' ? true : saved === 'light' ? false : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    isDark = saved === 'dark' ? true
+           : saved === 'light' ? false
+           : window.matchMedia('(prefers-color-scheme: dark)').matches;
     applyTheme();
+
+    // ── Utilizador — lê SEMPRE do localStorage no mount ──
     let savedUser = null;
     try { savedUser = JSON.parse(localStorage.getItem('nexa_user') || 'null'); } catch(e) {}
     if (!savedUser?.token) {
@@ -27,14 +33,20 @@
     if (savedUser?.token) {
       localStorage.removeItem('ipc_user');
       localStorage.setItem('nexa_user', JSON.stringify(savedUser));
-      user = savedUser;
-      route = 'chat';
+      user        = savedUser;
+      route       = 'chat';
       chatMounted = true;
     } else {
       route = 'login';
     }
-    window.addEventListener('beforeunload', () => localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light'));
-    document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'd') { e.preventDefault(); isDark = !isDark; applyTheme(); } });
+
+    ready = true;
+
+    window.addEventListener('beforeunload', () =>
+      localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light'));
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'd') { e.preventDefault(); isDark = !isDark; applyTheme(); }
+    });
   });
 
   function applyTheme() {
@@ -42,50 +54,71 @@
     document.body.classList.toggle('dark',   isDark);
   }
 
-  $: { if (typeof document !== 'undefined') applyTheme(); }
+  // re-aplica tema sempre que isDark muda
+  $: if (typeof document !== 'undefined') applyTheme();
 
   function handleNav(e) {
     const { to, data } = e.detail;
-    if (data?.user)               { user = data.user; localStorage.setItem('nexa_user', JSON.stringify(data.user)); }
-    if (data?.isDark !== undefined){ isDark = data.isDark; applyTheme(); localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light'); }
-    if (data?.logout)             { user = null; localStorage.removeItem('nexa_user'); }
-    if (to === 'chat') chatMounted = true;
+
+    if (data?.user) {
+      user = data.user;
+      localStorage.setItem('nexa_user', JSON.stringify(data.user));
+    }
+    if (data?.isDark !== undefined) {
+      isDark = data.isDark;
+      applyTheme();
+      localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light');
+    }
+    if (data?.logout) {
+      user = null;
+      localStorage.removeItem('nexa_user');
+      chatMounted = false; // destrói o ChatPage para reset completo
+    }
+    if (to === 'chat') {
+      chatMounted = true;
+    }
     route = to;
   }
 </script>
 
-{#if route === 'splash'}
-  <SplashPage     {isDark} on:nav={handleNav} />
-{:else if route === 'login'}
-  <LoginPage      {isDark} on:nav={handleNav} />
-{:else if route === 'register'}
-  <RegisterPage   {isDark} on:nav={handleNav} />
-{/if}
+<!-- Não renderiza nada até o mount terminar (evita flash de login) -->
+{#if ready}
 
-<!-- wrapper display:none esconde o fixed ChatPage sem o destruir -->
-{#if chatMounted}
-  <div style="display:{route === 'chat' ? 'contents' : 'none'}">
-    <ChatPage {isDark} {user} on:nav={handleNav} />
-  </div>
-{/if}
+  {#if route === 'splash'}
+    <SplashPage   {isDark} on:nav={handleNav} />
+  {:else if route === 'login'}
+    <LoginPage    {isDark} on:nav={handleNav} />
+  {:else if route === 'register'}
+    <RegisterPage {isDark} on:nav={handleNav} />
+  {/if}
 
-{#if route === 'music'}
-  <MusicPage      {isDark} {user} on:nav={handleNav} />
-{:else if route === 'games'}
-  <GamesPage      {isDark} {user} on:nav={handleNav} />
-{:else if route === 'media'}
-  <MediaPage      {isDark} {user} on:nav={handleNav} />
-{:else if route === 'news'}
-  <NewsPage       {isDark} {user} on:nav={handleNav} />
-{:else if route === 'downloader'}
-  <DownloaderPage {isDark} {user} on:nav={handleNav} />
+  <!--
+    ChatPage fica sempre montado depois do primeiro login
+    (display:none esconde sem destruir o estado)
+    user é passado reactivamente — quando handleNav actualiza user,
+    o ChatPage recebe o valor novo mesmo estando escondido
+  -->
+  {#if chatMounted}
+    <div style="display:{route === 'chat' ? 'contents' : 'none'}">
+      <ChatPage {isDark} {user} on:nav={handleNav} />
+    </div>
+  {/if}
+
+  {#if route === 'music'}
+    <MusicPage      {isDark} {user} on:nav={handleNav} />
+  {:else if route === 'games'}
+    <GamesPage      {isDark} {user} on:nav={handleNav} />
+  {:else if route === 'media'}
+    <MediaPage      {isDark} {user} on:nav={handleNav} />
+  {:else if route === 'news'}
+    <NewsPage       {isDark} {user} on:nav={handleNav} />
+  {:else if route === 'downloader'}
+    <DownloaderPage {isDark} {user} on:nav={handleNav} />
+  {/if}
+
 {/if}
 
 <style>
-  :global(@font-face) {
-    font-family: 'TimesNewRoman';
-    src: url('/fonts/pattern/times_new_roman.ttf') format('truetype');
-  }
   :global(:root) {
     --primary:#2F7BF6;
     --bg-light:#F9FAFB; --bg-dark:#0F0F0F;
@@ -100,7 +133,12 @@
     --add-circle-bg-light:#F3F4F6; --add-circle-bg-dark:#2C2C2E;
     --user-bubble-bg-light:#EEF2FF; --user-bubble-bg-dark:#1E1E2E;
   }
-  :global(*,*::before,*::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
+  :global(*,*::before,*::after) {
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none;
+    user-select:none;
+  }
   :global(html,body) { height:100%; }
   :global(body) {
     font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;

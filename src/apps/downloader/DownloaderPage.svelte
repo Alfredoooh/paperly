@@ -3,6 +3,7 @@
   import { getThemeColors } from '../../core/theme.js';
   import { showToast } from '../../core/utils.js';
   import Drawer from '../shared/Drawer.svelte';
+  import SettingsPage from '../ai/SettingsPage.svelte';
   
   export let isDark = false;
   export let user = null;
@@ -23,12 +24,8 @@
   const statusIcon = { done: '/icons/svg/download.svg', active: '/icons/svg/refresh.svg', paused: '/icons/svg/warning.svg' };
   
   let urlInput = '',
-    drawerOpen = false;
-  const drawerMenuItems = [
-    { icon: 'download', label: 'Nova transferência', action: () => { urlInput = ''; } },
-    { icon: 'history', label: 'Histórico', action: () => showToast('Histórico em breve') },
-    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
-  ];
+    drawerOpen = false,
+    showSettings = false;
 </script>
 
 <div class="dl-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -47,10 +44,9 @@
     </button>
   </div>
   
-  <Drawer {isDark} {user} open={drawerOpen}
-    title="Downloader" subtitle="Transferências"
-    menuItems={drawerMenuItems}
-    on:close={()=> drawerOpen=false}
+  <Drawer {isDark} {user} open={drawerOpen} activeApp="downloader" on:close={()=> drawerOpen=false}
+    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
+    on:settings={() => { drawerOpen=false; showSettings=true; }}
     />
     
     <div class="content">
@@ -86,7 +82,7 @@
   .appbar-gradient.dark { background:linear-gradient(to bottom,rgba(15,15,15,1) 0%,rgba(15,15,15,.95) 45%,rgba(15,15,15,0) 100%); }
   .appbar { position:absolute; top:0; left:0; right:0; z-index:40; height:60px; display:flex; align-items:center; padding:0 8px; }
   .icon-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; background:none; }
-  .content { padding-top:68px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; }
+  .content { padding-top:68px; padding-bottom:104px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; }
   .input-wrap { margin:8px 16px 0; border:1.5px solid; border-radius:14px; padding:0 14px; display:flex; align-items:center; gap:10px; height:48px; }
   .input-wrap input { flex:1; border:none; outline:none; background:transparent; font-size:14px; font-family:inherit; -webkit-user-select:text; user-select:text; }
   .input-wrap input::placeholder { color:rgba(127,127,127,.7); }
@@ -106,3 +102,10 @@
   .pulse-tap:active { transform:scale(0.97); opacity:.86; }
   .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>
+{#if showSettings}
+  <SettingsPage {isDark} {user}
+    on:close={() => showSettings=false}
+    on:themeChange={(e) => dispatch('nav', { to: 'downloader', data: { isDark: e.detail.isDark } })}
+    on:logout={() => dispatch('nav', { to: 'login', data: { logout: true } })}
+  />
+{/if}

@@ -12,7 +12,7 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  background: '#0F0F0F', textPrimary: '#F2F2F2', textSecondary: '#939393',
+  background: '#121212', textPrimary: '#F2F2F2', textSecondary: '#939393',
   textHint: '#6E6E6E', iconTint: '#F2F2F2', iconTintSecondary: '#939393',
   divider: '#2A2A2A', drawerBackground: '#1F1F1F', drawerText: '#F2F2F2',
   bottomBarSolid: '#1F1F1F', dialogBackground: '#1F1F1F',
@@ -26,27 +26,4 @@ export const darkColors = {
 
 export function getThemeColors(isDark) {
   return isDark ? darkColors : lightColors;
-}
-
-export function syncTheme(isDark) {
-  if (typeof document === 'undefined') return;
-
-  const colors = getThemeColors(isDark);
-  const root = document.documentElement;
-  const body = document.body;
-
-  root.classList.toggle('dark', isDark);
-  root.classList.toggle('light', !isDark);
-  body.classList.toggle('dark', isDark);
-  body.classList.toggle('light', !isDark);
-
-  body.dataset.theme = isDark ? 'dark' : 'light';
-
-  root.style.setProperty('--app-bg', colors.background);
-  root.style.setProperty('--app-text', colors.textPrimary);
-  root.style.setProperty('--app-surface', isDark ? '#1C1C1E' : '#FFFFFF');
-  root.style.setProperty('--app-divider', colors.divider);
-
-  body.style.background = colors.background;
-  body.style.color = colors.textPrimary;
 }

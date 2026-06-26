@@ -3,6 +3,7 @@
   import { getThemeColors } from '../../core/theme.js';
   import { showToast } from '../../core/utils.js';
   import Drawer from '../shared/Drawer.svelte';
+  import SettingsPage from '../ai/SettingsPage.svelte';
   
   export let isDark = false;
   export let user = null;
@@ -24,12 +25,8 @@
   ];
   
   let activeTab = 'videos',
-    drawerOpen = false;
-  const drawerMenuItems = [
-    { icon: 'image', label: 'Vídeos', action: () => { activeTab = 'videos'; } },
-    { icon: 'folder', label: 'Ficheiros', action: () => { activeTab = 'files'; } },
-    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
-  ];
+    drawerOpen = false,
+    showSettings = false;
 </script>
 
 <div class="media-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -48,10 +45,9 @@
     </button>
   </div>
   
-  <Drawer {isDark} {user} open={drawerOpen}
-    title="Media" subtitle="Vídeos e ficheiros"
-    menuItems={drawerMenuItems}
-    on:close={()=> drawerOpen=false}
+  <Drawer {isDark} {user} open={drawerOpen} activeApp="media" on:close={()=> drawerOpen=false}
+    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
+    on:settings={() => { drawerOpen=false; showSettings=true; }}
     />
     
     <div class="tabs" style="border-color:{c.divider}">
@@ -103,7 +99,7 @@
   .tabs { display:flex; border-bottom:1px solid; margin-top:60px; padding:0 16px; gap:0; flex-shrink:0; }
   .tab { flex:1; padding:12px 0; text-align:center; font-size:13px; font-weight:600; cursor:pointer; border:none; background:transparent; font-family:inherit; position:relative; transition:color .15s; }
   .tab.active::after { content:''; position:absolute; bottom:0; left:16px; right:16px; height:2px; background:#2F7BF6; border-radius:2px 2px 0 0; }
-  .content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .content { flex:1; padding-bottom:104px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px 16px; }
   .vid-item { border-radius:12px; overflow:hidden; cursor:pointer; transition:transform .12s; border:1px solid; }
   .vid-item:active { transform:scale(0.97); }
@@ -120,3 +116,10 @@
   .pulse-tap:active { transform:scale(0.97); opacity:.86; }
   .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>
+{#if showSettings}
+  <SettingsPage {isDark} {user}
+    on:close={() => showSettings=false}
+    on:themeChange={(e) => dispatch('nav', { to: 'media', data: { isDark: e.detail.isDark } })}
+    on:logout={() => dispatch('nav', { to: 'login', data: { logout: true } })}
+  />
+{/if}

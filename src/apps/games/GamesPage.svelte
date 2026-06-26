@@ -3,6 +3,7 @@
   import { getThemeColors } from '../../core/theme.js';
   import { showToast } from '../../core/utils.js';
   import Drawer from '../shared/Drawer.svelte';
+  import SettingsPage from '../ai/SettingsPage.svelte';
   
   export let isDark = false;
   export let user = null;
@@ -23,14 +24,10 @@
   ];
   
   let activeCat = 'Todos',
-    drawerOpen = false;
+    drawerOpen = false,
+    showSettings = false;
   $: filtered = activeCat === 'Todos' ? games : games.filter(g => g.genre === activeCat);
   $: sectionLabel = activeCat === 'Todos' ? 'Todos os Jogos' : activeCat;
-  const drawerMenuItems = [
-    { icon: 'game_filled', label: 'Todos os Jogos', action: () => { activeCat = 'Todos'; } },
-    { icon: 'bookmark', label: 'Favoritos', action: () => showToast('Favoritos em breve') },
-    { icon: 'settings', label: 'Definições', action: () => showToast('Definições em breve') },
-  ];
 </script>
 
 <div class="games-shell" style="background:{isDark?'#0F0F0F':'#F9FAFB'}">
@@ -49,10 +46,9 @@
     </button>
   </div>
   
-  <Drawer {isDark} {user} open={drawerOpen}
-    title="Games" subtitle="Explorar jogos"
-    menuItems={drawerMenuItems}
-    on:close={()=> drawerOpen=false}
+  <Drawer {isDark} {user} open={drawerOpen} activeApp="games" on:close={()=> drawerOpen=false}
+    on:switchApp={(e) => { drawerOpen=false; dispatch('nav',{to:e.detail.id,data:{user}}); }}
+    on:settings={() => { drawerOpen=false; showSettings=true; }}
     />
     
     <div class="content">
@@ -87,7 +83,7 @@
   .appbar-gradient.dark { background:linear-gradient(to bottom,rgba(15,15,15,1) 0%,rgba(15,15,15,.95) 45%,rgba(15,15,15,0) 100%); }
   .appbar { position:absolute; top:0; left:0; right:0; z-index:40; height:60px; display:flex; align-items:center; padding:0 8px; }
   .icon-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; background:none; }
-  .content { padding-top:68px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .content { padding-top:68px; padding-bottom:104px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .cats { display:flex; gap:8px; padding:8px 16px 0; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   .cats::-webkit-scrollbar { display:none; }
   .chip { flex-shrink:0; padding:7px 16px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid; background:transparent; font-family:inherit; transition:all .15s; white-space:nowrap; }
@@ -104,3 +100,10 @@
   .pulse-tap:active { transform:scale(0.97); opacity:.86; }
   .icon-mask { display:block; background-color:currentColor; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>
+{#if showSettings}
+  <SettingsPage {isDark} {user}
+    on:close={() => showSettings=false}
+    on:themeChange={(e) => dispatch('nav', { to: 'games', data: { isDark: e.detail.isDark } })}
+    on:logout={() => dispatch('nav', { to: 'login', data: { logout: true } })}
+  />
+{/if}

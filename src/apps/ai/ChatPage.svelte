@@ -77,6 +77,7 @@
     setupVH();
     setupKeyboard();
     setupWidgetSettings();
+    setupBottomBarTouchLock();
     window.addEventListener('resize', setupVH);
     window.addEventListener('orientationchange', () => setTimeout(setupVH, 120));
   });
@@ -86,12 +87,6 @@
     document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
   }
 
-  // ── Fix teclado: redimensiona a altura real do chat-root ──
-  // O appbar (position:absolute; top:0) nunca se move porque o topo do
-  // contentor não muda. O bottom-bar (position:absolute; bottom:0) sobe
-  // sozinho porque o contentor encurta por debaixo dele. O messages-wrap
-  // (flex:1) reocupa o espaço sobrante automaticamente. Sem transforms,
-  // sem cálculo manual de offset.
   function setupKeyboard() {
     if (!window.visualViewport) return;
     const vv = window.visualViewport;
@@ -118,8 +113,17 @@
     applyViewport();
   }
 
-  // Evita que o browser faça scroll-into-view nativo ao focar o textarea
-  // (isso é o que normalmente arrasta o appbar/página inteira para cima)
+  function setupBottomBarTouchLock() {
+    const bb = document.getElementById('bottomBar');
+    if (!bb) return;
+    bb.addEventListener('touchmove', (e) => {
+      if (e.target !== textInputEl) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { passive: false });
+  }
+
   function handleInputFocus() {
     window.scrollTo(0, 0);
     requestAnimationFrame(() => window.scrollTo(0, 0));
@@ -908,7 +912,6 @@
     } catch(e) { container.textContent = 'Erro ao carregar widget'; console.error('Widget error:', e); }
   }
 
-  // Expõe funções globais para onclick inline
   if (typeof window !== 'undefined') {
     window._copyCodeBtn = (btn) => {
       const code = btn.closest('.code-block-wrapper')?.querySelector('code');
@@ -919,7 +922,6 @@
     };
   }
 
-  // ── Envio de mensagem ──
   async function sendMessage(text, attachmentsOverride, skipClear) {
     const trimmed = (text||'').trim();
     const atts = attachmentsOverride !== undefined ? attachmentsOverride : pendingAttachments.slice();
@@ -1105,7 +1107,6 @@
   }
   function selectModel(id) { currentModelId = id; localStorage.setItem('nexa_model', id); showSheet = false; showToast(`Modelo: ${currentModelName}`); }
 
-  // ── Voice recording ──
   async function startRecording() {
     if (isRecording) return;
     try {
@@ -1252,7 +1253,6 @@
     on:openSettings={() => { drawerOpen=false; showSettings=true; }}
   />
 
-  <!-- Messages -->
   <div class="messages-wrap" bind:this={messagesEl}>
     {#if !hasMessages}
       <div class="empty-state">
@@ -1334,8 +1334,6 @@
     {/if}
   </div>
 
-  <!-- Bottom bar — fica preso ao bottom:0 do chat-root, e sobe sozinho quando
-       o chat-root encurta (ver setupKeyboard). Sem transform, sem JS extra aqui. -->
   <div class="bottom-bar" class:light={!isDark} class:dark={isDark} id="bottomBar">
     {#if pendingAttachments.length}
       <div class="att-preview">
@@ -1387,7 +1385,6 @@
     </div>
   </div>
 
-  <!-- Modal Sheet -->
   <ModalSheet {isDark} open={showSheet} on:close={() => showSheet=false}>
     {#if sheetMode === 'add'}
       {#each [['image','Enviar Imagem','image'],['upload','Enviar Ficheiro','file']] as [icon,label,kind], i}
@@ -1500,7 +1497,6 @@
     {/if}
   </ModalSheet>
 
-  <!-- Center dialog -->
   {#if showCenterDialog}
     <div class="cd-overlay" on:click={() => showCenterDialog=false}></div>
     <div class="cd-box" style="background:{isDark?'#1C1C1E':'#FFFFFF'}">
@@ -1520,7 +1516,6 @@
     </div>
   {/if}
 
-  <!-- Recording overlay -->
   {#if showRecOverlay}
     <div class="rec-overlay" class:dark={isDark}>
       <div class="rec-loader-wrap">
@@ -1553,7 +1548,6 @@
     </div>
   {/if}
 
-  <!-- Settings -->
   {#if showSettings}
     <SettingsPage {isDark} user={effectiveUser}
       on:close={() => showSettings=false}
@@ -1581,8 +1575,6 @@
   .px2 { padding:0 8px; }
   .circ { border-radius:50%; overflow:hidden; }
 
-  /* messages-wrap ocupa o espaço sobrante (flex:1) — encolhe/cresce
-     automaticamente conforme o chat-root muda de altura com o teclado */
   .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior:contain; }
   .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; min-height:100%; }
   .empty-logo { width:72px; height:72px; margin-bottom:16px; }
@@ -1633,7 +1625,6 @@
   .assistant-content :global(.math-radicand) { border-top:1px solid currentColor; padding:0 2px; }
   .assistant-content :global(.math-display) { display:block; text-align:center; margin:12px 0; font-size:1.1em; overflow-x:auto; }
   .assistant-content :global(.math-inline) { display:inline; }
-  /* Widget host placeholder */
   .assistant-content :global(.widget-host) { display:block; min-height:4px; }
 
   .cursor-blink::after { content:'|'; animation:blink 1s step-end infinite; color:#2F7BF6; font-weight:300; }
@@ -1643,13 +1634,11 @@
   .action-btn { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:transparent; border:none; cursor:pointer; padding:0; opacity:.65; flex-shrink:0; }
   .action-btn:hover { opacity:1; }
 
-  /* Bottom bar — preso ao fundo do chat-root. Sobe naturalmente quando
-     o chat-root é redimensionado pelo teclado (ver setupKeyboard no script). */
-.bottom-bar {
+  .bottom-bar {
     position:absolute; bottom:0; left:16px; right:16px; z-index:50;
     margin-bottom:20px; border-radius:22px; display:flex; flex-direction:column;
     transition:background-color .3s ease, box-shadow .3s ease;
-    touch-action:none;
+    user-select:none;
     overscroll-behavior:none;
   }
   .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }

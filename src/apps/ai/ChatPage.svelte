@@ -47,6 +47,7 @@
   let inputText        = '';
   let textInputEl;
   let messagesEl;
+  let chatRootEl;
   let showSheet        = false;
   let sheetMode        = '';
   let sheetConv        = null;
@@ -72,6 +73,7 @@
   $: recTimerStr = (() => { const m=Math.floor(recSeconds/60),s=recSeconds%60; return `${m}:${s.toString().padStart(2,'0')}`; })();
 
   onMount(() => {
+    chatRootEl = document.querySelector('.chat-root');
     setupVH();
     setupKeyboard();
     setupWidgetSettings();
@@ -84,42 +86,45 @@
     document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
   }
 
-  // ── Fix teclado: bottom bar sobe suavemente, chat NÃO sobe ──
+  // ── Fix teclado: redimensiona a altura real do chat-root ──
+  // O appbar (position:absolute; top:0) nunca se move porque o topo do
+  // contentor não muda. O bottom-bar (position:absolute; bottom:0) sobe
+  // sozinho porque o contentor encurta por debaixo dele. O messages-wrap
+  // (flex:1) reocupa o espaço sobrante automaticamente. Sem transforms,
+  // sem cálculo manual de offset.
   function setupKeyboard() {
     if (!window.visualViewport) return;
     const vv = window.visualViewport;
 
-    let lastKbOffset = -1;
-    let rafId = null;
-
-    function computeOffset() {
-      return Math.round(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    function getRoot() {
+      if (!chatRootEl) chatRootEl = document.querySelector('.chat-root');
+      return chatRootEl;
     }
 
-    function apply() {
-      const offset = computeOffset();
-      if (offset === lastKbOffset) return;
-      lastKbOffset = offset;
-
-      const bbEl = document.getElementById('bottomBar');
-      const kbHeight = offset > 40 ? offset : 0;
-
-      if (bbEl) {
-        // move apenas o bottom bar para cima — o chat-root fica fixo
-        bbEl.style.transform = kbHeight > 0 ? `translateY(-${kbHeight}px)` : 'translateY(0)';
+    function applyViewport() {
+      const root = getRoot();
+      if (root) {
+        root.style.top = '0px';
+        root.style.left = '0px';
+        root.style.right = '0px';
+        root.style.bottom = 'auto';
+        root.style.height = vv.height + 'px';
       }
-      if (messagesEl) {
-        messagesEl.style.paddingBottom = (170 + kbHeight) + 'px';
-      }
+      scrollToBottom();
     }
 
-    function onViewportChange() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(apply);
-    }
+    vv.addEventListener('resize', applyViewport);
+    vv.addEventListener('scroll', applyViewport);
+    applyViewport();
+  }
 
-    vv.addEventListener('resize', onViewportChange);
-    vv.addEventListener('scroll', onViewportChange);
+  // Evita que o browser faça scroll-into-view nativo ao focar o textarea
+  // (isso é o que normalmente arrasta o appbar/página inteira para cima)
+  function handleInputFocus() {
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+    setTimeout(() => { window.scrollTo(0, 0); scrollToBottom(); }, 50);
+    setTimeout(() => { window.scrollTo(0, 0); scrollToBottom(); }, 300);
   }
 
   let widgetSettings = {};
@@ -209,7 +214,6 @@
     text = text.replace(/\u0000CB(\d+)\u0000/g,(_,idx)=>{
       const blk=codeBlocks[Number(idx)];
       if(ALL_WIDGETS.has(blk.lang)&&isWidgetEnabled(blk.lang)) {
-        // Retorna placeholder div; o widget DOM será montado via use:action
         const wid = 'w_' + Math.random().toString(36).slice(2,9);
         setTimeout(() => {
           const el = document.getElementById(wid);
@@ -1330,7 +1334,8 @@
     {/if}
   </div>
 
-  <!-- Bottom bar — usa transform para subir, NÃO bottom -->
+  <!-- Bottom bar — fica preso ao bottom:0 do chat-root, e sobe sozinho quando
+       o chat-root encurta (ver setupKeyboard). Sem transform, sem JS extra aqui. -->
   <div class="bottom-bar" class:light={!isDark} class:dark={isDark} id="bottomBar">
     {#if pendingAttachments.length}
       <div class="att-preview">
@@ -1358,6 +1363,7 @@
       bind:this={textInputEl}
       on:input={autoResize}
       on:keydown={handleKeyDown}
+      on:focus={handleInputFocus}
     ></textarea>
     <div class="bb-row">
       <button class="add-btn pulse-tap" style="background:{c.addCircleBg};color:{c.iconTint}" on:click={() => { sheetMode='add'; showSheet=true; }}>
@@ -1575,8 +1581,9 @@
   .px2 { padding:0 8px; }
   .circ { border-radius:50%; overflow:hidden; }
 
-  /* messages-wrap ocupa todo o espaço restante — NÃO é afetado pelo teclado */
-  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; transition:padding-bottom .3s cubic-bezier(0.4,0,.2,1); }
+  /* messages-wrap ocupa o espaço sobrante (flex:1) — encolhe/cresce
+     automaticamente conforme o chat-root muda de altura com o teclado */
+  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
   .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; min-height:100%; }
   .empty-logo { width:72px; height:72px; margin-bottom:16px; }
   .greeting { font-size:48px; font-weight:700; text-align:center; margin:0 0 8px; }
@@ -1636,14 +1643,12 @@
   .action-btn { width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:transparent; border:none; cursor:pointer; padding:0; opacity:.65; flex-shrink:0; }
   .action-btn:hover { opacity:1; }
 
-  /* Bottom bar — usa transform para subir suavemente; position:absolute fixo ao chat-root */
+  /* Bottom bar — preso ao fundo do chat-root. Sobe naturalmente quando
+     o chat-root é redimensionado pelo teclado (ver setupKeyboard no script). */
   .bottom-bar {
     position:absolute; bottom:0; left:16px; right:16px; z-index:50;
     margin-bottom:20px; border-radius:22px; display:flex; flex-direction:column;
-    /* transição bem suave */
-    transition:transform .35s cubic-bezier(0.25,0.46,0.45,0.94),
-               background-color .3s ease, box-shadow .3s ease;
-    will-change:transform;
+    transition:background-color .3s ease, box-shadow .3s ease;
   }
   .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }
   .bottom-bar.dark  { background:#1F1F1F; box-shadow:0 4px 24px rgba(0,0,0,.30); }

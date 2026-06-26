@@ -1,5 +1,6 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
+  import { fade, scale } from 'svelte/transition';
   import { getThemeColors } from '../../core/theme.js';
   import { AuthApiService } from '../../core/api.js';
   import { showToast } from '../../core/utils.js';
@@ -13,6 +14,8 @@
 
   $: c = getThemeColors(isDark);
   $: credits      = user?.credits ?? 0;
+  $: maxCredits   = 100; // ajusta conforme o plano
+  $: creditsPct   = Math.min(Math.max(credits / maxCredits, 0), 1);
   $: creditsColor = credits <= 10 ? '#FF3B30' : credits <= 30 ? '#FF9500' : '#34C759';
   $: creditsLabel = credits <= 10 ? 'Créditos a acabar' : `${credits} créditos`;
 
@@ -32,16 +35,39 @@
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: avatarColor = getAvatarColor(userName);
 
+  // ── Loader state ──
+  let loading      = true;
+  let loadingMsg   = '';
+
+  // Simula load inicial
+  import { onMount } from 'svelte';
+  onMount(() => {
+    setTimeout(() => { loading = false; }, 700);
+  });
+
+  // ── Popup anchored state ──
   let showThemePicker  = false;
   let showLangPicker   = false;
   let showPlansModal   = false;
   let langSearch       = '';
   let currentLanguage  = localStorage.getItem('nexa_language') || 'pt';
+  let popupAnchor      = { x: 0, y: 0 }; // posição do clique
 
   $: filteredLangs = AVAILABLE_LANGUAGES.filter(l => {
     const f = langSearch.trim().toLowerCase();
     return !f || l.name.toLowerCase().includes(f) || l.native.toLowerCase().includes(f);
   });
+
+  function openPopup(type, event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    // ancora ao centro vertical da row, lado direito
+    popupAnchor = {
+      x: rect.right - 16,
+      y: rect.top + rect.height / 2
+    };
+    if (type === 'theme') { showLangPicker = false; showThemePicker = true; }
+    if (type === 'lang')  { langSearch = ''; showThemePicker = false; showLangPicker = true; }
+  }
 
   function setLang(code) {
     currentLanguage = code;
@@ -51,12 +77,52 @@
   }
 
   async function handleLogout() {
+    showThemePicker = false;
+    showLangPicker  = false;
+    loadingMsg = 'A terminar sessão…';
+    loading    = true;
     if (user) await AuthApiService.logout(user.token);
-    dispatch('logout');
+    await tick();
+    setTimeout(() => {
+      loading = false;
+      dispatch('logout');
+    }, 800);
+  }
+
+  // Calcula posição do popup para não sair do ecrã
+  function popupStyle(anchor, width = 220, height = 120) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = anchor.x - width; // abre para a esquerda do ponto
+    let top  = anchor.y - height / 2;
+    if (left < 12) left = 12;
+    if (top < 12)  top  = 12;
+    if (top + height > vh - 12) top = vh - height - 12;
+    return `left:${left}px;top:${top}px;width:${width}px;`;
   }
 </script>
 
-<div class="page" class:dark={isDark}>
+<!-- ══════════════════════════════════════════
+     LOADER OVERLAY (abertura + logout)
+══════════════════════════════════════════ -->
+{#if loading}
+  <div class="loader-overlay" class:dark={isDark} transition:fade={{ duration: 200 }}>
+    <div class="ios-spinner" class:dark={isDark}>
+      {#each Array(12) as _, i}
+        <div class="spoke" style="--i:{i};--color:{isDark ? '#ffffff' : '#000000'}"></div>
+      {/each}
+    </div>
+    {#if loadingMsg}
+      <span class="loading-msg" class:dark={isDark}>{loadingMsg}</span>
+    {/if}
+  </div>
+{/if}
+
+<!-- ══════════════════════════════════════════
+     PÁGINA PRINCIPAL
+══════════════════════════════════════════ -->
+{#if !loading}
+<div class="page" class:dark={isDark} transition:fade={{ duration: 180 }}>
 
   <!-- Header -->
   <div class="header">
@@ -92,29 +158,46 @@
     <!-- Secção: Conta -->
     <div class="section-label">Conta</div>
     <div class="section">
+
+      <!-- Planos -->
       <button type="button" class="row" on:click={() => showPlansModal = true}>
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/tabs.svg');-webkit-mask-image:url('/icons/svg/tabs.svg');"></span>
         <span class="row-label">Planos</span>
         <span class="row-sub">Básico e Premium</span>
       </button>
 
-      <button type="button" class="row">
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
-        <span class="row-label">Saldo</span>
-        <span class="row-trail" style="color:{creditsColor}">{creditsLabel}</span>
-      </button>
+      <!-- Créditos — container com barra progressiva -->
+      <div class="credits-container" class:dark={isDark}>
+        <div class="credits-top">
+          <div class="credits-left">
+            <span class="icon-mask credits-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
+            <span class="credits-title" class:dark={isDark}>Saldo de créditos</span>
+          </div>
+          <span class="credits-value" style="color:{creditsColor}">{creditsLabel}</span>
+        </div>
+        <div class="progress-track" class:dark={isDark}>
+          <div
+            class="progress-fill"
+            style="width:{creditsPct * 100}%;background:{creditsColor};box-shadow:0 0 6px {creditsColor}66;"
+          ></div>
+        </div>
+        <div class="credits-bottom">
+          <span class="credits-hint" class:dark={isDark}>{credits} de {maxCredits} créditos disponíveis</span>
+        </div>
+      </div>
+
     </div>
 
     <!-- Secção: Preferências -->
     <div class="section-label">Preferências</div>
     <div class="section">
-      <button type="button" class="row" on:click={() => showThemePicker = true}>
+      <button type="button" class="row" on:click={(e) => openPopup('theme', e)}>
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');"></span>
         <span class="row-label">Aparência</span>
         <span class="row-trail">{isDark ? 'Escuro' : 'Claro'}</span>
       </button>
 
-      <button type="button" class="row" on:click={() => { langSearch = ''; showLangPicker = true; }}>
+      <button type="button" class="row" on:click={(e) => openPopup('lang', e)}>
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/language.svg');-webkit-mask-image:url('/icons/svg/language.svg');"></span>
         <span class="row-label">Idioma</span>
         <span class="row-trail">{AVAILABLE_LANGUAGES.find(l=>l.code===currentLanguage)?.name || 'Português'}</span>
@@ -152,38 +235,52 @@
 
   </div>
 </div>
+{/if}
 
-<!-- Plans modal -->
+<!-- Plans modal — navega para outra tela, sem popup anchored -->
 <PlansModal {isDark} {user} open={showPlansModal} on:close={() => showPlansModal=false} />
 
-<!-- Theme picker -->
+<!-- ══════════════════════════════════════════
+     POPUP ANCHORED — Tema
+══════════════════════════════════════════ -->
 {#if showThemePicker}
   <div class="popup-overlay" on:click={() => showThemePicker=false}></div>
-  <div class="popup-box" class:dark={isDark}>
-    <div class="popup-title">Tema</div>
-    {#each [[false,'Claro'],[true,'Escuro']] as [dark, label]}
-      <div class="popup-sep"></div>
+  <div
+    class="popup-box anchored"
+    class:dark={isDark}
+    style={popupStyle(popupAnchor, 200, 108)}
+    transition:scale={{ duration: 160, start: 0.88, opacity: 0 }}
+  >
+    {#each [[false,'Claro'],[true,'Escuro']] as [dark, label], i}
+      {#if i > 0}<div class="popup-sep"></div>{/if}
       <button type="button" class="popup-row" on:click={() => { showThemePicker=false; dispatch('themeChange',{isDark:dark}); }}>
         <span class="popup-label">{label}</span>
         {#if isDark === dark}
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         {/if}
       </button>
     {/each}
   </div>
 {/if}
 
-<!-- Language picker -->
+<!-- ══════════════════════════════════════════
+     POPUP ANCHORED — Idioma
+══════════════════════════════════════════ -->
 {#if showLangPicker}
   <div class="popup-overlay" on:click={() => showLangPicker=false}></div>
-  <div class="popup-box lang-box" class:dark={isDark}>
-    <div class="popup-title">Idioma</div>
+  <div
+    class="popup-box anchored lang-box"
+    class:dark={isDark}
+    style={popupStyle(popupAnchor, 240, Math.min(filteredLangs.length * 49 + 90, 340))}
+    transition:scale={{ duration: 160, start: 0.88, opacity: 0 }}
+  >
     <div class="lang-search-wrap">
       <input
         class="lang-search"
         class:dark={isDark}
         placeholder="Pesquisar idioma..."
         bind:value={langSearch}
+        autofocus
       />
     </div>
     <div class="lang-list">
@@ -198,7 +295,7 @@
               <span class="lang-native">{lang.native}</span>
             </div>
             {#if lang.code === currentLanguage}
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             {/if}
           </button>
         {/each}
@@ -208,7 +305,45 @@
 {/if}
 
 <style>
-  /* ── Page ── */
+  /* ══════════ LOADER OVERLAY ══════════ */
+  .loader-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    background: #ffffff;
+  }
+  .loader-overlay.dark { background: #111111; }
+
+  /* iOS spinner — 12 spokes */
+  .ios-spinner {
+    position: relative;
+    width: 32px; height: 32px;
+  }
+  .spoke {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 2.6px; height: 7px;
+    border-radius: 2px;
+    background: var(--color, #000);
+    transform-origin: center -6px;
+    transform: rotate(calc(var(--i) * 30deg)) translateY(-50%);
+    animation: ios-fade 1s linear infinite;
+    animation-delay: calc(var(--i) * -0.0833s);
+    opacity: 0.15;
+  }
+  @keyframes ios-fade {
+    0%   { opacity: 1; }
+    100% { opacity: 0.15; }
+  }
+
+  .loading-msg {
+    font-size: 13px; color: rgba(60,60,67,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .loading-msg.dark { color: rgba(235,235,245,0.4); }
+
+  /* ══════════ PAGE ══════════ */
   .page {
     position: fixed; inset: 0; z-index: 150;
     display: flex; flex-direction: column;
@@ -217,13 +352,12 @@
   }
   .page.dark { background: #111111; }
 
-  /* ── Header ── */
+  /* ══════════ HEADER ══════════ */
   .header {
     display: flex; align-items: center;
     padding: 16px 16px 10px;
     padding-top: calc(16px + env(safe-area-inset-top));
-    flex-shrink: 0;
-    gap: 8px;
+    flex-shrink: 0; gap: 8px;
   }
   .header-title {
     flex: 1; font-size: 17px; font-weight: 600;
@@ -236,16 +370,14 @@
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; cursor: pointer; border-radius: 50%;
     transition: background .12s ease;
-    color: #000;
   }
-  .page.dark .back-btn, .page.dark .logout-btn { color: #fff; }
   .back-btn:active, .logout-btn:active { background: rgba(0,0,0,0.06); }
   .page.dark .back-btn:active, .page.dark .logout-btn:active { background: rgba(255,255,255,0.08); }
   .back-btn .icon-mask { background: #000; }
   .page.dark .back-btn .icon-mask { background: #fff; }
   .logout-btn .icon-mask { background: #FF3B30; }
 
-  /* ── Scroll body ── */
+  /* ══════════ BODY ══════════ */
   .body {
     flex: 1; overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -253,7 +385,7 @@
     display: flex; flex-direction: column;
   }
 
-  /* ── User block ── */
+  /* ══════════ USER BLOCK ══════════ */
   .user-block {
     display: flex; align-items: center; gap: 12px;
     padding: 16px 20px 20px;
@@ -276,26 +408,22 @@
   }
   .page.dark .user-email { color: rgba(235,235,245,0.4); }
 
-  /* ── Section label ── */
+  /* ══════════ SECTION ══════════ */
   .section-label {
     font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em;
     text-transform: uppercase; color: rgba(60,60,67,0.5);
     padding: 16px 20px 6px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
   .page.dark .section-label { color: rgba(235,235,245,0.4); }
-
-  /* ── Section ── */
   .section { display: flex; flex-direction: column; padding: 0 12px; }
 
-  /* ── Row ── */
+  /* ══════════ ROW ══════════ */
   .row {
     width: 100%; display: flex; align-items: center; gap: 13px;
     padding: 13px 10px; background: transparent; border: none;
     cursor: pointer; text-align: left; border-radius: 10px;
     -webkit-user-select: none; user-select: none;
-    transition: background .12s ease;
-    color: #000;
+    transition: background .12s ease; color: #000;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   }
   .page.dark .row { color: #fff; }
@@ -303,12 +431,9 @@
   .page.dark .row:active { background: rgba(255,255,255,0.06); }
   .row.danger { color: #FF3B30; }
 
-  /* ── Row icon — mesmo tamanho dos extras (17px) ── */
   .row-icon {
     width: 17px; height: 17px;
-    background: rgba(60,60,67,0.55);
-    flex-shrink: 0;
-    display: block;
+    background: rgba(60,60,67,0.55); flex-shrink: 0; display: block;
     mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
@@ -318,81 +443,111 @@
 
   .row-label { flex: 1; font-size: 15px; font-weight: 400; min-width: 0; }
   .row.danger .row-label { color: #FF3B30; }
-
-  .row-sub {
-    font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0;
-  }
+  .row-sub { font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0; }
   .page.dark .row-sub { color: rgba(235,235,245,0.35); }
-
-  .row-trail {
-    font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0;
-  }
+  .row-trail { font-size: 13px; color: rgba(60,60,67,0.45); flex-shrink: 0; }
   .page.dark .row-trail { color: rgba(235,235,245,0.35); }
 
-  /* ── Popup overlay ── */
+  /* ══════════ CREDITS CONTAINER ══════════ */
+  .credits-container {
+    margin: 4px 10px 6px;
+    padding: 13px 14px 11px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.03);
+    border: 0.5px solid rgba(0,0,0,0.06);
+  }
+  .credits-container.dark {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.07);
+  }
+  .credits-top {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 10px;
+  }
+  .credits-left {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .credits-icon {
+    width: 15px; height: 15px; flex-shrink: 0; display: block;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+  }
+  .credits-title {
+    font-size: 13.5px; font-weight: 500; color: #000;
+  }
+  .credits-title.dark { color: #fff; }
+  .credits-value {
+    font-size: 13px; font-weight: 600;
+  }
+
+  /* barra de progresso */
+  .progress-track {
+    height: 5px; border-radius: 10px;
+    background: rgba(0,0,0,0.08); overflow: hidden;
+  }
+  .progress-track.dark { background: rgba(255,255,255,0.1); }
+  .progress-fill {
+    height: 100%; border-radius: 10px;
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    min-width: 4px;
+  }
+
+  .credits-bottom { margin-top: 7px; }
+  .credits-hint {
+    font-size: 11.5px; color: rgba(60,60,67,0.4);
+  }
+  .credits-hint.dark { color: rgba(235,235,245,0.3); }
+
+  /* ══════════ POPUP OVERLAY ══════════ */
   .popup-overlay {
     position: fixed; inset: 0; z-index: 160;
-    background: rgba(0,0,0,0.06);
-    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+    /* sem background para ficar invisível mas capturar clicks */
   }
 
-  /* ── Popup box ── */
-  .popup-box {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(86vw, 320px);
-    z-index: 161;
+  /* ══════════ POPUP BOX — ANCHORED ══════════ */
+  .popup-box.anchored {
+    position: fixed; z-index: 161;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
     background: #ffffff;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
-    padding: 0;
+    /* origin: canto superior direito (ponto de clique) */
+    transform-origin: top right;
   }
-  .popup-box.dark { background: #1c1c1e; }
-
-  .popup-title {
-    padding: 14px 20px 10px;
-    font-size: 13px; font-weight: 600;
-    letter-spacing: 0.04em; text-transform: uppercase;
-    color: rgba(60,60,67,0.5);
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  }
-  .popup-box.dark .popup-title { color: rgba(235,235,245,0.4); }
+  .popup-box.anchored.dark { background: #2c2c2e; }
 
   .popup-sep {
     height: 0.5px;
     background: rgba(0,0,0,0.08);
-    margin: 0 16px;
+    margin: 0 14px;
   }
   .popup-box.dark .popup-sep { background: rgba(255,255,255,0.08); }
 
   .popup-row {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 20px; background: none; border: none;
+    padding: 13px 16px; background: none; border: none;
     cursor: pointer; font-family: inherit;
-    transition: background .12s ease;
+    transition: background .1s ease;
   }
   .popup-row:active { background: rgba(0,0,0,0.04); }
   .popup-box.dark .popup-row:active { background: rgba(255,255,255,0.05); }
 
-  .popup-label {
-    font-size: 15px; font-weight: 400; color: #000;
-  }
+  .popup-label { font-size: 15px; font-weight: 400; color: #000; }
   .popup-box.dark .popup-label { color: #fff; }
 
-  /* ── Lang picker ── */
+  /* ══════════ LANG PICKER ══════════ */
   .lang-box {
-    max-height: 70vh;
     display: flex; flex-direction: column;
+    max-height: 360px;
   }
-  .lang-search-wrap { padding: 0 16px 10px; flex-shrink: 0; }
+  .lang-search-wrap { padding: 10px 12px 8px; flex-shrink: 0; }
   .lang-search {
     width: 100%; border: none; outline: none;
-    border-radius: 10px; padding: 9px 13px;
+    border-radius: 8px; padding: 8px 11px;
     font-size: 14px; font-family: inherit;
-    background: rgba(0,0,0,0.05);
-    color: #000;
+    background: rgba(0,0,0,0.05); color: #000;
     -webkit-user-select: text; user-select: text;
+    box-sizing: border-box;
   }
   .lang-search.dark { background: rgba(255,255,255,0.08); color: #fff; }
   .lang-search::placeholder { color: rgba(60,60,67,0.4); }
@@ -400,7 +555,7 @@
 
   .lang-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
   .lang-empty {
-    padding: 20px; text-align: center; font-size: 13px;
+    padding: 16px; text-align: center; font-size: 13px;
     color: rgba(60,60,67,0.4);
   }
   .popup-box.dark .lang-empty { color: rgba(235,235,245,0.3); }
@@ -409,10 +564,10 @@
   .lang-name { font-size: 15px; font-weight: 400; color: #000; }
   .popup-box.dark .lang-name { color: #fff; }
   .lang-name.active { color: #007AFF; font-weight: 600; }
-  .lang-native { font-size: 12.5px; color: rgba(60,60,67,0.5); margin-top: 1px; }
+  .lang-native { font-size: 12px; color: rgba(60,60,67,0.5); margin-top: 1px; }
   .popup-box.dark .lang-native { color: rgba(235,235,245,0.35); }
 
-  /* ── Icon mask utility ── */
+  /* ══════════ ICON MASK UTILITY ══════════ */
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;

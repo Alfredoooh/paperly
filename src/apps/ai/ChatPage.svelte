@@ -30,10 +30,8 @@
 
   const drawerMenuItems = [
     { icon: 'new_chat', label: 'Nova conversa', action: () => newChat() },
-    { icon: 'user', label: 'Perfil', action: () => { showSettings = true; } },
     { icon: 'folder', label: 'Projetos', action: () => showToast('Projetos em breve'), keepOpen: true },
     { icon: 'extras', label: 'Extras', action: () => { sheetMode = 'extras'; showSheet = true; } },
-    { icon: 'settings', label: 'Definições', action: () => { showSettings = true; } },
   ];
 
   let displayMessages  = [];
@@ -684,6 +682,7 @@
     on:close={() => drawerOpen=false}
     on:openConv={handleOpenConv}
     on:convOptions={handleConvOptions}
+    on:openSettings={() => { drawerOpen=false; showSettings=true; }}
   />
 
   <!-- Messages -->

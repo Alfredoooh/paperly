@@ -10,9 +10,9 @@
   import NewsPage       from './apps/news/NewsPage.svelte';
   import DownloaderPage from './apps/downloader/DownloaderPage.svelte';
 
-  let route  = 'splash';
-  let user   = null;
-  let isDark = false;
+  let route       = 'splash';
+  let user        = null;
+  let isDark      = false;
   let chatMounted = false;
 
   onMount(() => {

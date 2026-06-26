@@ -1,9 +1,31 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { resolve } from 'path';
+import { cpSync, mkdirSync, existsSync } from 'fs';
+
+const apps = ['auth', 'home', 'ai', 'music', 'games', 'media', 'news', 'downloader'];
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [
+    svelte(),
+    {
+      name: 'post-build-copy',
+      closeBundle() {
+        const dist = resolve(__dirname, 'dist');
+        for (const app of apps) {
+          const src = resolve(dist, 'src', app, 'index.html');
+          const dest = resolve(dist, app, 'index.html');
+          if (existsSync(src)) {
+            mkdirSync(resolve(dist, app), { recursive: true });
+            cpSync(src, dest);
+            console.log(`✓ dist/${app}/index.html`);
+          } else {
+            console.warn(`⚠ não encontrado: dist/src/${app}/index.html`);
+          }
+        }
+      }
+    }
+  ],
   publicDir: 'static',
   resolve: {
     alias: {

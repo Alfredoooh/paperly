@@ -72,10 +72,8 @@
     return 'Boa noite';
   }
 
-  // Input — idêntico ao ChatPage
   let inputText = '';
   let textInputEl;
-  let pendingAttachments = [];
 
   function autoResize() {
     if (!textInputEl) return;
@@ -147,7 +145,6 @@
   <div class="scrim-top"></div>
   <div class="scrim-bottom"></div>
 
-  <!-- HEADER: só logo PNG maior, sem texto -->
   <header class="header" class:in={mounted}>
     <div class="logo-row">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
@@ -198,7 +195,6 @@
 
   </main>
 
-  <!-- BOTTOM BAR — pixel perfect igual ao ChatPage -->
   <div class="bottom" class:in={mounted}>
     <div class="bottom-bar">
       <textarea
@@ -211,25 +207,22 @@
         on:keydown={handleKeyDown}
       ></textarea>
       <div class="bb-row">
-        <!-- botão + igual ao ChatPage -->
-        <button class="add-btn pulse-tap" on:click={() => {}}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:rgba(255,255,255,0.75)"></span>
+        <button class="add-btn pulse-tap">
+          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:#F3F4F6"></span>
         </button>
         <div class="flex1"></div>
-        <!-- botão Apps igual ao ChatPage -->
         <button class="edit-btn pulse-tap">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:rgba(255,255,255,0.85)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:#F3F4F6"></span>
           <span class="edit-label">Apps</span>
         </button>
         <div style="width:8px"></div>
-        <!-- send / mic igual ao ChatPage -->
         {#if inputText.trim()}
           <button class="send-btn pulse-tap" on:click={navigateToAI}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:#000"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:#111827"></span>
           </button>
         {:else}
-          <button class="send-btn pulse-tap" on:click={() => {}}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:#000"></span>
+          <button class="send-btn pulse-tap">
+            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:#111827"></span>
           </button>
         {/if}
       </div>
@@ -273,7 +266,6 @@
     pointer-events: none;
   }
 
-  /* HEADER */
   .header {
     position: relative; z-index: 10;
     display: flex; align-items: center; justify-content: space-between;
@@ -285,19 +277,12 @@
   .header.in { opacity: 1; transform: translateY(0); }
 
   .logo-row { display: flex; align-items: center; }
-
-  /* Logo PNG maior, sem border-radius, sem texto */
-  .logo-img {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-  }
+  .logo-img { width: 48px; height: 48px; object-fit: contain; }
 
   .avatar-pill {
     width: 36px; height: 36px; border-radius: 50%; border: none;
     font-size: 15px; font-weight: 700; color: #fff;
-    cursor: pointer; transition: transform .15s, opacity .15s;
-    flex-shrink: 0;
+    cursor: pointer; transition: transform .15s, opacity .15s; flex-shrink: 0;
   }
   .avatar-pill:active { transform: scale(0.9); opacity: 0.8; }
 
@@ -305,8 +290,7 @@
     position: relative; z-index: 10;
     flex: 1; display: flex; flex-direction: column;
     justify-content: flex-end;
-    padding-bottom: 8px;
-    overflow: hidden;
+    padding-bottom: 8px; overflow: hidden;
   }
 
   .greeting {
@@ -386,7 +370,7 @@
     color: rgba(255,255,255,0.3); letter-spacing: .02em;
   }
 
-  /* BOTTOM — igual ao ChatPage */
+  /* BOTTOM — idêntico ao ChatPage dark */
   .bottom {
     position: relative; z-index: 10;
     padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 22px);
@@ -396,19 +380,14 @@
   }
   .bottom.in { opacity: 1; transform: translateY(0); }
 
-  /* Mesmo fundo glass do ChatPage com blur */
   .bottom-bar {
     border-radius: 22px;
-    background: rgba(255,255,255,0.12);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border: 0.5px solid rgba(255,255,255,0.18);
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.30);
+    background: #1F1F1F;
+    box-shadow: 0 4px 24px rgba(0,0,0,.30);
+    display: flex; flex-direction: column;
+    user-select: none; overscroll-behavior: none;
   }
 
-  /* Textarea — cópia exacta do ChatPage */
   .chat-input {
     resize: none; outline: none; border: none;
     background: transparent;
@@ -419,9 +398,8 @@
     max-height: 150px; overflow-y: auto;
     -webkit-user-select: text; user-select: text;
   }
-  .chat-input::placeholder { color: rgba(255,255,255,0.5); }
+  .chat-input::placeholder { color: #B6B6B6; }
 
-  /* bb-row — cópia exacta do ChatPage */
   .bb-row {
     display: flex; align-items: center;
     height: 52px; padding: 0 10px;
@@ -431,28 +409,25 @@
   .add-btn {
     width: 40px; height: 40px; margin-left: 4px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; border: none;
-    background: rgba(255,255,255,0.14);
-    cursor: pointer;
+    border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.1);
   }
 
   .edit-btn {
     display: flex; align-items: center; gap: 6px;
-    padding: 8px 14px; border-radius: 20px; border: none;
-    background: rgba(255,255,255,0.14);
-    cursor: pointer;
+    padding: 8px 14px; border-radius: 20px; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.1);
   }
   .edit-label {
     font-size: 14px; font-weight: 700;
-    color: rgba(255,255,255,0.85);
+    color: #F3F4F6;
   }
 
   .send-btn {
     width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; border: none;
-    background: rgba(255,255,255,0.9);
-    cursor: pointer;
+    border-radius: 50%; border: none; cursor: pointer;
+    background: #F3F4F6;
   }
 
   .pulse-tap { cursor: pointer; transition: transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s; }

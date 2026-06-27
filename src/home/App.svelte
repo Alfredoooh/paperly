@@ -33,14 +33,12 @@
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
   const todayQuote = QUOTES[dayOfYear % QUOTES.length];
 
-  // Backgrounds
   let bgImages = [];
   try {
     const mods = import.meta.glob('/static/images/backgrounds/*', { eager: true, as: 'url' });
     bgImages = Object.values(mods);
   } catch(e) { bgImages = []; }
 
-  // Dois layers para crossfade suave
   let layers = [
     { img: '', visible: false },
     { img: '', visible: false },
@@ -54,7 +52,6 @@
     const next = activeLayer;
     layers[next] = { img, visible: true };
     layers = [...layers];
-
     const prev = 1 - next;
     setTimeout(() => {
       layers[prev] = { ...layers[prev], visible: false };
@@ -68,7 +65,6 @@
     showImage(bgCursor);
   }
 
-  // Hora
   function getGreeting() {
     const h = new Date().getHours();
     if (h < 12) return 'Bom dia';
@@ -76,9 +72,10 @@
     return 'Boa noite';
   }
 
-  // Input
+  // Input — idêntico ao ChatPage
   let inputText = '';
   let textInputEl;
+  let pendingAttachments = [];
 
   function autoResize() {
     if (!textInputEl) return;
@@ -101,15 +98,13 @@
     if (!text) return;
     const aiApp = ALL_APPS.find(x => x.id === 'ai');
     if (!aiApp) return;
-    // Guarda a mensagem pendente para o ChatPage ler no onMount
     try { sessionStorage.setItem('nexa_pending_message', text); } catch(e) {}
     window.location.href = aiApp.path;
   }
 
-  // Entrada dos elementos
   let mounted = false;
-
   let bgTimer;
+
   onMount(() => {
     user = requireAuth();
     if (!user) return;
@@ -137,8 +132,7 @@
 
 <div class="root">
 
-  <!-- BG LAYERS -->
-  {#each layers as layer, i}
+  {#each layers as layer}
     <div
       class="bg-layer"
       class:bg-on={layer.visible}
@@ -150,32 +144,26 @@
     <div class="bg-fallback"></div>
   {/if}
 
-  <!-- SCRIM gradiente duplo -->
   <div class="scrim-top"></div>
   <div class="scrim-bottom"></div>
 
-  <!-- HEADER -->
+  <!-- HEADER: só logo PNG maior, sem texto -->
   <header class="header" class:in={mounted}>
     <div class="logo-row">
-      <!-- 1. logo.png sem fundo, tamanho natural do PNG (sem border-radius) -->
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
-      <span class="logo-text">Nexa</span>
     </div>
     <button class="avatar-pill" style="background:{avatarColor}" on:click={logout}>
       {userInitial}
     </button>
   </header>
 
-  <!-- CONTENT -->
   <main class="content">
 
-    <!-- GREETING -->
     <div class="greeting" class:in={mounted}>
       <p class="greeting-sub">{getGreeting()}</p>
       <h1 class="greeting-name">{userName.split(' ')[0]}</h1>
     </div>
 
-    <!-- APPS -->
     <div class="apps-wrap" class:in={mounted}>
       <div class="apps-scroll">
         {#each platformApps as app, i}
@@ -186,7 +174,6 @@
             on:click={() => openApp(app)}
           >
             <div class="app-circle">
-              <!-- 2. app IA usa ia.png diretamente -->
               {#if app.id === 'ai'}
                 <img src="/icons/png/ia.png" alt={app.label} class="app-img" />
               {:else if app.icon && !app.icon.endsWith('.svg')}
@@ -204,7 +191,6 @@
       </div>
     </div>
 
-    <!-- QUOTE -->
     <div class="quote-block" class:in={mounted}>
       <p class="quote-text">"{todayQuote.text}"</p>
       <p class="quote-author">— {todayQuote.author}</p>
@@ -212,12 +198,12 @@
 
   </main>
 
-  <!-- BOTTOM — 3. Input idêntico ao ChatPage com blur -->
+  <!-- BOTTOM BAR — pixel perfect igual ao ChatPage -->
   <div class="bottom" class:in={mounted}>
     <div class="bottom-bar">
       <textarea
         class="chat-input"
-        placeholder="Pergunta algo à IA…"
+        placeholder="Escreve aqui..."
         rows="1"
         bind:value={inputText}
         bind:this={textInputEl}
@@ -225,21 +211,26 @@
         on:keydown={handleKeyDown}
       ></textarea>
       <div class="bb-row">
+        <!-- botão + igual ao ChatPage -->
+        <button class="add-btn pulse-tap" on:click={() => {}}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:rgba(255,255,255,0.75)"></span>
+        </button>
         <div class="flex1"></div>
+        <!-- botão Apps igual ao ChatPage -->
+        <button class="edit-btn pulse-tap">
+          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:rgba(255,255,255,0.85)"></span>
+          <span class="edit-label">Apps</span>
+        </button>
+        <div style="width:8px"></div>
+        <!-- send / mic igual ao ChatPage -->
         {#if inputText.trim()}
           <button class="send-btn pulse-tap" on:click={navigateToAI}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:#000"></span>
           </button>
         {:else}
-          <div class="send-btn send-idle">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-          </div>
+          <button class="send-btn pulse-tap" on:click={() => {}}>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:#000"></span>
+          </button>
         {/if}
       </div>
     </div>
@@ -257,7 +248,6 @@
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   }
 
-  /* BG */
   .bg-layer {
     position: absolute; inset: 0; z-index: 0;
     background-size: cover; background-position: center;
@@ -272,7 +262,6 @@
     background: linear-gradient(160deg, #0d0d1a 0%, #1a0530 50%, #0a1628 100%);
   }
 
-  /* SCRIMS */
   .scrim-top {
     position: absolute; top: 0; left: 0; right: 0; height: 45%; z-index: 1;
     background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
@@ -295,17 +284,14 @@
   }
   .header.in { opacity: 1; transform: translateY(0); }
 
-  .logo-row { display: flex; align-items: center; gap: 8px; }
+  .logo-row { display: flex; align-items: center; }
 
-  /* 1. Logo PNG sem border-radius — mantém transparência */
+  /* Logo PNG maior, sem border-radius, sem texto */
   .logo-img {
-    width: 30px;
-    height: 30px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
-    /* sem border-radius para não cortar o PNG transparente */
   }
-
-  .logo-text { font-size: 19px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
 
   .avatar-pill {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -315,7 +301,6 @@
   }
   .avatar-pill:active { transform: scale(0.9); opacity: 0.8; }
 
-  /* CONTENT */
   .content {
     position: relative; z-index: 10;
     flex: 1; display: flex; flex-direction: column;
@@ -324,7 +309,6 @@
     overflow: hidden;
   }
 
-  /* GREETING */
   .greeting {
     padding: 0 24px 28px;
     opacity: 0; transform: translateY(16px);
@@ -334,17 +318,14 @@
   .greeting-sub {
     font-size: 14px; font-weight: 400;
     color: rgba(255,255,255,0.55);
-    letter-spacing: .02em;
-    margin-bottom: 2px;
+    letter-spacing: .02em; margin-bottom: 2px;
   }
   .greeting-name {
     font-size: 38px; font-weight: 800;
-    color: #fff; letter-spacing: -1.2px;
-    line-height: 1.05;
+    color: #fff; letter-spacing: -1.2px; line-height: 1.05;
     text-shadow: 0 2px 20px rgba(0,0,0,0.3);
   }
 
-  /* APPS */
   .apps-wrap {
     opacity: 0; transform: translateY(20px);
     transition: opacity .55s .2s ease, transform .55s .2s ease;
@@ -352,26 +333,20 @@
   .apps-wrap.in { opacity: 1; transform: translateY(0); }
 
   .apps-scroll {
-    display: flex;
-    gap: 6px;
+    display: flex; gap: 6px;
     padding: 0 18px 28px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   }
   .apps-scroll::-webkit-scrollbar { display: none; }
 
   .app-item {
     display: flex; flex-direction: column; align-items: center; gap: 7px;
     background: none; border: none; cursor: pointer;
-    padding: 0 10px;
-    flex-shrink: 0;
+    padding: 0 10px; flex-shrink: 0;
     opacity: 0; transform: translateY(12px) scale(0.9);
     transition: opacity .4s ease, transform .4s ease;
   }
-  .app-item.app-in {
-    opacity: 1; transform: translateY(0) scale(1);
-  }
+  .app-item.app-in { opacity: 1; transform: translateY(0) scale(1); }
   .app-item:active .app-circle { transform: scale(0.88); }
 
   .app-circle {
@@ -379,49 +354,39 @@
     background: rgba(255,255,255,0.14);
     border: 0.5px solid rgba(255,255,255,0.2);
     display: flex; align-items: center; justify-content: center;
-    transition: transform .15s;
-    overflow: hidden;
+    transition: transform .15s; overflow: hidden;
   }
-
   .app-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-
   .app-svg-mask {
-    display: block;
-    width: 26px; height: 26px;
+    display: block; width: 26px; height: 26px;
     background: rgba(255,255,255,0.9);
     mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
-
   .app-name {
     font-size: 11px; font-weight: 500;
     color: rgba(255,255,255,0.82);
-    white-space: nowrap;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+    white-space: nowrap; text-shadow: 0 1px 6px rgba(0,0,0,0.6);
   }
 
-  /* QUOTE */
   .quote-block {
     padding: 0 26px 32px;
     opacity: 0; transform: translateY(12px);
     transition: opacity .55s .35s ease, transform .55s .35s ease;
   }
   .quote-block.in { opacity: 1; transform: translateY(0); }
-
   .quote-text {
     font-size: 13px; font-weight: 400;
     color: rgba(255,255,255,0.5);
-    line-height: 1.6; font-style: italic;
-    margin-bottom: 4px;
+    line-height: 1.6; font-style: italic; margin-bottom: 4px;
   }
   .quote-author {
     font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.3);
-    letter-spacing: .02em;
+    color: rgba(255,255,255,0.3); letter-spacing: .02em;
   }
 
-  /* BOTTOM — input idêntico ao ChatPage */
+  /* BOTTOM — igual ao ChatPage */
   .bottom {
     position: relative; z-index: 10;
     padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 22px);
@@ -431,6 +396,7 @@
   }
   .bottom.in { opacity: 1; transform: translateY(0); }
 
+  /* Mesmo fundo glass do ChatPage com blur */
   .bottom-bar {
     border-radius: 22px;
     background: rgba(255,255,255,0.12);
@@ -439,34 +405,47 @@
     border: 0.5px solid rgba(255,255,255,0.18);
     display: flex;
     flex-direction: column;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.30);
   }
 
+  /* Textarea — cópia exacta do ChatPage */
   .chat-input {
-    resize: none;
-    outline: none;
-    border: none;
+    resize: none; outline: none; border: none;
     background: transparent;
-    font-size: 15px;
-    line-height: 1.5;
-    padding: 14px 18px 0;
-    width: 100%;
-    font-family: inherit;
-    color: #fff;
-    max-height: 150px;
-    overflow-y: auto;
-    -webkit-user-select: text;
-    user-select: text;
+    font-size: 15px; line-height: 1.5;
+    padding: 12px 18px 0;
+    width: 100%; font-family: inherit;
+    color: #F3F4F6;
+    max-height: 150px; overflow-y: auto;
+    -webkit-user-select: text; user-select: text;
   }
   .chat-input::placeholder { color: rgba(255,255,255,0.5); }
 
+  /* bb-row — cópia exacta do ChatPage */
   .bb-row {
-    display: flex;
-    align-items: center;
-    height: 52px;
-    padding: 0 10px;
+    display: flex; align-items: center;
+    height: 52px; padding: 0 10px;
+  }
+  .flex1 { flex: 1; }
+
+  .add-btn {
+    width: 40px; height: 40px; margin-left: 4px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.14);
+    cursor: pointer;
   }
 
-  .flex1 { flex: 1; }
+  .edit-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 20px; border: none;
+    background: rgba(255,255,255,0.14);
+    cursor: pointer;
+  }
+  .edit-label {
+    font-size: 14px; font-weight: 700;
+    color: rgba(255,255,255,0.85);
+  }
 
   .send-btn {
     width: 40px; height: 40px;
@@ -474,15 +453,16 @@
     border-radius: 50%; border: none;
     background: rgba(255,255,255,0.9);
     cursor: pointer;
-    transition: transform .15s, opacity .15s;
-    flex-shrink: 0;
-  }
-  .send-btn:active { transform: scale(0.9); opacity: 0.8; }
-  .send-idle {
-    background: rgba(255,255,255,0.1);
-    cursor: default;
   }
 
   .pulse-tap { cursor: pointer; transition: transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s; }
   .pulse-tap:active { transform: scale(0.97); opacity: .86; }
+
+  .icon-mask {
+    display: block;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+    flex-shrink: 0;
+  }
 </style>

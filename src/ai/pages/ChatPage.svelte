@@ -79,14 +79,23 @@
   const DRAWER_APPS = ALL_APPS.filter(a => a.id !== 'home');
 
   onMount(() => {
-    chatRootEl = document.querySelector('.chat-root');
-    setupVH();
-    setupKeyboard();
-    setupWidgetSettings();
-    setupBottomBarTouchLock();
-    window.addEventListener('resize', setupVH);
-    window.addEventListener('orientationchange', () => setTimeout(setupVH, 120));
-  });
+  chatRootEl = document.querySelector('.chat-root');
+  setupVH();
+  setupKeyboard();
+  setupWidgetSettings();
+  setupBottomBarTouchLock();
+  window.addEventListener('resize', setupVH);
+  window.addEventListener('orientationchange', () => setTimeout(setupVH, 120));
+  
+  // Mensagem vinda da HomePage
+  try {
+    const pending = sessionStorage.getItem('nexa_pending_message');
+    if (pending) {
+      sessionStorage.removeItem('nexa_pending_message');
+      setTimeout(() => sendMessage(pending), 300);
+    }
+  } catch (e) {}
+});
 
   function setupVH() {
     const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;

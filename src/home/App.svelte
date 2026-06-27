@@ -39,12 +39,9 @@
     bgImages = Object.values(mods);
   } catch(e) { bgImages = []; }
 
-  let layers = [
-    { img: '', visible: false },
-    { img: '', visible: false },
-  ];
+  let layers = [{ img: '', visible: false }, { img: '', visible: false }];
   let activeLayer = 0;
-  let bgCursor    = 0;
+  let bgCursor = 0;
 
   function showImage(idx) {
     if (!bgImages.length) return;
@@ -53,10 +50,7 @@
     layers[next] = { img, visible: true };
     layers = [...layers];
     const prev = 1 - next;
-    setTimeout(() => {
-      layers[prev] = { ...layers[prev], visible: false };
-      layers = [...layers];
-    }, 100);
+    setTimeout(() => { layers[prev] = { ...layers[prev], visible: false }; layers = [...layers]; }, 100);
   }
 
   function rotateBg() {
@@ -75,28 +69,197 @@
   let inputText = '';
   let textInputEl;
 
-  // ── Recording (igual ao ChatPage) ──────────────────────────────────────────
-  let mediaRecorder = null, audioChunks = [], isRecording = false;
-  let waveOverlayCtx = null, waveOverlayAnalyser = null, waveOverlaySource = null;
-  let waveOverlayStream = null, waveOverlayAnimFrame = null;
-  let showRecOverlay = false;
-  let recSeconds = 0;
-  let recInterval = null;
-  let recCanvasEl;
-  let wavePhaseLocal = 0, waveSmoothAmpLocal = 6, waveSmoothBoostLocal = 0, waveSmoothScaleLocal = 1;
-
-  $: recTimerStr = (() => { const m=Math.floor(recSeconds/60),s=recSeconds%60; return `${m}:${s.toString().padStart(2,'0')}`; })();
-
-  // ── Modal sheet (igual ao ChatPage) ────────────────────────────────────────
-  let showSheet   = false;
-  let sheetMode   = ''; // 'add' | 'extras'
-  let flashMode   = false;
+  // ── Sheet ──────────────────────────────────────────────────────────────────
+  let showSheet     = false;
+  let sheetMode     = '';
+  let sheetVisible  = false; // controla animação
+  let flashMode     = false;
   let thinkMoreMode = false;
   let sheetsEnabled = false;
 
-  function showToastLocal(msg) {
-    // fallback simples — idealmente usa o showToast global
-    try { (window.showToast || console.log)(msg); } catch(e) {}
+  function openSheet(mode) {
+    sheetMode = mode;
+    showSheet = true;
+    requestAnimationFrame(() => { sheetVisible = true; });
+  }
+
+  function closeSheet() {
+    sheetVisible = false;
+    setTimeout(() => { showSheet = false; sheetMode = ''; }, 300);
+  }
+
+  // ── Recording ──────────────────────────────────────────────────────────────
+  let mediaRecorder      = null;
+  let audioChunks        = [];
+  let isRecording        = false;
+  let waveCtx            = null;
+  let waveAnalyser       = null;
+  let waveSource         = null;
+  let waveStream         = null;
+  let waveAnimFrame      = null;
+  let showRecOverlay     = false;
+  let recOverlayVisible  = false; // controla animação
+  let recSeconds         = 0;
+  let recInterval        = null;
+  let recCanvasEl;
+  let wavePhase          = 0;
+  let waveSmoothAmp      = 6;
+  let waveSmoothBoost    = 0;
+  let waveSmoothScale    = 1;
+
+  $: recTimerStr = (() => {
+    const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  })();
+
+  async function startRecording() {
+    if (isRecording) return;
+    try {
+      waveStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      waveCtx = new (window.AudioContext || window.webkitAudioContext)();
+      waveAnalyser = waveCtx.createAnalyser();
+      waveAnalyser.fftSize = 1024;
+      waveAnalyser.smoothingTimeConstant = 0.25;
+      waveAnalyser.minDecibels = -110;
+      waveAnalyser.maxDecibels = -5;
+      const gain = waveCtx.createGain(); gain.gain.value = 6;
+      waveSource = waveCtx.createMediaStreamSource(waveStream);
+      waveSource.connect(gain); gain.connect(waveAnalyser);
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(waveStream);
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = handleRecStop;
+      mediaRecorder.start();
+      isRecording = true;
+      recSeconds = 0;
+      // mostrar overlay com animação
+      showRecOverlay = true;
+      requestAnimationFrame(() => { recOverlayVisible = true; });
+      recInterval = setInterval(() => recSeconds++, 1000);
+      startWaveAnim();
+    } catch (err) { console.error('Mic error:', err); }
+  }
+
+  function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    clearInterval(recInterval);
+    mediaRecorder.stop();
+    waveStream?.getTracks().forEach(t => t.stop());
+    stopWaveAnim();
+    hideRecOverlay();
+  }
+
+  function cancelRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    clearInterval(recInterval);
+    mediaRecorder.onstop = null;
+    mediaRecorder.stop();
+    waveStream?.getTracks().forEach(t => t.stop());
+    audioChunks = [];
+    stopWaveAnim();
+    hideRecOverlay();
+  }
+
+  function hideRecOverlay() {
+    recOverlayVisible = false;
+    setTimeout(() => { showRecOverlay = false; }, 350);
+  }
+
+  async function handleRecStop() {
+    if (!audioChunks.length) return;
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    audioChunks = [];
+    try {
+      const token = user?.token || '';
+      const form = new FormData();
+      form.append('file', blob, 'audio.webm');
+      form.append('language', 'pt');
+      const res = await fetch('https://ipc.alfredoooh.workers.dev/ai/transcribe', {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form
+      });
+      if (!res.ok) throw new Error('Erro na transcrição');
+      const data = await res.json();
+      const text = (data.text || '').trim();
+      if (text) {
+        inputText = (inputText ? inputText + ' ' : '') + text;
+        setTimeout(autoResize, 10);
+      }
+    } catch (err) { console.error('Transcribe error:', err); }
+  }
+
+  function startWaveAnim() {
+    const freq = waveAnalyser ? new Uint8Array(waveAnalyser.frequencyBinCount) : null;
+    function frame() {
+      if (!showRecOverlay) return;
+      waveAnimFrame = requestAnimationFrame(frame);
+      const canvas = recCanvasEl; if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = w * (window.devicePixelRatio || 1);
+      canvas.height = h * (window.devicePixelRatio || 1);
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+      ctx.clearRect(0, 0, w, h);
+      let targetAmp = 6, targetBoost = 0, totalEnergy = 0, bass = 0;
+      if (waveAnalyser && freq) {
+        waveAnalyser.getByteFrequencyData(freq);
+        const len = freq.length, be = Math.floor(len * .12), me = Math.floor(len * .5);
+        const br = Math.pow([...freq].slice(0, be).reduce((a,b)=>a+b,0)/be/255, .4);
+        const mr = Math.pow([...freq].slice(be, me).reduce((a,b)=>a+b,0)/(me-be)/255, .4);
+        const tr = Math.pow([...freq].reduce((a,b)=>a+b,0)/len/255, .4);
+        bass = br; totalEnergy = tr;
+        targetAmp = 5 + br*80 + mr*45 + tr*30;
+        targetBoost = br*75 + mr*35 + tr*20;
+      } else {
+        targetAmp = 6 + Math.sin(wavePhase * 1.1) * 1.5;
+        targetBoost = 1 + Math.cos(wavePhase * .9) * .8;
+      }
+      const at = targetAmp > waveSmoothAmp ? .7 : .06;
+      const db = targetBoost > waveSmoothBoost ? .7 : .06;
+      waveSmoothAmp   += (targetAmp   - waveSmoothAmp)   * at;
+      waveSmoothBoost += (targetBoost - waveSmoothBoost) * db;
+      [[.55,.4,.30,.15,0],[.70,.6,.42,.30,1.1],[.85,.8,.54,.55,2.3],[.95,.9,.64,.80,3.7],[1,1,.72,1,5.2]]
+        .forEach(([am,bm,base,op,ph]) => drawWaveLayer(ctx,w,h,waveSmoothAmp*am,waveSmoothBoost*bm,base,op,ph));
+      const loader = document.getElementById('homeRecLoader');
+      if (loader) {
+        const ts = 1 + bass*.45 + totalEnergy*.2;
+        const a2 = ts > waveSmoothScale ? .7 : .06;
+        waveSmoothScale += (ts - waveSmoothScale) * a2;
+        loader.style.transform = `scale(${waveSmoothScale.toFixed(4)})`;
+      }
+      wavePhase += .02;
+    }
+    frame();
+  }
+
+  function drawWaveLayer(ctx, w, h, amp, boost, baseYR, opacity, phOff) {
+    const baseY = h * baseYR - boost * .5, pts = 180, step = w / (pts-1), ys = [];
+    for (let i=0; i<pts; i++) {
+      const t = i/(pts-1);
+      ys.push(baseY + Math.sin(t*5.8+wavePhase+phOff)*amp + Math.sin(t*11.5+wavePhase*1.4+phOff)*(amp*.35) + Math.sin(t*3.2-wavePhase*.7+phOff)*(amp*.18) + Math.sin(t*22+wavePhase*2.5+phOff)*(boost*.18));
+    }
+    const topY = Math.min(...ys);
+    const grad = ctx.createLinearGradient(0, topY, 0, h);
+    grad.addColorStop(0,   'rgba(66,165,245,0)');
+    grad.addColorStop(.45, `rgba(55,150,235,${.08*opacity})`);
+    grad.addColorStop(.7,  `rgba(40,130,220,${.22*opacity})`);
+    grad.addColorStop(.88, `rgba(30,115,210,${.4*opacity})`);
+    grad.addColorStop(1,   `rgba(25,100,200,${.56*opacity})`);
+    ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(0, ys[0]);
+    for (let i=1; i<pts; i++) {
+      const px=(i-1)*step, x=i*step, cx=(px+x)/2, cy=(ys[i-1]+ys[i])/2;
+      ctx.quadraticCurveTo(px, ys[i-1], cx, cy);
+    }
+    ctx.lineTo(w, ys[pts-1]); ctx.lineTo(w, h); ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+  }
+
+  function stopWaveAnim() {
+    if (waveAnimFrame) { cancelAnimationFrame(waveAnimFrame); waveAnimFrame = null; }
+    if (waveSource) { try { waveSource.disconnect(); } catch(e) {} waveSource = null; }
+    if (waveCtx)    { try { waveCtx.close(); }         catch(e) {} waveCtx = null; }
+    waveAnalyser = null;
   }
 
   function autoResize() {
@@ -108,152 +271,35 @@
   function handleKeyDown(e) {
     if (e.key === 'Enter') {
       const isMobile = window.matchMedia('(hover:none) and (pointer:coarse)').matches;
-      if (!isMobile && !e.shiftKey) {
-        e.preventDefault();
-        if (inputText.trim()) navigateToAI();
-      }
+      if (!isMobile && !e.shiftKey) { e.preventDefault(); if (inputText.trim()) navigateToAI(); }
     }
   }
 
   function navigateToAI() {
-    const text = inputText.trim();
-    if (!text) return;
-    const aiApp = ALL_APPS.find(x => x.id === 'ai');
-    if (!aiApp) return;
+    const text = inputText.trim(); if (!text) return;
+    const aiApp = ALL_APPS.find(x => x.id === 'ai'); if (!aiApp) return;
     try { sessionStorage.setItem('nexa_pending_message', text); } catch(e) {}
     window.location.href = aiApp.path;
   }
-
-  // ── Recording logic (copiado do ChatPage) ──────────────────────────────────
-  async function startRecording() {
-    if (isRecording) return;
-    try {
-      waveOverlayStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      waveOverlayCtx = new (window.AudioContext || window.webkitAudioContext)();
-      waveOverlayAnalyser = waveOverlayCtx.createAnalyser();
-      waveOverlayAnalyser.fftSize = 1024; waveOverlayAnalyser.smoothingTimeConstant = 0.25;
-      waveOverlayAnalyser.minDecibels = -110; waveOverlayAnalyser.maxDecibels = -5;
-      const gain = waveOverlayCtx.createGain(); gain.gain.value = 6;
-      waveOverlaySource = waveOverlayCtx.createMediaStreamSource(waveOverlayStream);
-      waveOverlaySource.connect(gain); gain.connect(waveOverlayAnalyser);
-      audioChunks = [];
-      mediaRecorder = new MediaRecorder(waveOverlayStream);
-      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-      mediaRecorder.onstop = handleRecStop;
-      mediaRecorder.start(); isRecording = true;
-      recSeconds = 0; showRecOverlay = true;
-      recInterval = setInterval(() => recSeconds++, 1000);
-      startWaveAnim();
-    } catch (err) { showToastLocal('Sem acesso ao microfone'); }
-  }
-
-  function stopRecording() {
-    if (!isRecording || !mediaRecorder) return;
-    isRecording = false; clearInterval(recInterval);
-    mediaRecorder.stop(); waveOverlayStream?.getTracks().forEach(t=>t.stop());
-    stopWaveAnim(); showRecOverlay = false;
-  }
-
-  function cancelRecording() {
-    if (!isRecording || !mediaRecorder) return;
-    isRecording = false; clearInterval(recInterval);
-    mediaRecorder.onstop = null; mediaRecorder.stop();
-    waveOverlayStream?.getTracks().forEach(t=>t.stop());
-    audioChunks = []; stopWaveAnim(); showRecOverlay = false;
-  }
-
-  async function handleRecStop() {
-    if (!audioChunks.length) return;
-    const blob = new Blob(audioChunks, { type:'audio/webm' }); audioChunks = [];
-    showToastLocal('A transcrever…');
-    try {
-      const token = user?.token || '';
-      const form = new FormData(); form.append('file', blob, 'audio.webm'); form.append('language', 'pt');
-      const res = await fetch(`https://ipc.alfredoooh.workers.dev/ai/transcribe`, { method:'POST', headers:{'Authorization':'Bearer '+token}, body:form });
-      if (!res.ok) throw new Error('Erro na transcrição');
-      const data = await res.json(); const text = (data.text||'').trim();
-      if (text) {
-        inputText = (inputText ? inputText + ' ' : '') + text;
-        setTimeout(autoResize, 10);
-      } else showToastLocal('Nenhum texto reconhecido');
-    } catch (err) { showToastLocal('Erro ao transcrever áudio'); }
-  }
-
-  function startWaveAnim() {
-    let freq = null;
-    if (waveOverlayAnalyser) freq = new Uint8Array(waveOverlayAnalyser.frequencyBinCount);
-    function frame() {
-      if (!showRecOverlay) return;
-      waveOverlayAnimFrame = requestAnimationFrame(frame);
-      const canvas = recCanvasEl; if (!canvas) return;
-      const ctx = canvas.getContext('2d'); const w=canvas.clientWidth, h=canvas.clientHeight;
-      ctx.clearRect(0,0,w,h);
-      let targetAmp=6, targetBoost=0, totalEnergy=0, bass=0;
-      if (waveOverlayAnalyser && freq) {
-        waveOverlayAnalyser.getByteFrequencyData(freq);
-        const len=freq.length, be=Math.floor(len*.12), me=Math.floor(len*.5);
-        const br=Math.pow([...freq].slice(0,be).reduce((a,b)=>a+b,0)/be/255,.4);
-        const mr=Math.pow([...freq].slice(be,me).reduce((a,b)=>a+b,0)/(me-be)/255,.4);
-        const tr=Math.pow([...freq].reduce((a,b)=>a+b,0)/len/255,.4);
-        bass=br; totalEnergy=tr; targetAmp=5+br*80+mr*45+tr*30; targetBoost=br*75+mr*35+tr*20;
-      } else { targetAmp=6+Math.sin(wavePhaseLocal*1.1)*1.5; targetBoost=1+Math.cos(wavePhaseLocal*.9)*.8; }
-      const at=targetAmp>waveSmoothAmpLocal?.7:.06, db=targetBoost>waveSmoothBoostLocal?.7:.06;
-      waveSmoothAmpLocal+=(targetAmp-waveSmoothAmpLocal)*at;
-      waveSmoothBoostLocal+=(targetBoost-waveSmoothBoostLocal)*db;
-      [[.55,.4,.30,.15,0],[.70,.6,.42,.30,1.1],[.85,.8,.54,.55,2.3],[.95,.9,.64,.80,3.7],[1,1,.72,1,5.2]].forEach(([am,bm,base,op,ph])=>{
-        drawWaveLayer(ctx,w,h,waveSmoothAmpLocal*am,waveSmoothBoostLocal*bm,base,op,ph);
-      });
-      const loader=document.getElementById('homeRecLoaderEl');
-      if(loader){const ts=1+bass*.45+totalEnergy*.2; const a2=ts>waveSmoothScaleLocal?.7:.06; waveSmoothScaleLocal+=(ts-waveSmoothScaleLocal)*a2; loader.style.transform=`scale(${waveSmoothScaleLocal.toFixed(4)})`;}
-      wavePhaseLocal+=.02;
-    }
-    frame();
-  }
-
-  function drawWaveLayer(ctx,w,h,amp,boost,baseYR,opacity,phOff) {
-    const baseY=h*baseYR-boost*.5, pts=180, step=w/(pts-1), ys=[];
-    for(let i=0;i<pts;i++){const t=i/(pts-1);ys.push(baseY+Math.sin(t*5.8+wavePhaseLocal+phOff)*amp+Math.sin(t*11.5+wavePhaseLocal*1.4+phOff)*(amp*.35)+Math.sin(t*3.2-wavePhaseLocal*.7+phOff)*(amp*.18)+Math.sin(t*22+wavePhaseLocal*2.5+phOff)*(boost*.18));}
-    const topY=Math.min(...ys), grad=ctx.createLinearGradient(0,topY,0,h);
-    grad.addColorStop(0,'rgba(66,165,245,0)'); grad.addColorStop(.45,`rgba(55,150,235,${.08*opacity})`); grad.addColorStop(.7,`rgba(40,130,220,${.22*opacity})`); grad.addColorStop(.88,`rgba(30,115,210,${.4*opacity})`); grad.addColorStop(1,`rgba(25,100,200,${.56*opacity})`);
-    ctx.beginPath(); ctx.moveTo(0,h); ctx.lineTo(0,ys[0]);
-    for(let i=1;i<pts;i++){const px=(i-1)*step,x=i*step,cx=(px+x)/2,cy=(ys[i-1]+ys[i])/2;ctx.quadraticCurveTo(px,ys[i-1],cx,cy);}
-    ctx.lineTo(w,ys[pts-1]); ctx.lineTo(w,h); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
-  }
-
-  function stopWaveAnim() {
-    if(waveOverlayAnimFrame){cancelAnimationFrame(waveOverlayAnimFrame);waveOverlayAnimFrame=null;}
-    if(waveOverlaySource){try{waveOverlaySource.disconnect();}catch(e){}waveOverlaySource=null;}
-    if(waveOverlayCtx){try{waveOverlayCtx.close();}catch(e){}waveOverlayCtx=null;}
-    waveOverlayAnalyser=null;
-  }
-
-  // ── Modal sheet simples (sem Svelte component externo para não depender) ───
-  // Usamos um overlay nativo dentro do próprio componente
 
   let mounted = false;
   let bgTimer;
 
   onMount(() => {
-    user = requireAuth();
-    if (!user) return;
-
+    user = requireAuth(); if (!user) return;
     if (bgImages.length) {
       activeLayer = 0;
       layers[0] = { img: bgImages[0], visible: true };
       layers[1] = { img: bgImages[Math.min(1, bgImages.length-1)], visible: false };
       layers = [...layers];
     }
-
     requestAnimationFrame(() => { mounted = true; });
-
     if (bgImages.length > 1) bgTimer = setInterval(rotateBg, 15000);
     return () => clearInterval(bgTimer);
   });
 
   function openApp(app) {
-    if (app.id === 'ai') {
-      try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {}
-    }
+    if (app.id === 'ai') { try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {} }
     window.location.href = app.path;
   }
 </script>
@@ -261,16 +307,9 @@
 <div class="root">
 
   {#each layers as layer}
-    <div
-      class="bg-layer"
-      class:bg-on={layer.visible}
-      style="background-image:url('{layer.img}');"
-    ></div>
+    <div class="bg-layer" class:bg-on={layer.visible} style="background-image:url('{layer.img}');"></div>
   {/each}
-
-  {#if !bgImages.length}
-    <div class="bg-fallback"></div>
-  {/if}
+  {#if !bgImages.length}<div class="bg-fallback"></div>{/if}
 
   <div class="scrim-top"></div>
   <div class="scrim-bottom"></div>
@@ -286,7 +325,6 @@
 
   <main class="content">
 
-    <!-- Saudação centrada -->
     <div class="greeting-center" class:in={mounted}>
       <p class="greeting-sub">{getGreeting()}</p>
       <h1 class="greeting-name">{userName.split(' ')[0]}</h1>
@@ -295,22 +333,14 @@
     <div class="apps-wrap" class:in={mounted}>
       <div class="apps-scroll">
         {#each platformApps as app, i}
-          <button
-            class="app-item"
-            style="animation-delay:{i * 40}ms"
-            class:app-in={mounted}
-            on:click={() => openApp(app)}
-          >
+          <button class="app-item" style="animation-delay:{i*40}ms" class:app-in={mounted} on:click={() => openApp(app)}>
             <div class="app-circle">
               {#if app.id === 'ai'}
                 <img src="/icons/png/ia.png" alt={app.label} class="app-img" />
               {:else if app.icon && !app.icon.endsWith('.svg')}
                 <img src={app.icon} alt={app.label} class="app-img" />
               {:else}
-                <span
-                  class="app-svg-mask"
-                  style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');"
-                ></span>
+                <span class="app-svg-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');"></span>
               {/if}
             </div>
             <span class="app-name">{app.label}</span>
@@ -319,7 +349,6 @@
       </div>
     </div>
 
-    <!-- Quote reorganizada -->
     <div class="quote-block" class:in={mounted}>
       <div class="quote-card">
         <div class="quote-mark">"</div>
@@ -331,7 +360,7 @@
 
   </main>
 
-  <!-- Bottom bar glassmorphism branco -->
+  <!-- Bottom bar: estrutura idêntica ao ChatPage, tema claro + blur -->
   <div class="bottom" class:in={mounted}>
     <div class="bottom-bar">
       <textarea
@@ -344,10 +373,15 @@
         on:keydown={handleKeyDown}
       ></textarea>
       <div class="bb-row">
-        <button class="add-btn pulse-tap" on:click={() => { sheetMode='add'; showSheet=true; }}>
+        <button class="add-btn pulse-tap" on:click={() => openSheet('add')}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:#374151"></span>
         </button>
         <div class="flex1"></div>
+        <button class="edit-btn pulse-tap" on:click={() => openSheet('apps')}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:#111827"></span>
+          <span class="edit-label">Apps</span>
+        </button>
+        <div style="width:8px"></div>
         {#if inputText.trim()}
           <button class="send-btn pulse-tap" on:click={navigateToAI}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:#111827"></span>
@@ -361,24 +395,21 @@
     </div>
   </div>
 
-  <!-- ── Modal Sheet nativa ─────────────────────────────────────────────── -->
+  <!-- ── Sheet overlay ───────────────────────────────────────────────────── -->
   {#if showSheet}
-    <div class="sheet-overlay" on:click={() => showSheet=false}></div>
-    <div class="sheet-box">
+    <div class="sheet-overlay" class:sheet-overlay-in={sheetVisible} on:click={closeSheet}></div>
+    <div class="sheet-box" class:sheet-box-in={sheetVisible}>
       <div class="sheet-handle"></div>
 
       {#if sheetMode === 'add'}
-        {#each [
-          ['image','Enviar Imagem','image'],
-          ['upload','Enviar Ficheiro','file']
-        ] as [icon,label,kind], i}
+        {#each [['image','Enviar Imagem'],['upload','Enviar Ficheiro']] as [icon,label], i}
           {#if i > 0}<div class="sheet-sep"></div>{/if}
           <label class="sheet-row pulse-tap" style="cursor:pointer">
             <div class="sheet-icon-wrap">
               <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:20px;height:20px;background:#374151"></span>
             </div>
             <span class="sheet-label">{label}</span>
-            <input type="file" accept={kind==='image'?'image/*':'*/*'} style="display:none" on:change={e => { showSheet=false; }} />
+            <input type="file" accept={icon==='image'?'image/*':'*/*'} style="display:none" on:change={() => closeSheet()} />
           </label>
         {/each}
         <div class="sheet-sep"></div>
@@ -393,20 +424,36 @@
       {:else if sheetMode === 'extras'}
         <div class="sheet-title">Extras</div>
         {#each [
-          [flashMode, 'Flash', 'flash', 'flash_filled', () => { flashMode=!flashMode; if(flashMode) thinkMoreMode=false; }],
-          [thinkMoreMode, 'Think More', 'brain', 'brain_filled', () => { thinkMoreMode=!thinkMoreMode; if(thinkMoreMode) flashMode=false; }],
-          [sheetsEnabled, 'Sheets', 'sheets', 'sheets_filled', () => { sheetsEnabled=!sheetsEnabled; }]
-        ] as [active, title, iconOff, iconOn, action], i}
+          [flashMode,'Flash','flash','flash_filled',()=>{flashMode=!flashMode;if(flashMode)thinkMoreMode=false;}],
+          [thinkMoreMode,'Think More','brain','brain_filled',()=>{thinkMoreMode=!thinkMoreMode;if(thinkMoreMode)flashMode=false;}],
+          [sheetsEnabled,'Sheets','sheets','sheets_filled',()=>{sheetsEnabled=!sheetsEnabled;}]
+        ] as [active,title,iconOff,iconOn,action], i}
           {#if i > 0}<div class="sheet-sep" style="margin-left:60px"></div>{/if}
-          <div class="sheet-row pulse-tap"
-            style="background:{active?'rgba(0,0,0,0.04)':'transparent'}"
-            on:click={action}
-          >
+          <div class="sheet-row pulse-tap" style="background:{active?'rgba(0,0,0,0.04)':'transparent'}" on:click={action}>
             <div class="sheet-icon-wrap">
               <span class="icon-mask" style="mask-image:url('/icons/svg/{active?iconOn:iconOff}.svg');-webkit-mask-image:url('/icons/svg/{active?iconOn:iconOff}.svg');width:18px;height:18px;background:#374151"></span>
             </div>
             <span class="sheet-label" style="flex:1">{title}</span>
-            {#if active}<div style="width:8px;height:8px;border-radius:50%;background:#111827"></div>{/if}
+            {#if active}<div style="width:8px;height:8px;border-radius:50%;background:#374151"></div>{/if}
+          </div>
+        {/each}
+        <div style="height:16px"></div>
+
+      {:else if sheetMode === 'apps'}
+        <div class="sheet-title">Apps</div>
+        {#each platformApps as app, i}
+          {#if i > 0}<div class="sheet-sep"></div>{/if}
+          <div class="sheet-row pulse-tap" on:click={() => { closeSheet(); setTimeout(()=>openApp(app),200); }}>
+            <div class="sheet-icon-wrap">
+              {#if app.id === 'ai'}
+                <img src="/icons/png/ia.png" alt={app.label} style="width:22px;height:22px;border-radius:50%;object-fit:cover;" />
+              {:else if app.icon && !app.icon.endsWith('.svg')}
+                <img src={app.icon} alt={app.label} style="width:22px;height:22px;border-radius:50%;object-fit:cover;" />
+              {:else}
+                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:20px;height:20px;background:#374151"></span>
+              {/if}
+            </div>
+            <span class="sheet-label">{app.label}</span>
           </div>
         {/each}
         <div style="height:16px"></div>
@@ -414,22 +461,22 @@
     </div>
   {/if}
 
-  <!-- ── Recording overlay (igual ao ChatPage) ─────────────────────────── -->
+  <!-- ── Recording overlay ───────────────────────────────────────────────── -->
   {#if showRecOverlay}
-    <div class="rec-overlay">
+    <div class="rec-overlay" class:rec-overlay-in={recOverlayVisible}>
       <div class="rec-loader-wrap">
-        <div class="rec-loader" id="homeRecLoaderEl">
-          <svg width="100" height="100" viewBox="0 0 100 100">
+        <div class="rec-loader" id="homeRecLoader">
+          <svg width="100" height="100" viewBox="0 0 100 100" style="position:absolute;top:0;left:0;pointer-events:none;">
             <defs>
-              <mask id="homeRecClipping">
-                <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
-                <polygon points="25,25 75,25 50,75" fill="white"></polygon>
-                <polygon points="50,25 75,75 25,75" fill="white"></polygon>
-                <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+              <mask id="homeRecMask">
+                <rect width="100" height="100" fill="black"/>
+                <polygon points="25,25 75,25 50,75" fill="white"/>
+                <polygon points="50,25 75,75 25,75" fill="white"/>
+                <polygon points="35,35 65,35 50,65" fill="white"/>
               </mask>
             </defs>
           </svg>
-          <div class="rec-loader-box"></div>
+          <div class="rec-loader-box" style="-webkit-mask:url(#homeRecMask);mask:url(#homeRecMask);"></div>
         </div>
       </div>
       <div class="rec-wave-wrap">
@@ -459,21 +506,16 @@
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   }
 
-  /* Background layers */
   .bg-layer {
     position: absolute; inset: 0; z-index: 0;
     background-size: cover; background-position: center;
-    opacity: 0;
-    transition: opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: opacity;
+    opacity: 0; transition: opacity 1.4s cubic-bezier(0.4,0,0.2,1); will-change: opacity;
   }
   .bg-layer.bg-on { opacity: 1; }
-
   .bg-fallback {
     position: absolute; inset: 0; z-index: 0;
     background: linear-gradient(160deg, #0d0d1a 0%, #1a0530 50%, #0a1628 100%);
   }
-
   .scrim-top {
     position: absolute; top: 0; left: 0; right: 0; height: 45%; z-index: 1;
     background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
@@ -485,11 +527,10 @@
     pointer-events: none;
   }
 
-  /* Header */
   .header {
     position: relative; z-index: 10;
     display: flex; align-items: center; justify-content: space-between;
-    padding: calc(env(safe-area-inset-top, 0px) + 16px) 22px 10px;
+    padding: calc(env(safe-area-inset-top,0px) + 16px) 22px 10px;
     flex-shrink: 0;
     opacity: 0; transform: translateY(-10px);
     transition: opacity .5s ease, transform .5s ease;
@@ -504,47 +545,39 @@
   }
   .avatar-pill:active { transform: scale(0.9); opacity: 0.8; }
 
-  /* Content */
   .content {
     position: relative; z-index: 10;
     flex: 1; display: flex; flex-direction: column;
-    justify-content: center;
-    padding-bottom: 120px;
-    overflow: hidden;
+    justify-content: flex-end;
+    padding-bottom: 8px; overflow: hidden;
   }
 
   /* Saudação centrada */
   .greeting-center {
-    display: flex; flex-direction: column; align-items: center;
-    text-align: center;
-    padding: 0 24px 36px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 0 24px 28px;
     opacity: 0; transform: translateY(16px);
     transition: opacity .55s .1s ease, transform .55s .1s ease;
   }
   .greeting-center.in { opacity: 1; transform: translateY(0); }
   .greeting-sub {
-    font-size: 15px; font-weight: 500;
-    color: rgba(255,255,255,0.60);
-    letter-spacing: .04em; margin-bottom: 6px;
-    text-transform: uppercase;
+    font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.55);
+    letter-spacing: .04em; margin-bottom: 4px; text-transform: uppercase;
   }
   .greeting-name {
-    font-size: 52px; font-weight: 900;
-    color: #fff; letter-spacing: -2px; line-height: 1.0;
+    font-size: 48px; font-weight: 900; color: #fff;
+    letter-spacing: -1.5px; line-height: 1.0;
     text-shadow: 0 2px 28px rgba(0,0,0,0.35);
   }
 
-  /* Apps scroll */
   .apps-wrap {
     opacity: 0; transform: translateY(20px);
     transition: opacity .55s .2s ease, transform .55s .2s ease;
   }
   .apps-wrap.in { opacity: 1; transform: translateY(0); }
   .apps-scroll {
-    display: flex; gap: 6px;
-    padding: 0 18px 32px;
+    display: flex; gap: 6px; padding: 0 18px 28px;
     overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-    justify-content: center;
   }
   .apps-scroll::-webkit-scrollbar { display: none; }
   .app-item {
@@ -572,52 +605,44 @@
     mask-position: center; -webkit-mask-position: center;
   }
   .app-name {
-    font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.82);
+    font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.82);
     white-space: nowrap; text-shadow: 0 1px 6px rgba(0,0,0,0.6);
   }
 
   /* Quote card */
   .quote-block {
-    padding: 0 24px 0;
+    padding: 0 20px 28px;
     opacity: 0; transform: translateY(12px);
     transition: opacity .55s .35s ease, transform .55s .35s ease;
   }
   .quote-block.in { opacity: 1; transform: translateY(0); }
   .quote-card {
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 0.5px solid rgba(255,255,255,0.15);
-    border-radius: 18px;
-    padding: 18px 20px 16px;
-    display: flex; flex-direction: column; gap: 0;
+    background: rgba(255,255,255,0.10);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 0.5px solid rgba(255,255,255,0.18);
+    border-radius: 18px; padding: 16px 18px 14px;
   }
   .quote-mark {
-    font-size: 40px; font-weight: 900; line-height: 0.8;
-    color: rgba(255,255,255,0.25);
-    font-family: Georgia, serif;
-    margin-bottom: 6px;
+    font-size: 36px; font-weight: 900; line-height: 0.8;
+    color: rgba(255,255,255,0.22); font-family: Georgia, serif;
+    margin-bottom: 8px;
   }
   .quote-text {
-    font-size: 14px; font-weight: 400;
-    color: rgba(255,255,255,0.82);
-    line-height: 1.65; font-style: italic;
-    margin: 0;
+    font-size: 13.5px; font-weight: 400; color: rgba(255,255,255,0.80);
+    line-height: 1.65; font-style: italic; margin: 0;
   }
   .quote-divider {
-    height: 0.5px; background: rgba(255,255,255,0.15);
-    margin: 12px 0 10px;
+    height: 0.5px; background: rgba(255,255,255,0.15); margin: 10px 0 8px;
   }
   .quote-author {
-    font-size: 12px; font-weight: 600;
-    color: rgba(255,255,255,0.45);
+    font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,0.40);
     letter-spacing: .03em; margin: 0;
   }
 
-  /* Bottom bar — glassmorphism branco */
+  /* ── Bottom bar — estrutura idêntica ao ChatPage, tema claro + blur ── */
   .bottom {
     position: relative; z-index: 10;
-    padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 22px);
+    padding: 0 16px calc(env(safe-area-inset-bottom,0px) + 22px);
     flex-shrink: 0;
     opacity: 0; transform: translateY(20px);
     transition: opacity .5s .45s ease, transform .5s .45s ease;
@@ -625,35 +650,42 @@
   .bottom.in { opacity: 1; transform: translateY(0); }
   .bottom-bar {
     border-radius: 22px;
-    background: rgba(255, 255, 255, 0.92);
+    /* glass branco — mesmo efeito do quote-card */
+    background: rgba(255,255,255,0.55);
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border: 0.5px solid rgba(255,255,255,0.6);
-    box-shadow: 0 8px 32px rgba(0,0,0,.20), 0 1px 0 rgba(255,255,255,0.8) inset;
+    border: 0.5px solid rgba(255,255,255,0.55);
+    box-shadow: 0 4px 24px rgba(0,0,0,.18);
     display: flex; flex-direction: column;
     user-select: none; overscroll-behavior: none;
   }
   .chat-input {
-    resize: none; outline: none; border: none;
-    background: transparent;
-    font-size: 15px; line-height: 1.5;
-    padding: 12px 18px 0;
-    width: 100%; font-family: inherit;
-    color: #111827;
+    resize: none; outline: none; border: none; background: transparent;
+    font-size: 15px; line-height: 1.5; padding: 12px 18px 0;
+    width: 100%; font-family: inherit; color: #111827;
     max-height: 150px; overflow-y: auto;
     -webkit-user-select: text; user-select: text;
   }
   .chat-input::placeholder { color: #9CA3AF; }
-  .bb-row {
-    display: flex; align-items: center;
-    height: 52px; padding: 0 10px;
-  }
+  .bb-row { display: flex; align-items: center; height: 52px; padding: 0 10px; }
   .flex1 { flex: 1; }
+
+  /* add-btn: fundo levemente sólido sobre o glass */
   .add-btn {
     width: 40px; height: 40px; margin-left: 4px;
     display: flex; align-items: center; justify-content: center;
     border-radius: 50%; border: none; cursor: pointer;
-    background: rgba(0,0,0,0.07);
+    background: rgba(255,255,255,0.50);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
   }
+  /* edit-btn (Apps): mesmo estilo do ChatPage */
+  .edit-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 20px; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.50);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+  }
+  .edit-label { font-size: 14px; font-weight: 700; color: #111827; }
+  /* send-btn: sólido escuro */
   .send-btn {
     width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center;
@@ -661,35 +693,33 @@
     background: #111827;
   }
 
-  /* Modal sheet */
+  /* ── Sheet ─────────────────────────────────────────────────────────────── */
   .sheet-overlay {
     position: fixed; inset: 0; z-index: 100;
-    background: rgba(0,0,0,0.35);
-    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0);
+    transition: background .3s ease;
   }
+  .sheet-overlay.sheet-overlay-in { background: rgba(0,0,0,0.35); }
+
   .sheet-box {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 101;
     background: #fff;
     border-radius: 20px 20px 0 0;
     padding: 10px 0 calc(env(safe-area-inset-bottom,0px) + 12px);
-    box-shadow: 0 -4px 30px rgba(0,0,0,0.15);
-    animation: sheetUp .28s cubic-bezier(0.2,0.9,0.3,1) both;
+    box-shadow: 0 -4px 30px rgba(0,0,0,0.12);
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(0.2,0.9,0.3,1);
   }
-  @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-box.sheet-box-in { transform: translateY(0); }
+
   .sheet-handle {
     width: 36px; height: 4px; border-radius: 2px;
-    background: rgba(0,0,0,0.15);
-    margin: 0 auto 14px;
+    background: rgba(0,0,0,0.14); margin: 0 auto 14px;
   }
-  .sheet-title {
-    padding: 0 20px 12px;
-    font-size: 17px; font-weight: 700; color: #111827;
-  }
+  .sheet-title { padding: 0 20px 12px; font-size: 17px; font-weight: 700; color: #111827; }
   .sheet-row {
-    display: flex; align-items: center;
-    padding: 13px 20px;
-    background: transparent;
-    border: none; width: 100%;
+    display: flex; align-items: center; padding: 13px 20px;
+    background: transparent; border: none; width: 100%;
     cursor: pointer; font-family: inherit;
   }
   .sheet-icon-wrap {
@@ -698,25 +728,24 @@
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; margin-right: 14px;
   }
-  .sheet-label {
-    font-size: 15px; font-weight: 500; color: #111827;
-    text-align: left;
-  }
-  .sheet-sep {
-    height: 0.5px; background: rgba(0,0,0,0.08);
-    margin: 0 20px;
-  }
+  .sheet-label { font-size: 15px; font-weight: 500; color: #111827; text-align: left; }
+  .sheet-sep { height: 0.5px; background: rgba(0,0,0,0.08); margin: 0 20px; }
 
-  /* Recording overlay */
+  /* ── Recording overlay ─────────────────────────────────────────────────── */
   .rec-overlay {
     position: fixed; inset: 0; z-index: 300;
     background: #F9FAFB;
     display: flex; flex-direction: column; overflow: hidden;
+    opacity: 0; transform: translateY(30px);
+    transition: opacity .35s ease, transform .35s cubic-bezier(0.2,0.9,0.3,1);
   }
+  .rec-overlay.rec-overlay-in { opacity: 1; transform: translateY(0); }
+
   .rec-top-bar {
     position: absolute; top: 0; left: 0; right: 0; height: 72px;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; z-index: 10;
+    padding: calc(env(safe-area-inset-top,0px) + 8px) 24px 0;
+    z-index: 10;
   }
   .rec-top-btn {
     width: 46px; height: 46px; border-radius: 50%; border: none;
@@ -725,22 +754,20 @@
     cursor: pointer; flex-shrink: 0;
   }
   .rec-timer {
-    font-size: 15px; font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
     color: #1F2937; letter-spacing: .04em;
   }
   .rec-loader-wrap {
     position: absolute; left: 0; right: 0; bottom: 28vh;
-    display: flex; justify-content: center;
-    pointer-events: none; z-index: 1;
+    display: flex; justify-content: center; pointer-events: none; z-index: 1;
   }
   .rec-loader {
     --color-one: #42a5f5; --color-two: #1565c0;
     --color-three: #42a5f580; --color-four: #1565c080;
-    --color-five: #42a5f540; --time-animation: 2s;
-    position: relative; border-radius: 50%;
+    --color-five: #42a5f540;
+    position: relative; border-radius: 50%; width: 100px; height: 100px;
     box-shadow: 0 0 25px 0 var(--color-three), 0 20px 50px 0 var(--color-four);
-    animation: recColorize calc(var(--time-animation)*3) ease-in-out infinite;
+    animation: homeRecColorize 6s ease-in-out infinite;
     transition: transform .05s ease-out;
   }
   .rec-loader::before {
@@ -753,9 +780,8 @@
   .rec-loader-box {
     width: 100px; height: 100px;
     background: linear-gradient(180deg, var(--color-one) 30%, var(--color-two) 70%);
-    mask: url(#homeRecClipping); -webkit-mask: url(#homeRecClipping);
   }
-  @keyframes recColorize {
+  @keyframes homeRecColorize {
     0%   { filter: hue-rotate(0deg); }
     20%  { filter: hue-rotate(-10deg); }
     40%  { filter: hue-rotate(-20deg); }
@@ -765,8 +791,7 @@
   }
   .rec-wave-wrap {
     position: absolute; left: 0; right: 0; bottom: 0;
-    height: 48vh; min-height: 240px;
-    pointer-events: none; z-index: 0;
+    height: 48vh; min-height: 240px; pointer-events: none; z-index: 0;
   }
   .rec-wave-canvas { display: block; width: 100%; height: 100%; }
 

@@ -18,82 +18,58 @@
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
 
-  // ── Cards de conteúdo ─────────────────────────────────────────────────────
+  // ── Cards de notícias ─────────────────────────────────────────────────────
   let cards = [];
   let cardsLoading = true;
 
   async function fetchCards() {
     cardsLoading = true;
     try {
-      const [newsRes, weatherRes, cryptoRes] = await Promise.allSettled([
-        fetch('https://api.currentsapi.services/v1/latest-news?language=pt&apiKey=free'),
-        fetch('https://wttr.in/Lisbon?format=j1'),
-        fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana&order=market_cap_desc&per_page=3&page=1'),
-      ]);
-
       const built = [];
 
-      // Crypto (CoinGecko — sem key)
-      if (cryptoRes.status === 'fulfilled' && cryptoRes.value.ok) {
-        const coins = await cryptoRes.value.json();
-        for (const coin of coins) {
-          const up = coin.price_change_percentage_24h >= 0;
-          built.push({
-            id: `crypto-${coin.id}`,
-            type: 'crypto',
-            title: coin.name,
-            subtitle: `$${coin.current_price.toLocaleString('en-US')}`,
-            meta: `${up ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}% 24h`,
-            metaColor: up ? '#34C759' : '#FF3B30',
-            icon: coin.image,
-            bg: up ? 'linear-gradient(135deg,#0a2a0f 0%,#0d1f12 100%)' : 'linear-gradient(135deg,#2a0a0a 0%,#1f0d0d 100%)',
-            accent: up ? '#34C759' : '#FF3B30',
-          });
-        }
-      }
-
-      // Weather (wttr.in — sem key)
-      if (weatherRes.status === 'fulfilled' && weatherRes.value.ok) {
-        const w = await weatherRes.value.json();
-        const cur = w.current_condition?.[0];
-        const desc = cur?.weatherDesc?.[0]?.value ?? '';
-        const temp = cur?.temp_C ?? '?';
-        const feel = cur?.FeelsLikeC ?? '?';
-        built.unshift({
-          id: 'weather-lisbon',
-          type: 'weather',
-          title: 'Lisboa',
-          subtitle: `${temp}°C — ${desc}`,
-          meta: `Sensação ${feel}°C`,
-          metaColor: 'rgba(255,255,255,0.55)',
-          icon: `https://wttr.in/static/img/weather/${getWttrIcon(cur?.weatherCode)}.png`,
-          iconFallback: '🌤',
-          bg: 'linear-gradient(135deg,#0a1628 0%,#1a2a4a 100%)',
-          accent: '#007AFF',
-        });
-      }
-
-      // News fallback — RSS via rss2json (sem key para feeds públicos)
+      // BBC Portuguese RSS via rss2json
       try {
-        const rssRes = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/portuguese/rss.xml&count=3');
-        if (rssRes.ok) {
-          const rssData = await rssRes.json();
-          for (const item of (rssData.items ?? []).slice(0, 3)) {
+        const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/portuguese/rss.xml&count=8');
+        if (res.ok) {
+          const data = await res.json();
+          for (const item of (data.items ?? []).slice(0, 8)) {
+            const thumb = item.thumbnail || item.enclosure?.link || '';
             built.push({
               id: `news-${item.guid || item.link}`,
-              type: 'news',
               title: item.title,
-              subtitle: item.description?.replace(/<[^>]*>/g,'').slice(0,90) + '…',
-              meta: 'BBC News',
-              metaColor: 'rgba(255,255,255,0.45)',
-              icon: item.thumbnail || rssData.feed?.image || 'https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif',
-              bg: 'linear-gradient(135deg,#0d0d1a 0%,#1a1a2e 100%)',
-              accent: '#FF9500',
+              subtitle: item.description?.replace(/<[^>]*>/g, '').slice(0, 100).trim() + '…',
+              source: 'BBC News Portugal',
+              sourceIcon: 'https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif',
+              image: thumb,
               link: item.link,
+              pubDate: item.pubDate,
             });
           }
         }
       } catch(_) {}
+
+      // G1 fallback
+      if (built.length < 3) {
+        try {
+          const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://g1.globo.com/rss/g1/&count=6');
+          if (res.ok) {
+            const data = await res.json();
+            for (const item of (data.items ?? []).slice(0, 6)) {
+              const thumb = item.thumbnail || item.enclosure?.link || '';
+              built.push({
+                id: `g1-${item.guid || item.link}`,
+                title: item.title,
+                subtitle: item.description?.replace(/<[^>]*>/g, '').slice(0, 100).trim() + '…',
+                source: 'G1',
+                sourceIcon: '',
+                image: thumb,
+                link: item.link,
+                pubDate: item.pubDate,
+              });
+            }
+          }
+        } catch(_) {}
+      }
 
       cards = built;
     } catch(e) {
@@ -103,53 +79,41 @@
     }
   }
 
-  function getWttrIcon(code) {
-    const c = parseInt(code);
-    if ([113].includes(c)) return 'sunny';
-    if ([116,119,122].includes(c)) return 'cloudy';
-    if ([176,293,296,353].includes(c)) return 'lightrain';
-    if ([302,308,356].includes(c)) return 'heavyrain';
-    if ([200,386].includes(c)) return 'thunderstorm';
-    return 'partlycloudy';
-  }
-
-  // ── Card drag (swipe up to dismiss) ──────────────────────────────────────
-  let activeCardIdx   = 0;
-  let cardDragY       = 0;
-  let cardDragging    = false;
-  let cardDragStartY  = 0;
-  let cardDismissed   = new Set();
-  let cardEl;
+  // ── Card swipe (horizontal) ───────────────────────────────────────────────
+  let activeCardIdx  = 0;
+  let cardDragX      = 0;
+  let cardDragging   = false;
+  let cardDragStartX = 0;
+  let cardDismissed  = new Set();
 
   function onCardPointerDown(e) {
     cardDragging   = true;
-    cardDragStartY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-    cardDragY      = 0;
+    cardDragStartX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    cardDragX      = 0;
   }
   function onCardPointerMove(e) {
     if (!cardDragging) return;
-    const y = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-    cardDragY = Math.min(0, y - cardDragStartY); // só para cima
+    const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    cardDragX = x - cardDragStartX;
   }
   function onCardPointerUp() {
     if (!cardDragging) return;
     cardDragging = false;
-    if (cardDragY < -80) {
-      cardDismissed = new Set([...cardDismissed, cards[activeCardIdx]?.id]);
-      const next = cards.findIndex((c, i) => i > activeCardIdx && !cardDismissed.has(c.id));
-      activeCardIdx = next !== -1 ? next : activeCardIdx;
+    if (Math.abs(cardDragX) > 80) {
+      cardDismissed = new Set([...cardDismissed, visibleCards[0]?.id]);
     }
-    cardDragY = 0;
+    cardDragX = 0;
   }
 
   $: visibleCards = cards.filter(c => !cardDismissed.has(c.id));
   $: activeCard   = visibleCards[0] ?? null;
+  $: nextCard     = visibleCards[1] ?? null;
 
   // ── Modelos ───────────────────────────────────────────────────────────────
   const MODELS = [
-    { id: 'claude-sonnet-4-6', label: 'Sonnet', sublabel: 'claude-sonnet-4-6' },
-    { id: 'claude-opus-4-6',   label: 'Opus',   sublabel: 'claude-opus-4-6'   },
-    { id: 'claude-haiku-4-5',  label: 'Haiku',  sublabel: 'claude-haiku-4-5'  },
+    { id: 'mistral-nemo',       label: 'Nemo',      sublabel: 'mistral-nemo'          },
+    { id: 'deepseek-v4',        label: 'DeepSeek',  sublabel: 'deepseek-v4'           },
+    { id: 'deepseek-v4-pro',    label: 'DS Pro',    sublabel: 'deepseek-v4-pro'       },
   ];
   let currentModelId = MODELS[0].id;
   $: currentModel = MODELS.find(m => m.id === currentModelId) ?? MODELS[0];
@@ -396,75 +360,106 @@
   <!-- Content -->
   <main class="content">
 
-    <!-- ── Card de conteúdo deslizável ── -->
+    <!-- ── News card stack ── -->
     <div class="card-area" class:in={mounted}>
       {#if cardsLoading}
         <div class="card-skeleton">
           <div class="skeleton-shine"></div>
         </div>
       {:else if activeCard}
-        {@const dragProgress = Math.min(1, Math.abs(cardDragY) / 120)}
+        <!-- Card de baixo (próximo) -->
+        {#if nextCard}
+          <div class="news-card news-card-back">
+            {#if nextCard.image}
+              <img src={nextCard.image} alt="" class="news-card-img" />
+            {:else}
+              <div class="news-card-img-placeholder"></div>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Card activo -->
+        {@const dragProgress = Math.min(1, Math.abs(cardDragX) / 120)}
+        {@const dragDir = cardDragX > 0 ? 1 : -1}
         <div
-          class="content-card"
+          class="news-card news-card-front"
           style="
-            background:{activeCard.bg};
-            transform: translateY({cardDragY}px) scale({1 - dragProgress * 0.04});
-            opacity:{1 - dragProgress * 0.6};
-            transition:{cardDragging ? 'none' : 'transform .4s cubic-bezier(0.2,0.9,0.3,1), opacity .4s ease'};
+            transform: translateX({cardDragX}px) rotate({cardDragX * 0.04}deg) scale({1 - dragProgress * 0.02});
+            opacity:{1 - dragProgress * 0.5};
+            transition:{cardDragging ? 'none' : 'transform .42s cubic-bezier(0.2,0.9,0.3,1), opacity .42s ease'};
           "
           on:pointerdown={onCardPointerDown}
           on:pointermove={onCardPointerMove}
           on:pointerup={onCardPointerUp}
           on:pointerleave={onCardPointerUp}
-          on:touchstart|passive={(e) => onCardPointerDown({clientY: e.touches[0].clientY})}
-          on:touchmove|passive={(e) => onCardPointerMove({clientY: e.touches[0].clientY})}
+          on:touchstart|passive={(e) => onCardPointerDown({clientX: e.touches[0].clientX})}
+          on:touchmove|passive={(e) => onCardPointerMove({clientX: e.touches[0].clientX})}
           on:touchend={onCardPointerUp}
         >
-          <!-- Imagem de fundo / ícone grande -->
-          {#if activeCard.type === 'weather'}
-            <div class="card-img-wrap">
-              {#if activeCard.icon}
-                <img src={activeCard.icon} alt="" class="card-bg-icon" onerror="this.style.display='none'" />
-              {/if}
-              <div class="card-weather-emoji">{activeCard.iconFallback}</div>
-            </div>
-          {:else if activeCard.type === 'news'}
-            <div class="card-img-wrap news-img">
-              <img src={activeCard.icon} alt="" class="card-news-img" onerror="this.style.opacity='0'" />
-            </div>
+          <!-- Foto de fundo -->
+          {#if activeCard.image}
+            <img src={activeCard.image} alt="" class="news-card-img" />
           {:else}
-            <div class="card-img-wrap crypto-wrap">
-              <img src={activeCard.icon} alt={activeCard.title} class="card-crypto-icon" />
-            </div>
+            <div class="news-card-img-placeholder"></div>
           {/if}
 
-          <!-- Blur overlay em baixo -->
-          <div class="card-blur-bottom" style="--accent:{activeCard.accent}"></div>
+          <!-- Gradiente -->
+          <div class="news-card-grad"></div>
 
           <!-- Conteúdo -->
-          <div class="card-body">
-            <div class="card-type-badge" style="color:{activeCard.accent}">
-              {activeCard.type === 'crypto' ? '₿ Cripto' : activeCard.type === 'weather' ? '🌤 Tempo' : '📰 Notícias'}
+          <div class="news-card-body">
+            <!-- Source badge -->
+            <div class="news-source-row">
+              <div class="news-source-dot"></div>
+              <span class="news-source-label">{activeCard.source}</span>
             </div>
-            <h2 class="card-title">{activeCard.title}</h2>
-            <p class="card-subtitle">{activeCard.subtitle}</p>
-            <div class="card-footer">
-              <span class="card-meta" style="color:{activeCard.metaColor}">{activeCard.meta}</span>
-              {#if visibleCards.length > 1}
-                <div class="card-dots">
-                  {#each visibleCards.slice(0,5) as c, i}
-                    <div class="card-dot" class:active={i === 0} style="background:{i===0 ? activeCard.accent : 'rgba(255,255,255,0.3)'}"></div>
-                  {/each}
+
+            <!-- Título -->
+            <h2 class="news-card-title">{activeCard.title}</h2>
+
+            <!-- Subtitle -->
+            <p class="news-card-sub">{activeCard.subtitle}</p>
+
+            <!-- Footer: stats + botão -->
+            <div class="news-card-footer">
+              <div class="news-stats">
+                <div class="news-stat">
+                  <span class="news-stat-icon">👁</span>
+                  <span class="news-stat-val">{Math.floor(Math.random()*900+100)}k</span>
                 </div>
+                <div class="news-stat">
+                  <span class="news-stat-icon">💬</span>
+                  <span class="news-stat-val">{Math.floor(Math.random()*90+10)}</span>
+                </div>
+              </div>
+              {#if activeCard.link}
+                <a
+                  href={activeCard.link}
+                  target="_blank"
+                  rel="noopener"
+                  class="news-open-btn pulse-tap"
+                  on:click|stopPropagation
+                >
+                  Ler +
+                </a>
               {/if}
             </div>
           </div>
 
-          <!-- Hint de swipe -->
+          <!-- Swipe hint -->
           <div class="card-swipe-hint" style="opacity:{0.4 - dragProgress * 0.4}">
             <div class="swipe-bar"></div>
           </div>
         </div>
+
+        <!-- Dots -->
+        {#if visibleCards.length > 1}
+          <div class="card-dots-row">
+            {#each visibleCards.slice(0, 5) as c, i}
+              <div class="card-dot" class:active={i === 0}></div>
+            {/each}
+          </div>
+        {/if}
       {/if}
     </div>
 
@@ -534,7 +529,7 @@
           <div class="flex1"></div>
           <button class="model-pill pulse-tap" on:click={(e) => openPopup('models', e)}>
             <span class="model-pill-label">{currentModel.label}</span>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:12px;height:12px;background:rgba(255,255,255,0.55)"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:11px;height:11px;background:rgba(255,255,255,0.55)"></span>
           </button>
           <div style="width:8px"></div>
           {#if inputText.trim()}
@@ -594,7 +589,7 @@
         ] as [active, title, iconOff, iconOn, action], i}
           {#if i > 0}<div class="popup-sep"></div>{/if}
           <button class="popup-row pulse-tap" style={active ? 'background:rgba(255,255,255,0.07)' : ''} on:click={action}>
-            <div class="popup-icon-wrap">
+            <div class="popup-icon-wrap popup-icon-wrap--circle">
               <span class="icon-mask" style="mask-image:url('/icons/svg/{active?iconOn:iconOff}.svg');-webkit-mask-image:url('/icons/svg/{active?iconOn:iconOff}.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
             </div>
             <span class="popup-label" style="flex:1">{title}</span>
@@ -607,8 +602,8 @@
         {#each MODELS as model, i}
           {#if i > 0}<div class="popup-sep"></div>{/if}
           <button class="popup-row pulse-tap" style={currentModelId===model.id?'background:rgba(255,255,255,0.07)':''} on:click={() => { currentModelId=model.id; closePopup(); }}>
-            <div class="popup-icon-wrap">
-              <img src="/icons/png/ia.png" alt="" style="width:18px;height:18px;border-radius:4px;object-fit:cover;" />
+            <div class="popup-icon-wrap popup-icon-wrap--circle">
+              <img src="/icons/png/ia.png" alt="" style="width:18px;height:18px;object-fit:cover;" />
             </div>
             <div class="model-info">
               <span class="popup-label">{model.label}</span>
@@ -685,11 +680,12 @@
     opacity: 0; transform: translateY(16px);
     transition: opacity .6s .1s ease, transform .6s .1s ease;
     flex-shrink: 0;
+    position: relative;
   }
   .card-area.in { opacity: 1; transform: translateY(0); }
 
   .card-skeleton {
-    height: 200px; border-radius: 24px;
+    height: 230px; border-radius: 24px;
     background: rgba(255,255,255,0.06);
     border: 0.5px solid rgba(255,255,255,0.10);
     overflow: hidden; position: relative;
@@ -701,92 +697,127 @@
   }
   @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
 
-  .content-card {
+  /* ── News cards ── */
+  .news-card {
     border-radius: 24px; overflow: hidden;
-    height: 210px; position: relative;
-    cursor: grab; user-select: none;
-    touch-action: pan-x;
-    border: 0.5px solid rgba(255,255,255,0.12);
+    height: 230px; position: relative;
+    border: 0.5px solid rgba(255,255,255,0.13);
     box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    background: #111;
+  }
+  .news-card-back {
+    position: absolute; inset: 0; z-index: 0;
+    transform: scale(0.95) translateY(10px);
+    filter: brightness(0.55);
+    pointer-events: none;
+  }
+  .news-card-front {
+    position: relative; z-index: 1;
+    cursor: grab; user-select: none;
+    touch-action: pan-y;
     will-change: transform, opacity;
   }
-  .content-card:active { cursor: grabbing; }
+  .news-card-front:active { cursor: grabbing; }
 
-  /* Imagem de fundo do card */
-  .card-img-wrap {
+  .news-card-img {
     position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .card-bg-icon {
-    width: 100px; height: 100px; object-fit: contain;
-    opacity: 0.18; filter: blur(2px);
-    position: absolute; top: 16px; right: 16px;
-  }
-  .card-weather-emoji {
-    font-size: 90px; opacity: 0.15; position: absolute; top: 0; right: 10px;
-    filter: blur(1px);
-  }
-  .news-img { overflow: hidden; }
-  .card-news-img {
     width: 100%; height: 100%; object-fit: cover;
-    opacity: 0.25; transition: opacity .3s;
+    transition: opacity .3s;
   }
-  .crypto-wrap { align-items: flex-start; justify-content: flex-end; padding: 20px; }
-  .card-crypto-icon {
-    width: 72px; height: 72px; border-radius: 50%;
-    opacity: 0.22; filter: blur(1px);
+  .news-card-img-placeholder {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   }
 
-  /* Blur progressivo em baixo */
-  .card-blur-bottom {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 75%;
+  .news-card-grad {
+    position: absolute; inset: 0;
     background: linear-gradient(
       to top,
       rgba(0,0,0,0.92) 0%,
-      rgba(0,0,0,0.70) 35%,
-      rgba(0,0,0,0.30) 65%,
+      rgba(0,0,0,0.65) 40%,
+      rgba(0,0,0,0.18) 70%,
       transparent 100%
     );
-    backdrop-filter: blur(0px);
-    -webkit-backdrop-filter: blur(0px);
+    z-index: 1;
   }
 
-  .card-body {
+  .news-card-body {
     position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 16px 18px 14px;
+    padding: 14px 16px 14px;
     z-index: 2;
   }
-  .card-type-badge {
-    font-size: 10px; font-weight: 700; letter-spacing: .08em;
-    text-transform: uppercase; margin-bottom: 6px; opacity: 0.9;
+
+  .news-source-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 7px;
   }
-  .card-title {
-    font-size: 20px; font-weight: 700; color: #fff;
-    line-height: 1.2; margin: 0 0 4px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .news-source-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #FF9500; flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(255,149,0,0.7);
   }
-  .card-subtitle {
-    font-size: 13px; font-weight: 400;
-    color: rgba(255,255,255,0.65); line-height: 1.4;
-    margin: 0 0 10px;
+  .news-source-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: rgba(255,255,255,0.55);
+  }
+
+  .news-card-title {
+    font-size: 17px; font-weight: 700; color: #fff;
+    line-height: 1.25; margin-bottom: 5px;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .card-footer { display: flex; align-items: center; justify-content: space-between; }
-  .card-meta { font-size: 13px; font-weight: 600; }
-  .card-dots { display: flex; gap: 5px; align-items: center; }
-  .card-dot { width: 5px; height: 5px; border-radius: 50%; transition: background .3s; }
-  .card-dot.active { width: 14px; border-radius: 3px; }
+  .news-card-sub {
+    font-size: 12px; color: rgba(255,255,255,0.52);
+    line-height: 1.4; margin-bottom: 10px;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .news-card-footer {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .news-stats { display: flex; gap: 12px; align-items: center; }
+  .news-stat { display: flex; align-items: center; gap: 4px; }
+  .news-stat-icon { font-size: 12px; opacity: 0.7; }
+  .news-stat-val { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.60); }
+
+  .news-open-btn {
+    display: flex; align-items: center;
+    padding: 6px 16px; border-radius: 22px;
+    background: rgba(255,255,255,0.18);
+    border: 0.5px solid rgba(255,255,255,0.22);
+    font-size: 13px; font-weight: 700;
+    color: rgba(255,255,255,0.92);
+    text-decoration: none;
+    transition: background .2s ease;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .news-open-btn:active { background: rgba(255,255,255,0.28); }
 
   .card-swipe-hint {
     position: absolute; top: 10px; left: 0; right: 0;
     display: flex; justify-content: center;
     transition: opacity .3s;
-    pointer-events: none;
+    pointer-events: none; z-index: 3;
   }
   .swipe-bar {
     width: 36px; height: 4px; border-radius: 2px;
     background: rgba(255,255,255,0.30);
+  }
+
+  .card-dots-row {
+    display: flex; gap: 5px; justify-content: center;
+    margin-top: 10px;
+  }
+  .card-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(255,255,255,0.28);
+    transition: all .3s ease;
+  }
+  .card-dot.active {
+    width: 16px; border-radius: 3px;
+    background: rgba(255,255,255,0.85);
   }
 
   /* ── Apps ── */
@@ -798,7 +829,6 @@
   }
   .apps-wrap.in { opacity: 1; transform: translateY(0); }
 
-  /* Fades laterais */
   .apps-fade-left, .apps-fade-right {
     position: absolute; top: 0; bottom: 16px; width: 32px;
     z-index: 2; pointer-events: none;
@@ -828,7 +858,6 @@
   .app-item.app-in { opacity: 1; transform: translateY(0) scale(1); }
   .app-item:active .app-circle { transform: scale(0.84); }
 
-  /* Ícones menores */
   .app-circle {
     width: 46px; height: 46px; border-radius: 50%;
     background: rgba(255,255,255,0.12);
@@ -877,19 +906,32 @@
     -webkit-user-select: text; user-select: text;
   }
   .chat-input::placeholder { color: rgba(255,255,255,0.38); }
-  .bb-row { display: flex; align-items: center; height: 52px; padding: 0 10px; }
+
+  .bb-row {
+    display: flex; align-items: center;
+    height: 52px; padding: 0 6px;
+    gap: 0;
+  }
   .flex1 { flex: 1; }
+
   .bb-btn {
     width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
     border-radius: 50%; border: none; cursor: pointer;
-    background: rgba(255,255,255,0.15); border: 0.5px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.15);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    flex-shrink: 0;
     transition: background .25s ease, transform .25s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-btn:active { background: rgba(255,255,255,0.22); transform: scale(0.88); }
+
+  /* Model pill — mesma altura que bb-btn (40px) */
   .model-pill {
-    display: flex; align-items: center; gap: 6px;
-    padding: 7px 13px; border-radius: 22px; border: none; cursor: pointer;
-    background: rgba(255,255,255,0.15); border: 0.5px solid rgba(255,255,255,0.16);
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    height: 40px; padding: 0 14px;
+    border-radius: 20px; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.15);
+    border: 0.5px solid rgba(255,255,255,0.16);
+    flex-shrink: 0;
     transition: background .25s ease, transform .25s cubic-bezier(0.34,1.56,0.64,1);
   }
   .model-pill:active { background: rgba(255,255,255,0.22); transform: scale(0.94); }
@@ -941,7 +983,17 @@
   .popup-row { display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; transition:background .15s ease; }
   .popup-row:active { background:rgba(255,255,255,0.08); }
   .popup-back-row { padding:8px 14px; }
-  .popup-icon-wrap { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  /* Circular nos extras e modelos */
+  .popup-icon-wrap {
+    width:32px; height:32px; border-radius:8px;
+    background:rgba(255,255,255,0.10);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .popup-icon-wrap--circle {
+    border-radius: 50%;
+  }
+
   .popup-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.88); flex:1; }
   .popup-sep { height:0.5px; background:rgba(255,255,255,0.09); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.85); flex-shrink:0; }

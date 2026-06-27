@@ -76,6 +76,36 @@
     return 'Boa noite';
   }
 
+  // Input
+  let inputText = '';
+  let textInputEl;
+
+  function autoResize() {
+    if (!textInputEl) return;
+    textInputEl.style.height = 'auto';
+    textInputEl.style.height = Math.min(textInputEl.scrollHeight, 150) + 'px';
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') {
+      const isMobile = window.matchMedia('(hover:none) and (pointer:coarse)').matches;
+      if (!isMobile && !e.shiftKey) {
+        e.preventDefault();
+        if (inputText.trim()) navigateToAI();
+      }
+    }
+  }
+
+  function navigateToAI() {
+    const text = inputText.trim();
+    if (!text) return;
+    const aiApp = ALL_APPS.find(x => x.id === 'ai');
+    if (!aiApp) return;
+    // Guarda a mensagem pendente para o ChatPage ler no onMount
+    try { sessionStorage.setItem('nexa_pending_message', text); } catch(e) {}
+    window.location.href = aiApp.path;
+  }
+
   // Entrada dos elementos
   let mounted = false;
 
@@ -97,12 +127,12 @@
     return () => clearInterval(bgTimer);
   });
 
-  function openAI() {
-    const a = ALL_APPS.find(x => x.id === 'ai');
-    if (a) window.location.href = a.path;
+  function openApp(app) {
+    if (app.id === 'ai') {
+      try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {}
+    }
+    window.location.href = app.path;
   }
-
-  function openApp(app) { window.location.href = app.path; }
 </script>
 
 <div class="root">
@@ -127,6 +157,7 @@
   <!-- HEADER -->
   <header class="header" class:in={mounted}>
     <div class="logo-row">
+      <!-- 1. logo.png sem fundo, tamanho natural do PNG (sem border-radius) -->
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
       <span class="logo-text">Nexa</span>
     </div>
@@ -155,7 +186,10 @@
             on:click={() => openApp(app)}
           >
             <div class="app-circle">
-              {#if app.icon && !app.icon.endsWith('.svg')}
+              <!-- 2. app IA usa ia.png diretamente -->
+              {#if app.id === 'ai'}
+                <img src="/icons/png/ia.png" alt={app.label} class="app-img" />
+              {:else if app.icon && !app.icon.endsWith('.svg')}
                 <img src={app.icon} alt={app.label} class="app-img" />
               {:else}
                 <span
@@ -178,16 +212,37 @@
 
   </main>
 
-  <!-- BOTTOM -->
+  <!-- BOTTOM — 3. Input idêntico ao ChatPage com blur -->
   <div class="bottom" class:in={mounted}>
-    <button class="ai-bar" on:click={openAI}>
-      <span class="ai-bar-text">Pergunta algo à IA…</span>
-      <div class="ai-bar-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
+    <div class="bottom-bar">
+      <textarea
+        class="chat-input"
+        placeholder="Pergunta algo à IA…"
+        rows="1"
+        bind:value={inputText}
+        bind:this={textInputEl}
+        on:input={autoResize}
+        on:keydown={handleKeyDown}
+      ></textarea>
+      <div class="bb-row">
+        <div class="flex1"></div>
+        {#if inputText.trim()}
+          <button class="send-btn pulse-tap" on:click={navigateToAI}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        {:else}
+          <div class="send-btn send-idle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </div>
+        {/if}
       </div>
-    </button>
+    </div>
   </div>
 
 </div>
@@ -241,7 +296,15 @@
   .header.in { opacity: 1; transform: translateY(0); }
 
   .logo-row { display: flex; align-items: center; gap: 8px; }
-  .logo-img  { width: 30px; height: 30px; border-radius: 9px; }
+
+  /* 1. Logo PNG sem border-radius — mantém transparência */
+  .logo-img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    /* sem border-radius para não cortar o PNG transparente */
+  }
+
   .logo-text { font-size: 19px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
 
   .avatar-pill {
@@ -358,7 +421,7 @@
     letter-spacing: .02em;
   }
 
-  /* BOTTOM */
+  /* BOTTOM — input idêntico ao ChatPage */
   .bottom {
     position: relative; z-index: 10;
     padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 22px);
@@ -368,29 +431,58 @@
   }
   .bottom.in { opacity: 1; transform: translateY(0); }
 
-  .ai-bar {
-    width: 100%;
-    display: flex; align-items: center; justify-content: space-between;
-    background: rgba(255,255,255,0.12);
-    backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
-    border: 0.5px solid rgba(255,255,255,0.18);
+  .bottom-bar {
     border-radius: 22px;
-    padding: 18px 20px;
-    cursor: pointer;
-    transition: background .2s, transform .15s;
-    font-family: inherit;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 0.5px solid rgba(255,255,255,0.18);
+    display: flex;
+    flex-direction: column;
   }
-  .ai-bar:active { background: rgba(255,255,255,0.2); transform: scale(0.98); }
 
-  .ai-bar-text {
-    font-size: 16px; font-weight: 400;
-    color: rgba(255,255,255,0.5);
+  .chat-input {
+    resize: none;
+    outline: none;
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 14px 18px 0;
+    width: 100%;
+    font-family: inherit;
+    color: #fff;
+    max-height: 150px;
+    overflow-y: auto;
+    -webkit-user-select: text;
+    user-select: text;
   }
-  .ai-bar-icon {
-    width: 34px; height: 34px; border-radius: 50%;
-    background: rgba(255,255,255,0.15);
+  .chat-input::placeholder { color: rgba(255,255,255,0.5); }
+
+  .bb-row {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 10px;
+  }
+
+  .flex1 { flex: 1; }
+
+  .send-btn {
+    width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center;
-    color: rgba(255,255,255,0.7);
+    border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.9);
+    cursor: pointer;
+    transition: transform .15s, opacity .15s;
     flex-shrink: 0;
   }
+  .send-btn:active { transform: scale(0.9); opacity: 0.8; }
+  .send-idle {
+    background: rgba(255,255,255,0.1);
+    cursor: default;
+  }
+
+  .pulse-tap { cursor: pointer; transition: transform .11s cubic-bezier(0.4,0,.2,1), opacity .11s; }
+  .pulse-tap:active { transform: scale(0.97); opacity: .86; }
 </style>

@@ -19,259 +19,6 @@
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
 
-  // ── RSS Pool — 10 tópicos × muitas fontes ─────────────────────────────────
-  const TOPICS = {
-    tecnologia:    { label: 'Tecnologia',     color: '#007AFF', grad: 'linear-gradient(150deg,#00143d 0%,#001f6b 100%)' },
-    ciencia:       { label: 'Ciência',        color: '#5856D6', grad: 'linear-gradient(150deg,#0d0024 0%,#1c0050 100%)' },
-    entretenimento:{ label: 'Entretenimento', color: '#FF2D92', grad: 'linear-gradient(150deg,#2a000f 0%,#4a001f 100%)' },
-    desporto:      { label: 'Desporto',       color: '#34C759', grad: 'linear-gradient(150deg,#001508 0%,#002b10 100%)' },
-    saude:         { label: 'Saúde',          color: '#00C7BE', grad: 'linear-gradient(150deg,#001818 0%,#002f2e 100%)' },
-    negocios:      { label: 'Negócios',       color: '#FF9500', grad: 'linear-gradient(150deg,#1c0f00 0%,#3a1f00 100%)' },
-    mundo:         { label: 'Mundo',          color: '#FF6B6B', grad: 'linear-gradient(150deg,#1a0000 0%,#350000 100%)' },
-    arte:          { label: 'Arte & Cultura', color: '#FF8C42', grad: 'linear-gradient(150deg,#1c0a00 0%,#391400 100%)' },
-    gaming:        { label: 'Gaming',         color: '#BF5AF2', grad: 'linear-gradient(150deg,#130020 0%,#26003f 100%)' },
-    politica:      { label: 'Política',       color: '#8E8E93', grad: 'linear-gradient(150deg,#0e0e0e 0%,#1c1c1e 100%)' },
-  };
-
-  const GN  = (t, hl='pt-BR', gl='BR') => `https://news.google.com/rss/headlines/section/topic/${t}?hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split('-')[0]}`;
-  const GNS = (q, hl='pt-BR', gl='BR') => `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split('-')[0]}`;
-
-  const RSS_POOL = {
-    tecnologia: [
-      GN('TECHNOLOGY'), GN('TECHNOLOGY','en-US','US'), GN('TECHNOLOGY','pt-PT','PT'),
-      GNS('inteligência artificial 2025'), GNS('smartphones lançamentos'),
-      GNS('software programação'), GNS('cibersegurança'), GNS('robótica automação'),
-      GNS('computação quântica'), GNS('startups tech'), GNS('openai google deepmind'),
-      GNS('artificial intelligence news'), GNS('tech gadgets 2025'),
-      GNS('5G redes'), GNS('cloud computing AWS'),
-      'https://www.theverge.com/rss/index.xml',
-      'https://feeds.feedburner.com/TechCrunch',
-      'https://www.wired.com/feed/rss',
-      'https://arstechnica.com/feed/',
-      'https://www.marktechpost.com/feed/',
-      'https://thenextweb.com/feed/',
-    ],
-    ciencia: [
-      GN('SCIENCE'), GN('SCIENCE','en-US','US'), GN('SCIENCE','pt-PT','PT'),
-      GNS('ciência descoberta 2025'), GNS('espaço NASA SpaceX'),
-      GNS('física quântica pesquisa'), GNS('biologia genética DNA'),
-      GNS('astronomia telescópio webb'), GNS('mudanças climáticas'),
-      GNS('paleontologia fóssil'), GNS('neurociência cérebro'),
-      GNS('ocean research marine'), GNS('space exploration moon mars'),
-      GNS('medicine breakthrough'), GNS('climate science'),
-      'https://www.sciencedaily.com/rss/all.xml',
-      'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
-      'https://www.sciencemag.org/rss/current.xml',
-      'https://scitechdaily.com/feed/',
-    ],
-    entretenimento: [
-      GN('ENTERTAINMENT'), GN('ENTERTAINMENT','en-US','US'), GN('ENTERTAINMENT','pt-PT','PT'),
-      GNS('cinema filmes 2025'), GNS('séries Netflix HBO streaming'),
-      GNS('música álbuns lançamentos'), GNS('celebridades famosos'),
-      GNS('Grammy Oscar Emmy 2025'), GNS('anime manga'),
-      GNS('box office movies'), GNS('celebrity gossip'),
-      GNS('gaming entertainment'), GNS('K-pop música'),
-      GNS('teatro dança espetáculo'), GNS('festival música'),
-      'https://collider.com/feed',
-      'https://www.tmz.com/rss.xml',
-      'https://variety.com/feed/',
-      'https://deadline.com/feed/',
-    ],
-    desporto: [
-      GN('SPORTS'), GN('SPORTS','en-US','US'), GN('SPORTS','pt-BR','BR'),
-      GNS('futebol transferências mercado'), GNS('Saudi Pro League futebol'),
-      GNS('Champions League UEFA'), GNS('Premier League'),
-      GNS('NBA basketball'), GNS('Fórmula 1 F1 2025'),
-      GNS('tênis ATP WTA Roland Garros'), GNS('boxe MMA UFC'),
-      GNS('rugby Six Nations'), GNS('ciclismo Tour de France'),
-      GNS('Série A Serie A calcio'), GNS('La Liga espanha'),
-      GNS('Olympics sports'), GNS('baseball MLB'),
-      'https://feeds.bbci.co.uk/sport/rss.xml',
-      'https://www.espn.com/espn/rss/news',
-    ],
-    saude: [
-      GN('HEALTH'), GN('HEALTH','en-US','US'), GN('HEALTH','pt-PT','PT'),
-      GNS('saúde bem-estar 2025'), GNS('nutrição dieta alimentação'),
-      GNS('exercício fitness treino'), GNS('saúde mental psicologia'),
-      GNS('medicina vacina tratamento'), GNS('longevidade envelhecimento'),
-      GNS('cancer pesquisa tratamento'), GNS('diabetes obesidade'),
-      GNS('mental health therapy'), GNS('gut health microbiome'),
-      GNS('sleep health insomnia'), GNS('fitness workout'),
-      'https://rss.nytimes.com/services/xml/rss/nyt/Health.xml',
-      'https://www.health.com/rss',
-      'https://www.medicalnewstoday.com/rss',
-    ],
-    negocios: [
-      GN('BUSINESS'), GN('BUSINESS','en-US','US'), GN('BUSINESS','pt-BR','BR'),
-      GNS('economia mercado bolsa'), GNS('startups investimento venture'),
-      GNS('inflação economia global'), GNS('bitcoin criptomoedas'),
-      GNS('mergers acquisitions M&A'), GNS('IPO stock market'),
-      GNS('imobiliário real estate'), GNS('e-commerce marketplace'),
-      GNS('fintech banking digital'), GNS('ESG sustentabilidade'),
-      GNS('supply chain logistics'), GNS('electric vehicles market'),
-      'https://feeds.a.dj.com/rss/RSSWorldNews.xml',
-      'https://feeds.bloomberg.com/markets/news.rss',
-      'https://feeds.skynews.com/feeds/rss/business.xml',
-    ],
-    mundo: [
-      GN('WORLD'), GN('WORLD','en-US','US'), GN('WORLD','pt-PT','PT'),
-      GNS('geopolítica internacional 2025'), GNS('conflito guerra paz'),
-      GNS('diplomacia ONU cúpula'), GNS('Europa crise política'),
-      GNS('China Ásia Pacífico'), GNS('Médio Oriente Israel'),
-      GNS('Rússia Ucrânia'), GNS('África notícias'),
-      GNS('América Latina Brasil'), GNS('refugiados migração'),
-      GNS('world news breaking'), GNS('United Nations NATO'),
-      'https://feeds.bbci.co.uk/news/world/rss.xml',
-      'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-      'https://feeds.skynews.com/feeds/rss/world.xml',
-    ],
-    arte: [
-      GNS('arte museu exposição'), GNS('literatura livros premiados'),
-      GNS('fotografia design gráfico'), GNS('arquitetura urbanismo'),
-      GNS('moda fashion semana'), GNS('gastronomia culinária chef'),
-      GNS('arte contemporânea galeria'), GNS('patrimônio UNESCO'),
-      GNS('design industrial criativo'), GNS('graffiti street art'),
-      GNS('art exhibition museum'), GNS('fashion week runway'),
-      GNS('food gastronomy restaurant'), GNS('photography award'),
-      'https://collider.com/feed',
-      'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml',
-    ],
-    gaming: [
-      GNS('videogames lançamentos 2025'), GNS('PlayStation Xbox Nintendo'),
-      GNS('PC gaming Steam'), GNS('esports torneios competitivo'),
-      GNS('mobile games android iOS'), GNS('game review análise'),
-      GNS('VR AR virtual reality'), GNS('Fortnite GTA gaming'),
-      GNS('game developer indie'), GNS('gaming industry news'),
-      GNS('Epic Games launcher'), GNS('game console hardware'),
-      GNS('streaming gaming cloud'), GNS('game awards 2025'),
-      'https://kotaku.com/rss',
-      'https://www.polygon.com/rss/index.xml',
-      'https://www.eurogamer.net/feed',
-    ],
-    politica: [
-      GN('NATION'), GN('NATION','en-US','US'), GN('NATION','pt-BR','BR'),
-      GNS('política Brasil eleições'), GNS('Congresso Senado votação'),
-      GNS('Trump Biden governo'), GNS('Europa parlamento'),
-      GNS('democracia direitos'), GNS('Portugal governo'),
-      GNS('política argentina'), GNS('eleições 2025 mundo'),
-      GNS('supreme court law'), GNS('government policy'),
-      GNS('corruption scandal politics'), GNS('foreign policy'),
-      'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml',
-      'https://feeds.bbci.co.uk/news/politics/rss.xml',
-    ],
-  };
-
-  // ── Cards state ───────────────────────────────────────────────────────────
-  let cards         = [];
-  let cardsLoading  = true;
-
-  function extractImage(item) {
-    if (item.thumbnail?.startsWith('http') && !item.thumbnail.includes('1x1') && !item.thumbnail.includes('pixel')) return item.thumbnail;
-    if (item.enclosure?.link && /\.(jpe?g|png|webp|gif)/i.test(item.enclosure.link)) return item.enclosure.link;
-    const m = (item.content || item.description || '').match(/<img[^>]+src=["']([^"']+)/);
-    if (m?.[1]?.startsWith('http')) return m[1];
-    return null;
-  }
-
-  function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
-  function pickN(arr, n) { return shuffle(arr).slice(0, n); }
-
-  async function fetchCards() {
-    cardsLoading = true;
-    try {
-      const topicKeys = Object.keys(RSS_POOL);
-      // 2 random feeds per topic, 5 topics = 10 parallel fetches
-      const chosen = shuffle(topicKeys).slice(0, 5).flatMap(topic =>
-        pickN(RSS_POOL[topic], 2).map(url => ({ url, topic }))
-      );
-
-      const results = await Promise.allSettled(
-        chosen.map(({ url, topic }) =>
-          fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&count=5`)
-            .then(r => r.ok ? r.json() : null)
-            .then(data => ({ data, topic }))
-            .catch(() => ({ data: null, topic }))
-        )
-      );
-
-      const built   = [];
-      const seenSet = new Set();
-
-      for (const res of results) {
-        if (res.status !== 'fulfilled' || !res.value?.data?.items?.length) continue;
-        const { data, topic } = res.value;
-        const meta = TOPICS[topic];
-        for (const item of data.items.slice(0, 4)) {
-          const title = item.title?.trim();
-          if (!title || seenSet.has(title.slice(0, 40).toLowerCase())) continue;
-          seenSet.add(title.slice(0, 40).toLowerCase());
-          built.push({
-            id:         `${topic}-${item.guid || item.link || title}`,
-            topic,
-            topicLabel: meta.label,
-            topicColor: meta.color,
-            topicGrad:  meta.grad,
-            title,
-            subtitle: (item.description || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 110),
-            source:   data.feed?.title?.replace(/\s*[-|].*$/, '').trim() || meta.label,
-            image:    extractImage(item),
-            link:     item.link,
-          });
-        }
-      }
-
-      cards = shuffle(built);
-    } catch(e) {
-      console.error('fetchCards:', e);
-    } finally {
-      cardsLoading = false;
-    }
-  }
-
-  // ── Card swipe vertical ───────────────────────────────────────────────────
-  let cardDragY       = 0;
-  let cardDragging    = false;
-  let cardDragStartY  = 0;
-  let cardDismissed   = new Set();
-  let cardExiting     = false;
-  let cardJustEntered = false;
-  let cardEnterTimer;
-
-  $: visibleCards  = cards.filter(c => !cardDismissed.has(c.id));
-  $: activeCard    = visibleCards[0] ?? null;
-  $: nextCard      = visibleCards[1] ?? null;
-  $: dragProgress  = Math.min(1, Math.abs(cardDragY) / 100);
-
-  function onCardPointerDown(e) {
-    if (cardExiting) return;
-    cardDragging    = true;
-    cardDragStartY  = e.clientY;
-    cardDragY       = 0;
-    cardJustEntered = false;
-    clearTimeout(cardEnterTimer);
-  }
-  function onCardPointerMove(e) {
-    if (!cardDragging || cardExiting) return;
-    cardDragY = Math.min(0, e.clientY - cardDragStartY);
-  }
-  function onCardPointerUp() {
-    if (!cardDragging) return;
-    cardDragging = false;
-    if (cardDragY < -60) {
-      cardExiting = true;
-      const id = visibleCards[0]?.id;
-      setTimeout(() => {
-        if (id) cardDismissed = new Set([...cardDismissed, id]);
-        cardExiting     = false;
-        cardDragY       = 0;
-        cardJustEntered = true;
-        cardEnterTimer  = setTimeout(() => { cardJustEntered = false; }, 400);
-      }, 270);
-    } else {
-      cardDragY = 0;
-    }
-  }
-
   // ── Models ────────────────────────────────────────────────────────────────
   const MODELS = [
     { id: 'mistral-nemo',    label: 'Nemo',     sublabel: 'mistral-nemo'    },
@@ -485,8 +232,7 @@
     }
     requestAnimationFrame(() => { mounted = true; });
     if (bgImages.length > 1) bgTimer = setInterval(rotateBg, 15000);
-    fetchCards();
-    return () => { clearInterval(bgTimer); clearTimeout(cardEnterTimer); };
+    return () => { clearInterval(bgTimer); };
   });
 </script>
 
@@ -507,99 +253,6 @@
 
   <!-- ── Content ── -->
   <main class="content">
-
-    <!-- News card stack -->
-    <div class="card-area" class:in={mounted}>
-      {#if cardsLoading}
-        <div class="card-stack">
-          <div class="card-skeleton"><div class="skeleton-shine"></div></div>
-        </div>
-      {:else if visibleCards.length > 0}
-        <div class="card-stack">
-
-          <!-- Back card — próxima notícia -->
-          {#if nextCard}
-            <div
-              class="news-card card-back"
-              style="background:{nextCard.image ? '#0d0d0d' : nextCard.topicGrad};
-                     transform:scale({0.93 + 0.07*dragProgress}) translateY({Math.max(0,12*(1-dragProgress))}px);
-                     filter:brightness({0.5 + 0.5*dragProgress});"
-            >
-              {#if nextCard.image}
-                <img src={nextCard.image} alt="" class="card-img" onerror="this.style.opacity='0'" />
-              {/if}
-              <div class="card-grad"></div>
-            </div>
-          {/if}
-
-          <!-- Front card — notícia activa -->
-          {#if activeCard}
-            <div
-              class="news-card card-front"
-              class:drag={cardDragging}
-              class:exiting={cardExiting}
-              class:entering={cardJustEntered}
-              style="background:{activeCard.image ? '#0d0d0d' : activeCard.topicGrad};
-                     transform:translateY({cardExiting ? -320 : cardDragY}px) rotate({cardExiting ? -5 : 0}deg);
-                     opacity:{cardExiting ? 0 : 1};"
-              on:pointerdown={onCardPointerDown}
-              on:pointermove={onCardPointerMove}
-              on:pointerup={onCardPointerUp}
-              on:pointerleave={onCardPointerUp}
-              on:pointercancel={onCardPointerUp}
-            >
-              {#if activeCard.image}
-                <img src={activeCard.image} alt="" class="card-img" onerror="this.style.opacity='0'" />
-              {/if}
-              <div class="card-grad"></div>
-
-              <div class="card-body">
-                <div class="card-badge" style="color:{activeCard.topicColor}">
-                  <div class="badge-dot" style="background:{activeCard.topicColor};box-shadow:0 0 6px {activeCard.topicColor}88"></div>
-                  {activeCard.topicLabel}
-                </div>
-                <h2 class="card-title">{activeCard.title}</h2>
-                {#if activeCard.subtitle}
-                  <p class="card-sub">{activeCard.subtitle}</p>
-                {/if}
-                <div class="card-footer">
-                  <span class="card-source">{activeCard.source}</span>
-                  {#if activeCard.link}
-                    <a href={activeCard.link} target="_blank" rel="noopener"
-                       class="card-read-btn pulse-tap"
-                       on:click|stopPropagation>
-                      Ler
-                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                        <path d="M2.5 9.5L9.5 2.5M9.5 2.5H4M9.5 2.5V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                  {/if}
-                </div>
-              </div>
-
-              <div class="swipe-hint" style="opacity:{Math.max(0, 0.35 - dragProgress*0.35)}">
-                <div class="swipe-bar"></div>
-              </div>
-            </div>
-          {/if}
-        </div>
-
-        <!-- Dots -->
-        {#if visibleCards.length > 1}
-          <div class="card-dots">
-            {#each visibleCards.slice(0,6) as _, i}
-              <div class="card-dot" class:active={i===0}
-                   style={i===0 ? `background:${activeCard?.topicColor ?? '#fff'}` : ''}></div>
-            {/each}
-          </div>
-        {/if}
-      {:else}
-        <div class="card-empty">
-          <span>Sem notícias de momento</span>
-          <button class="retry-btn pulse-tap" on:click={fetchCards}>Tentar novamente</button>
-        </div>
-      {/if}
-    </div>
 
     <!-- Apps -->
     <div class="apps-wrap" class:in={mounted}>
@@ -732,7 +385,6 @@
           ] as [active, title, ico, icoOn, action], i}
             {#if i > 0}<div class="popup-sep"></div>{/if}
             <button class="popup-row pulse-tap" style={active ? 'background:rgba(255,255,255,0.07)' : ''} on:click={action}>
-              <!-- circular icon container -->
               <div class="popup-icon-wrap popup-icon-circle">
                 <span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
               </div>
@@ -824,148 +476,6 @@
     gap:12px; padding-bottom:4px;
   }
 
-  /* ── Card area ── */
-  .card-area {
-    padding:0 16px;
-    opacity:0; transform:translateY(16px);
-    transition:opacity .6s .1s ease,transform .6s .1s ease;
-    flex-shrink:0;
-  }
-  .card-area.in { opacity:1; transform:translateY(0); }
-
-  .card-stack { position:relative; height:222px; }
-
-  /* Skeleton */
-  .card-skeleton {
-    position:absolute; inset:0;
-    border-radius:22px; overflow:hidden;
-    background:rgba(255,255,255,0.06);
-    border:0.5px solid rgba(255,255,255,0.10);
-  }
-  .skeleton-shine {
-    position:absolute; inset:0;
-    background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.07) 50%,transparent 100%);
-    animation:shimmer 1.6s ease-in-out infinite;
-  }
-  @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-
-  /* ── News cards ── */
-  .news-card {
-    position:absolute; inset:0;
-    border-radius:22px; overflow:hidden;
-    border:0.5px solid rgba(255,255,255,0.12);
-    box-shadow:0 18px 52px rgba(0,0,0,0.55);
-  }
-  .card-img {
-    position:absolute; inset:0;
-    width:100%; height:100%; object-fit:cover;
-  }
-  .card-grad {
-    position:absolute; inset:0;
-    background:linear-gradient(
-      to top,
-      rgba(0,0,0,0.95) 0%,
-      rgba(0,0,0,0.72) 35%,
-      rgba(0,0,0,0.22) 65%,
-      transparent 100%
-    );
-    z-index:1;
-  }
-
-  /* Back card */
-  .card-back {
-    z-index:1;
-    pointer-events:none;
-    transition:transform .28s cubic-bezier(0.2,0.9,0.3,1),filter .28s ease;
-  }
-
-  /* Front card */
-  .card-front {
-    z-index:2;
-    cursor:grab; user-select:none; touch-action:none;
-    will-change:transform,opacity;
-    transition:transform .38s cubic-bezier(0.34,1.56,0.64,1),opacity .38s ease;
-  }
-  .card-front:active { cursor:grabbing; }
-  .card-front.drag { transition:none; }
-  .card-front.exiting { transition:transform .26s cubic-bezier(0.4,0,1,1),opacity .24s ease; }
-  .card-front.entering { animation:cardEnterUp .34s cubic-bezier(0.2,0.9,0.3,1) both; }
-
-  @keyframes cardEnterUp {
-    from { transform:scale(0.93) translateY(14px); opacity:.6; filter:brightness(.5); }
-    to   { transform:scale(1) translateY(0); opacity:1; filter:brightness(1); }
-  }
-
-  /* Card body */
-  .card-body {
-    position:absolute; left:0; right:0; bottom:0;
-    padding:14px 16px 14px; z-index:2;
-  }
-  .card-badge {
-    display:flex; align-items:center; gap:6px;
-    font-size:10px; font-weight:700; letter-spacing:.08em;
-    text-transform:uppercase; margin-bottom:7px;
-  }
-  .badge-dot {
-    width:6px; height:6px; border-radius:50%; flex-shrink:0;
-  }
-  .card-title {
-    font-size:17px; font-weight:700; color:#fff; line-height:1.24;
-    margin-bottom:5px;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-  }
-  .card-sub {
-    font-size:12px; color:rgba(255,255,255,0.52); line-height:1.4;
-    margin-bottom:10px;
-    display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;
-  }
-  .card-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .card-source {
-    font-size:11px; font-weight:500; color:rgba(255,255,255,0.42);
-    flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .card-read-btn {
-    display:flex; align-items:center; gap:5px;
-    padding:6px 14px; border-radius:20px;
-    background:rgba(255,255,255,0.16);
-    border:0.5px solid rgba(255,255,255,0.22);
-    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-    font-size:13px; font-weight:700; color:rgba(255,255,255,0.92);
-    text-decoration:none; white-space:nowrap; flex-shrink:0;
-  }
-  .card-read-btn:active { background:rgba(255,255,255,0.26); }
-
-  /* Swipe hint */
-  .swipe-hint {
-    position:absolute; top:10px; left:0; right:0;
-    display:flex; justify-content:center; z-index:3;
-    pointer-events:none; transition:opacity .3s;
-  }
-  .swipe-bar { width:34px; height:4px; border-radius:2px; background:rgba(255,255,255,0.28); }
-
-  /* Dots */
-  .card-dots {
-    display:flex; gap:5px; justify-content:center; margin-top:9px;
-  }
-  .card-dot {
-    width:5px; height:5px; border-radius:50%;
-    background:rgba(255,255,255,0.25);
-    transition:all .32s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .card-dot.active { width:18px; border-radius:3px; }
-
-  /* Empty / retry */
-  .card-empty {
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    height:100px; gap:10px;
-    font-size:14px; color:rgba(255,255,255,0.40);
-  }
-  .retry-btn {
-    padding:7px 18px; border-radius:20px; border:none;
-    background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.72);
-    font-size:13px; font-weight:600; cursor:pointer;
-  }
-
   /* ── Apps ── */
   .apps-wrap {
     position:relative;
@@ -975,7 +485,6 @@
   }
   .apps-wrap.in { opacity:1; transform:translateY(0); }
 
-  /* Fade lateral — muito suave, apenas transparente */
   .apps-fade-l, .apps-fade-r {
     position:absolute; top:0; bottom:14px; width:28px;
     z-index:2; pointer-events:none;
@@ -1062,7 +571,6 @@
   }
   .bb-btn:active { background:rgba(255,255,255,0.22); transform:scale(0.88); }
 
-  /* Model pill — mesma altura que bb-btn */
   .model-pill {
     height:40px; padding:0 14px;
     display:flex; align-items:center; gap:5px;
@@ -1122,7 +630,6 @@
   }
   .popup-box.popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
 
-  /* Smooth mode switch */
   .popup-content { transition:opacity .13s ease,transform .13s ease; }
   .popup-content.fading { opacity:0; transform:translateY(4px); pointer-events:none; }
 
@@ -1137,20 +644,17 @@
   .popup-row:active { background:rgba(255,255,255,0.08); }
   .popup-back { padding:9px 14px; }
 
-  /* Icon wrap — padrão quadrado arredondado */
   .popup-icon-wrap {
     width:32px; height:32px; border-radius:8px;
     background:rgba(255,255,255,0.10);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  /* Circular para extras e modelos */
   .popup-icon-circle { border-radius:50%; }
 
   .popup-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.88); flex:1; }
   .popup-sep { height:0.5px; background:rgba(255,255,255,0.08); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.85); flex-shrink:0; }
 
-  /* Models — sem ícone, só texto */
   .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
   .model-sub  { font-size:11px; font-weight:400; color:rgba(255,255,255,0.32); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 

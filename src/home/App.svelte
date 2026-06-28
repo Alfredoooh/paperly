@@ -77,16 +77,10 @@
   }
 
   // ── Theme ─────────────────────────────────────────────────────────────────
-  const THEMES = [
-    { id: 'dark',  label: 'Escuro' },
-    { id: 'light', label: 'Claro'  },
-    { id: 'auto',  label: 'Auto'   },
-  ];
   let appTheme = 'dark';
 
-  function setTheme(t) {
+  function applyTheme(t) {
     appTheme = t;
-    try { localStorage.setItem('nexa_theme', t); } catch(e) {}
     document.documentElement.setAttribute('data-theme', t);
   }
 
@@ -122,24 +116,33 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // ── Backgrounds ───────────────────────────────────────────────────────────
-  let bgImages = [];
-  try {
-    const mods = import.meta.glob('/static/images/backgrounds/*', { eager: true, as: 'url' });
-    bgImages = Object.values(mods);
-  } catch(e) { bgImages = []; }
+  // ── Background (imagem única fixa) ───────────────────────────────────────
+  const BG_IMAGE = '/static/images/backgrounds/440f6b7811cf81ae155a9a9a1558d685.jpg';
 
-  let layers      = [{ img: '', visible: false }, { img: '', visible: false }];
-  let activeLayer = 0;
-  let bgCursor    = 0;
+  // ── Lottie central ────────────────────────────────────────────────────────
+  let lottieEl;
+  let lottieInstance;
 
-  function rotateBg() {
-    bgCursor    = (bgCursor + 1) % Math.max(bgImages.length, 1);
-    activeLayer = 1 - activeLayer;
-    layers[activeLayer] = { img: bgImages[bgCursor % bgImages.length], visible: true };
-    layers = [...layers];
-    const prev = 1 - activeLayer;
-    setTimeout(() => { layers[prev] = { ...layers[prev], visible: false }; layers = [...layers]; }, 100);
+  async function loadLottie() {
+    if (typeof window === 'undefined') return;
+    if (!window.lottie) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }).catch(() => {});
+    }
+    if (window.lottie && lottieEl) {
+      lottieInstance = window.lottie.loadAnimation({
+        container: lottieEl,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: '/static/icons/lottie/welcome.json',
+      });
+    }
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
@@ -279,52 +282,48 @@
   }
 
   let mounted = false;
-  let bgTimer;
   onMount(() => {
     user = requireAuth(); if (!user) return;
     try {
       const saved = localStorage.getItem('nexa_theme');
-      if (saved) { appTheme = saved; document.documentElement.setAttribute('data-theme', saved); }
-    } catch(e) {}
-    if (bgImages.length) {
-      layers[0] = { img: bgImages[0], visible: true };
-      layers[1] = { img: bgImages[Math.min(1, bgImages.length-1)], visible: false };
-      layers = [...layers];
-    }
+      if (saved) applyTheme(saved);
+      else applyTheme('dark');
+    } catch(e) { applyTheme('dark'); }
     requestAnimationFrame(() => { mounted = true; });
-    if (bgImages.length > 1) bgTimer = setInterval(rotateBg, 15000);
-    return () => { clearInterval(bgTimer); };
+    loadLottie();
+    return () => { if (lottieInstance) lottieInstance.destroy(); };
   });
 </script>
 
 <div class="root">
 
-  {#each layers as layer}
-    <div class="bg-layer" class:bg-on={layer.visible} style="background-image:url('{layer.img}');"></div>
-  {/each}
-  {#if !bgImages.length}<div class="bg-fallback"></div>{/if}
+  <!-- ── Background fixo (uma única imagem) ── -->
+  <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
   <!-- ── Header ── -->
-  <!-- .header-lifted eleva o z-index acima do overlay de apps para o botão não ficar blur -->
   <header class="header" class:in={mounted} class:header-lifted={showApps}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
-    <div class="header-right">
-      <!-- Botão apps: alterna entre ícone apps e X consoante estado do popup -->
-      <button class="hdr-btn pulse-tap" bind:this={appsAnchorEl} on:click={toggleApps}>
+
+    <!-- Apps + Menu unidos no mesmo container (pill), tamanho reduzido -->
+    <div class="header-right" bind:this={appsAnchorEl}>
+      <button class="hdr-seg pulse-tap" on:click={toggleApps}>
         {#if showApps}
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:17px;height:17px;background:#fff"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:15px;height:15px;background:var(--icon-on-accent)"></span>
         {:else}
-          <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:22px;height:22px;background:#fff"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
         {/if}
       </button>
-      <button class="hdr-btn pulse-tap" on:click={openDrawer}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:22px;height:22px;background:#fff"></span>
+      <div class="hdr-seg-divider"></div>
+      <button class="hdr-seg pulse-tap" on:click={openDrawer}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
       </button>
     </div>
   </header>
 
-  <!-- ── Content spacer ── -->
-  <main class="content"></main>
+  <!-- ── Conteúdo central: Lottie ── -->
+  <main class="content">
+    <div class="lottie-wrap" bind:this={lottieEl}></div>
+  </main>
 
   <!-- ── Bottom bar ── -->
   <div class="bottom" class:in={mounted}>
@@ -333,14 +332,14 @@
         <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
         <div class="rec-inner">
           <button class="rec-btn pulse-tap" on:click={cancelRecording}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:rgba(255,255,255,0.80)"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
           </button>
           <div class="rec-center">
             <div class="rec-dot"></div>
             <span class="rec-timer">{recTimerStr}</span>
           </div>
           <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </button>
@@ -359,21 +358,21 @@
         ></textarea>
         <div class="bb-row">
           <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
           </button>
           <div class="flex1"></div>
           <button class="model-pill pulse-tap" on:click={(e) => openPopup('models', e)}>
             <span class="model-pill-label">{currentModel.label}</span>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:11px;height:11px;background:rgba(255,255,255,0.50)"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:11px;height:11px;background:var(--icon-soft)"></span>
           </button>
           <div style="width:8px"></div>
           {#if inputText.trim()}
             <button class="bb-btn pulse-tap" on:click={navigateToAI}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
             </button>
           {:else}
             <button class="bb-btn pulse-tap" on:click={startRecording}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
             </button>
           {/if}
         </div>
@@ -394,7 +393,7 @@
         {#if popupMode === 'add'}
           <label class="popup-row pulse-tap" style="cursor:pointer">
             <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
             </div>
             <span class="popup-label">Enviar Imagem</span>
             <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
@@ -402,7 +401,7 @@
           <div class="popup-sep"></div>
           <label class="popup-row pulse-tap" style="cursor:pointer">
             <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
             </div>
             <span class="popup-label">Enviar Ficheiro</span>
             <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
@@ -410,16 +409,16 @@
           <div class="popup-sep"></div>
           <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
             <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
             </div>
             <span class="popup-label" style="flex:1">Extras</span>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:rgba(255,255,255,0.30)"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
           </button>
 
         {:else if popupMode === 'extras'}
           <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:rgba(255,255,255,0.38)"></span>
-            <span class="popup-label" style="color:rgba(255,255,255,0.38);font-size:13px">Extras</span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:var(--icon-faint)"></span>
+            <span class="popup-label" style="color:var(--text-faint);font-size:13px">Extras</span>
           </button>
           <div class="popup-sep"></div>
           {#each [
@@ -428,9 +427,9 @@
             [sheetsEnabled,'Sheets',     'sheets', 'sheets_filled', () => { sheetsEnabled = !sheetsEnabled; }],
           ] as [active, title, ico, icoOn, action], i}
             {#if i > 0}<div class="popup-sep"></div>{/if}
-            <button class="popup-row pulse-tap" style={active ? 'background:rgba(255,255,255,0.07)' : ''} on:click={action}>
+            <button class="popup-row pulse-tap" style={active ? 'background:var(--row-active)' : ''} on:click={action}>
               <div class="popup-icon-wrap">
-                <span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
               </div>
               <span class="popup-label" style="flex:1">{title}</span>
               {#if active}<div class="popup-active-dot"></div>{/if}
@@ -443,7 +442,7 @@
             {#if i > 0}<div class="popup-sep"></div>{/if}
             <button
               class="popup-row pulse-tap"
-              style={currentModelId === model.id ? 'background:rgba(255,255,255,0.07)' : ''}
+              style={currentModelId === model.id ? 'background:var(--row-active)' : ''}
               on:click={() => { currentModelId = model.id; closePopup(); }}
             >
               <div class="model-info">
@@ -451,7 +450,7 @@
                 <span class="model-sub">{model.sublabel}</span>
               </div>
               {#if currentModelId === model.id}
-                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:15px;height:15px;background:rgba(255,255,255,0.85)"></span>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
               {/if}
             </button>
           {/each}
@@ -461,7 +460,7 @@
     </div>
   {/if}
 
-  <!-- ── Apps popup (ancorado ao ícone, sem botão close interno) ── -->
+  <!-- ── Apps popup (sem secção de Tema) ── -->
   {#if showApps}
     <div class="apps-overlay" on:click={closeApps}></div>
     <div
@@ -469,7 +468,6 @@
       class:apps-popup-in={appsVisible}
       style="top:{appsPos.top}px;right:{appsPos.right}px;"
     >
-      <!-- Sem close button aqui — está no ícone de apps no header -->
       <div class="apps-popup-label">Apps</div>
 
       <div class="apps-grid">
@@ -480,14 +478,13 @@
             class:ag-in={appsVisible}
             on:click={() => openApp(app)}
           >
-            <!-- Sem container/círculo — ícone direto -->
             <div class="ag-icon">
               {#if app.id === 'ai'}
                 <img src="/icons/png/ia.png" alt={app.label} class="ag-img" />
               {:else if app.icon && !app.icon.endsWith('.svg')}
                 <img src={app.icon} alt={app.label} class="ag-img" />
               {:else}
-                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:36px;height:36px;background:rgba(255,255,255,0.88)"></span>
+                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:36px;height:36px;background:var(--icon-strong)"></span>
               {/if}
             </div>
             <span class="ag-name">{app.label}</span>
@@ -495,33 +492,21 @@
         {/each}
       </div>
 
-      <!-- Secção Tema -->
-      <div class="apps-section-divider"></div>
-      <div class="apps-section-title">Tema</div>
-      <div class="theme-pills">
-        {#each THEMES as t}
-          <button
-            class="theme-pill pulse-tap"
-            class:theme-pill-on={appTheme === t.id}
-            on:click={() => setTheme(t.id)}
-          >{t.label}</button>
-        {/each}
-      </div>
-      <div style="height:10px"></div>
+      <div style="height:8px"></div>
     </div>
   {/if}
 
-  <!-- ── Drawer (light) ── -->
+  <!-- ── Drawer (estilo Bing — ícones sem container) ── -->
   {#if drawerOpen}
     <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
     <div class="drawer" class:drawer-in={drawerVisible}>
-      <!-- Header perfil -->
-      <div class="drawer-header">
+      <button class="drawer-burger pulse-tap" on:click={closeDrawer}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:20px;height:20px;background:var(--drawer-text-faint)"></span>
+      </button>
+
+      <div class="drawer-avatar-block">
         <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
-        <div class="drawer-user-info">
-          <span class="drawer-user-name">{userName}</span>
-          <span class="drawer-user-email">{user?.email || ''}</span>
-        </div>
+        <span class="drawer-user-name">{userName}</span>
       </div>
 
       <div class="drawer-sep"></div>
@@ -534,23 +519,20 @@
             class:drawer-item-in={drawerVisible}
             on:click={() => { item.action(); closeDrawer(); }}
           >
-            <div class="drawer-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:19px;height:19px;background:rgba(50,50,60,0.60)"></span>
-            </div>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
             <span class="drawer-item-label">{item.label}</span>
           </button>
         {/each}
       </nav>
 
-      <div style="flex:1"></div>
       <div class="drawer-sep"></div>
 
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-        <div class="drawer-icon-wrap drawer-icon-red">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:rgba(210,45,45,0.80)"></span>
-        </div>
-        <span class="drawer-item-label" style="color:rgba(200,40,40,0.88)">Terminar sessão</span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
+        <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
       </button>
+
+      <div style="flex:1"></div>
     </div>
   {/if}
 
@@ -559,23 +541,72 @@
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
 
+  /* ── Tokens de tema ── */
+  :global([data-theme="dark"]) {
+    --surface:           rgba(18,18,18,0.52);
+    --surface-strong:     rgba(24,24,26,0.84);
+    --surface-popover:    rgba(18,18,20,0.90);
+    --border-soft:        rgba(255,255,255,0.14);
+    --border-faint:       rgba(255,255,255,0.10);
+    --icon-strong:        rgba(255,255,255,0.85);
+    --icon-soft:          rgba(255,255,255,0.50);
+    --icon-faint:         rgba(255,255,255,0.30);
+    --icon-on-accent:     #fff;
+    --text-faint:         rgba(255,255,255,0.38);
+    --row-active:         rgba(255,255,255,0.07);
+    --btn-bg:             rgba(255,255,255,0.14);
+    --btn-bg-active:      rgba(255,255,255,0.22);
+    --hdr-seg-bg:         rgba(0,0,0,0.30);
+    --hdr-seg-active:     rgba(0,0,0,0.45);
+    --hdr-seg-divider:    rgba(255,255,255,0.16);
+    --overlay-soft:       rgba(0,0,0,0.22);
+    --drawer-bg:          #1c1c1e;
+    --drawer-border:      rgba(255,255,255,0.08);
+    --drawer-shadow:      rgba(0,0,0,0.45);
+    --drawer-text:        rgba(255,255,255,0.82);
+    --drawer-text-faint:  rgba(255,255,255,0.55);
+    --drawer-sep:         rgba(255,255,255,0.10);
+    --drawer-red:         #FF453A;
+    --drawer-overlay-in:  rgba(0,0,0,0.35);
+  }
+  :global([data-theme="light"]) {
+    --surface:            rgba(255,255,255,0.55);
+    --surface-strong:     rgba(255,255,255,0.86);
+    --surface-popover:    rgba(255,255,255,0.92);
+    --border-soft:        rgba(0,0,0,0.10);
+    --border-faint:       rgba(0,0,0,0.07);
+    --icon-strong:        rgba(20,20,20,0.82);
+    --icon-soft:          rgba(20,20,20,0.45);
+    --icon-faint:         rgba(20,20,20,0.28);
+    --icon-on-accent:     #fff;
+    --text-faint:         rgba(20,20,20,0.40);
+    --row-active:         rgba(0,0,0,0.06);
+    --btn-bg:             rgba(0,0,0,0.07);
+    --btn-bg-active:      rgba(0,0,0,0.12);
+    --hdr-seg-bg:         rgba(0,0,0,0.30);
+    --hdr-seg-active:     rgba(0,0,0,0.45);
+    --hdr-seg-divider:    rgba(255,255,255,0.30);
+    --overlay-soft:       rgba(0,0,0,0.14);
+    --drawer-bg:          #ffffff;
+    --drawer-border:      rgba(0,0,0,0.07);
+    --drawer-shadow:      rgba(0,0,0,0.13);
+    --drawer-text:        #111111;
+    --drawer-text-faint:  #8a8a8e;
+    --drawer-sep:         #e8e8e8;
+    --drawer-red:         #d32d2d;
+    --drawer-overlay-in:  rgba(0,0,0,0.20);
+  }
+
   .root {
     position:fixed; inset:0;
     display:flex; flex-direction:column; overflow:hidden;
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
   }
 
-  /* ── Backgrounds ── */
+  /* ── Background — imagem única e fixa ── */
   .bg-layer {
     position:absolute; inset:0; z-index:0;
     background-size:cover; background-position:center;
-    opacity:0; transition:opacity 1.8s cubic-bezier(0.4,0,0.2,1);
-    will-change:opacity;
-  }
-  .bg-layer.bg-on { opacity:1; }
-  .bg-fallback {
-    position:absolute; inset:0; z-index:0;
-    background:linear-gradient(160deg,#0d0d1a 0%,#1a0530 50%,#0a1628 100%);
   }
 
   /* ── Header ── */
@@ -587,23 +618,32 @@
     transition:opacity .55s ease, transform .55s ease;
   }
   .header.in { opacity:1; transform:translateY(0); }
-  /* Sobe acima do overlay de apps (z:60) para o botão não ficar blur nem inacessível */
   .header.header-lifted { z-index:62; }
 
   .logo-img { width:44px; height:44px; object-fit:contain; }
-  .header-right { display:flex; align-items:center; gap:8px; }
 
-  .hdr-btn {
-    width:40px; height:40px; border-radius:50%; border:none;
-    background:rgba(0,0,0,0.28);
+  /* Apps + Menu unidos num único container "pill", reduzido */
+  .header-right {
+    display:flex; align-items:center;
+    height:34px; border-radius:17px;
+    background:var(--hdr-seg-bg);
     backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
+    overflow:hidden;
   }
-  .hdr-btn:active { background:rgba(0,0,0,0.45); transform:scale(0.88); }
+  .hdr-seg {
+    width:36px; height:34px; border:none; background:transparent;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:background .18s ease;
+  }
+  .hdr-seg:active { background:var(--hdr-seg-active); }
+  .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  /* ── Content spacer ── */
-  .content { flex:1; position:relative; z-index:10; }
+  /* ── Conteúdo central ── */
+  .content {
+    flex:1; position:relative; z-index:10;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lottie-wrap { width:220px; height:220px; }
 
   /* ── Bottom ── */
   .bottom {
@@ -616,21 +656,21 @@
 
   .bottom-bar {
     border-radius:22px;
-    background:rgba(18,18,18,0.52);
+    background:var(--surface);
     backdrop-filter:blur(30px) saturate(1.7);
     -webkit-backdrop-filter:blur(30px) saturate(1.7);
-    border:0.5px solid rgba(255,255,255,0.14);
-    box-shadow:0 8px 32px rgba(0,0,0,0.38), inset 0 0.5px 0 rgba(255,255,255,0.12);
+    border:0.5px solid var(--border-soft);
+    box-shadow:0 8px 32px rgba(0,0,0,0.20);
     display:flex; flex-direction:column;
   }
   .chat-input {
     resize:none; outline:none; border:none; background:transparent;
     font-size:15px; line-height:1.5; padding:13px 18px 0;
     width:100%; font-family:inherit;
-    color:rgba(255,255,255,0.90); max-height:150px; overflow-y:auto;
+    color:var(--icon-strong); max-height:150px; overflow-y:auto;
     -webkit-user-select:text; user-select:text;
   }
-  .chat-input::placeholder { color:rgba(255,255,255,0.36); }
+  .chat-input::placeholder { color:var(--text-faint); }
 
   .bb-row { display:flex; align-items:center; height:52px; padding:0 6px; }
   .flex1  { flex:1; }
@@ -638,30 +678,30 @@
   .bb-btn {
     width:40px; height:40px;
     display:flex; align-items:center; justify-content:center;
-    border-radius:50%; border:0.5px solid rgba(255,255,255,0.12);
-    cursor:pointer; background:rgba(255,255,255,0.14); flex-shrink:0;
+    border-radius:50%; border:0.5px solid var(--border-faint);
+    cursor:pointer; background:var(--btn-bg); flex-shrink:0;
     transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .bb-btn:active { background:rgba(255,255,255,0.22); transform:scale(0.88); }
+  .bb-btn:active { background:var(--btn-bg-active); transform:scale(0.88); }
 
   .model-pill {
     height:40px; padding:0 14px;
     display:flex; align-items:center; gap:5px;
-    border-radius:20px; border:0.5px solid rgba(255,255,255,0.15);
-    cursor:pointer; background:rgba(255,255,255,0.14); flex-shrink:0;
+    border-radius:20px; border:0.5px solid var(--border-soft);
+    cursor:pointer; background:var(--btn-bg); flex-shrink:0;
     transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .model-pill:active { background:rgba(255,255,255,0.22); transform:scale(0.94); }
-  .model-pill-label { font-size:13px; font-weight:600; color:rgba(255,255,255,0.85); }
+  .model-pill:active { background:var(--btn-bg-active); transform:scale(0.94); }
+  .model-pill-label { font-size:13px; font-weight:600; color:var(--icon-strong); }
 
   /* ── Recording ── */
   .rec-card {
     position:relative; overflow:hidden; border-radius:999px;
-    background:rgba(18,18,18,0.55);
+    background:var(--surface);
     backdrop-filter:blur(28px) saturate(1.6);
     -webkit-backdrop-filter:blur(28px) saturate(1.6);
-    border:0.5px solid rgba(255,255,255,0.13);
-    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.10);
+    border:0.5px solid var(--border-soft);
+    box-shadow:0 8px 32px rgba(0,0,0,0.20);
     height:64px;
     animation:recIn .28s cubic-bezier(0.2,0.9,0.3,1) both;
   }
@@ -673,30 +713,30 @@
   .rec-inner  { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; height:100%; padding:0 10px; }
   .rec-btn {
     width:44px; height:44px; display:flex; align-items:center; justify-content:center;
-    border-radius:50%; border:0.5px solid rgba(255,255,255,0.10); cursor:pointer;
-    background:rgba(255,255,255,0.10); flex-shrink:0;
+    border-radius:50%; border:0.5px solid var(--border-faint); cursor:pointer;
+    background:var(--btn-bg); flex-shrink:0;
     transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .rec-btn:active { background:rgba(255,255,255,0.20); transform:scale(0.88); }
-  .rec-send { background:rgba(255,255,255,0.16); }
+  .rec-btn:active { background:var(--btn-bg-active); transform:scale(0.88); }
+  .rec-send { background:var(--btn-bg-active); }
   .rec-center { display:flex; align-items:center; gap:8px; flex:1; justify-content:center; pointer-events:none; }
   .rec-dot {
     width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0;
     animation:recPulse 1.1s ease-in-out infinite;
   }
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
-  .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:rgba(255,255,255,0.90); letter-spacing:.06em; }
+  .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--icon-strong); letter-spacing:.06em; }
 
   /* ── Popup add / extras / models ── */
   .popup-overlay { position:fixed; inset:0; z-index:50; }
   .popup-box {
     position:fixed; z-index:51;
     border-radius:18px;
-    background:rgba(24,24,26,0.84);
+    background:var(--surface-strong);
     backdrop-filter:blur(32px) saturate(1.9);
     -webkit-backdrop-filter:blur(32px) saturate(1.9);
-    border:0.5px solid rgba(255,255,255,0.12);
-    box-shadow:0 14px 44px rgba(0,0,0,0.50), inset 0 0.5px 0 rgba(255,255,255,0.10);
+    border:0.5px solid var(--border-soft);
+    box-shadow:0 14px 44px rgba(0,0,0,0.30);
     overflow:hidden; transform-origin:bottom left;
     opacity:0; transform:scale(0.86) translateY(8px);
     transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
@@ -709,7 +749,7 @@
   .popup-title {
     padding:12px 16px 8px;
     font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
-    color:rgba(255,255,255,0.34);
+    color:var(--text-faint);
   }
   .popup-row {
     display:flex; align-items:center; gap:12px;
@@ -718,39 +758,36 @@
     font-family:inherit; text-align:left;
     transition:background .14s ease;
   }
-  .popup-row:active { background:rgba(255,255,255,0.08); }
+  .popup-row:active { background:var(--row-active); }
   .popup-back { padding:9px 14px; }
 
-  /* Containers circulares no popup (não mais quadrados) */
   .popup-icon-wrap {
     width:32px; height:32px; border-radius:50%;
-    background:rgba(255,255,255,0.10);
+    background:var(--btn-bg);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  .popup-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.88); flex:1; }
-  .popup-sep   { height:0.5px; background:rgba(255,255,255,0.08); margin:0 14px; }
-  .popup-active-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.85); flex-shrink:0; }
+  .popup-label { font-size:15px; font-weight:500; color:var(--icon-strong); flex:1; }
+  .popup-sep   { height:0.5px; background:var(--border-faint); margin:0 14px; }
+  .popup-active-dot { width:7px; height:7px; border-radius:50%; background:var(--icon-strong); flex-shrink:0; }
 
   .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
-  .model-sub  { font-size:11px; color:rgba(255,255,255,0.30); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .model-sub  { font-size:11px; color:var(--icon-faint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* ── Apps popup — ancorado ao ícone, sem botão close interno ── */
-  /* overlay sem backdrop-filter: o header (z:62) já fica acima (não blur) */
+  /* ── Apps popup ── */
   .apps-overlay {
     position:fixed; inset:0; z-index:60;
-    background:rgba(0,0,0,0.22);
+    background:var(--overlay-soft);
   }
   .apps-popup {
     position:fixed; z-index:63;
     width:256px;
     border-radius:20px;
-    background:rgba(18,18,20,0.90);
+    background:var(--surface-popover);
     backdrop-filter:blur(44px) saturate(2);
     -webkit-backdrop-filter:blur(44px) saturate(2);
-    border:0.5px solid rgba(255,255,255,0.12);
-    box-shadow:0 18px 50px rgba(0,0,0,0.55), inset 0 0.5px 0 rgba(255,255,255,0.11);
+    border:0.5px solid var(--border-soft);
+    box-shadow:0 18px 50px rgba(0,0,0,0.35);
     overflow:hidden;
-    /* bloom a partir do canto superior direito (onde fica o ícone) */
     transform-origin:top right;
     opacity:0; transform:scale(0.88) translateY(-6px);
     transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
@@ -761,10 +798,9 @@
   .apps-popup-label {
     padding:13px 15px 6px;
     font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
-    color:rgba(255,255,255,0.30);
+    color:var(--text-faint);
   }
 
-  /* Grid de apps — SEM container nos ícones */
   .apps-grid {
     display:grid;
     grid-template-columns:repeat(4, 1fr);
@@ -780,9 +816,8 @@
     transition:opacity .28s ease, transform .28s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
   }
   .ag-item.ag-in { opacity:1; transform:scale(1) translateY(0); }
-  .ag-item:active { background:rgba(255,255,255,0.09); }
+  .ag-item:active { background:var(--row-active); }
 
-  /* Apenas o ícone, sem qualquer fundo ou borda */
   .ag-icon {
     width:46px; height:46px;
     display:flex; align-items:center; justify-content:center;
@@ -795,48 +830,24 @@
   .ag-item:active .ag-img { transform:scale(0.84); }
 
   .ag-name {
-    font-size:10px; font-weight:500; color:rgba(255,255,255,0.68);
+    font-size:10px; font-weight:500; color:var(--icon-soft);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     max-width:58px; text-align:center; line-height:1.2;
   }
 
-  /* Secção Tema dentro do popup de apps */
-  .apps-section-divider { height:0.5px; background:rgba(255,255,255,0.08); margin:4px 14px 0; }
-  .apps-section-title {
-    padding:9px 15px 6px;
-    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
-    color:rgba(255,255,255,0.30);
-  }
-  .theme-pills { display:flex; gap:5px; padding:0 10px; }
-  .theme-pill {
-    flex:1; height:30px; border-radius:9px;
-    border:0.5px solid rgba(255,255,255,0.10);
-    background:rgba(255,255,255,0.07);
-    color:rgba(255,255,255,0.45);
-    font-size:12px; font-weight:500; cursor:pointer; font-family:inherit;
-    transition:background .17s ease, color .17s ease, border-color .17s ease, transform .17s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .theme-pill:active { transform:scale(0.92); }
-  .theme-pill.theme-pill-on {
-    background:rgba(255,255,255,0.17);
-    color:rgba(255,255,255,0.92);
-    border-color:rgba(255,255,255,0.20);
-  }
-
-  /* ── Drawer — super leve (inspirado no Bing) ── */
+  /* ── Drawer — estilo Bing: ícones sem container ── */
   .drawer-overlay {
     position:fixed; inset:0; z-index:70;
     background:transparent; transition:background .32s ease;
   }
-  .drawer-overlay.drawer-overlay-in { background:rgba(0,0,0,0.20); }
+  .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
 
   .drawer {
     position:fixed; top:0; right:0; bottom:0; z-index:71;
     width:min(288px, 82vw);
-    background:#ffffff;
-    border-left:0.5px solid rgba(0,0,0,0.07);
-    box-shadow:-12px 0 48px rgba(0,0,0,0.13);
-    /* Sem backdrop-filter — fundo totalmente opaco e leve */
+    background:var(--drawer-bg);
+    border-left:0.5px solid var(--drawer-border);
+    box-shadow:-12px 0 48px var(--drawer-shadow);
     display:flex; flex-direction:column;
     padding-top:calc(env(safe-area-inset-top,0px) + 10px);
     padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
@@ -845,52 +856,44 @@
   }
   .drawer.drawer-in { transform:translateX(0); }
 
-  /* Perfil */
-  .drawer-header {
+  .drawer-burger {
+    width:36px; height:36px; margin:6px 14px 4px;
+    border:none; background:transparent; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .drawer-avatar-block {
     display:flex; align-items:center; gap:13px;
-    padding:20px 20px 18px;
+    padding:8px 20px 18px;
   }
   .drawer-avatar {
     width:48px; height:48px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     font-size:19px; font-weight:700; color:#fff;
   }
-  .drawer-user-info { display:flex; flex-direction:column; min-width:0; }
   .drawer-user-name {
-    font-size:15px; font-weight:700; color:#111111;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .drawer-user-email {
-    font-size:12px; color:#8a8a8e; margin-top:2px;
+    font-size:15px; font-weight:700; color:var(--drawer-text);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
 
-  /* Separador full-width, sem margem lateral */
-  .drawer-sep { height:0.5px; background:#e8e8e8; }
+  .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; }
 
-  /* Itens de navegação */
-  .drawer-nav { display:flex; flex-direction:column; padding:8px 10px; }
+  /* Itens — ícone direto, sem wrapper/círculo */
+  .drawer-nav { display:flex; flex-direction:column; padding:10px 6px; }
 
   .drawer-item {
-    display:flex; align-items:center; gap:13px;
-    padding:11px 10px; border-radius:12px; border:none;
+    display:flex; align-items:center; gap:16px;
+    padding:13px 14px; border-radius:10px; border:none;
     background:transparent; cursor:pointer; font-family:inherit; text-align:left;
     opacity:0; transform:translateX(16px);
     transition:opacity .28s ease, transform .28s cubic-bezier(0.2,0.9,0.3,1), background .14s ease;
   }
   .drawer-item.drawer-item-in { opacity:1; transform:translateX(0); }
-  .drawer-item:active { background:rgba(0,0,0,0.05); }
+  .drawer-item:active { background:var(--row-active); }
 
-  .drawer-icon-wrap {
-    width:34px; height:34px; border-radius:10px;
-    background:rgba(0,0,0,0.05);
-    display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  }
-  .drawer-icon-red { background:rgba(220,50,50,0.08); }
+  .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); }
 
-  .drawer-item-label { font-size:15px; font-weight:500; color:#111111; }
-
-  .drawer-logout { margin:0 10px; }
+  .drawer-logout { margin:10px 6px 0; opacity:1; transform:none; }
 
   /* ── Utilities ── */
   .pulse-tap {

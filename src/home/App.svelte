@@ -117,7 +117,7 @@
   }
 
   // ── Background (imagem única fixa) ───────────────────────────────────────
-  const BG_IMAGE = '/images/backgrounds/440f6b7811cf81ae155a9a9a1558d685.png';
+  const BG_IMAGE = '/images/png/backgrounds/440f6b7811cf81ae155a9a9a1558d685.png';
 
   // ── Lottie central ────────────────────────────────────────────────────────
   let lottieEl;

@@ -1,12 +1,12 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import Drawer from '../components/Drawer.svelte';
+  import Drawer from '../../components/Drawer.svelte';
   import HomePage from './HomePage.svelte';
   import SearchPage from './SearchPage.svelte';
   import LibraryPage from './LibraryPage.svelte';
-  import MiniPlayer from './components/MiniPlayer.svelte';
-  import FullPlayer from './components/FullPlayer.svelte';
-  import { loadFeed, currentTrack } from './store/music.js';
+  import MiniPlayer from '../components/MiniPlayer.svelte';
+  import FullPlayer from '../components/FullPlayer.svelte';
+  import { loadFeed, currentTrack } from '../store/music.js';
   
   export let isDark = false;
   export let user = null;

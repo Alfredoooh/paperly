@@ -4,7 +4,6 @@
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
   let user = null;
   $: userName    = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
@@ -20,7 +19,6 @@
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
 
-  // ── Models ────────────────────────────────────────────────────────────────
   const MODELS = [
     { id: 'mistral-nemo',    label: 'Nemo',     sublabel: 'mistral-nemo'    },
     { id: 'deepseek-v4',     label: 'DeepSeek', sublabel: 'deepseek-v4'     },
@@ -29,7 +27,6 @@
   let currentModelId = MODELS[0].id;
   $: currentModel    = MODELS.find(m => m.id === currentModelId) ?? MODELS[0];
 
-  // ── Theme ─────────────────────────────────────────────────────────────────
   let themeValue = 'dark';
   let isDark     = true;
 
@@ -61,7 +58,7 @@
   function closeDrawer() {
     drawerVisible = false;
     themeExpanded = false;
-    setTimeout(() => { drawerOpen = false; }, 300);
+    setTimeout(() => { drawerOpen = false; }, 280);
   }
   function toggleThemeExpanded() { themeExpanded = !themeExpanded; }
 
@@ -77,10 +74,10 @@
   ];
 
   // ── Apps popup ────────────────────────────────────────────────────────────
-  let showApps    = false;
-  let appsVisible = false;
+  let showApps     = false;
+  let appsVisible  = false;
   let appsAnchorEl;
-  let appsPos     = { top: 0, right: 0 };
+  let appsPos      = { top: 0, right: 0 };
 
   function openApps() {
     if (appsAnchorEl) {
@@ -94,9 +91,7 @@
     appsVisible = false;
     setTimeout(() => { showApps = false; }, 220);
   }
-  function toggleApps() {
-    if (showApps) closeApps(); else openApps();
-  }
+  function toggleApps() { if (showApps) closeApps(); else openApps(); }
 
   function openApp(app) {
     closeApps();
@@ -104,14 +99,13 @@
     window.location.href = app.path;
   }
 
-  // ── Popup (add / extras / models) ─────────────────────────────────────────
+  // ── Popup ─────────────────────────────────────────────────────────────────
   const POPUP_W = 230;
-
-  let showPopup     = false;
-  let popupVisible  = false;
-  let popupMode     = '';
-  let popupPos      = { bottom: 0, left: 0 };
-  let popupFading   = false;
+  let showPopup    = false;
+  let popupVisible = false;
+  let popupMode    = '';
+  let popupPos     = { bottom: 0, left: 0 };
+  let popupFading  = false;
   let flashMode     = false;
   let thinkMoreMode = false;
   let sheetsEnabled = false;
@@ -119,8 +113,8 @@
   function openPopup(mode, event) {
     popupMode = mode;
     const rect = event.currentTarget.getBoundingClientRect();
-    const M    = 12;
-    let left   = rect.left - 8;
+    const M = 12;
+    let left = rect.left - 8;
     if (left + POPUP_W > window.innerWidth - M) left = window.innerWidth - POPUP_W - M;
     if (left < M) left = M;
     popupPos = { bottom: window.innerHeight - rect.top + 8, left };
@@ -136,13 +130,10 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // ── Background ────────────────────────────────────────────────────────────
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
-  // ── Lottie ────────────────────────────────────────────────────────────────
   let lottieEl;
   let lottieInstance;
-
   async function loadLottie() {
     if (typeof window === 'undefined') return;
     if (!window.lottie) {
@@ -162,10 +153,8 @@
     }
   }
 
-  // ── Input ─────────────────────────────────────────────────────────────────
   let inputText  = '';
   let textInputEl;
-
   function autoResize() {
     if (!textInputEl) return;
     textInputEl.style.height = 'auto';
@@ -188,18 +177,10 @@
   }
 
   // ── Recording ─────────────────────────────────────────────────────────────
-  let mediaRecorder = null;
-  let audioChunks   = [];
-  let isRecording   = false;
-  let waveCtx       = null;
-  let waveAnalyser  = null;
-  let waveSource    = null;
-  let waveStream    = null;
-  let waveAnimFrame = null;
-  let recSeconds    = 0;
-  let recInterval   = null;
-  let recCanvasEl;
-  let wavePhase     = 0;
+  let mediaRecorder = null, audioChunks = [], isRecording = false;
+  let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
+  let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
+  let wavePhase = 0;
 
   $: recTimerStr = (() => {
     const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
@@ -212,14 +193,12 @@
       waveStream   = await navigator.mediaDevices.getUserMedia({ audio: true });
       waveCtx      = new (window.AudioContext || window.webkitAudioContext)();
       waveAnalyser = waveCtx.createAnalyser();
-      waveAnalyser.fftSize = 1024;
-      waveAnalyser.smoothingTimeConstant = 0.25;
-      waveAnalyser.minDecibels = -110;
-      waveAnalyser.maxDecibels = -5;
+      waveAnalyser.fftSize = 1024; waveAnalyser.smoothingTimeConstant = 0.25;
+      waveAnalyser.minDecibels = -110; waveAnalyser.maxDecibels = -5;
       const gain = waveCtx.createGain(); gain.gain.value = 6;
-      waveSource  = waveCtx.createMediaStreamSource(waveStream);
+      waveSource = waveCtx.createMediaStreamSource(waveStream);
       waveSource.connect(gain); gain.connect(waveAnalyser);
-      audioChunks   = [];
+      audioChunks = [];
       mediaRecorder = new MediaRecorder(waveStream);
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = handleRecStop;
@@ -267,8 +246,7 @@
       const w = c.clientWidth, h = c.clientHeight;
       if (c.width !== w*dpr || c.height !== h*dpr) { c.width = w*dpr; c.height = h*dpr; }
       const ctx = c.getContext('2d');
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-      ctx.clearRect(0,0,w,h);
+      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
       let bands = new Array(N).fill(0.08);
       if (waveAnalyser) {
         const freq = new Uint8Array(waveAnalyser.frequencyBinCount);
@@ -301,21 +279,16 @@
   let mounted = false;
   onMount(() => {
     user = requireAuth(); if (!user) return;
-
     const saved = getTheme();
     applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
-
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', handleSystemChange);
-
     function onStorage(e) {
       if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
     }
     window.addEventListener('storage', onStorage);
-
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
-
     return () => {
       if (lottieInstance) lottieInstance.destroy();
       mediaQuery?.removeEventListener('change', handleSystemChange);
@@ -328,7 +301,6 @@
 
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
-  <!-- ── Header ── -->
   <header class="header" class:in={mounted} class:header-lifted={showApps}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
     <div class="header-right" bind:this={appsAnchorEl}>
@@ -346,12 +318,10 @@
     </div>
   </header>
 
-  <!-- ── Conteúdo central ── -->
   <main class="content">
     <div class="lottie-wrap" bind:this={lottieEl}></div>
   </main>
 
-  <!-- ── Bottom bar ── -->
   <div class="bottom" class:in={mounted}>
     {#if isRecording}
       <div class="rec-card">
@@ -406,41 +376,29 @@
     {/if}
   </div>
 
-  <!-- ── Popup add / extras / models ── -->
+  <!-- ── Popup ── -->
   {#if showPopup}
     <div class="popup-overlay" on:click={closePopup}></div>
-    <div
-      class="popup-box"
-      class:popup-in={popupVisible}
-      style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;"
-    >
+    <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
       <div class="popup-content" class:fading={popupFading}>
-
         {#if popupMode === 'add'}
           <label class="popup-row pulse-tap" style="cursor:pointer">
-            <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
-            </div>
+            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
             <span class="popup-label">Enviar Imagem</span>
             <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
           </label>
           <div class="popup-sep"></div>
           <label class="popup-row pulse-tap" style="cursor:pointer">
-            <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
-            </div>
+            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
             <span class="popup-label">Enviar Ficheiro</span>
             <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
           </label>
           <div class="popup-sep"></div>
           <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
-            <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
-            </div>
+            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
             <span class="popup-label" style="flex:1">Extras</span>
             <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
           </button>
-
         {:else if popupMode === 'extras'}
           <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:var(--icon-faint)"></span>
@@ -454,23 +412,16 @@
           ] as [active, title, ico, icoOn, action], i}
             {#if i > 0}<div class="popup-sep"></div>{/if}
             <button class="popup-row pulse-tap" style={active ? 'background:var(--row-active)' : ''} on:click={action}>
-              <div class="popup-icon-wrap">
-                <span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span>
-              </div>
+              <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
               <span class="popup-label" style="flex:1">{title}</span>
               {#if active}<div class="popup-active-dot"></div>{/if}
             </button>
           {/each}
-
         {:else if popupMode === 'models'}
           <div class="popup-title">Modelo</div>
           {#each MODELS as model, i}
             {#if i > 0}<div class="popup-sep"></div>{/if}
-            <button
-              class="popup-row pulse-tap"
-              style={currentModelId === model.id ? 'background:var(--row-active)' : ''}
-              on:click={() => { currentModelId = model.id; closePopup(); }}
-            >
+            <button class="popup-row pulse-tap" style={currentModelId === model.id ? 'background:var(--row-active)' : ''} on:click={() => { currentModelId = model.id; closePopup(); }}>
               <div class="model-info">
                 <span class="popup-label">{model.label}</span>
                 <span class="model-sub">{model.sublabel}</span>
@@ -481,7 +432,6 @@
             </button>
           {/each}
         {/if}
-
       </div>
     </div>
   {/if}
@@ -489,20 +439,11 @@
   <!-- ── Apps popup ── -->
   {#if showApps}
     <div class="apps-overlay" on:click={closeApps}></div>
-    <div
-      class="apps-popup"
-      class:apps-popup-in={appsVisible}
-      style="top:{appsPos.top}px;right:{appsPos.right}px;"
-    >
+    <div class="apps-popup" class:apps-popup-in={appsVisible} style="top:{appsPos.top}px;right:{appsPos.right}px;">
       <div class="apps-popup-label">Apps</div>
       <div class="apps-grid">
         {#each platformApps as app, i}
-          <button
-            class="ag-item pulse-tap"
-            style="animation-delay:{i*25}ms"
-            class:ag-in={appsVisible}
-            on:click={() => openApp(app)}
-          >
+          <button class="ag-item pulse-tap" style="animation-delay:{i*25}ms" class:ag-in={appsVisible} on:click={() => openApp(app)}>
             <div class="ag-icon">
               {#if app.id === 'ai'}
                 <img src="/icons/png/ia.png" alt={app.label} class="ag-img" />
@@ -522,15 +463,9 @@
 
   <!-- ── Drawer ── -->
   {#if drawerOpen}
-    <div
-      class="drawer-overlay"
-      class:drawer-overlay-in={drawerVisible}
-      on:click={closeDrawer}
-    ></div>
-
+    <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
     <div class="drawer" class:drawer-in={drawerVisible}>
 
-      <!-- Avatar centrado -->
       <div class="drawer-avatar-block">
         <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
         <span class="drawer-user-name">{userName}</span>
@@ -540,70 +475,29 @@
 
       <nav class="drawer-nav">
 
-        <!-- Tema — expande/recolhe com grid-template-rows (igual às conversas) -->
+        <!-- Tema -->
         <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
-          <div class="drawer-icon-wrap">
-            <span
-              class="icon-mask"
-              style="mask-image:url('/icons/svg/appearance.svg');
-                     -webkit-mask-image:url('/icons/svg/appearance.svg');
-                     width:18px;height:18px;
-                     background:var(--drawer-icon)"
-            ></span>
-          </div>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Tema</span>
-          <span
-            class="icon-mask drawer-chevron"
-            class:drawer-chevron-open={themeExpanded}
-            style="mask-image:url('/icons/svg/chevron_right.svg');
-                   -webkit-mask-image:url('/icons/svg/chevron_right.svg');
-                   width:14px;height:14px;
-                   background:var(--drawer-text-faint)"
-          ></span>
+          <span class="icon-mask drawer-chevron" class:drawer-chevron-open={themeExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
         </button>
 
-        <!-- Accordion GPU — mesmo padrão das conversas -->
         <div class="theme-accordion" class:theme-accordion-open={themeExpanded}>
           <div class="theme-accordion-inner">
             {#each THEME_OPTIONS as opt}
-              <button
-                class="theme-opt pulse-tap"
-                class:theme-opt-active={themeValue === opt.id}
-                on:click={() => { applyThemeValue(opt.id); themeExpanded = false; }}
-              >
-                <span class="theme-opt-label">{opt.label}</span>
+              <button class="theme-opt pulse-tap" on:click={() => { applyThemeValue(opt.id); themeExpanded = false; }}>
+                <span class="theme-opt-label" style={themeValue === opt.id ? 'color:var(--drawer-text);font-weight:600' : ''}>{opt.label}</span>
                 {#if themeValue === opt.id}
-                  <span
-                    class="icon-mask"
-                    style="mask-image:url('/icons/svg/check.svg');
-                           -webkit-mask-image:url('/icons/svg/check.svg');
-                           width:14px;height:14px;
-                           background:var(--drawer-text);
-                           display:block;mask-size:contain;-webkit-mask-size:contain;
-                           mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;
-                           mask-position:center;-webkit-mask-position:center;flex-shrink:0;"
-                  ></span>
+                  <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:14px;height:14px;background:var(--drawer-text);display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0;"></span>
                 {/if}
               </button>
             {/each}
           </div>
         </div>
 
-        <!-- Outros itens -->
         {#each DRAWER_ITEMS as item}
-          <button
-            class="drawer-item pulse-tap"
-            on:click={() => { item.action(); closeDrawer(); }}
-          >
-            <div class="drawer-icon-wrap">
-              <span
-                class="icon-mask"
-                style="mask-image:url('/icons/svg/{item.icon}.svg');
-                       -webkit-mask-image:url('/icons/svg/{item.icon}.svg');
-                       width:18px;height:18px;
-                       background:var(--drawer-icon)"
-              ></span>
-            </div>
+          <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
             <span class="drawer-item-label">{item.label}</span>
           </button>
         {/each}
@@ -614,17 +508,8 @@
 
       <div class="drawer-sep"></div>
 
-      <!-- Logout -->
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-        <div class="drawer-icon-wrap" style="background:rgba(239,68,68,0.12)">
-          <span
-            class="icon-mask"
-            style="mask-image:url('/icons/svg/logout.svg');
-                   -webkit-mask-image:url('/icons/svg/logout.svg');
-                   width:18px;height:18px;
-                   background:var(--drawer-red)"
-          ></span>
-        </div>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
         <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
       </button>
 
@@ -638,244 +523,123 @@
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
 
-  /* ── Tokens de tema ── */
   :global([data-theme="dark"]) {
     --surface:           rgba(18,18,18,0.52);
-    --surface-strong:     rgba(24,24,26,0.84);
-    --surface-popover:    rgba(18,18,20,0.90);
-    --border-soft:        rgba(255,255,255,0.14);
-    --border-faint:       rgba(255,255,255,0.10);
-    --icon-strong:        rgba(255,255,255,0.85);
-    --icon-soft:          rgba(255,255,255,0.50);
-    --icon-faint:         rgba(255,255,255,0.30);
-    --icon-on-accent:     #fff;
-    --text-faint:         rgba(255,255,255,0.38);
-    --row-active:         rgba(255,255,255,0.07);
-    --btn-bg:             rgba(255,255,255,0.14);
-    --btn-bg-active:      rgba(255,255,255,0.22);
-    --hdr-seg-bg:         rgba(0,0,0,0.30);
-    --hdr-seg-active:     rgba(0,0,0,0.45);
-    --hdr-seg-divider:    rgba(255,255,255,0.16);
-    --overlay-soft:       rgba(0,0,0,0.22);
-    --drawer-bg:          #1c1c1e;
-    --drawer-border:      rgba(255,255,255,0.08);
-    --drawer-shadow:      rgba(0,0,0,0.45);
-    --drawer-text:        rgba(255,255,255,0.82);
-    --drawer-text-faint:  rgba(255,255,255,0.35);
-    --drawer-icon:        rgba(255,255,255,0.80);
-    --drawer-icon-bg:     rgba(255,255,255,0.10);
-    --drawer-sep:         rgba(255,255,255,0.10);
-    --drawer-red:         #FF453A;
-    --drawer-overlay-in:  rgba(0,0,0,0.35);
-    --drawer-row-active:  rgba(255,255,255,0.06);
-    --drawer-sub-bg:      rgba(255,255,255,0.05);
+    --surface-strong:    rgba(24,24,26,0.84);
+    --surface-popover:   rgba(18,18,20,0.90);
+    --border-soft:       rgba(255,255,255,0.14);
+    --border-faint:      rgba(255,255,255,0.10);
+    --icon-strong:       rgba(255,255,255,0.85);
+    --icon-soft:         rgba(255,255,255,0.50);
+    --icon-faint:        rgba(255,255,255,0.30);
+    --icon-on-accent:    #fff;
+    --text-faint:        rgba(255,255,255,0.38);
+    --row-active:        rgba(255,255,255,0.07);
+    --btn-bg:            rgba(255,255,255,0.14);
+    --btn-bg-active:     rgba(255,255,255,0.22);
+    --hdr-seg-bg:        rgba(0,0,0,0.30);
+    --hdr-seg-active:    rgba(0,0,0,0.45);
+    --hdr-seg-divider:   rgba(255,255,255,0.16);
+    --overlay-soft:      rgba(0,0,0,0.22);
+    --drawer-bg:         #1c1c1e;
+    --drawer-border:     rgba(255,255,255,0.08);
+    --drawer-shadow:     rgba(0,0,0,0.45);
+    --drawer-text:       rgba(255,255,255,0.82);
+    --drawer-text-faint: rgba(255,255,255,0.35);
+    --drawer-sep:        rgba(255,255,255,0.10);
+    --drawer-red:        #FF453A;
+    --drawer-overlay-in: rgba(0,0,0,0.35);
+    --drawer-row-active: rgba(255,255,255,0.06);
+    --drawer-sub-bg:     rgba(255,255,255,0.04);
   }
   :global([data-theme="light"]) {
-    --surface:            rgba(255,255,255,0.55);
-    --surface-strong:     rgba(255,255,255,0.86);
-    --surface-popover:    rgba(255,255,255,0.92);
-    --border-soft:        rgba(0,0,0,0.10);
-    --border-faint:       rgba(0,0,0,0.07);
-    --icon-strong:        rgba(20,20,20,0.82);
-    --icon-soft:          rgba(20,20,20,0.45);
-    --icon-faint:         rgba(20,20,20,0.28);
-    --icon-on-accent:     #fff;
-    --text-faint:         rgba(20,20,20,0.40);
-    --row-active:         rgba(0,0,0,0.06);
-    --btn-bg:             rgba(0,0,0,0.07);
-    --btn-bg-active:      rgba(0,0,0,0.12);
-    --hdr-seg-bg:         rgba(0,0,0,0.30);
-    --hdr-seg-active:     rgba(0,0,0,0.45);
-    --hdr-seg-divider:    rgba(255,255,255,0.30);
-    --overlay-soft:       rgba(0,0,0,0.14);
-    --drawer-bg:          #ffffff;
-    --drawer-border:      rgba(0,0,0,0.07);
-    --drawer-shadow:      rgba(0,0,0,0.13);
-    --drawer-text:        #111111;
-    --drawer-text-faint:  rgba(0,0,0,0.30);
-    --drawer-icon:        rgba(0,0,0,0.72);
-    --drawer-icon-bg:     rgba(0,0,0,0.07);
-    --drawer-sep:         rgba(0,0,0,0.09);
-    --drawer-red:         #d32d2d;
-    --drawer-overlay-in:  rgba(0,0,0,0.20);
-    --drawer-row-active:  rgba(0,0,0,0.05);
-    --drawer-sub-bg:      rgba(0,0,0,0.04);
+    --surface:           rgba(255,255,255,0.55);
+    --surface-strong:    rgba(255,255,255,0.86);
+    --surface-popover:   rgba(255,255,255,0.92);
+    --border-soft:       rgba(0,0,0,0.10);
+    --border-faint:      rgba(0,0,0,0.07);
+    --icon-strong:       rgba(20,20,20,0.82);
+    --icon-soft:         rgba(20,20,20,0.45);
+    --icon-faint:        rgba(20,20,20,0.28);
+    --icon-on-accent:    #fff;
+    --text-faint:        rgba(20,20,20,0.40);
+    --row-active:        rgba(0,0,0,0.06);
+    --btn-bg:            rgba(0,0,0,0.07);
+    --btn-bg-active:     rgba(0,0,0,0.12);
+    --hdr-seg-bg:        rgba(0,0,0,0.30);
+    --hdr-seg-active:    rgba(0,0,0,0.45);
+    --hdr-seg-divider:   rgba(255,255,255,0.30);
+    --overlay-soft:      rgba(0,0,0,0.14);
+    --drawer-bg:         #ffffff;
+    --drawer-border:     rgba(0,0,0,0.07);
+    --drawer-shadow:     rgba(0,0,0,0.13);
+    --drawer-text:       #111111;
+    --drawer-text-faint: rgba(0,0,0,0.30);
+    --drawer-sep:        rgba(0,0,0,0.09);
+    --drawer-red:        #d32d2d;
+    --drawer-overlay-in: rgba(0,0,0,0.20);
+    --drawer-row-active: rgba(0,0,0,0.05);
+    --drawer-sub-bg:     rgba(0,0,0,0.04);
   }
 
-  .root {
-    position:fixed; inset:0;
-    display:flex; flex-direction:column; overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
-  }
+  .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
+  .bg-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
 
-  /* ── Background ── */
-  .bg-layer {
-    position:absolute; inset:0; z-index:0;
-    background-size:cover; background-position:center;
-  }
-
-  /* ── Header ── */
-  .header {
-    position:relative; z-index:10;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px;
-    flex-shrink:0; opacity:0; transform:translateY(-12px);
-    transition:opacity .55s ease, transform .55s ease;
-  }
+  .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
   .header.in { opacity:1; transform:translateY(0); }
   .header.header-lifted { z-index:62; }
-
   .logo-img { width:44px; height:44px; object-fit:contain; }
-
-  .header-right {
-    display:flex; align-items:center;
-    height:34px; border-radius:17px;
-    background:var(--hdr-seg-bg);
-    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-    overflow:hidden;
-  }
-  .hdr-seg {
-    width:36px; height:34px; border:none; background:transparent;
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    transition:background .18s ease;
-  }
+  .header-right { display:flex; align-items:center; height:34px; border-radius:17px; background:var(--hdr-seg-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); overflow:hidden; }
+  .hdr-seg { width:36px; height:34px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .18s ease; }
   .hdr-seg:active { background:var(--hdr-seg-active); }
   .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  /* ── Conteúdo central ── */
-  .content {
-    flex:1; position:relative; z-index:10;
-    display:flex; align-items:center; justify-content:center;
-  }
+  .content { flex:1; position:relative; z-index:10; display:flex; align-items:center; justify-content:center; }
   .lottie-wrap { width:220px; height:220px; }
 
-  /* ── Bottom ── */
-  .bottom {
-    position:relative; z-index:10;
-    padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px);
-    flex-shrink:0; opacity:0; transform:translateY(18px);
-    transition:opacity .6s .3s ease, transform .6s .3s ease;
-  }
+  .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }
   .bottom.in { opacity:1; transform:translateY(0); }
-
-  .bottom-bar {
-    border-radius:22px;
-    background:var(--surface);
-    backdrop-filter:blur(30px) saturate(1.7);
-    -webkit-backdrop-filter:blur(30px) saturate(1.7);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 8px 32px rgba(0,0,0,0.20);
-    display:flex; flex-direction:column;
-  }
-  .chat-input {
-    resize:none; outline:none; border:none; background:transparent;
-    font-size:15px; line-height:1.5; padding:13px 18px 0;
-    width:100%; font-family:inherit;
-    color:var(--icon-strong); max-height:150px; overflow-y:auto;
-    -webkit-user-select:text; user-select:text;
-  }
+  .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }
+  .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong); max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text; }
   .chat-input::placeholder { color:var(--text-faint); }
-
   .bb-row { display:flex; align-items:center; height:52px; padding:0 6px; }
-  .flex1  { flex:1; }
-
-  .bb-btn {
-    width:40px; height:40px;
-    display:flex; align-items:center; justify-content:center;
-    border-radius:50%; border:0.5px solid var(--border-faint);
-    cursor:pointer; background:var(--btn-bg); flex-shrink:0;
-    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
-  }
+  .flex1 { flex:1; }
+  .bb-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:0.5px solid var(--border-faint); cursor:pointer; background:var(--btn-bg); flex-shrink:0; transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1); }
   .bb-btn:active { background:var(--btn-bg-active); transform:scale(0.88); }
-
-  .model-pill {
-    height:40px; padding:0 14px;
-    display:flex; align-items:center; gap:5px;
-    border-radius:20px; border:0.5px solid var(--border-soft);
-    cursor:pointer; background:var(--btn-bg); flex-shrink:0;
-    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
-  }
+  .model-pill { height:40px; padding:0 14px; display:flex; align-items:center; gap:5px; border-radius:20px; border:0.5px solid var(--border-soft); cursor:pointer; background:var(--btn-bg); flex-shrink:0; transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1); }
   .model-pill:active { background:var(--btn-bg-active); transform:scale(0.94); }
   .model-pill-label { font-size:13px; font-weight:600; color:var(--icon-strong); }
 
-  /* ── Recording ── */
-  .rec-card {
-    position:relative; overflow:hidden; border-radius:999px;
-    background:var(--surface);
-    backdrop-filter:blur(28px) saturate(1.6);
-    -webkit-backdrop-filter:blur(28px) saturate(1.6);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 8px 32px rgba(0,0,0,0.20);
-    height:64px;
-    animation:recIn .28s cubic-bezier(0.2,0.9,0.3,1) both;
-  }
-  @keyframes recIn {
-    from { opacity:0; transform:scale(0.92) translateY(10px); }
-    to   { opacity:1; transform:scale(1) translateY(0); }
-  }
+  .rec-card { position:relative; overflow:hidden; border-radius:999px; background:var(--surface); backdrop-filter:blur(28px) saturate(1.6); -webkit-backdrop-filter:blur(28px) saturate(1.6); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); height:64px; animation:recIn .28s cubic-bezier(0.2,0.9,0.3,1) both; }
+  @keyframes recIn { from{opacity:0;transform:scale(0.92) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
   .rec-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
-  .rec-inner  { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; height:100%; padding:0 10px; }
-  .rec-btn {
-    width:44px; height:44px; display:flex; align-items:center; justify-content:center;
-    border-radius:50%; border:0.5px solid var(--border-faint); cursor:pointer;
-    background:var(--btn-bg); flex-shrink:0;
-    transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
-  }
+  .rec-inner { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; height:100%; padding:0 10px; }
+  .rec-btn { width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:0.5px solid var(--border-faint); cursor:pointer; background:var(--btn-bg); flex-shrink:0; transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1); }
   .rec-btn:active { background:var(--btn-bg-active); transform:scale(0.88); }
   .rec-send { background:var(--btn-bg-active); }
   .rec-center { display:flex; align-items:center; gap:8px; flex:1; justify-content:center; pointer-events:none; }
-  .rec-dot {
-    width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0;
-    animation:recPulse 1.1s ease-in-out infinite;
-  }
+  .rec-dot { width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; }
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
   .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--icon-strong); letter-spacing:.06em; }
 
-  /* ── Popup add / extras / models ── */
   .popup-overlay { position:fixed; inset:0; z-index:50; }
-  .popup-box {
-    position:fixed; z-index:51;
-    border-radius:18px;
-    background:var(--surface-strong);
-    backdrop-filter:blur(32px) saturate(1.9);
-    -webkit-backdrop-filter:blur(32px) saturate(1.9);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 14px 44px rgba(0,0,0,0.30);
-    overflow:hidden; transform-origin:bottom left;
-    opacity:0; transform:scale(0.86) translateY(8px);
-    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
-    pointer-events:none;
-  }
+  .popup-box { position:fixed; z-index:51; border-radius:18px; background:var(--surface-strong); backdrop-filter:blur(32px) saturate(1.9); -webkit-backdrop-filter:blur(32px) saturate(1.9); border:0.5px solid var(--border-soft); box-shadow:0 14px 44px rgba(0,0,0,0.30); overflow:hidden; transform-origin:bottom left; opacity:0; transform:scale(0.86) translateY(8px); transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1); pointer-events:none; }
   .popup-box.popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
   .popup-content { transition:opacity .13s ease, transform .13s ease; }
   .popup-content.fading { opacity:0; transform:translateY(4px); pointer-events:none; }
-
   .popup-title { padding:12px 16px 8px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-faint); }
   .popup-row { display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; transition:background .14s ease; }
   .popup-row:active { background:var(--row-active); }
   .popup-back { padding:9px 14px; }
   .popup-icon-wrap { width:32px; height:32px; border-radius:50%; background:var(--btn-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .popup-label { font-size:15px; font-weight:500; color:var(--icon-strong); flex:1; }
-  .popup-sep   { height:0.5px; background:var(--border-faint); margin:0 14px; }
+  .popup-sep { height:0.5px; background:var(--border-faint); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:var(--icon-strong); flex-shrink:0; }
   .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
-  .model-sub  { font-size:11px; color:var(--icon-faint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .model-sub { font-size:11px; color:var(--icon-faint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* ── Apps popup ── */
   .apps-overlay { position:fixed; inset:0; z-index:60; background:var(--overlay-soft); }
-  .apps-popup {
-    position:fixed; z-index:63; width:256px;
-    border-radius:20px;
-    background:var(--surface-popover);
-    backdrop-filter:blur(44px) saturate(2);
-    -webkit-backdrop-filter:blur(44px) saturate(2);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 18px 50px rgba(0,0,0,0.35);
-    overflow:hidden; transform-origin:top right;
-    opacity:0; transform:scale(0.88) translateY(-6px);
-    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
-    pointer-events:none;
-  }
+  .apps-popup { position:fixed; z-index:63; width:256px; border-radius:20px; background:var(--surface-popover); backdrop-filter:blur(44px) saturate(2); -webkit-backdrop-filter:blur(44px) saturate(2); border:0.5px solid var(--border-soft); box-shadow:0 18px 50px rgba(0,0,0,0.35); overflow:hidden; transform-origin:top right; opacity:0; transform:scale(0.88) translateY(-6px); transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1); pointer-events:none; }
   .apps-popup.apps-popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
   .apps-popup-label { padding:13px 15px 6px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-faint); }
   .apps-grid { display:grid; grid-template-columns:repeat(4,1fr); padding:4px 6px 6px; gap:0; }
@@ -887,137 +651,52 @@
   .ag-item:active .ag-img { transform:scale(0.84); }
   .ag-name { font-size:10px; font-weight:500; color:var(--icon-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:58px; text-align:center; line-height:1.2; }
 
-  /* ══════════════════════════════════════════════════════════════════
-     DRAWER — altura máxima, bordas curvas, sem congelamento
-  ══════════════════════════════════════════════════════════════════ */
-  .drawer-overlay {
-    position:fixed; inset:0; z-index:70;
-    background:transparent;
-    transition:background .28s ease;
-    will-change:opacity;
-  }
+  /* ══ DRAWER ══════════════════════════════════════════════════════════ */
+  .drawer-overlay { position:fixed; inset:0; z-index:70; background:transparent; transition:background .28s ease; }
   .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
 
   .drawer {
-    position:fixed;
-    top:0; right:0; bottom:0;           /* ← altura máxima: toca em cima E em baixo */
-    z-index:71;
-    width:min(288px, 82vw);
+    position:fixed; top:0; right:0; bottom:0; z-index:71;
+    width:min(288px,82vw);
     background:var(--drawer-bg);
-    border-radius:24px 0 0 24px;        /* ← bordas curvas mantidas no lado interior */
     border-left:0.5px solid var(--drawer-border);
     box-shadow:-12px 0 48px var(--drawer-shadow);
     display:flex; flex-direction:column;
-    padding-top:max(env(safe-area-inset-top,0px), 16px);
+    padding-top:max(env(safe-area-inset-top,0px),16px);
     overflow:hidden;
-
-    /* GPU puro — zero jank ------------------------------------------ */
     transform:translateX(100%);
     transition:transform .28s cubic-bezier(0.25,0.46,0.45,0.94);
-    will-change:transform;
   }
   .drawer.drawer-in { transform:translateX(0); }
 
-  /* ── Avatar ── */
-  .drawer-avatar-block {
-    display:flex; flex-direction:column; align-items:center; gap:10px;
-    padding:18px 20px;
-    flex-shrink:0;
-  }
-  .drawer-avatar {
-    width:84px; height:84px; border-radius:50%; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    font-size:32px; font-weight:700; color:#fff;
-  }
-  .drawer-user-name {
-    font-size:16px; font-weight:700; color:var(--drawer-text);
-    text-align:center;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
-  }
+  .drawer-avatar-block { display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 20px; flex-shrink:0; }
+  .drawer-avatar { width:84px; height:84px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:700; color:#fff; }
+  .drawer-user-name { font-size:16px; font-weight:700; color:var(--drawer-text); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 
   .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; flex-shrink:0; }
 
-  /* ── Nav scrollável ── */
-  .drawer-nav {
-    display:flex; flex-direction:column;
-    padding:8px 6px;
-    overflow-y:auto; overflow-x:hidden;
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain;
-    flex:1;
-  }
+  .drawer-nav { display:flex; flex-direction:column; padding:8px 6px; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; flex:1; }
 
-  /* ── Item base ── */
-  .drawer-item {
-    display:flex; align-items:center; gap:12px;
-    padding:11px 10px; border-radius:10px; border:none;
-    background:transparent; cursor:pointer;
-    font-family:inherit; text-align:left;
-    transition:background .12s ease;
-    width:100%;
-  }
+  .drawer-item { display:flex; align-items:center; gap:16px; padding:13px 14px; border-radius:10px; border:none; background:transparent; cursor:pointer; font-family:inherit; text-align:left; transition:background .12s ease; width:100%; }
   .drawer-item:active { background:var(--drawer-row-active); }
+  .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); }
 
-  /* ── Ícone com fundo (visível em ambos os temas) ── */
-  .drawer-icon-wrap {
-    width:32px; height:32px; border-radius:8px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    background:var(--drawer-icon-bg);
-  }
-
-  .drawer-item-label {
-    font-size:14.5px; font-weight:500; color:var(--drawer-text);
-  }
-
-  /* ── Chevron — GPU puro ── */
-  .drawer-chevron {
-    flex-shrink:0;
-    transition:transform .25s cubic-bezier(0.25,0.46,0.45,0.94);
-    will-change:transform;
-  }
+  .drawer-chevron { transition:transform .25s cubic-bezier(0.25,0.46,0.45,0.94); }
   .drawer-chevron-open { transform:rotate(90deg); }
 
-  /* ── Accordion do tema — grid-template-rows (mesmo padrão das conversas) ── */
-  .theme-accordion {
-    display:grid;
-    grid-template-rows:0fr;
-    transition:grid-template-rows .28s cubic-bezier(0.25,0.46,0.45,0.94);
-  }
+  /* Accordion tema — grid-template-rows igual ao Drawer.svelte original */
+  .theme-accordion { display:grid; grid-template-rows:0fr; transition:grid-template-rows .25s cubic-bezier(0.25,0.46,0.45,0.94); }
   .theme-accordion-open { grid-template-rows:1fr; }
   .theme-accordion-inner { overflow:hidden; min-height:0; }
 
-  /* Sub-itens de tema */
-  .theme-opt {
-    display:flex; align-items:center; justify-content:space-between;
-    width:100%; padding:10px 10px 10px 54px;
-    background:transparent; border:none; cursor:pointer;
-    font-family:inherit; text-align:left;
-    border-radius:8px;
-    transition:background .12s ease;
-  }
+  .theme-opt { display:flex; align-items:center; justify-content:space-between; width:100%; padding:11px 14px 11px 52px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; border-radius:8px; transition:background .12s ease; }
   .theme-opt:active { background:var(--drawer-row-active); }
-  .theme-opt-active { background:var(--drawer-sub-bg); }
+  .theme-opt-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
 
-  .theme-opt-label {
-    font-size:14px; font-weight:400; color:var(--drawer-text); flex:1;
-  }
-
-  /* ── Logout ── */
   .drawer-logout { flex-shrink:0; }
 
-  /* ── Utilities ── */
-  .pulse-tap {
-    cursor:pointer;
-    transition:transform .14s cubic-bezier(0.25,0.46,0.45,0.94), opacity .14s ease;
-    will-change:transform;
-  }
+  .pulse-tap { cursor:pointer; transition:transform .14s cubic-bezier(0.25,0.46,0.45,0.94), opacity .14s ease; }
   .pulse-tap:active { transform:scale(0.96); opacity:.80; }
 
-  .icon-mask {
-    display:block;
-    mask-size:contain; -webkit-mask-size:contain;
-    mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat;
-    mask-position:center; -webkit-mask-position:center;
-    flex-shrink:0;
-  }
+  .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

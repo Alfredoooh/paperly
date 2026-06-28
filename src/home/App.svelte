@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
-  import { getTheme, syncTheme } from '$shared/theme.js';
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   let user = null;
@@ -29,30 +28,9 @@
   let currentModelId = MODELS[0].id;
   $: currentModel    = MODELS.find(m => m.id === currentModelId) ?? MODELS[0];
 
-  // ── Theme (fonte única de verdade: $shared/theme.js) ────────────────────
-  let themeValue = 'dark';   // 'light' | 'dark' | 'system'
-  let isDark     = true;
-
-  function resolveIsDark(v) {
-    return v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  }
-  function applyThemeValue(v, persist = true) {
-    themeValue = v;
-    isDark = resolveIsDark(v);
-    if (persist) localStorage.setItem('nexa_theme', v);
-    syncTheme(isDark);
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  }
-
-  let mediaQuery;
-  function handleSystemChange() {
-    if (themeValue === 'system') applyThemeValue('system', false);
-  }
-
   // ── Drawer ────────────────────────────────────────────────────────────────
-  let drawerOpen     = false;
-  let drawerVisible  = false;
-  let themeExpanded  = false;
+  let drawerOpen    = false;
+  let drawerVisible = false;
 
   function openDrawer() {
     drawerOpen = true;
@@ -60,22 +38,14 @@
   }
   function closeDrawer() {
     drawerVisible = false;
-    themeExpanded = false;
     setTimeout(() => { drawerOpen = false; }, 320);
-  }
-  function toggleThemeExpanded() {
-    themeExpanded = !themeExpanded;
   }
 
   const DRAWER_ITEMS = [
+    { icon: 'home',     label: 'Início',     action: () => {} },
     { icon: 'settings', label: 'Definições', action: () => {} },
+    { icon: 'profile',  label: 'Perfil',     action: () => {} },
     { icon: 'help',     label: 'Ajuda',      action: () => {} },
-  ];
-
-  const THEME_OPTIONS = [
-    { id: 'dark',   label: 'Escuro' },
-    { id: 'light',  label: 'Claro' },
-    { id: 'system', label: 'Predefinição do sistema' },
   ];
 
   // ── Apps popup ────────────────────────────────────────────────────────────
@@ -104,6 +74,14 @@
     closeApps();
     if (app.id === 'ai') { try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {} }
     window.location.href = app.path;
+  }
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  let appTheme = 'dark';
+
+  function applyTheme(t) {
+    appTheme = t;
+    document.documentElement.setAttribute('data-theme', t);
   }
 
   // ── Popup (add / extras / models) ─────────────────────────────────────────
@@ -142,6 +120,8 @@
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
   // ── Lottie central (welcome.json) ────────────────────────────────────────
+  import welcomeLottie from '/static/icons/lottie/welcome.json';
+
   let lottieEl;
   let lottieInstance;
 
@@ -162,7 +142,7 @@
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: '/icons/lottie/welcome.json',
+        animationData: welcomeLottie,
       });
     }
   }
@@ -306,29 +286,14 @@
   let mounted = false;
   onMount(() => {
     user = requireAuth(); if (!user) return;
-
-    // Tema: lê o valor guardado e sincroniza com $shared/theme.js (fonte única)
-    const saved = getTheme();
-    applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
-
-    // Reage a mudanças do tema do sistema quando estiver em modo 'system'
-    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', handleSystemChange);
-
-    // Reage a mudanças de tema feitas noutra aba/página (storage event)
-    function onStorage(e) {
-      if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
-    }
-    window.addEventListener('storage', onStorage);
-
+    try {
+      const saved = localStorage.getItem('nexa_theme');
+      if (saved) applyTheme(saved);
+      else applyTheme('dark');
+    } catch(e) { applyTheme('dark'); }
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
-
-    return () => {
-      if (lottieInstance) lottieInstance.destroy();
-      mediaQuery?.removeEventListener('change', handleSystemChange);
-      window.removeEventListener('storage', onStorage);
-    };
+    return () => { if (lottieInstance) lottieInstance.destroy(); };
   });
 </script>
 
@@ -497,7 +462,7 @@
     </div>
   {/if}
 
-  <!-- ── Apps popup ── -->
+  <!-- ── Apps popup (sem secção de Tema) ── -->
   {#if showApps}
     <div class="apps-overlay" on:click={closeApps}></div>
     <div
@@ -533,12 +498,14 @@
     </div>
   {/if}
 
-  <!-- ── Drawer ── -->
+  <!-- ── Drawer (estilo Bing — ícones sem container) ── -->
   {#if drawerOpen}
     <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
     <div class="drawer" class:drawer-in={drawerVisible}>
+      <button class="drawer-burger pulse-tap" on:click={closeDrawer}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:20px;height:20px;background:var(--drawer-text-faint)"></span>
+      </button>
 
-      <!-- Avatar grande, centrado, nome em baixo -->
       <div class="drawer-avatar-block">
         <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
         <span class="drawer-user-name">{userName}</span>
@@ -547,31 +514,6 @@
       <div class="drawer-sep"></div>
 
       <nav class="drawer-nav">
-
-        <!-- Tema: substitui "Início", ícone appearance.svg, chevron que roda -->
-        <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Tema</span>
-          <span
-            class="icon-mask drawer-chevron"
-            class:drawer-chevron-open={themeExpanded}
-            style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:16px;height:16px;background:var(--drawer-text-faint)"
-          ></span>
-        </button>
-
-        {#if themeExpanded}
-          <div class="theme-options">
-            {#each THEME_OPTIONS as opt}
-              <button class="theme-option pulse-tap" on:click={() => applyThemeValue(opt.id)}>
-                <span class="theme-option-label">{opt.label}</span>
-                {#if themeValue === opt.id}
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:15px;height:15px;background:var(--drawer-text)"></span>
-                {/if}
-              </button>
-            {/each}
-          </div>
-        {/if}
-
         {#each DRAWER_ITEMS as item, i}
           <button
             class="drawer-item pulse-tap"
@@ -585,15 +527,14 @@
         {/each}
       </nav>
 
-      <div style="flex:1"></div>
-
       <div class="drawer-sep"></div>
 
-      <!-- Logout fixo no fundo -->
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
         <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
       </button>
+
+      <div style="flex:1"></div>
     </div>
   {/if}
 
@@ -603,9 +544,6 @@
   * { box-sizing:border-box; margin:0; padding:0; }
 
   /* ── Tokens de tema ── */
-  :global(html) {
-    transition: background-color .25s ease;
-  }
   :global([data-theme="dark"]) {
     --surface:           rgba(18,18,18,0.52);
     --surface-strong:     rgba(24,24,26,0.84);
@@ -632,7 +570,6 @@
     --drawer-sep:         rgba(255,255,255,0.10);
     --drawer-red:         #FF453A;
     --drawer-overlay-in:  rgba(0,0,0,0.35);
-    --drawer-row-active:  rgba(255,255,255,0.06);
   }
   :global([data-theme="light"]) {
     --surface:            rgba(255,255,255,0.55);
@@ -660,12 +597,6 @@
     --drawer-sep:         #e8e8e8;
     --drawer-red:         #d32d2d;
     --drawer-overlay-in:  rgba(0,0,0,0.20);
-    --drawer-row-active:  rgba(0,0,0,0.05);
-  }
-
-  /* Transição suave em todas as superfícies que dependem do tema */
-  :global(:root) {
-    transition: color .25s ease;
   }
 
   .root {
@@ -699,7 +630,6 @@
     background:var(--hdr-seg-bg);
     backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
     overflow:hidden;
-    transition:background .25s ease;
   }
   .hdr-seg {
     width:36px; height:34px; border:none; background:transparent;
@@ -707,7 +637,7 @@
     transition:background .18s ease;
   }
   .hdr-seg:active { background:var(--hdr-seg-active); }
-  .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); transition:background .25s ease; }
+  .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
   /* ── Conteúdo central ── */
   .content {
@@ -733,7 +663,6 @@
     border:0.5px solid var(--border-soft);
     box-shadow:0 8px 32px rgba(0,0,0,0.20);
     display:flex; flex-direction:column;
-    transition:background .25s ease, border-color .25s ease;
   }
   .chat-input {
     resize:none; outline:none; border:none; background:transparent;
@@ -741,7 +670,6 @@
     width:100%; font-family:inherit;
     color:var(--icon-strong); max-height:150px; overflow-y:auto;
     -webkit-user-select:text; user-select:text;
-    transition:color .25s ease;
   }
   .chat-input::placeholder { color:var(--text-faint); }
 
@@ -765,7 +693,7 @@
     transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
   .model-pill:active { background:var(--btn-bg-active); transform:scale(0.94); }
-  .model-pill-label { font-size:13px; font-weight:600; color:var(--icon-strong); transition:color .25s ease; }
+  .model-pill-label { font-size:13px; font-weight:600; color:var(--icon-strong); }
 
   /* ── Recording ── */
   .rec-card {
@@ -812,7 +740,7 @@
     box-shadow:0 14px 44px rgba(0,0,0,0.30);
     overflow:hidden; transform-origin:bottom left;
     opacity:0; transform:scale(0.86) translateY(8px);
-    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1), background .25s ease;
+    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
     pointer-events:none;
   }
   .popup-box.popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
@@ -863,7 +791,7 @@
     overflow:hidden;
     transform-origin:top right;
     opacity:0; transform:scale(0.88) translateY(-6px);
-    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1), background .25s ease;
+    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
     pointer-events:none;
   }
   .apps-popup.apps-popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
@@ -908,7 +836,7 @@
     max-width:58px; text-align:center; line-height:1.2;
   }
 
-  /* ── Drawer — bordas curvas no lado interior, ícones sem container ── */
+  /* ── Drawer — estilo Bing: ícones sem container ── */
   .drawer-overlay {
     position:fixed; inset:0; z-index:70;
     background:transparent; transition:background .32s ease;
@@ -916,42 +844,42 @@
   .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
 
   .drawer {
-    position:fixed; top:10px; right:0; bottom:10px; z-index:71;
+    position:fixed; top:0; right:0; bottom:0; z-index:71;
     width:min(288px, 82vw);
     background:var(--drawer-bg);
-    border-radius:24px 0 0 24px;
-    border:0.5px solid var(--drawer-border);
-    border-right:none;
+    border-left:0.5px solid var(--drawer-border);
     box-shadow:-12px 0 48px var(--drawer-shadow);
     display:flex; flex-direction:column;
     padding-top:calc(env(safe-area-inset-top,0px) + 10px);
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     transform:translateX(100%);
-    transition:transform .32s cubic-bezier(0.2,0.9,0.3,1), background .25s ease, border-color .25s ease;
-    overflow:hidden;
+    transition:transform .32s cubic-bezier(0.2,0.9,0.3,1);
   }
   .drawer.drawer-in { transform:translateX(0); }
 
-  /* Avatar grande e centrado, nome abaixo */
+  .drawer-burger {
+    width:36px; height:36px; margin:6px 14px 4px;
+    border:none; background:transparent; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
   .drawer-avatar-block {
-    display:flex; flex-direction:column; align-items:center; gap:10px;
-    padding:18px 20px 18px;
+    display:flex; align-items:center; gap:13px;
+    padding:8px 20px 18px;
   }
   .drawer-avatar {
-    width:84px; height:84px; border-radius:50%; flex-shrink:0;
+    width:48px; height:48px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
-    font-size:32px; font-weight:700; color:#fff;
+    font-size:19px; font-weight:700; color:#fff;
   }
   .drawer-user-name {
-    font-size:16px; font-weight:700; color:var(--drawer-text);
-    text-align:center;
+    font-size:15px; font-weight:700; color:var(--drawer-text);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:100%;
   }
 
-  .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; transition:background .25s ease; }
+  .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; }
 
-  .drawer-nav { display:flex; flex-direction:column; padding:10px 6px; overflow-y:auto; }
+  .drawer-nav { display:flex; flex-direction:column; padding:10px 6px; }
 
   .drawer-item {
     display:flex; align-items:center; gap:16px;
@@ -961,36 +889,11 @@
     transition:opacity .28s ease, transform .28s cubic-bezier(0.2,0.9,0.3,1), background .14s ease;
   }
   .drawer-item.drawer-item-in { opacity:1; transform:translateX(0); }
-  .drawer-item:active { background:var(--drawer-row-active); }
+  .drawer-item:active { background:var(--row-active); }
 
-  .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); transition:color .25s ease; }
+  .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); }
 
-  /* Chevron que roda 90° quando o tema está expandido */
-  .drawer-chevron {
-    transition:transform .22s cubic-bezier(0.2,0.9,0.3,1);
-  }
-  .drawer-chevron-open {
-    transform:rotate(90deg);
-  }
-
-  /* Sub-opções de tema (escuro / claro / sistema) */
-  .theme-options {
-    display:flex; flex-direction:column;
-    margin:0 14px 4px;
-    border-radius:10px;
-    background:var(--drawer-row-active);
-    overflow:hidden;
-  }
-  .theme-option {
-    display:flex; align-items:center; justify-content:space-between;
-    width:100%; padding:11px 14px;
-    background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left;
-    transition:background .14s ease;
-  }
-  .theme-option:active { background:var(--row-active); }
-  .theme-option-label { font-size:14px; color:var(--drawer-text); }
-
-  .drawer-logout { opacity:1; transform:none; }
+  .drawer-logout { margin:10px 6px 0; opacity:1; transform:none; }
 
   /* ── Utilities ── */
   .pulse-tap {

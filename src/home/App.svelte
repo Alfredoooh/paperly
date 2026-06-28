@@ -28,7 +28,47 @@
   let currentModelId = MODELS[0].id;
   $: currentModel    = MODELS.find(m => m.id === currentModelId) ?? MODELS[0];
 
-  // ── Popup ─────────────────────────────────────────────────────────────────
+  // ── Drawer ────────────────────────────────────────────────────────────────
+  let drawerOpen    = false;
+  let drawerVisible = false;
+
+  function openDrawer() {
+    drawerOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { drawerVisible = true; }));
+  }
+  function closeDrawer() {
+    drawerVisible = false;
+    setTimeout(() => { drawerOpen = false; }, 320);
+  }
+
+  const DRAWER_ITEMS = [
+    { icon: 'home',     label: 'Início',       action: () => {} },
+    { icon: 'settings', label: 'Definições',   action: () => {} },
+    { icon: 'profile',  label: 'Perfil',       action: () => {} },
+    { icon: 'help',     label: 'Ajuda',        action: () => {} },
+  ];
+
+  // ── Apps popup ────────────────────────────────────────────────────────────
+  let showApps    = false;
+  let appsVisible = false;
+  let appsAnchorEl;
+
+  function openApps() {
+    showApps = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { appsVisible = true; }));
+  }
+  function closeApps() {
+    appsVisible = false;
+    setTimeout(() => { showApps = false; }, 220);
+  }
+
+  function openApp(app) {
+    closeApps();
+    if (app.id === 'ai') { try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {} }
+    window.location.href = app.path;
+  }
+
+  // ── Popup (add / extras / models) ─────────────────────────────────────────
   const POPUP_W = 230;
 
   let showPopup     = false;
@@ -81,7 +121,7 @@
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
-  let inputText = '';
+  let inputText  = '';
   let textInputEl;
 
   function autoResize() {
@@ -216,11 +256,6 @@
     waveAnalyser = null;
   }
 
-  function openApp(app) {
-    if (app.id === 'ai') { try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {} }
-    window.location.href = app.path;
-  }
-
   let mounted = false;
   let bgTimer;
   onMount(() => {
@@ -242,45 +277,22 @@
     <div class="bg-layer" class:bg-on={layer.visible} style="background-image:url('{layer.img}');"></div>
   {/each}
   {#if !bgImages.length}<div class="bg-fallback"></div>{/if}
-  <div class="scrim-top"></div>
-  <div class="scrim-bottom"></div>
 
   <!-- ── Header ── -->
   <header class="header" class:in={mounted}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
-    <button class="avatar-btn" style="background:{avatarColor}" on:click={logout}>{userInitial}</button>
+    <div class="header-right">
+      <button class="hdr-btn pulse-tap" bind:this={appsAnchorEl} on:click={openApps}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:22px;height:22px;background:#fff"></span>
+      </button>
+      <button class="hdr-btn pulse-tap" on:click={openDrawer}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:22px;height:22px;background:#fff"></span>
+      </button>
+    </div>
   </header>
 
-  <!-- ── Content ── -->
-  <main class="content">
-
-    <!-- Apps -->
-    <div class="apps-wrap" class:in={mounted}>
-      <div class="apps-fade-l"></div>
-      <div class="apps-fade-r"></div>
-      <div class="apps-scroll">
-        {#each platformApps as app, i}
-          <button
-            class="app-item"
-            class:app-in={mounted}
-            style="transition-delay:{i*38}ms"
-            on:click={() => openApp(app)}
-          >
-            <div class="app-circle">
-              {#if app.id === 'ai'}
-                <img src="/icons/png/ia.png" alt={app.label} class="app-img" />
-              {:else if app.icon && !app.icon.endsWith('.svg')}
-                <img src={app.icon} alt={app.label} class="app-img" />
-              {:else}
-                <span class="app-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');"></span>
-              {/if}
-            </div>
-            <span class="app-name">{app.label}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-  </main>
+  <!-- ── Content (vazio — apenas espaçador) ── -->
+  <main class="content"></main>
 
   <!-- ── Bottom bar ── -->
   <div class="bottom" class:in={mounted}>
@@ -337,7 +349,7 @@
     {/if}
   </div>
 
-  <!-- ── Popup ── -->
+  <!-- ── Popup add/extras/models ── -->
   {#if showPopup}
     <div class="popup-overlay" on:click={closePopup}></div>
     <div
@@ -417,6 +429,84 @@
     </div>
   {/if}
 
+  <!-- ── Apps popup card ── -->
+  {#if showApps}
+    <div class="apps-overlay" on:click={closeApps}></div>
+    <div class="apps-popup" class:apps-popup-in={appsVisible}>
+      <div class="apps-popup-header">
+        <span class="apps-popup-title">Apps</span>
+        <button class="apps-close-btn pulse-tap" on:click={closeApps}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:rgba(255,255,255,0.55)"></span>
+        </button>
+      </div>
+      <div class="apps-grid">
+        {#each platformApps as app, i}
+          <button
+            class="ag-item pulse-tap"
+            style="animation-delay:{i*28}ms"
+            class:ag-in={appsVisible}
+            on:click={() => openApp(app)}
+          >
+            <div class="ag-circle">
+              {#if app.id === 'ai'}
+                <img src="/icons/png/ia.png" alt={app.label} class="ag-img" />
+              {:else if app.icon && !app.icon.endsWith('.svg')}
+                <img src={app.icon} alt={app.label} class="ag-img" />
+              {:else}
+                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:22px;height:22px;background:rgba(255,255,255,0.88)"></span>
+              {/if}
+            </div>
+            <span class="ag-name">{app.label}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  <!-- ── Drawer ── -->
+  {#if drawerOpen}
+    <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
+    <div class="drawer" class:drawer-in={drawerVisible}>
+      <!-- Drawer header -->
+      <div class="drawer-header">
+        <div class="drawer-avatar" style="background:{avatarColor}">
+          {userInitial}
+        </div>
+        <div class="drawer-user-info">
+          <span class="drawer-user-name">{userName}</span>
+          <span class="drawer-user-email">{user?.email || ''}</span>
+        </div>
+      </div>
+      <div class="drawer-sep"></div>
+
+      <!-- Drawer items -->
+      <nav class="drawer-nav">
+        {#each DRAWER_ITEMS as item, i}
+          <button
+            class="drawer-item pulse-tap"
+            style="animation-delay:{drawerVisible ? i*40 : 0}ms"
+            class:drawer-item-in={drawerVisible}
+            on:click={() => { item.action(); closeDrawer(); }}
+          >
+            <div class="drawer-item-icon">
+              <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:rgba(255,255,255,0.75)"></span>
+            </div>
+            <span class="drawer-item-label">{item.label}</span>
+          </button>
+        {/each}
+      </nav>
+
+      <div style="flex:1"></div>
+      <div class="drawer-sep"></div>
+      <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
+        <div class="drawer-item-icon">
+          <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:rgba(255,80,80,0.85)"></span>
+        </div>
+        <span class="drawer-item-label" style="color:rgba(255,100,100,0.90)">Terminar sessão</span>
+      </button>
+    </div>
+  {/if}
+
 </div>
 
 <style>
@@ -428,7 +518,7 @@
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
   }
 
-  /* ── Backgrounds ── */
+  /* ── Backgrounds — sem scrims escuros ── */
   .bg-layer {
     position:absolute; inset:0; z-index:0;
     background-size:cover; background-position:center;
@@ -440,107 +530,44 @@
     position:absolute; inset:0; z-index:0;
     background:linear-gradient(160deg,#0d0d1a 0%,#1a0530 50%,#0a1628 100%);
   }
-  .scrim-top {
-    position:absolute; top:0; left:0; right:0; height:45%; z-index:1;
-    background:linear-gradient(to bottom,rgba(0,0,0,0.52) 0%,transparent 100%);
-    pointer-events:none;
-  }
-  .scrim-bottom {
-    position:absolute; bottom:0; left:0; right:0; height:68%; z-index:1;
-    background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.42) 50%,transparent 100%);
-    pointer-events:none;
-  }
 
   /* ── Header ── */
   .header {
     position:relative; z-index:10;
     display:flex; align-items:center; justify-content:space-between;
-    padding:calc(env(safe-area-inset-top,0px) + 16px) 20px 10px;
+    padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px;
     flex-shrink:0; opacity:0; transform:translateY(-12px);
     transition:opacity .55s ease,transform .55s ease;
   }
   .header.in { opacity:1; transform:translateY(0); }
-  .logo-img { width:48px; height:48px; object-fit:contain; }
-  .avatar-btn {
-    width:36px; height:36px; border-radius:50%; border:none;
-    font-size:15px; font-weight:700; color:#fff; cursor:pointer;
-    transition:transform .25s ease,opacity .25s ease;
-  }
-  .avatar-btn:active { transform:scale(0.88); opacity:0.75; }
+  .logo-img { width:44px; height:44px; object-fit:contain; }
 
-  /* ── Content ── */
-  .content {
-    position:relative; z-index:10;
-    flex:1; display:flex; flex-direction:column;
-    justify-content:flex-end; overflow:hidden;
-    gap:12px; padding-bottom:4px;
-  }
-
-  /* ── Apps ── */
-  .apps-wrap {
-    position:relative;
-    opacity:0; transform:translateY(14px);
-    transition:opacity .6s .25s ease,transform .6s .25s ease;
-    padding-bottom:14px; flex-shrink:0;
-  }
-  .apps-wrap.in { opacity:1; transform:translateY(0); }
-
-  .apps-fade-l, .apps-fade-r {
-    position:absolute; top:0; bottom:14px; width:28px;
-    z-index:2; pointer-events:none;
-  }
-  .apps-fade-l { left:0; background:linear-gradient(to right,rgba(0,0,0,0.14) 0%,transparent 100%); }
-  .apps-fade-r { right:0; background:linear-gradient(to left, rgba(0,0,0,0.14) 0%,transparent 100%); }
-
-  .apps-scroll {
-    display:flex; gap:2px; padding:0 12px;
-    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
-  }
-  .apps-scroll::-webkit-scrollbar { display:none; }
-
-  .app-item {
-    display:flex; flex-direction:column; align-items:center; gap:5px;
-    background:none; border:none; cursor:pointer;
-    padding:0 7px; flex-shrink:0;
-    opacity:0; transform:translateY(10px) scale(0.90);
-    transition:opacity .48s ease,transform .48s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .app-item.app-in { opacity:1; transform:translateY(0) scale(1); }
-  .app-item:active .app-circle { transform:scale(0.82); }
-
-  .app-circle {
-    width:46px; height:46px; border-radius:50%;
-    background:rgba(255,255,255,0.13);
-    border:0.5px solid rgba(255,255,255,0.16);
+  .header-right { display:flex; align-items:center; gap:8px; }
+  .hdr-btn {
+    width:40px; height:40px; border-radius:50%; border:none;
+    background:rgba(0,0,0,0.28);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
     display:flex; align-items:center; justify-content:center;
-    transition:transform .32s cubic-bezier(0.34,1.56,0.64,1);
-    overflow:hidden;
+    cursor:pointer;
+    transition:background .22s ease,transform .22s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .app-img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-  .app-mask {
-    display:block; width:20px; height:20px;
-    background:rgba(255,255,255,0.88);
-    mask-size:contain; -webkit-mask-size:contain;
-    mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat;
-    mask-position:center; -webkit-mask-position:center;
-  }
-  .app-name {
-    font-size:10px; font-weight:400; color:rgba(255,255,255,0.70);
-    white-space:nowrap; text-shadow:0 1px 6px rgba(0,0,0,0.55);
-  }
+  .hdr-btn:active { background:rgba(0,0,0,0.45); transform:scale(0.88); }
+
+  /* ── Content spacer ── */
+  .content { flex:1; position:relative; z-index:10; }
 
   /* ── Bottom ── */
   .bottom {
     position:relative; z-index:10;
     padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px);
     flex-shrink:0; opacity:0; transform:translateY(18px);
-    transition:opacity .6s .4s ease,transform .6s .4s ease;
+    transition:opacity .6s .3s ease,transform .6s .3s ease;
   }
   .bottom.in { opacity:1; transform:translateY(0); }
 
   .bottom-bar {
     border-radius:22px;
-    background:rgba(18,18,18,0.48);
+    background:rgba(18,18,18,0.52);
     backdrop-filter:blur(30px) saturate(1.7);
     -webkit-backdrop-filter:blur(30px) saturate(1.7);
     border:0.5px solid rgba(255,255,255,0.14);
@@ -558,7 +585,7 @@
 
   .bb-row {
     display:flex; align-items:center;
-    height:52px; padding:0 6px; gap:0;
+    height:52px; padding:0 6px;
   }
   .flex1 { flex:1; }
 
@@ -579,11 +606,9 @@
     transition:background .22s ease,transform .22s cubic-bezier(0.34,1.56,0.64,1);
   }
   .model-pill:active { background:rgba(255,255,255,0.22); transform:scale(0.94); }
-  .model-pill-label {
-    font-size:13px; font-weight:600; color:rgba(255,255,255,0.85);
-  }
+  .model-pill-label { font-size:13px; font-weight:600; color:rgba(255,255,255,0.85); }
 
-  /* ── Recording card ── */
+  /* ── Recording ── */
   .rec-card {
     position:relative; overflow:hidden; border-radius:999px;
     background:rgba(18,18,18,0.55);
@@ -613,12 +638,12 @@
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
   .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:rgba(255,255,255,0.90); letter-spacing:.06em; }
 
-  /* ── Popup ── */
+  /* ── Popup add/extras/models ── */
   .popup-overlay { position:fixed; inset:0; z-index:50; }
   .popup-box {
     position:fixed; z-index:51;
     border-radius:18px;
-    background:rgba(26,26,28,0.78);
+    background:rgba(26,26,28,0.82);
     backdrop-filter:blur(32px) saturate(1.9);
     -webkit-backdrop-filter:blur(32px) saturate(1.9);
     border:0.5px solid rgba(255,255,255,0.12);
@@ -629,10 +654,8 @@
     pointer-events:none;
   }
   .popup-box.popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
-
   .popup-content { transition:opacity .13s ease,transform .13s ease; }
   .popup-content.fading { opacity:0; transform:translateY(4px); pointer-events:none; }
-
   .popup-title { padding:12px 16px 8px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:rgba(255,255,255,0.36); }
   .popup-row {
     display:flex; align-items:center; gap:12px;
@@ -643,20 +666,157 @@
   }
   .popup-row:active { background:rgba(255,255,255,0.08); }
   .popup-back { padding:9px 14px; }
-
   .popup-icon-wrap {
     width:32px; height:32px; border-radius:8px;
     background:rgba(255,255,255,0.10);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
   .popup-icon-circle { border-radius:50%; }
-
   .popup-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.88); flex:1; }
   .popup-sep { height:0.5px; background:rgba(255,255,255,0.08); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.85); flex-shrink:0; }
-
   .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
   .model-sub  { font-size:11px; font-weight:400; color:rgba(255,255,255,0.32); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* ── Apps popup card ── */
+  .apps-overlay {
+    position:fixed; inset:0; z-index:60;
+    background:rgba(0,0,0,0.30);
+    backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+  }
+  .apps-popup {
+    position:fixed; z-index:61;
+    /* Fica centralizado horizontalmente e sobe acima do bottom bar */
+    left:16px; right:16px;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 18px + 80px + 16px);
+    border-radius:24px;
+    background:rgba(20,20,22,0.88);
+    backdrop-filter:blur(36px) saturate(2);
+    -webkit-backdrop-filter:blur(36px) saturate(2);
+    border:0.5px solid rgba(255,255,255,0.13);
+    box-shadow:0 20px 60px rgba(0,0,0,0.60),inset 0 0.5px 0 rgba(255,255,255,0.12);
+    overflow:hidden;
+    opacity:0; transform:scale(0.94) translateY(12px);
+    transform-origin:bottom center;
+    transition:opacity .25s cubic-bezier(0.2,0.9,0.3,1),transform .25s cubic-bezier(0.2,0.9,0.3,1);
+    pointer-events:none;
+  }
+  .apps-popup.apps-popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
+
+  .apps-popup-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px 12px;
+  }
+  .apps-popup-title {
+    font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(255,255,255,0.38);
+  }
+  .apps-close-btn {
+    width:28px; height:28px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.10);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:background .18s ease,transform .18s ease;
+  }
+  .apps-close-btn:active { background:rgba(255,255,255,0.20); transform:scale(0.88); }
+
+  .apps-grid {
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:4px;
+    padding:4px 12px 18px;
+  }
+
+  .ag-item {
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    background:none; border:none; cursor:pointer; padding:10px 4px;
+    border-radius:16px;
+    opacity:0; transform:translateY(8px) scale(0.88);
+    transition:opacity .32s ease, transform .32s cubic-bezier(0.34,1.56,0.64,1),
+               background .18s ease;
+  }
+  .ag-item.ag-in { opacity:1; transform:translateY(0) scale(1); }
+  .ag-item:active { background:rgba(255,255,255,0.08); }
+
+  .ag-circle {
+    width:52px; height:52px; border-radius:16px;
+    background:rgba(255,255,255,0.12);
+    border:0.5px solid rgba(255,255,255,0.15);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    transition:transform .22s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .ag-item:active .ag-circle { transform:scale(0.84); }
+  .ag-img { width:100%; height:100%; object-fit:cover; }
+  .ag-name {
+    font-size:10px; font-weight:500; color:rgba(255,255,255,0.72);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:64px; text-align:center;
+  }
+
+  /* ── Drawer ── */
+  .drawer-overlay {
+    position:fixed; inset:0; z-index:70;
+    background:rgba(0,0,0,0); transition:background .32s ease;
+  }
+  .drawer-overlay.drawer-overlay-in { background:rgba(0,0,0,0.45); }
+
+  .drawer {
+    position:fixed; top:0; right:0; bottom:0; z-index:71;
+    width:min(300px, 80vw);
+    background:rgba(18,18,20,0.96);
+    backdrop-filter:blur(40px) saturate(1.8);
+    -webkit-backdrop-filter:blur(40px) saturate(1.8);
+    border-left:0.5px solid rgba(255,255,255,0.10);
+    box-shadow:-20px 0 60px rgba(0,0,0,0.55);
+    display:flex; flex-direction:column;
+    padding-top:calc(env(safe-area-inset-top,0px) + 12px);
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 20px);
+    transform:translateX(100%);
+    transition:transform .32s cubic-bezier(0.2,0.9,0.3,1);
+  }
+  .drawer.drawer-in { transform:translateX(0); }
+
+  .drawer-header {
+    display:flex; align-items:center; gap:14px;
+    padding:20px 22px 18px;
+  }
+  .drawer-avatar {
+    width:48px; height:48px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:700; color:#fff;
+  }
+  .drawer-user-info { display:flex; flex-direction:column; min-width:0; }
+  .drawer-user-name {
+    font-size:16px; font-weight:700; color:rgba(255,255,255,0.92);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .drawer-user-email {
+    font-size:12px; color:rgba(255,255,255,0.36); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .drawer-sep { height:0.5px; background:rgba(255,255,255,0.08); margin:0 18px 6px; }
+
+  .drawer-nav { display:flex; flex-direction:column; padding:6px 10px; }
+
+  .drawer-item {
+    display:flex; align-items:center; gap:14px;
+    padding:13px 12px; border-radius:14px; border:none;
+    background:transparent; cursor:pointer; font-family:inherit; text-align:left;
+    opacity:0; transform:translateX(18px);
+    transition:opacity .30s ease, transform .30s cubic-bezier(0.2,0.9,0.3,1),
+               background .15s ease;
+  }
+  .drawer-item.drawer-item-in { opacity:1; transform:translateX(0); }
+  .drawer-item:active { background:rgba(255,255,255,0.07); }
+
+  .drawer-item-icon {
+    width:36px; height:36px; border-radius:10px;
+    background:rgba(255,255,255,0.08);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .drawer-item-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.82); }
+  .drawer-logout { margin:0 10px 0; }
 
   /* ── Utilities ── */
   .pulse-tap { cursor:pointer; transition:transform .22s cubic-bezier(0.34,1.56,0.64,1),opacity .22s ease; }

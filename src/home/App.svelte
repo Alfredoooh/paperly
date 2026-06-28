@@ -42,18 +42,23 @@
   }
 
   const DRAWER_ITEMS = [
-    { icon: 'home',     label: 'Início',       action: () => {} },
-    { icon: 'settings', label: 'Definições',   action: () => {} },
-    { icon: 'profile',  label: 'Perfil',       action: () => {} },
-    { icon: 'help',     label: 'Ajuda',        action: () => {} },
+    { icon: 'home',     label: 'Início',     action: () => {} },
+    { icon: 'settings', label: 'Definições', action: () => {} },
+    { icon: 'profile',  label: 'Perfil',     action: () => {} },
+    { icon: 'help',     label: 'Ajuda',      action: () => {} },
   ];
 
   // ── Apps popup ────────────────────────────────────────────────────────────
   let showApps    = false;
   let appsVisible = false;
   let appsAnchorEl;
+  let appsPos     = { top: 0, right: 0 };
 
   function openApps() {
+    if (appsAnchorEl) {
+      const rect = appsAnchorEl.getBoundingClientRect();
+      appsPos = { top: rect.bottom + 8, right: window.innerWidth - rect.right };
+    }
     showApps = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { appsVisible = true; }));
   }
@@ -61,11 +66,28 @@
     appsVisible = false;
     setTimeout(() => { showApps = false; }, 220);
   }
+  function toggleApps() {
+    if (showApps) closeApps(); else openApps();
+  }
 
   function openApp(app) {
     closeApps();
     if (app.id === 'ai') { try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {} }
     window.location.href = app.path;
+  }
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  const THEMES = [
+    { id: 'dark',  label: 'Escuro' },
+    { id: 'light', label: 'Claro'  },
+    { id: 'auto',  label: 'Auto'   },
+  ];
+  let appTheme = 'dark';
+
+  function setTheme(t) {
+    appTheme = t;
+    try { localStorage.setItem('nexa_theme', t); } catch(e) {}
+    document.documentElement.setAttribute('data-theme', t);
   }
 
   // ── Popup (add / extras / models) ─────────────────────────────────────────
@@ -260,6 +282,10 @@
   let bgTimer;
   onMount(() => {
     user = requireAuth(); if (!user) return;
+    try {
+      const saved = localStorage.getItem('nexa_theme');
+      if (saved) { appTheme = saved; document.documentElement.setAttribute('data-theme', saved); }
+    } catch(e) {}
     if (bgImages.length) {
       layers[0] = { img: bgImages[0], visible: true };
       layers[1] = { img: bgImages[Math.min(1, bgImages.length-1)], visible: false };
@@ -279,11 +305,17 @@
   {#if !bgImages.length}<div class="bg-fallback"></div>{/if}
 
   <!-- ── Header ── -->
-  <header class="header" class:in={mounted}>
+  <!-- .header-lifted eleva o z-index acima do overlay de apps para o botão não ficar blur -->
+  <header class="header" class:in={mounted} class:header-lifted={showApps}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
     <div class="header-right">
-      <button class="hdr-btn pulse-tap" bind:this={appsAnchorEl} on:click={openApps}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:22px;height:22px;background:#fff"></span>
+      <!-- Botão apps: alterna entre ícone apps e X consoante estado do popup -->
+      <button class="hdr-btn pulse-tap" bind:this={appsAnchorEl} on:click={toggleApps}>
+        {#if showApps}
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:17px;height:17px;background:#fff"></span>
+        {:else}
+          <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:22px;height:22px;background:#fff"></span>
+        {/if}
       </button>
       <button class="hdr-btn pulse-tap" on:click={openDrawer}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:22px;height:22px;background:#fff"></span>
@@ -291,7 +323,7 @@
     </div>
   </header>
 
-  <!-- ── Content (vazio — apenas espaçador) ── -->
+  <!-- ── Content spacer ── -->
   <main class="content"></main>
 
   <!-- ── Bottom bar ── -->
@@ -349,7 +381,7 @@
     {/if}
   </div>
 
-  <!-- ── Popup add/extras/models ── -->
+  <!-- ── Popup add / extras / models ── -->
   {#if showPopup}
     <div class="popup-overlay" on:click={closePopup}></div>
     <div
@@ -362,7 +394,7 @@
         {#if popupMode === 'add'}
           <label class="popup-row pulse-tap" style="cursor:pointer">
             <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
             </div>
             <span class="popup-label">Enviar Imagem</span>
             <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
@@ -370,7 +402,7 @@
           <div class="popup-sep"></div>
           <label class="popup-row pulse-tap" style="cursor:pointer">
             <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
             </div>
             <span class="popup-label">Enviar Ficheiro</span>
             <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
@@ -378,16 +410,16 @@
           <div class="popup-sep"></div>
           <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
             <div class="popup-icon-wrap">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
             </div>
             <span class="popup-label" style="flex:1">Extras</span>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:rgba(255,255,255,0.35)"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:rgba(255,255,255,0.30)"></span>
           </button>
 
         {:else if popupMode === 'extras'}
           <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:rgba(255,255,255,0.42)"></span>
-            <span class="popup-label" style="color:rgba(255,255,255,0.42);font-size:13px">Extras</span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:rgba(255,255,255,0.38)"></span>
+            <span class="popup-label" style="color:rgba(255,255,255,0.38);font-size:13px">Extras</span>
           </button>
           <div class="popup-sep"></div>
           {#each [
@@ -397,8 +429,8 @@
           ] as [active, title, ico, icoOn, action], i}
             {#if i > 0}<div class="popup-sep"></div>{/if}
             <button class="popup-row pulse-tap" style={active ? 'background:rgba(255,255,255,0.07)' : ''} on:click={action}>
-              <div class="popup-icon-wrap popup-icon-circle">
-                <span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:18px;height:18px;background:rgba(255,255,255,0.85)"></span>
+              <div class="popup-icon-wrap">
+                <span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:rgba(255,255,255,0.85)"></span>
               </div>
               <span class="popup-label" style="flex:1">{title}</span>
               {#if active}<div class="popup-active-dot"></div>{/if}
@@ -429,67 +461,81 @@
     </div>
   {/if}
 
-  <!-- ── Apps popup card ── -->
+  <!-- ── Apps popup (ancorado ao ícone, sem botão close interno) ── -->
   {#if showApps}
     <div class="apps-overlay" on:click={closeApps}></div>
-    <div class="apps-popup" class:apps-popup-in={appsVisible}>
-      <div class="apps-popup-header">
-        <span class="apps-popup-title">Apps</span>
-        <button class="apps-close-btn pulse-tap" on:click={closeApps}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:rgba(255,255,255,0.55)"></span>
-        </button>
-      </div>
+    <div
+      class="apps-popup"
+      class:apps-popup-in={appsVisible}
+      style="top:{appsPos.top}px;right:{appsPos.right}px;"
+    >
+      <!-- Sem close button aqui — está no ícone de apps no header -->
+      <div class="apps-popup-label">Apps</div>
+
       <div class="apps-grid">
         {#each platformApps as app, i}
           <button
             class="ag-item pulse-tap"
-            style="animation-delay:{i*28}ms"
+            style="animation-delay:{i*25}ms"
             class:ag-in={appsVisible}
             on:click={() => openApp(app)}
           >
-            <div class="ag-circle">
+            <!-- Sem container/círculo — ícone direto -->
+            <div class="ag-icon">
               {#if app.id === 'ai'}
                 <img src="/icons/png/ia.png" alt={app.label} class="ag-img" />
               {:else if app.icon && !app.icon.endsWith('.svg')}
                 <img src={app.icon} alt={app.label} class="ag-img" />
               {:else}
-                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:22px;height:22px;background:rgba(255,255,255,0.88)"></span>
+                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:36px;height:36px;background:rgba(255,255,255,0.88)"></span>
               {/if}
             </div>
             <span class="ag-name">{app.label}</span>
           </button>
         {/each}
       </div>
+
+      <!-- Secção Tema -->
+      <div class="apps-section-divider"></div>
+      <div class="apps-section-title">Tema</div>
+      <div class="theme-pills">
+        {#each THEMES as t}
+          <button
+            class="theme-pill pulse-tap"
+            class:theme-pill-on={appTheme === t.id}
+            on:click={() => setTheme(t.id)}
+          >{t.label}</button>
+        {/each}
+      </div>
+      <div style="height:10px"></div>
     </div>
   {/if}
 
-  <!-- ── Drawer ── -->
+  <!-- ── Drawer (light) ── -->
   {#if drawerOpen}
     <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
     <div class="drawer" class:drawer-in={drawerVisible}>
-      <!-- Drawer header -->
+      <!-- Header perfil -->
       <div class="drawer-header">
-        <div class="drawer-avatar" style="background:{avatarColor}">
-          {userInitial}
-        </div>
+        <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
         <div class="drawer-user-info">
           <span class="drawer-user-name">{userName}</span>
           <span class="drawer-user-email">{user?.email || ''}</span>
         </div>
       </div>
+
       <div class="drawer-sep"></div>
 
-      <!-- Drawer items -->
       <nav class="drawer-nav">
         {#each DRAWER_ITEMS as item, i}
           <button
             class="drawer-item pulse-tap"
-            style="animation-delay:{drawerVisible ? i*40 : 0}ms"
+            style="animation-delay:{drawerVisible ? i*38 : 0}ms"
             class:drawer-item-in={drawerVisible}
             on:click={() => { item.action(); closeDrawer(); }}
           >
-            <div class="drawer-item-icon">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:rgba(255,255,255,0.75)"></span>
+            <div class="drawer-icon-wrap">
+              <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:19px;height:19px;background:rgba(50,50,60,0.60)"></span>
             </div>
             <span class="drawer-item-label">{item.label}</span>
           </button>
@@ -498,11 +544,12 @@
 
       <div style="flex:1"></div>
       <div class="drawer-sep"></div>
+
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-        <div class="drawer-item-icon">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:rgba(255,80,80,0.85)"></span>
+        <div class="drawer-icon-wrap drawer-icon-red">
+          <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:rgba(210,45,45,0.80)"></span>
         </div>
-        <span class="drawer-item-label" style="color:rgba(255,100,100,0.90)">Terminar sessão</span>
+        <span class="drawer-item-label" style="color:rgba(200,40,40,0.88)">Terminar sessão</span>
       </button>
     </div>
   {/if}
@@ -518,7 +565,7 @@
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
   }
 
-  /* ── Backgrounds — sem scrims escuros ── */
+  /* ── Backgrounds ── */
   .bg-layer {
     position:absolute; inset:0; z-index:0;
     background-size:cover; background-position:center;
@@ -537,19 +584,21 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px;
     flex-shrink:0; opacity:0; transform:translateY(-12px);
-    transition:opacity .55s ease,transform .55s ease;
+    transition:opacity .55s ease, transform .55s ease;
   }
   .header.in { opacity:1; transform:translateY(0); }
-  .logo-img { width:44px; height:44px; object-fit:contain; }
+  /* Sobe acima do overlay de apps (z:60) para o botão não ficar blur nem inacessível */
+  .header.header-lifted { z-index:62; }
 
+  .logo-img { width:44px; height:44px; object-fit:contain; }
   .header-right { display:flex; align-items:center; gap:8px; }
+
   .hdr-btn {
     width:40px; height:40px; border-radius:50%; border:none;
     background:rgba(0,0,0,0.28);
     backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-    display:flex; align-items:center; justify-content:center;
-    cursor:pointer;
-    transition:background .22s ease,transform .22s cubic-bezier(0.34,1.56,0.64,1);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
   .hdr-btn:active { background:rgba(0,0,0,0.45); transform:scale(0.88); }
 
@@ -561,7 +610,7 @@
     position:relative; z-index:10;
     padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px);
     flex-shrink:0; opacity:0; transform:translateY(18px);
-    transition:opacity .6s .3s ease,transform .6s .3s ease;
+    transition:opacity .6s .3s ease, transform .6s .3s ease;
   }
   .bottom.in { opacity:1; transform:translateY(0); }
 
@@ -571,7 +620,7 @@
     backdrop-filter:blur(30px) saturate(1.7);
     -webkit-backdrop-filter:blur(30px) saturate(1.7);
     border:0.5px solid rgba(255,255,255,0.14);
-    box-shadow:0 8px 32px rgba(0,0,0,0.38),inset 0 0.5px 0 rgba(255,255,255,0.12);
+    box-shadow:0 8px 32px rgba(0,0,0,0.38), inset 0 0.5px 0 rgba(255,255,255,0.12);
     display:flex; flex-direction:column;
   }
   .chat-input {
@@ -583,18 +632,15 @@
   }
   .chat-input::placeholder { color:rgba(255,255,255,0.36); }
 
-  .bb-row {
-    display:flex; align-items:center;
-    height:52px; padding:0 6px;
-  }
-  .flex1 { flex:1; }
+  .bb-row { display:flex; align-items:center; height:52px; padding:0 6px; }
+  .flex1  { flex:1; }
 
   .bb-btn {
     width:40px; height:40px;
     display:flex; align-items:center; justify-content:center;
     border-radius:50%; border:0.5px solid rgba(255,255,255,0.12);
     cursor:pointer; background:rgba(255,255,255,0.14); flex-shrink:0;
-    transition:background .22s ease,transform .22s cubic-bezier(0.34,1.56,0.64,1);
+    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-btn:active { background:rgba(255,255,255,0.22); transform:scale(0.88); }
 
@@ -603,7 +649,7 @@
     display:flex; align-items:center; gap:5px;
     border-radius:20px; border:0.5px solid rgba(255,255,255,0.15);
     cursor:pointer; background:rgba(255,255,255,0.14); flex-shrink:0;
-    transition:background .22s ease,transform .22s cubic-bezier(0.34,1.56,0.64,1);
+    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
   .model-pill:active { background:rgba(255,255,255,0.22); transform:scale(0.94); }
   .model-pill-label { font-size:13px; font-weight:600; color:rgba(255,255,255,0.85); }
@@ -615,7 +661,7 @@
     backdrop-filter:blur(28px) saturate(1.6);
     -webkit-backdrop-filter:blur(28px) saturate(1.6);
     border:0.5px solid rgba(255,255,255,0.13);
-    box-shadow:0 8px 32px rgba(0,0,0,0.35),inset 0 0.5px 0 rgba(255,255,255,0.10);
+    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.10);
     height:64px;
     animation:recIn .28s cubic-bezier(0.2,0.9,0.3,1) both;
   }
@@ -629,34 +675,42 @@
     width:44px; height:44px; display:flex; align-items:center; justify-content:center;
     border-radius:50%; border:0.5px solid rgba(255,255,255,0.10); cursor:pointer;
     background:rgba(255,255,255,0.10); flex-shrink:0;
-    transition:background .18s ease,transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
   .rec-btn:active { background:rgba(255,255,255,0.20); transform:scale(0.88); }
   .rec-send { background:rgba(255,255,255,0.16); }
   .rec-center { display:flex; align-items:center; gap:8px; flex:1; justify-content:center; pointer-events:none; }
-  .rec-dot { width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; }
+  .rec-dot {
+    width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0;
+    animation:recPulse 1.1s ease-in-out infinite;
+  }
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
   .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:rgba(255,255,255,0.90); letter-spacing:.06em; }
 
-  /* ── Popup add/extras/models ── */
+  /* ── Popup add / extras / models ── */
   .popup-overlay { position:fixed; inset:0; z-index:50; }
   .popup-box {
     position:fixed; z-index:51;
     border-radius:18px;
-    background:rgba(26,26,28,0.82);
+    background:rgba(24,24,26,0.84);
     backdrop-filter:blur(32px) saturate(1.9);
     -webkit-backdrop-filter:blur(32px) saturate(1.9);
     border:0.5px solid rgba(255,255,255,0.12);
-    box-shadow:0 14px 44px rgba(0,0,0,0.50),inset 0 0.5px 0 rgba(255,255,255,0.10);
+    box-shadow:0 14px 44px rgba(0,0,0,0.50), inset 0 0.5px 0 rgba(255,255,255,0.10);
     overflow:hidden; transform-origin:bottom left;
     opacity:0; transform:scale(0.86) translateY(8px);
-    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1),transform .22s cubic-bezier(0.2,0.9,0.3,1);
+    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
     pointer-events:none;
   }
   .popup-box.popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
-  .popup-content { transition:opacity .13s ease,transform .13s ease; }
+  .popup-content { transition:opacity .13s ease, transform .13s ease; }
   .popup-content.fading { opacity:0; transform:translateY(4px); pointer-events:none; }
-  .popup-title { padding:12px 16px 8px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:rgba(255,255,255,0.36); }
+
+  .popup-title {
+    padding:12px 16px 8px;
+    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+    color:rgba(255,255,255,0.34);
+  }
   .popup-row {
     display:flex; align-items:center; gap:12px;
     width:100%; padding:12px 14px;
@@ -666,164 +720,190 @@
   }
   .popup-row:active { background:rgba(255,255,255,0.08); }
   .popup-back { padding:9px 14px; }
+
+  /* Containers circulares no popup (não mais quadrados) */
   .popup-icon-wrap {
-    width:32px; height:32px; border-radius:8px;
+    width:32px; height:32px; border-radius:50%;
     background:rgba(255,255,255,0.10);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  .popup-icon-circle { border-radius:50%; }
   .popup-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.88); flex:1; }
-  .popup-sep { height:0.5px; background:rgba(255,255,255,0.08); margin:0 14px; }
+  .popup-sep   { height:0.5px; background:rgba(255,255,255,0.08); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.85); flex-shrink:0; }
-  .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
-  .model-sub  { font-size:11px; font-weight:400; color:rgba(255,255,255,0.32); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* ── Apps popup card ── */
+  .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
+  .model-sub  { font-size:11px; color:rgba(255,255,255,0.30); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* ── Apps popup — ancorado ao ícone, sem botão close interno ── */
+  /* overlay sem backdrop-filter: o header (z:62) já fica acima (não blur) */
   .apps-overlay {
     position:fixed; inset:0; z-index:60;
-    background:rgba(0,0,0,0.30);
-    backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+    background:rgba(0,0,0,0.22);
   }
   .apps-popup {
-    position:fixed; z-index:61;
-    /* Fica centralizado horizontalmente e sobe acima do bottom bar */
-    left:16px; right:16px;
-    bottom:calc(env(safe-area-inset-bottom,0px) + 18px + 80px + 16px);
-    border-radius:24px;
-    background:rgba(20,20,22,0.88);
-    backdrop-filter:blur(36px) saturate(2);
-    -webkit-backdrop-filter:blur(36px) saturate(2);
-    border:0.5px solid rgba(255,255,255,0.13);
-    box-shadow:0 20px 60px rgba(0,0,0,0.60),inset 0 0.5px 0 rgba(255,255,255,0.12);
+    position:fixed; z-index:63;
+    width:256px;
+    border-radius:20px;
+    background:rgba(18,18,20,0.90);
+    backdrop-filter:blur(44px) saturate(2);
+    -webkit-backdrop-filter:blur(44px) saturate(2);
+    border:0.5px solid rgba(255,255,255,0.12);
+    box-shadow:0 18px 50px rgba(0,0,0,0.55), inset 0 0.5px 0 rgba(255,255,255,0.11);
     overflow:hidden;
-    opacity:0; transform:scale(0.94) translateY(12px);
-    transform-origin:bottom center;
-    transition:opacity .25s cubic-bezier(0.2,0.9,0.3,1),transform .25s cubic-bezier(0.2,0.9,0.3,1);
+    /* bloom a partir do canto superior direito (onde fica o ícone) */
+    transform-origin:top right;
+    opacity:0; transform:scale(0.88) translateY(-6px);
+    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
     pointer-events:none;
   }
   .apps-popup.apps-popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
 
-  .apps-popup-header {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:16px 18px 12px;
+  .apps-popup-label {
+    padding:13px 15px 6px;
+    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+    color:rgba(255,255,255,0.30);
   }
-  .apps-popup-title {
-    font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-    color:rgba(255,255,255,0.38);
-  }
-  .apps-close-btn {
-    width:28px; height:28px; border-radius:50%; border:none;
-    background:rgba(255,255,255,0.10);
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    transition:background .18s ease,transform .18s ease;
-  }
-  .apps-close-btn:active { background:rgba(255,255,255,0.20); transform:scale(0.88); }
 
+  /* Grid de apps — SEM container nos ícones */
   .apps-grid {
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    gap:4px;
-    padding:4px 12px 18px;
+    padding:4px 6px 6px;
+    gap:0;
   }
 
   .ag-item {
-    display:flex; flex-direction:column; align-items:center; gap:6px;
-    background:none; border:none; cursor:pointer; padding:10px 4px;
-    border-radius:16px;
-    opacity:0; transform:translateY(8px) scale(0.88);
-    transition:opacity .32s ease, transform .32s cubic-bezier(0.34,1.56,0.64,1),
-               background .18s ease;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    background:none; border:none; cursor:pointer; padding:8px 2px;
+    border-radius:14px;
+    opacity:0; transform:scale(0.82) translateY(6px);
+    transition:opacity .28s ease, transform .28s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
   }
-  .ag-item.ag-in { opacity:1; transform:translateY(0) scale(1); }
-  .ag-item:active { background:rgba(255,255,255,0.08); }
+  .ag-item.ag-in { opacity:1; transform:scale(1) translateY(0); }
+  .ag-item:active { background:rgba(255,255,255,0.09); }
 
-  .ag-circle {
-    width:52px; height:52px; border-radius:16px;
-    background:rgba(255,255,255,0.12);
-    border:0.5px solid rgba(255,255,255,0.15);
+  /* Apenas o ícone, sem qualquer fundo ou borda */
+  .ag-icon {
+    width:46px; height:46px;
     display:flex; align-items:center; justify-content:center;
-    overflow:hidden;
-    transition:transform .22s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .ag-item:active .ag-circle { transform:scale(0.84); }
-  .ag-img { width:100%; height:100%; object-fit:cover; }
+  .ag-img {
+    width:100%; height:100%; object-fit:contain;
+    border-radius:12px;
+    transition:transform .20s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .ag-item:active .ag-img { transform:scale(0.84); }
+
   .ag-name {
-    font-size:10px; font-weight:500; color:rgba(255,255,255,0.72);
+    font-size:10px; font-weight:500; color:rgba(255,255,255,0.68);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:64px; text-align:center;
+    max-width:58px; text-align:center; line-height:1.2;
   }
 
-  /* ── Drawer ── */
+  /* Secção Tema dentro do popup de apps */
+  .apps-section-divider { height:0.5px; background:rgba(255,255,255,0.08); margin:4px 14px 0; }
+  .apps-section-title {
+    padding:9px 15px 6px;
+    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+    color:rgba(255,255,255,0.30);
+  }
+  .theme-pills { display:flex; gap:5px; padding:0 10px; }
+  .theme-pill {
+    flex:1; height:30px; border-radius:9px;
+    border:0.5px solid rgba(255,255,255,0.10);
+    background:rgba(255,255,255,0.07);
+    color:rgba(255,255,255,0.45);
+    font-size:12px; font-weight:500; cursor:pointer; font-family:inherit;
+    transition:background .17s ease, color .17s ease, border-color .17s ease, transform .17s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .theme-pill:active { transform:scale(0.92); }
+  .theme-pill.theme-pill-on {
+    background:rgba(255,255,255,0.17);
+    color:rgba(255,255,255,0.92);
+    border-color:rgba(255,255,255,0.20);
+  }
+
+  /* ── Drawer — super leve (inspirado no Bing) ── */
   .drawer-overlay {
     position:fixed; inset:0; z-index:70;
-    background:rgba(0,0,0,0); transition:background .32s ease;
+    background:transparent; transition:background .32s ease;
   }
-  .drawer-overlay.drawer-overlay-in { background:rgba(0,0,0,0.45); }
+  .drawer-overlay.drawer-overlay-in { background:rgba(0,0,0,0.20); }
 
   .drawer {
     position:fixed; top:0; right:0; bottom:0; z-index:71;
-    width:min(300px, 80vw);
-    background:rgba(18,18,20,0.96);
-    backdrop-filter:blur(40px) saturate(1.8);
-    -webkit-backdrop-filter:blur(40px) saturate(1.8);
-    border-left:0.5px solid rgba(255,255,255,0.10);
-    box-shadow:-20px 0 60px rgba(0,0,0,0.55);
+    width:min(288px, 82vw);
+    background:#ffffff;
+    border-left:0.5px solid rgba(0,0,0,0.07);
+    box-shadow:-12px 0 48px rgba(0,0,0,0.13);
+    /* Sem backdrop-filter — fundo totalmente opaco e leve */
     display:flex; flex-direction:column;
-    padding-top:calc(env(safe-area-inset-top,0px) + 12px);
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 20px);
+    padding-top:calc(env(safe-area-inset-top,0px) + 10px);
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     transform:translateX(100%);
     transition:transform .32s cubic-bezier(0.2,0.9,0.3,1);
   }
   .drawer.drawer-in { transform:translateX(0); }
 
+  /* Perfil */
   .drawer-header {
-    display:flex; align-items:center; gap:14px;
-    padding:20px 22px 18px;
+    display:flex; align-items:center; gap:13px;
+    padding:20px 20px 18px;
   }
   .drawer-avatar {
     width:48px; height:48px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
-    font-size:20px; font-weight:700; color:#fff;
+    font-size:19px; font-weight:700; color:#fff;
   }
   .drawer-user-info { display:flex; flex-direction:column; min-width:0; }
   .drawer-user-name {
-    font-size:16px; font-weight:700; color:rgba(255,255,255,0.92);
+    font-size:15px; font-weight:700; color:#111111;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .drawer-user-email {
-    font-size:12px; color:rgba(255,255,255,0.36); margin-top:2px;
+    font-size:12px; color:#8a8a8e; margin-top:2px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
 
-  .drawer-sep { height:0.5px; background:rgba(255,255,255,0.08); margin:0 18px 6px; }
+  /* Separador full-width, sem margem lateral */
+  .drawer-sep { height:0.5px; background:#e8e8e8; }
 
-  .drawer-nav { display:flex; flex-direction:column; padding:6px 10px; }
+  /* Itens de navegação */
+  .drawer-nav { display:flex; flex-direction:column; padding:8px 10px; }
 
   .drawer-item {
-    display:flex; align-items:center; gap:14px;
-    padding:13px 12px; border-radius:14px; border:none;
+    display:flex; align-items:center; gap:13px;
+    padding:11px 10px; border-radius:12px; border:none;
     background:transparent; cursor:pointer; font-family:inherit; text-align:left;
-    opacity:0; transform:translateX(18px);
-    transition:opacity .30s ease, transform .30s cubic-bezier(0.2,0.9,0.3,1),
-               background .15s ease;
+    opacity:0; transform:translateX(16px);
+    transition:opacity .28s ease, transform .28s cubic-bezier(0.2,0.9,0.3,1), background .14s ease;
   }
   .drawer-item.drawer-item-in { opacity:1; transform:translateX(0); }
-  .drawer-item:active { background:rgba(255,255,255,0.07); }
+  .drawer-item:active { background:rgba(0,0,0,0.05); }
 
-  .drawer-item-icon {
-    width:36px; height:36px; border-radius:10px;
-    background:rgba(255,255,255,0.08);
+  .drawer-icon-wrap {
+    width:34px; height:34px; border-radius:10px;
+    background:rgba(0,0,0,0.05);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  .drawer-item-label { font-size:15px; font-weight:500; color:rgba(255,255,255,0.82); }
-  .drawer-logout { margin:0 10px 0; }
+  .drawer-icon-red { background:rgba(220,50,50,0.08); }
+
+  .drawer-item-label { font-size:15px; font-weight:500; color:#111111; }
+
+  .drawer-logout { margin:0 10px; }
 
   /* ── Utilities ── */
-  .pulse-tap { cursor:pointer; transition:transform .22s cubic-bezier(0.34,1.56,0.64,1),opacity .22s ease; }
-  .pulse-tap:active { transform:scale(0.92); opacity:.80; }
+  .pulse-tap {
+    cursor:pointer;
+    transition:transform .20s cubic-bezier(0.34,1.56,0.64,1), opacity .20s ease;
+  }
+  .pulse-tap:active { transform:scale(0.92); opacity:.78; }
+
   .icon-mask {
-    display:block; mask-size:contain; -webkit-mask-size:contain;
+    display:block;
+    mask-size:contain; -webkit-mask-size:contain;
     mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat;
-    mask-position:center; -webkit-mask-position:center; flex-shrink:0;
+    mask-position:center; -webkit-mask-position:center;
+    flex-shrink:0;
   }
 </style>

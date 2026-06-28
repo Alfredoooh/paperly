@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
+  import { getTheme, syncTheme } from '$shared/theme.js';
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   let user = null;
@@ -28,9 +29,30 @@
   let currentModelId = MODELS[0].id;
   $: currentModel    = MODELS.find(m => m.id === currentModelId) ?? MODELS[0];
 
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  let themeValue = 'dark';
+  let isDark     = true;
+
+  function resolveIsDark(v) {
+    return v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function applyThemeValue(v, persist = true) {
+    themeValue = v;
+    isDark = resolveIsDark(v);
+    if (persist) localStorage.setItem('nexa_theme', v);
+    syncTheme(isDark);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }
+
+  let mediaQuery;
+  function handleSystemChange() {
+    if (themeValue === 'system') applyThemeValue('system', false);
+  }
+
   // ── Drawer ────────────────────────────────────────────────────────────────
   let drawerOpen    = false;
   let drawerVisible = false;
+  let themeExpanded = false;
 
   function openDrawer() {
     drawerOpen = true;
@@ -38,13 +60,19 @@
   }
   function closeDrawer() {
     drawerVisible = false;
-    setTimeout(() => { drawerOpen = false; }, 320);
+    themeExpanded = false;
+    setTimeout(() => { drawerOpen = false; }, 300);
   }
+  function toggleThemeExpanded() { themeExpanded = !themeExpanded; }
+
+  const THEME_OPTIONS = [
+    { id: 'dark',   label: 'Escuro' },
+    { id: 'light',  label: 'Claro'  },
+    { id: 'system', label: 'Predefinição do sistema' },
+  ];
 
   const DRAWER_ITEMS = [
-    { icon: 'home',     label: 'Início',     action: () => {} },
     { icon: 'settings', label: 'Definições', action: () => {} },
-    { icon: 'profile',  label: 'Perfil',     action: () => {} },
     { icon: 'help',     label: 'Ajuda',      action: () => {} },
   ];
 
@@ -74,14 +102,6 @@
     closeApps();
     if (app.id === 'ai') { try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {} }
     window.location.href = app.path;
-  }
-
-  // ── Theme ─────────────────────────────────────────────────────────────────
-  let appTheme = 'dark';
-
-  function applyTheme(t) {
-    appTheme = t;
-    document.documentElement.setAttribute('data-theme', t);
   }
 
   // ── Popup (add / extras / models) ─────────────────────────────────────────
@@ -116,12 +136,10 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // ── Background fixo (imagem única) ───────────────────────────────────────
+  // ── Background ────────────────────────────────────────────────────────────
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
-  // ── Lottie central (welcome.json) ────────────────────────────────────────
-  import welcomeLottie from '/static/icons/lottie/welcome.json';
-
+  // ── Lottie ────────────────────────────────────────────────────────────────
   let lottieEl;
   let lottieInstance;
 
@@ -131,18 +149,15 @@
       await new Promise((resolve, reject) => {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js';
-        s.onload = resolve;
-        s.onerror = reject;
+        s.onload = resolve; s.onerror = reject;
         document.head.appendChild(s);
       }).catch(() => {});
     }
     if (window.lottie && lottieEl) {
       lottieInstance = window.lottie.loadAnimation({
-        container: lottieEl,
-        renderer: 'svg',
-        loop: true,
-        autoplay: true,
-        animationData: welcomeLottie,
+        container: lottieEl, renderer: 'svg',
+        loop: true, autoplay: true,
+        path: '/icons/lottie/welcome.json',
       });
     }
   }
@@ -286,27 +301,36 @@
   let mounted = false;
   onMount(() => {
     user = requireAuth(); if (!user) return;
-    try {
-      const saved = localStorage.getItem('nexa_theme');
-      if (saved) applyTheme(saved);
-      else applyTheme('dark');
-    } catch(e) { applyTheme('dark'); }
+
+    const saved = getTheme();
+    applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
+
+    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', handleSystemChange);
+
+    function onStorage(e) {
+      if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
+    }
+    window.addEventListener('storage', onStorage);
+
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
-    return () => { if (lottieInstance) lottieInstance.destroy(); };
+
+    return () => {
+      if (lottieInstance) lottieInstance.destroy();
+      mediaQuery?.removeEventListener('change', handleSystemChange);
+      window.removeEventListener('storage', onStorage);
+    };
   });
 </script>
 
 <div class="root">
 
-  <!-- ── Background fixo (uma única imagem) ── -->
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
   <!-- ── Header ── -->
   <header class="header" class:in={mounted} class:header-lifted={showApps}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
-
-    <!-- Apps + Menu unidos no mesmo container (pill), tamanho reduzido -->
     <div class="header-right" bind:this={appsAnchorEl}>
       <button class="hdr-seg pulse-tap" on:click={toggleApps}>
         {#if showApps}
@@ -322,7 +346,7 @@
     </div>
   </header>
 
-  <!-- ── Conteúdo central: Lottie ── -->
+  <!-- ── Conteúdo central ── -->
   <main class="content">
     <div class="lottie-wrap" bind:this={lottieEl}></div>
   </main>
@@ -462,7 +486,7 @@
     </div>
   {/if}
 
-  <!-- ── Apps popup (sem secção de Tema) ── -->
+  <!-- ── Apps popup ── -->
   {#if showApps}
     <div class="apps-overlay" on:click={closeApps}></div>
     <div
@@ -471,7 +495,6 @@
       style="top:{appsPos.top}px;right:{appsPos.right}px;"
     >
       <div class="apps-popup-label">Apps</div>
-
       <div class="apps-grid">
         {#each platformApps as app, i}
           <button
@@ -493,19 +516,21 @@
           </button>
         {/each}
       </div>
-
       <div style="height:8px"></div>
     </div>
   {/if}
 
-  <!-- ── Drawer (estilo Bing — ícones sem container) ── -->
+  <!-- ── Drawer ── -->
   {#if drawerOpen}
-    <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
-    <div class="drawer" class:drawer-in={drawerVisible}>
-      <button class="drawer-burger pulse-tap" on:click={closeDrawer}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:20px;height:20px;background:var(--drawer-text-faint)"></span>
-      </button>
+    <div
+      class="drawer-overlay"
+      class:drawer-overlay-in={drawerVisible}
+      on:click={closeDrawer}
+    ></div>
 
+    <div class="drawer" class:drawer-in={drawerVisible}>
+
+      <!-- Avatar centrado -->
       <div class="drawer-avatar-block">
         <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
         <span class="drawer-user-name">{userName}</span>
@@ -514,27 +539,97 @@
       <div class="drawer-sep"></div>
 
       <nav class="drawer-nav">
-        {#each DRAWER_ITEMS as item, i}
+
+        <!-- Tema — expande/recolhe com grid-template-rows (igual às conversas) -->
+        <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
+          <div class="drawer-icon-wrap">
+            <span
+              class="icon-mask"
+              style="mask-image:url('/icons/svg/appearance.svg');
+                     -webkit-mask-image:url('/icons/svg/appearance.svg');
+                     width:18px;height:18px;
+                     background:var(--drawer-icon)"
+            ></span>
+          </div>
+          <span class="drawer-item-label" style="flex:1">Tema</span>
+          <span
+            class="icon-mask drawer-chevron"
+            class:drawer-chevron-open={themeExpanded}
+            style="mask-image:url('/icons/svg/chevron_right.svg');
+                   -webkit-mask-image:url('/icons/svg/chevron_right.svg');
+                   width:14px;height:14px;
+                   background:var(--drawer-text-faint)"
+          ></span>
+        </button>
+
+        <!-- Accordion GPU — mesmo padrão das conversas -->
+        <div class="theme-accordion" class:theme-accordion-open={themeExpanded}>
+          <div class="theme-accordion-inner">
+            {#each THEME_OPTIONS as opt}
+              <button
+                class="theme-opt pulse-tap"
+                class:theme-opt-active={themeValue === opt.id}
+                on:click={() => { applyThemeValue(opt.id); themeExpanded = false; }}
+              >
+                <span class="theme-opt-label">{opt.label}</span>
+                {#if themeValue === opt.id}
+                  <span
+                    class="icon-mask"
+                    style="mask-image:url('/icons/svg/check.svg');
+                           -webkit-mask-image:url('/icons/svg/check.svg');
+                           width:14px;height:14px;
+                           background:var(--drawer-text);
+                           display:block;mask-size:contain;-webkit-mask-size:contain;
+                           mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;
+                           mask-position:center;-webkit-mask-position:center;flex-shrink:0;"
+                  ></span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Outros itens -->
+        {#each DRAWER_ITEMS as item}
           <button
             class="drawer-item pulse-tap"
-            style="animation-delay:{drawerVisible ? i*38 : 0}ms"
-            class:drawer-item-in={drawerVisible}
             on:click={() => { item.action(); closeDrawer(); }}
           >
-            <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+            <div class="drawer-icon-wrap">
+              <span
+                class="icon-mask"
+                style="mask-image:url('/icons/svg/{item.icon}.svg');
+                       -webkit-mask-image:url('/icons/svg/{item.icon}.svg');
+                       width:18px;height:18px;
+                       background:var(--drawer-icon)"
+              ></span>
+            </div>
             <span class="drawer-item-label">{item.label}</span>
           </button>
         {/each}
+
       </nav>
+
+      <div style="flex:1"></div>
 
       <div class="drawer-sep"></div>
 
+      <!-- Logout -->
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
+        <div class="drawer-icon-wrap" style="background:rgba(239,68,68,0.12)">
+          <span
+            class="icon-mask"
+            style="mask-image:url('/icons/svg/logout.svg');
+                   -webkit-mask-image:url('/icons/svg/logout.svg');
+                   width:18px;height:18px;
+                   background:var(--drawer-red)"
+          ></span>
+        </div>
         <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
       </button>
 
-      <div style="flex:1"></div>
+      <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
+
     </div>
   {/if}
 
@@ -566,10 +661,14 @@
     --drawer-border:      rgba(255,255,255,0.08);
     --drawer-shadow:      rgba(0,0,0,0.45);
     --drawer-text:        rgba(255,255,255,0.82);
-    --drawer-text-faint:  rgba(255,255,255,0.55);
+    --drawer-text-faint:  rgba(255,255,255,0.35);
+    --drawer-icon:        rgba(255,255,255,0.80);
+    --drawer-icon-bg:     rgba(255,255,255,0.10);
     --drawer-sep:         rgba(255,255,255,0.10);
     --drawer-red:         #FF453A;
     --drawer-overlay-in:  rgba(0,0,0,0.35);
+    --drawer-row-active:  rgba(255,255,255,0.06);
+    --drawer-sub-bg:      rgba(255,255,255,0.05);
   }
   :global([data-theme="light"]) {
     --surface:            rgba(255,255,255,0.55);
@@ -593,10 +692,14 @@
     --drawer-border:      rgba(0,0,0,0.07);
     --drawer-shadow:      rgba(0,0,0,0.13);
     --drawer-text:        #111111;
-    --drawer-text-faint:  #8a8a8e;
-    --drawer-sep:         #e8e8e8;
+    --drawer-text-faint:  rgba(0,0,0,0.30);
+    --drawer-icon:        rgba(0,0,0,0.72);
+    --drawer-icon-bg:     rgba(0,0,0,0.07);
+    --drawer-sep:         rgba(0,0,0,0.09);
     --drawer-red:         #d32d2d;
     --drawer-overlay-in:  rgba(0,0,0,0.20);
+    --drawer-row-active:  rgba(0,0,0,0.05);
+    --drawer-sub-bg:      rgba(0,0,0,0.04);
   }
 
   .root {
@@ -605,7 +708,7 @@
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
   }
 
-  /* ── Background — imagem única e fixa ── */
+  /* ── Background ── */
   .bg-layer {
     position:absolute; inset:0; z-index:0;
     background-size:cover; background-position:center;
@@ -747,160 +850,168 @@
   .popup-content { transition:opacity .13s ease, transform .13s ease; }
   .popup-content.fading { opacity:0; transform:translateY(4px); pointer-events:none; }
 
-  .popup-title {
-    padding:12px 16px 8px;
-    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
-    color:var(--text-faint);
-  }
-  .popup-row {
-    display:flex; align-items:center; gap:12px;
-    width:100%; padding:12px 14px;
-    background:transparent; border:none; cursor:pointer;
-    font-family:inherit; text-align:left;
-    transition:background .14s ease;
-  }
+  .popup-title { padding:12px 16px 8px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-faint); }
+  .popup-row { display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; transition:background .14s ease; }
   .popup-row:active { background:var(--row-active); }
   .popup-back { padding:9px 14px; }
-
-  .popup-icon-wrap {
-    width:32px; height:32px; border-radius:50%;
-    background:var(--btn-bg);
-    display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  }
+  .popup-icon-wrap { width:32px; height:32px; border-radius:50%; background:var(--btn-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .popup-label { font-size:15px; font-weight:500; color:var(--icon-strong); flex:1; }
   .popup-sep   { height:0.5px; background:var(--border-faint); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:var(--icon-strong); flex-shrink:0; }
-
   .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
   .model-sub  { font-size:11px; color:var(--icon-faint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
   /* ── Apps popup ── */
-  .apps-overlay {
-    position:fixed; inset:0; z-index:60;
-    background:var(--overlay-soft);
-  }
+  .apps-overlay { position:fixed; inset:0; z-index:60; background:var(--overlay-soft); }
   .apps-popup {
-    position:fixed; z-index:63;
-    width:256px;
+    position:fixed; z-index:63; width:256px;
     border-radius:20px;
     background:var(--surface-popover);
     backdrop-filter:blur(44px) saturate(2);
     -webkit-backdrop-filter:blur(44px) saturate(2);
     border:0.5px solid var(--border-soft);
     box-shadow:0 18px 50px rgba(0,0,0,0.35);
-    overflow:hidden;
-    transform-origin:top right;
+    overflow:hidden; transform-origin:top right;
     opacity:0; transform:scale(0.88) translateY(-6px);
     transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
     pointer-events:none;
   }
   .apps-popup.apps-popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
-
-  .apps-popup-label {
-    padding:13px 15px 6px;
-    font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
-    color:var(--text-faint);
-  }
-
-  .apps-grid {
-    display:grid;
-    grid-template-columns:repeat(4, 1fr);
-    padding:4px 6px 6px;
-    gap:0;
-  }
-
-  .ag-item {
-    display:flex; flex-direction:column; align-items:center; gap:5px;
-    background:none; border:none; cursor:pointer; padding:8px 2px;
-    border-radius:14px;
-    opacity:0; transform:scale(0.82) translateY(6px);
-    transition:opacity .28s ease, transform .28s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
-  }
+  .apps-popup-label { padding:13px 15px 6px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-faint); }
+  .apps-grid { display:grid; grid-template-columns:repeat(4,1fr); padding:4px 6px 6px; gap:0; }
+  .ag-item { display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; cursor:pointer; padding:8px 2px; border-radius:14px; opacity:0; transform:scale(0.82) translateY(6px); transition:opacity .28s ease, transform .28s cubic-bezier(0.34,1.56,0.64,1), background .16s ease; }
   .ag-item.ag-in { opacity:1; transform:scale(1) translateY(0); }
   .ag-item:active { background:var(--row-active); }
-
-  .ag-icon {
-    width:46px; height:46px;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .ag-img {
-    width:100%; height:100%; object-fit:contain;
-    border-radius:12px;
-    transition:transform .20s cubic-bezier(0.34,1.56,0.64,1);
-  }
+  .ag-icon { width:46px; height:46px; display:flex; align-items:center; justify-content:center; }
+  .ag-img { width:100%; height:100%; object-fit:contain; border-radius:12px; transition:transform .20s cubic-bezier(0.34,1.56,0.64,1); }
   .ag-item:active .ag-img { transform:scale(0.84); }
+  .ag-name { font-size:10px; font-weight:500; color:var(--icon-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:58px; text-align:center; line-height:1.2; }
 
-  .ag-name {
-    font-size:10px; font-weight:500; color:var(--icon-soft);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:58px; text-align:center; line-height:1.2;
-  }
-
-  /* ── Drawer — estilo Bing: ícones sem container ── */
+  /* ══════════════════════════════════════════════════════════════════
+     DRAWER — altura máxima, bordas curvas, sem congelamento
+  ══════════════════════════════════════════════════════════════════ */
   .drawer-overlay {
     position:fixed; inset:0; z-index:70;
-    background:transparent; transition:background .32s ease;
+    background:transparent;
+    transition:background .28s ease;
+    will-change:opacity;
   }
   .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
 
   .drawer {
-    position:fixed; top:0; right:0; bottom:0; z-index:71;
+    position:fixed;
+    top:0; right:0; bottom:0;           /* ← altura máxima: toca em cima E em baixo */
+    z-index:71;
     width:min(288px, 82vw);
     background:var(--drawer-bg);
+    border-radius:24px 0 0 24px;        /* ← bordas curvas mantidas no lado interior */
     border-left:0.5px solid var(--drawer-border);
     box-shadow:-12px 0 48px var(--drawer-shadow);
     display:flex; flex-direction:column;
-    padding-top:calc(env(safe-area-inset-top,0px) + 10px);
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
+    padding-top:max(env(safe-area-inset-top,0px), 16px);
+    overflow:hidden;
+
+    /* GPU puro — zero jank ------------------------------------------ */
     transform:translateX(100%);
-    transition:transform .32s cubic-bezier(0.2,0.9,0.3,1);
+    transition:transform .28s cubic-bezier(0.25,0.46,0.45,0.94);
+    will-change:transform;
   }
   .drawer.drawer-in { transform:translateX(0); }
 
-  .drawer-burger {
-    width:36px; height:36px; margin:6px 14px 4px;
-    border:none; background:transparent; cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
-  }
-
+  /* ── Avatar ── */
   .drawer-avatar-block {
-    display:flex; align-items:center; gap:13px;
-    padding:8px 20px 18px;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    padding:18px 20px;
+    flex-shrink:0;
   }
   .drawer-avatar {
-    width:48px; height:48px; border-radius:50%; flex-shrink:0;
+    width:84px; height:84px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
-    font-size:19px; font-weight:700; color:#fff;
+    font-size:32px; font-weight:700; color:#fff;
   }
   .drawer-user-name {
-    font-size:15px; font-weight:700; color:var(--drawer-text);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:16px; font-weight:700; color:var(--drawer-text);
+    text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
   }
 
-  .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; }
+  .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; flex-shrink:0; }
 
-  .drawer-nav { display:flex; flex-direction:column; padding:10px 6px; }
+  /* ── Nav scrollável ── */
+  .drawer-nav {
+    display:flex; flex-direction:column;
+    padding:8px 6px;
+    overflow-y:auto; overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    flex:1;
+  }
 
+  /* ── Item base ── */
   .drawer-item {
-    display:flex; align-items:center; gap:16px;
-    padding:13px 14px; border-radius:10px; border:none;
-    background:transparent; cursor:pointer; font-family:inherit; text-align:left;
-    opacity:0; transform:translateX(16px);
-    transition:opacity .28s ease, transform .28s cubic-bezier(0.2,0.9,0.3,1), background .14s ease;
+    display:flex; align-items:center; gap:12px;
+    padding:11px 10px; border-radius:10px; border:none;
+    background:transparent; cursor:pointer;
+    font-family:inherit; text-align:left;
+    transition:background .12s ease;
+    width:100%;
   }
-  .drawer-item.drawer-item-in { opacity:1; transform:translateX(0); }
-  .drawer-item:active { background:var(--row-active); }
+  .drawer-item:active { background:var(--drawer-row-active); }
 
-  .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); }
+  /* ── Ícone com fundo (visível em ambos os temas) ── */
+  .drawer-icon-wrap {
+    width:32px; height:32px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--drawer-icon-bg);
+  }
 
-  .drawer-logout { margin:10px 6px 0; opacity:1; transform:none; }
+  .drawer-item-label {
+    font-size:14.5px; font-weight:500; color:var(--drawer-text);
+  }
+
+  /* ── Chevron — GPU puro ── */
+  .drawer-chevron {
+    flex-shrink:0;
+    transition:transform .25s cubic-bezier(0.25,0.46,0.45,0.94);
+    will-change:transform;
+  }
+  .drawer-chevron-open { transform:rotate(90deg); }
+
+  /* ── Accordion do tema — grid-template-rows (mesmo padrão das conversas) ── */
+  .theme-accordion {
+    display:grid;
+    grid-template-rows:0fr;
+    transition:grid-template-rows .28s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+  .theme-accordion-open { grid-template-rows:1fr; }
+  .theme-accordion-inner { overflow:hidden; min-height:0; }
+
+  /* Sub-itens de tema */
+  .theme-opt {
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; padding:10px 10px 10px 54px;
+    background:transparent; border:none; cursor:pointer;
+    font-family:inherit; text-align:left;
+    border-radius:8px;
+    transition:background .12s ease;
+  }
+  .theme-opt:active { background:var(--drawer-row-active); }
+  .theme-opt-active { background:var(--drawer-sub-bg); }
+
+  .theme-opt-label {
+    font-size:14px; font-weight:400; color:var(--drawer-text); flex:1;
+  }
+
+  /* ── Logout ── */
+  .drawer-logout { flex-shrink:0; }
 
   /* ── Utilities ── */
   .pulse-tap {
     cursor:pointer;
-    transition:transform .20s cubic-bezier(0.34,1.56,0.64,1), opacity .20s ease;
+    transition:transform .14s cubic-bezier(0.25,0.46,0.45,0.94), opacity .14s ease;
+    will-change:transform;
   }
-  .pulse-tap:active { transform:scale(0.92); opacity:.78; }
+  .pulse-tap:active { transform:scale(0.96); opacity:.80; }
 
   .icon-mask {
     display:block;

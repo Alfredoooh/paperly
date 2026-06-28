@@ -1,47 +1,57 @@
-import { writable, derived } from 'svelte/store';
+import { writable } from 'svelte/store';
 
-export const PROXY = 'https://nexavps00001-test.onrender.com';
+export const PROXY    = 'https://nexavps00001-test.onrender.com';
+export const ACCENT   = '#FC3C44';
 
 // Feed
-export const feedTracks   = writable([]);
-export const newAlbums    = writable([]);
-export const trendTracks  = writable([]);
-export const playlists    = writable([]);
-export const artists      = writable([]);
-export const feedLoading  = writable(true);
-export const feedError    = writable(false);
+export const feedTracks    = writable([]);
+export const newAlbums     = writable([]);
+export const trendTracks   = writable([]);
+export const playlists     = writable([]);
+export const artists       = writable([]);
+export const feedLoading   = writable(true);
+export const feedError     = writable(false);
 
 // Player
-export const currentTrack = writable(null);
-export const playing      = writable(false);
-export const progress     = writable(0);
-export const duration     = writable(30);
-export const playerOpen   = writable(false);
-export const shuffle      = writable(false);
-export const repeatMode   = writable(0);
-export const queue        = writable([]);
-export const liked        = writable(new Set());
-export const lyrics       = writable(null);
+export const currentTrack  = writable(null);
+export const playing       = writable(false);
+export const progress      = writable(0);
+export const duration      = writable(0);
+export const playerOpen    = writable(false);
+export const shuffle       = writable(false);
+export const repeatMode    = writable(0);
+export const queue         = writable([]);
+export const liked         = writable(new Set());
+export const lyrics        = writable(null);
 export const lyricsLoading = writable(false);
+export const audioLoading  = writable(false);
 
-// Audio instance (não reativo, só referência)
+// Navigation
+export const currentArtist = writable(null);
+export const currentPage   = writable('home'); // home | search | library | artist
+
 export let audioInstance = null;
-let progressTimer = null;
+let progressTimer        = null;
 
-export function setAudio(a) { audioInstance = a; }
+function setAudio(a) { audioInstance = a; }
 
 export async function loadFeed() {
   feedLoading.set(true);
   feedError.set(false);
   try {
-    const res  = await fetch(`${PROXY}/api/feed`);
-    if (!res.ok) throw new Error('Server error');
-    const data = await res.json();
-    feedTracks.set(data.tracks    || []);
-    newAlbums.set(data.albums     || []);
-    trendTracks.set((data.tracks  || []).slice(50));
-    playlists.set(data.playlists  || []);
-    artists.set(data.artists      || []);
+    const [feedRes, playlistsRes, artistsRes] = await Promise.all([
+      fetch(`${PROXY}/api/feed`),
+      fetch(`${PROXY}/api/deezer/chart/0/playlists?limit=20`),
+      fetch(`${PROXY}/api/deezer/chart/0/artists?limit=20`),
+    ]);
+    const feed      = await feedRes.json();
+    const pls       = await playlistsRes.json();
+    const arts      = await artistsRes.json();
+    feedTracks.set(feed.tracks    || []);
+    newAlbums.set(feed.albums     || []);
+    trendTracks.set((feed.tracks  || []).slice(50));
+    playlists.set(pls.data        || []);
+    artists.set(arts.data         || []);
   } catch {
     feedError.set(true);
   } finally {
@@ -52,58 +62,59 @@ export async function loadFeed() {
 export async function playTrack(track) {
   if (!track) return;
 
-  // Para o áudio anterior
   if (audioInstance) {
     audioInstance.pause();
+    audioInstance.src = '';
     clearInterval(progressTimer);
   }
 
   currentTrack.set(track);
   progress.set(0);
-  duration.set(30);
+  duration.set(0);
   playing.set(false);
   lyrics.set(null);
+  audioLoading.set(true);
 
-  // Tenta preview Deezer primeiro (30s)
-  let audioUrl = track.preview || null;
+  try {
+    const res = await fetch(
+      `${PROXY}/api/audio/url?track=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist?.name || '')}`
+    );
+    if (!res.ok) throw new Error('Audio not found');
+    const { url } = await res.json();
 
-  // Se não tem preview, vai buscar ao YouTube via servidor
-  if (!audioUrl) {
-    try {
-      const res = await fetch(
-        `${PROXY}/api/audio/url?track=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist?.name || '')}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        audioUrl = data.url || null;
-      }
-    } catch { /* sem áudio */ }
+    const audio = new Audio(url);
+    audio.crossOrigin = 'anonymous';
+    setAudio(audio);
+
+    audio.onloadedmetadata = () => {
+      duration.set(audio.duration || 0);
+      audioLoading.set(false);
+    };
+
+    audio.onended = () => {
+      playing.set(false);
+      progress.set(0);
+      let r = 0;
+      repeatMode.subscribe(v => r = v)();
+      if (r === 2) { audio.currentTime = 0; audio.play(); playing.set(true); }
+      else playNext();
+    };
+
+    audio.onerror = () => { audioLoading.set(false); playing.set(false); };
+
+    await audio.play();
+    playing.set(true);
+
+    progressTimer = setInterval(() => {
+      if (audioInstance) progress.set(audioInstance.currentTime);
+    }, 500);
+
+  } catch (err) {
+    console.error('[playTrack]', err);
+    audioLoading.set(false);
+    playing.set(false);
   }
 
-  if (!audioUrl) return;
-
-  const audio = new Audio(audioUrl);
-  audio.crossOrigin = 'anonymous';
-  setAudio(audio);
-
-  audio.play().catch(() => {});
-  playing.set(true);
-
-  audio.onloadedmetadata = () => duration.set(audio.duration || 30);
-  audio.onended = () => {
-    playing.set(false);
-    progress.set(0);
-    // auto-next
-    let r; repeatMode.subscribe(v => r = v)();
-    if (r === 2) { audio.currentTime = 0; audio.play(); playing.set(true); }
-    else playNext();
-  };
-
-  progressTimer = setInterval(() => {
-    if (audioInstance) progress.set(audioInstance.currentTime);
-  }, 500);
-
-  // Carrega letras em background
   fetchLyrics(track);
 }
 
@@ -133,13 +144,14 @@ export function togglePlay() {
 
 export function seekTo(pct) {
   if (!audioInstance) return;
-  let d; duration.subscribe(v => d = v)();
+  let d = 0;
+  duration.subscribe(v => d = v)();
   audioInstance.currentTime = pct * d;
   progress.set(audioInstance.currentTime);
 }
 
 export function stopAll() {
-  audioInstance?.pause();
+  if (audioInstance) { audioInstance.pause(); audioInstance.src = ''; }
   clearInterval(progressTimer);
   currentTrack.set(null);
   playing.set(false);
@@ -157,21 +169,44 @@ export function toggleLike(id) {
 }
 
 export function playNext() {
-  let q, ct, sh;
+  let q = [], ct = null, sh = false;
   queue.subscribe(v => q = v)();
   currentTrack.subscribe(v => ct = v)();
   shuffle.subscribe(v => sh = v)();
-  if (!q?.length) return;
+  if (!q.length) return;
   if (sh) { playTrack(q[Math.floor(Math.random() * q.length)]); return; }
   const i = q.findIndex(t => t.id === ct?.id);
   playTrack(q[(i + 1) % q.length]);
 }
 
 export function playPrev() {
-  let q, ct;
+  let q = [], ct = null;
   queue.subscribe(v => q = v)();
   currentTrack.subscribe(v => ct = v)();
-  if (!q?.length) return;
+  if (!q.length) return;
   const i = q.findIndex(t => t.id === ct?.id);
   playTrack(q[(i - 1 + q.length) % q.length]);
+}
+
+export async function loadArtist(artist) {
+  currentArtist.set(null);
+  currentPage.set('artist');
+  try {
+    const [topRes, albumsRes, relatedRes] = await Promise.all([
+      fetch(`${PROXY}/api/deezer/artist/${artist.id}/top?limit=10`),
+      fetch(`${PROXY}/api/deezer/artist/${artist.id}/albums?limit=20`),
+      fetch(`${PROXY}/api/deezer/artist/${artist.id}/related?limit=10`),
+    ]);
+    const top     = await topRes.json();
+    const albums  = await albumsRes.json();
+    const related = await relatedRes.json();
+    currentArtist.set({
+      ...artist,
+      topTracks: top.data     || [],
+      albums:    albums.data  || [],
+      related:   related.data || [],
+    });
+  } catch (err) {
+    console.error('[loadArtist]', err);
+  }
 }

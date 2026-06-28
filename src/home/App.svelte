@@ -116,10 +116,12 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // ── Background (imagem única fixa) ───────────────────────────────────────
-  const BG_IMAGE = '/images/png/backgrounds/440f6b7811cf81ae155a9a9a1558d685.png';
+  // ── Background fixo (imagem única) ───────────────────────────────────────
+  const BG_IMAGE = '/images/backgrounds/440f6b7811cf81ae155a9a9a1558d685.png';
 
-  // ── Lottie central ────────────────────────────────────────────────────────
+  // ── Lottie central (welcome.json) ────────────────────────────────────────
+  import welcomeLottie from '/static/icons/lottie/welcome.json';
+
   let lottieEl;
   let lottieInstance;
 
@@ -140,7 +142,7 @@
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: '/static/icons/lottie/welcome.json',
+        animationData: welcomeLottie,
       });
     }
   }
@@ -622,7 +624,6 @@
 
   .logo-img { width:44px; height:44px; object-fit:contain; }
 
-  /* Apps + Menu unidos num único container "pill", reduzido */
   .header-right {
     display:flex; align-items:center;
     height:34px; border-radius:17px;
@@ -878,7 +879,6 @@
 
   .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; }
 
-  /* Itens — ícone direto, sem wrapper/círculo */
   .drawer-nav { display:flex; flex-direction:column; padding:10px 6px; }
 
   .drawer-item {

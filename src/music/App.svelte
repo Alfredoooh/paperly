@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
-  import MusicPage    from './pages/MusicPage.svelte';
+  import Music    from './pages/Music.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
 
   let route  = 'main';
@@ -35,7 +35,7 @@
 
 {#if ready}
   {#if route === 'main'}
-    <MusicPage    {isDark} {user} on:nav={handleNav} />
+    <Music    {isDark} {user} on:nav={handleNav} />
   {:else if route === 'settings'}
     <SettingsPage {isDark} {user} on:nav={handleNav} />
   {/if}

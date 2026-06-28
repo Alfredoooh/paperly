@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import Drawer from '../../components/Drawer.svelte';
+  import Drawer from '../components/Drawer.svelte';
   import HomePage from './HomePage.svelte';
   import SearchPage from './SearchPage.svelte';
   import LibraryPage from './LibraryPage.svelte';
@@ -45,7 +45,6 @@
   <Drawer {isDark} {user} open={drawerOpen} {menuItems} on:close={()=> drawerOpen=false}
     on:openSettings={() => dispatch('nav', { to:'settings' })} />
     
-    <!-- APP BAR -->
     <div class="appbar" style="background:{bg};border-bottom:0.5px solid {divider}">
       <button class="icon-btn" on:click={()=> drawerOpen=true}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
@@ -54,7 +53,6 @@
       <div style="width:36px"></div>
     </div>
     
-    <!-- BODY -->
     <div class="body">
       {#if activeTab === 'home'}
       <HomePage {...themeProps} currentTrackExists={!!$currentTrack} />
@@ -65,9 +63,8 @@
     {/if}
   </div>
 
-  <MiniPlayer {isDark} {bg} {bgCard} {txtPrim} {txtSec} {divider} />
+  <MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} />
 
-  <!-- BOTTOM BAR -->
   <div class="bottom-bar" style="background:{bg};border-top:0.5px solid {divider}">
     {#each [['home','Home'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
       <button class="tab-btn" on:click={() => activeTab=id}>
@@ -91,7 +88,7 @@
 
 </div>
 
-<FullPlayer {isDark} />
+<FullPlayer />
 
 <style>
   .root { position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }

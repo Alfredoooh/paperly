@@ -6,8 +6,6 @@
     lyrics, lyricsLoading
   } from '../store/music.js';
 
-  export let isDark = false;
-
   let showLyrics = false;
 
   const gradients = ['#1a1a2e','#16213e','#0f3460','#1b1b2f','#2c003e','#1a0a00','#001a00','#001a1a'];
@@ -27,7 +25,6 @@
 {#if $playerOpen && $currentTrack}
   <div class="screen" style="background:{gradient}">
 
-    <!-- Header -->
     <div class="header">
       <button class="icon-btn" on:click={() => playerOpen.set(false)}>
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -42,22 +39,16 @@
     </div>
 
     {#if showLyrics}
-      <!-- Letras -->
       <div class="lyrics-wrap">
         {#if $lyricsLoading}
-          <div class="lyrics-center">
-            <div class="spinner"></div>
-          </div>
+          <div class="lyrics-center"><div class="spinner"></div></div>
         {:else if $lyrics}
           <div class="lyrics-text">{$lyrics}</div>
         {:else}
-          <div class="lyrics-center">
-            <span class="lyrics-empty">Letra não disponível</span>
-          </div>
+          <div class="lyrics-center"><span class="lyrics-empty">Letra não disponível</span></div>
         {/if}
       </div>
     {:else}
-      <!-- Capa -->
       <div class="cover-wrap">
         {#if $currentTrack.album?.cover_big || $currentTrack.album?.cover_medium}
           <img src={$currentTrack.album.cover_big || $currentTrack.album.cover_medium} alt={$currentTrack.title} class="cover" />
@@ -69,7 +60,6 @@
       </div>
     {/if}
 
-    <!-- Info + Like -->
     <div class="info-row">
       <div class="info">
         <span class="track-title">{$currentTrack.title}</span>
@@ -84,19 +74,17 @@
       </button>
     </div>
 
-    <!-- Progress -->
     <div class="progress-wrap">
-      <div class="progress-track" on:click={handleSeek}>
+      <button class="progress-track" on:click={handleSeek}>
         <div class="progress-fill" style="width:{$duration>0?($progress/$duration)*100:0}%"></div>
         <div class="progress-thumb" style="left:{$duration>0?($progress/$duration)*100:0}%"></div>
-      </div>
+      </button>
       <div class="times">
         <span>{fmtTime($progress)}</span>
         <span>{fmtTime($duration)}</span>
       </div>
     </div>
 
-    <!-- Controls -->
     <div class="controls">
       <button class="ctrl-sm" on:click={() => shuffle.update(s => !s)}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{$shuffle?'#E8002D':'rgba(255,255,255,0.6)'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
@@ -141,7 +129,7 @@
   .track-title { display:block;font-size:22px;font-weight:800;color:#fff;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .track-artist { display:block;font-size:15px;color:rgba(255,255,255,0.65);margin-top:4px; }
   .progress-wrap { margin-bottom:16px; }
-  .progress-track { position:relative;height:4px;border-radius:999px;background:rgba(255,255,255,0.2);cursor:pointer;margin-bottom:8px; }
+  .progress-track { position:relative;height:4px;border-radius:999px;background:rgba(255,255,255,0.2);cursor:pointer;margin-bottom:8px;width:100%;border:none;padding:0; }
   .progress-fill { height:100%;border-radius:999px;background:#fff;transition:width .5s linear; }
   .progress-thumb { position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff; }
   .times { display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.5); }

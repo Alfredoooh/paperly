@@ -16,6 +16,8 @@
   $: txtSec   = isDark ? '#aaaaaa' : '#777777';
   $: divider  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
+  const PROXY = 'https://nexavps00001-test.onrender.com';
+
   let drawerOpen = false;
   const menuItems = [
     { icon: 'home_outline', label: 'Início',    action: () => { activeTab='home'; drawerOpen=false; } },
@@ -53,24 +55,17 @@
   let trendTracks  = [];
   let loading      = true;
   let loadError    = false;
-
-  async function proxyFetch(url) {
-    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-    const d = await r.json();
-    return JSON.parse(d.contents);
-  }
+  let feedTimer    = null;
 
   async function loadFeed() {
     loading = true; loadError = false;
     try {
-      const [chart, albums, genre] = await Promise.all([
-        proxyFetch('https://api.deezer.com/chart/0/tracks?limit=20'),
-        proxyFetch('https://api.deezer.com/chart/0/albums?limit=10'),
-        proxyFetch('https://api.deezer.com/chart/116/tracks?limit=10'), // pop
-      ]);
-      feedTracks  = chart.data  || [];
-      newAlbums   = albums.data || [];
-      trendTracks = genre.data  || [];
+      const res = await fetch(`${PROXY}/api/feed`);
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+      feedTracks  = data.tracks || [];
+      newAlbums   = data.albums || [];
+      trendTracks = data.tracks.slice(50) || [];
     } catch(e) {
       loadError = true;
     } finally {
@@ -78,7 +73,12 @@
     }
   }
 
-  onMount(loadFeed);
+  onMount(() => {
+    loadFeed();
+    // Atualiza o feed a cada 1 minuto (o servidor já rotaciona a fonte)
+    feedTimer = setInterval(loadFeed, 60 * 1000);
+    return () => clearInterval(feedTimer);
+  });
 
   // Player
   let currentTrack  = null;
@@ -86,7 +86,7 @@
   let audio         = null;
   let playerOpen    = false;
   let shuffle       = false;
-  let repeatMode    = 0; // 0=off 1=all 2=one
+  let repeatMode    = 0;
   let progress      = 0;
   let duration      = 30;
   let progressTimer = null;
@@ -140,10 +140,15 @@
     if (liked.has(id)) liked.delete(id); else liked.add(id);
   }
 
-  // Queue (current feed as queue)
+  // Queue
   $: queue = activeChip === 0 ? feedTracks : trendTracks;
 
   function playNext() {
+    if (shuffle) {
+      const idx = Math.floor(Math.random() * queue.length);
+      openPlayer(queue[idx]);
+      return;
+    }
     const i = queue.findIndex(t => t.id === currentTrack?.id);
     const next = queue[(i+1) % queue.length];
     if (next) openPlayer(next);
@@ -154,7 +159,6 @@
     if (prev) openPlayer(prev);
   }
 
-  // Gradient from album cover color (simple static palette)
   const gradients = ['#1a1a2e','#16213e','#0f3460','#1b1b2f','#2c003e','#1a0a00','#001a00','#001a1a'];
   $: playerGradient = gradients[((currentTrack?.id || 0) % gradients.length)];
 </script>
@@ -356,7 +360,7 @@
 
   </div>
 
-  <!-- MINI PLAYER (flutuante sobre bottom bar) -->
+  <!-- MINI PLAYER -->
   {#if currentTrack && !playerOpen}
     <div class="mini-player" style="background:{bgCard};border:0.5px solid {divider}" on:click={() => playerOpen=true}>
       {#if currentTrack.album?.cover_small}
@@ -392,7 +396,6 @@
         {:else if id === 'search'}
           <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
         {:else}
-          <!-- library: sem SVG próprio, usa Lucide inline -->
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
             fill="{activeTab===id?(isDark?'#fff':'#000'):'none'}"
             stroke="{activeTab===id?txtPrim:txtSec}"
@@ -412,7 +415,6 @@
 {#if playerOpen && currentTrack}
   <div class="player-screen" style="background:{playerGradient}">
 
-    <!-- Header -->
     <div class="player-header">
       <button class="icon-btn" on:click={closePlayer}>
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -425,7 +427,6 @@
       </button>
     </div>
 
-    <!-- Cover -->
     <div class="player-cover-wrap">
       {#if currentTrack.album?.cover_big || currentTrack.album?.cover_medium}
         <img src={currentTrack.album.cover_big || currentTrack.album.cover_medium} alt={currentTrack.title} class="player-cover" />
@@ -436,7 +437,6 @@
       {/if}
     </div>
 
-    <!-- Info + like -->
     <div class="player-info-row">
       <div class="player-info">
         <span class="player-track-title">{currentTrack.title}</span>
@@ -451,7 +451,6 @@
       </button>
     </div>
 
-    <!-- Progress -->
     <div class="player-progress-wrap">
       <div class="player-progress-track" on:click={seekTo}>
         <div class="player-progress-fill" style="width:{duration>0?(progress/duration)*100:0}%"></div>
@@ -463,7 +462,6 @@
       </div>
     </div>
 
-    <!-- Controls -->
     <div class="player-controls">
       <button class="player-ctrl-sm" on:click={() => { shuffle=!shuffle; showToast(shuffle?'Aleatório ligado':'Aleatório desligado'); }}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{shuffle?'#E8002D':'rgba(255,255,255,0.6)'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
@@ -486,7 +484,6 @@
       </button>
     </div>
 
-    <!-- Bottom actions -->
     <div class="player-actions">
       <button class="icon-btn" on:click={() => showToast('Partilhar')}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/share.svg');-webkit-mask-image:url('/icons/svg/share.svg');background:rgba(255,255,255,0.6);width:20px;height:20px;"></span>
@@ -505,30 +502,24 @@
 <style>
   .root { position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }
 
-  /* APPBAR */
   .appbar { display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;flex-shrink:0; }
   .appbar-title { font-size:17px;font-weight:700;letter-spacing:-.3px; }
 
-  /* ICON BTNS */
   .icon-btn { width:36px;height:36px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .15s;flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
   .icon-btn-sm { width:32px;height:32px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .15s;flex-shrink:0; }
   .icon-btn-sm:active { opacity:0.5; }
 
-  /* BODY */
   .body { flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch; }
 
-  /* CHIPS */
   .chips-row { display:flex;gap:8px;padding:16px 16px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
   .chips-row::-webkit-scrollbar { display:none; }
   .chip { border:none;border-radius:999px;padding:8px 18px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit;transition:background .15s,color .15s; }
 
-  /* SECTIONS */
   .section-hdr { display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px; }
   .section-title { font-size:20px;font-weight:800;letter-spacing:-.4px; }
   .see-all-btn { background:none;border:none;font-size:14px;cursor:pointer;font-family:inherit;padding:0; }
 
-  /* ALBUMS */
   .h-scroll { display:flex;gap:12px;padding:0 16px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
   .h-scroll::-webkit-scrollbar { display:none; }
   .album-card { flex-shrink:0;width:148px;background:transparent;border:none;cursor:pointer;text-align:left;padding:0; }
@@ -537,7 +528,6 @@
   .album-title { display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .album-artist { display:block;font-size:12px;margin-top:2px; }
 
-  /* TRACKS */
   .tracks-list { display:flex;flex-direction:column;padding:4px 16px; }
   .track-row { display:flex;align-items:center;gap:12px;padding:10px 0;background:transparent;border:none;cursor:pointer;text-align:left;width:100%; }
   .track-thumb-wrap { position:relative;flex-shrink:0; }
@@ -547,19 +537,16 @@
   .track-title { display:block;font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .track-artist { display:block;font-size:13px;margin-top:2px; }
 
-  /* LOADER */
   .center-pad { display:flex;align-items:center;justify-content:center;padding:56px;flex-direction:row;gap:0; }
   .spinner { width:28px;height:28px;border-radius:50%;border:3px solid rgba(128,128,128,0.2);animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .retry-btn { border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit; }
 
-  /* SEARCH */
   .search-page { padding:16px; }
   .search-bar { display:flex;align-items:center;gap:10px;border-radius:14px;padding:13px 14px;margin-bottom:24px; }
   .search-input { flex:1;border:none;background:transparent;font-size:16px;outline:none;font-family:inherit; }
   .search-hint { font-size:15px;text-align:center;margin:48px 0 0; }
 
-  /* LIBRARY */
   .lib-header { display:flex;align-items:center;justify-content:space-between;padding:20px 16px 12px; }
   .lib-title { font-size:24px;font-weight:800;letter-spacing:-.5px; }
   .lib-tabs { display:flex;padding:0 16px;gap:0; }
@@ -580,7 +567,6 @@
   .lib-grid-title { display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .lib-grid-sub { display:block;font-size:12px;margin-top:2px; }
 
-  /* MINI PLAYER */
   .mini-player {
     position:absolute;
     left:12px;right:12px;
@@ -599,14 +585,12 @@
   .mini-title { display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .mini-artist { display:block;font-size:12px; }
 
-  /* BOTTOM BAR */
   .bottom-bar { flex-shrink:0;display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));position:relative;z-index:40; }
   .tab-btn { display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:opacity .15s; }
   .tab-btn:active { opacity:0.6; }
   .tab-icon { width:24px;height:24px;display:block; }
   .tab-label { font-size:10px;font-weight:500; }
 
-  /* PLAYER SCREEN */
   .player-screen {
     position:fixed;inset:0;z-index:200;
     display:flex;flex-direction:column;
@@ -636,6 +620,5 @@
   .player-play-btn:active { transform:scale(0.95); }
   .player-actions { display:flex;align-items:center;justify-content:space-around; }
 
-  /* SVG MASK */
   .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }
 </style>

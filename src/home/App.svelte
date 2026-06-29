@@ -46,7 +46,6 @@
     if (themeValue === 'system') applyThemeValue('system', false);
   }
 
-  // ── Drawer ────────────────────────────────────────────────────────────────
   let drawerOpen    = false;
   let drawerVisible = false;
   let themeExpanded = false;
@@ -73,7 +72,6 @@
     { icon: 'help',     label: 'Ajuda',      action: () => {} },
   ];
 
-  // ── Apps popup ────────────────────────────────────────────────────────────
   let showApps     = false;
   let appsVisible  = false;
   let appsAnchorEl;
@@ -99,7 +97,6 @@
     window.location.href = app.path;
   }
 
-  // ── Popup ─────────────────────────────────────────────────────────────────
   const POPUP_W = 230;
   let showPopup    = false;
   let popupVisible = false;
@@ -132,7 +129,6 @@
 
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
-  // ── Lottie + toggles ──────────────────────────────────────────────────────
   let lottieEl;
   let lottieInstance;
   let lottieFinished = false;
@@ -143,25 +139,25 @@
       id: 'image',
       label: 'Cria uma imagem',
       prompt: 'Cria uma imagem de ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
     },
     {
       id: 'story',
-      label: 'Conta-me uma história',
+      label: 'Conta uma história',
       prompt: 'Conta-me uma história sobre ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
     },
     {
       id: 'math',
       label: 'Resolve um problema',
       prompt: 'Resolve este problema matemático: ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
     },
     {
       id: 'search',
       label: 'Procure por...',
       prompt: 'Procura por ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
     },
   ];
 
@@ -226,7 +222,6 @@
     window.location.href = ai.path;
   }
 
-  // ── Recording ─────────────────────────────────────────────────────────────
   let mediaRecorder = null, audioChunks = [], isRecording = false;
   let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
   let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
@@ -358,12 +353,12 @@
         {#if showApps}
           <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:15px;height:15px;background:var(--icon-on-accent)"></span>
         {:else}
-          <img src="/icons/png/apps.png" alt="Apps" class="hdr-icon-img" />
+          <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
         {/if}
       </button>
       <div class="hdr-seg-divider"></div>
       <button class="hdr-seg pulse-tap" on:click={openDrawer}>
-        <img src="/icons/png/menu.png" alt="Menu" class="hdr-icon-img" />
+        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
       </button>
     </div>
   </header>
@@ -373,17 +368,22 @@
 
     {#if lottieFinished}
       <div class="toggles-wrap" class:toggles-in={togglesVisible}>
-        {#each SUGGESTION_TOGGLES as t, i}
-          <button
-            class="suggestion-toggle pulse-tap"
-            class:toggle-active={activeToggle?.id === t.id}
-            style="animation-delay:{i * 60}ms"
-            on:click={() => selectToggle(t)}
-          >
-            <span class="toggle-icon">{@html t.icon}</span>
-            <span class="toggle-label">{t.label}</span>
-          </button>
-        {/each}
+        <div class="toggles-row">
+          {#each SUGGESTION_TOGGLES.slice(0,3) as t, i}
+            <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{i*60}ms" on:click={() => selectToggle(t)}>
+              <span class="toggle-icon">{@html t.icon}</span>
+              <span class="toggle-label">{t.label}</span>
+            </button>
+          {/each}
+        </div>
+        <div class="toggles-row">
+          {#each SUGGESTION_TOGGLES.slice(3) as t, i}
+            <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{(i+3)*60}ms" on:click={() => selectToggle(t)}>
+              <span class="toggle-icon">{@html t.icon}</span>
+              <span class="toggle-label">{t.label}</span>
+            </button>
+          {/each}
+        </div>
       </div>
     {/if}
   </main>
@@ -442,7 +442,6 @@
     {/if}
   </div>
 
-  <!-- ── Popup ── -->
   {#if showPopup}
     <div class="popup-overlay" on:click={closePopup}></div>
     <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
@@ -502,7 +501,6 @@
     </div>
   {/if}
 
-  <!-- ── Apps popup ── -->
   {#if showApps}
     <div class="apps-overlay" on:click={closeApps}></div>
     <div class="apps-popup" class:apps-popup-in={appsVisible} style="top:{appsPos.top}px;right:{appsPos.right}px;">
@@ -521,7 +519,6 @@
     </div>
   {/if}
 
-  <!-- ── Drawer ── -->
   {#if drawerOpen}
     <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
     <div class="drawer" class:drawer-in={drawerVisible}>
@@ -534,7 +531,6 @@
       <div class="drawer-sep"></div>
 
       <nav class="drawer-nav">
-
         <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Tema</span>
@@ -560,7 +556,6 @@
             <span class="drawer-item-label">{item.label}</span>
           </button>
         {/each}
-
       </nav>
 
       <div style="flex:1"></div>
@@ -572,7 +567,6 @@
       </button>
 
       <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
-
     </div>
   {/if}
 
@@ -656,67 +650,27 @@
   .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
   .header.in { opacity:1; transform:translateY(0); }
   .header.header-lifted { z-index:62; }
-
-  /* Logo maior */
-  .logo-img { width:56px; height:56px; object-fit:contain; }
-
-  .header-right { display:flex; align-items:center; height:40px; border-radius:20px; background:var(--hdr-seg-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); overflow:hidden; }
-  .hdr-seg { width:44px; height:40px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .18s ease; }
+  .logo-img { width:80px; height:80px; object-fit:contain; }
+  .header-right { display:flex; align-items:center; height:34px; border-radius:17px; background:var(--hdr-seg-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); overflow:hidden; }
+  .hdr-seg { width:36px; height:34px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .18s ease; }
   .hdr-seg:active { background:var(--hdr-seg-active); }
-  .hdr-seg-divider { width:1px; height:18px; background:var(--hdr-seg-divider); }
+  .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  /* Ícones PNG no header */
-  .hdr-icon-img { width:22px; height:22px; object-fit:contain; }
-
-  .content { flex:1; position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:32px; }
-
+  .content { flex:1; position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; }
   .lottie-wrap { width:220px; height:220px; transition:opacity .35s ease, transform .35s ease; }
   .lottie-hidden { opacity:0; transform:scale(0.85); pointer-events:none; position:absolute; }
 
-  /* ── Toggles ── */
-  .toggles-wrap {
-    display:flex; flex-direction:column; align-items:center; gap:12px;
-    padding:0 24px; width:100%; max-width:360px;
-    opacity:0; transform:translateY(16px);
-    transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
-  }
+  .toggles-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 20px; width:100%; opacity:0; transform:translateY(16px); transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1); }
   .toggles-in { opacity:1; transform:translateY(0); }
-
-  .suggestion-toggle {
-    display:flex; align-items:center; gap:10px;
-    width:100%; padding:14px 20px;
-    border-radius:999px;
-    border:1.5px solid var(--toggle-border);
-    background:var(--toggle-bg);
-    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-    cursor:pointer; font-family:inherit;
-    transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
-    opacity:0; transform:scale(0.92) translateY(8px);
-    animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
-  }
+  .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:8px; }
+  .suggestion-toggle { display:inline-flex; align-items:center; gap:7px; padding:10px 16px; border-radius:999px; border:1.5px solid var(--toggle-border); background:var(--toggle-bg); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); cursor:pointer; font-family:inherit; white-space:nowrap; transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1); opacity:0; transform:scale(0.92) translateY(8px); animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards; }
   .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
-  @keyframes toggleIn {
-    from { opacity:0; transform:scale(0.92) translateY(8px); }
-    to   { opacity:1; transform:scale(1) translateY(0); }
-  }
+  @keyframes toggleIn { from{opacity:0;transform:scale(0.92) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
   .suggestion-toggle:active { transform:scale(0.96); }
-  .toggle-active {
-    background:var(--toggle-bg-active) !important;
-    border-color:var(--icon-soft) !important;
-  }
-
-  .toggle-icon {
-    display:flex; align-items:center; justify-content:center;
-    flex-shrink:0; color:var(--toggle-text);
-    width:18px; height:18px;
-  }
+  .toggle-active { background:var(--toggle-bg-active) !important; border-color:var(--icon-soft) !important; }
+  .toggle-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--toggle-text); width:15px; height:15px; }
   .toggle-icon :global(svg) { display:block; }
-
-  .toggle-label {
-    font-size:14px; font-weight:500;
-    color:var(--toggle-text);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
+  .toggle-label { font-size:13px; font-weight:500; color:var(--toggle-text); }
   .toggle-active .toggle-label { color:var(--toggle-text-active); }
 
   .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }

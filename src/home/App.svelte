@@ -134,7 +134,6 @@
   let lottieFinished = false;
   let togglesVisible = false;
 
-  // cor = cor dominante do fundo do SVG
   const SUGGESTION_TOGGLES = [
     {
       id: 'image',
@@ -148,14 +147,14 @@
       label: 'Conta uma história',
       prompt: 'Conta-me uma história sobre ',
       icon: '/icons/svg/color/open_book.svg',
-      color: '#92d19c',
+      color: '#52a85a',
     },
     {
       id: 'math',
       label: 'Resolve um problema',
       prompt: 'Resolve este problema matemático: ',
       icon: '/icons/svg/color/math.svg',
-      color: '#69ff78',
+      color: '#34c759',
     },
     {
       id: 'search',
@@ -169,18 +168,17 @@
       label: 'Cria slides',
       prompt: 'Cria uma apresentação de slides sobre ',
       icon: '/icons/svg/color/slides.svg',
-      color: '#ffbf94',
+      color: '#ff8c00',
     },
     {
       id: 'pdf',
       label: 'Analisa um PDF',
       prompt: 'Analisa este PDF: ',
       icon: '/icons/svg/color/pdf.svg',
-      color: '#ffc2c2',
+      color: '#e2574c',
     },
   ];
 
-  // converte hex em rgb para uso no CSS com opacidade variável
   function hexToRgb(hex) {
     const r = parseInt(hex.slice(1,3),16);
     const g = parseInt(hex.slice(3,5),16);
@@ -401,10 +399,7 @@
               <button
                 class="suggestion-toggle pulse-tap"
                 class:toggle-active={activeToggle?.id === t.id}
-                style="
-                  animation-delay:{(ri*2+i)*55}ms;
-                  --t-rgb:{hexToRgb(t.color)};
-                "
+                style="animation-delay:{(ri*2+i)*55}ms; --t-rgb:{hexToRgb(t.color)};"
                 on:click={() => selectToggle(t)}
               >
                 <img src={t.icon} alt={t.label} class="toggle-img" />
@@ -624,10 +619,10 @@
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --drawer-row-active: rgba(255,255,255,0.06);
     --drawer-sub-bg:     rgba(255,255,255,0.04);
-    --toggle-bg-opacity:     0.13;
-    --toggle-bg-opacity-act: 0.24;
-    --toggle-border-opacity: 0.30;
-    --toggle-label-opacity:  0.90;
+    --t-bg-a:   0.18;
+    --t-bg-act: 0.32;
+    --t-bd-a:   0.50;
+    --t-lbl-a:  1;
   }
   :global([data-theme="light"]) {
     --surface:           rgba(255,255,255,0.55);
@@ -657,10 +652,10 @@
     --drawer-overlay-in: rgba(0,0,0,0.20);
     --drawer-row-active: rgba(0,0,0,0.05);
     --drawer-sub-bg:     rgba(0,0,0,0.04);
-    --toggle-bg-opacity:     0.12;
-    --toggle-bg-opacity-act: 0.22;
-    --toggle-border-opacity: 0.28;
-    --toggle-label-opacity:  0.85;
+    --t-bg-a:   0.14;
+    --t-bg-act: 0.26;
+    --t-bd-a:   0.40;
+    --t-lbl-a:  0.85;
   }
 
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
@@ -681,23 +676,24 @@
 
   /* ── Toggles ── */
   .toggles-wrap {
-    display:flex; flex-direction:column; align-items:center; gap:9px;
-    padding:0 16px; width:100%;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:0 20px; width:100%;
     opacity:0; transform:translateY(16px);
     transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
   }
   .toggles-in { opacity:1; transform:translateY(0); }
-  .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:8px; }
+  .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:7px; }
 
   .suggestion-toggle {
-    display:inline-flex; align-items:center; gap:8px;
-    padding:8px 14px 8px 8px;
+    display:inline-flex; align-items:center; gap:7px;
+    padding:7px 12px 7px 7px;
     border-radius:999px;
-    border:1.5px solid rgba(var(--t-rgb), var(--toggle-border-opacity));
-    background:rgba(var(--t-rgb), var(--toggle-bg-opacity));
-    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1.5px solid rgba(var(--t-rgb), var(--t-bd-a));
+    background:rgba(var(--t-rgb), var(--t-bg-a));
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
     cursor:pointer; font-family:inherit; white-space:nowrap;
-    transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    transition:background .18s ease, border-color .18s ease,
+               transform .18s cubic-bezier(0.34,1.56,0.64,1);
     opacity:0; transform:scale(0.90) translateY(8px);
     animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
   }
@@ -708,23 +704,21 @@
   }
   .suggestion-toggle:active { transform:scale(0.95); }
   .toggle-active {
-    background:rgba(var(--t-rgb), var(--toggle-bg-opacity-act)) !important;
-    border-color:rgba(var(--t-rgb), 0.55) !important;
+    background:rgba(var(--t-rgb), var(--t-bg-act)) !important;
+    border-color:rgba(var(--t-rgb), 0.70) !important;
   }
 
-  /* ícone self-contained: deixa o SVG mostrar o seu próprio fundo colorido */
   .toggle-img {
-    width:28px;
-    height:28px;
+    width:22px;
+    height:22px;
     object-fit:contain;
     flex-shrink:0;
-    border-radius:6px; /* pequeno radius para cantos suaves no fundo circular */
+    border-radius:5px;
   }
-
   .toggle-label {
     font-size:13px;
     font-weight:600;
-    color:rgba(var(--t-rgb), var(--toggle-label-opacity));
+    color:rgba(var(--t-rgb), var(--t-lbl-a));
   }
 
   .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }

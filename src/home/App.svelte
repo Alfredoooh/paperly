@@ -134,30 +134,73 @@
   let lottieFinished = false;
   let togglesVisible = false;
 
+  // bg = pill background, text = label color
   const SUGGESTION_TOGGLES = [
     {
       id: 'image',
       label: 'Cria uma imagem',
       prompt: 'Cria uma imagem de ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+      icon: '/icons/svg/color/image.svg',
+      bg: 'rgba(255,149,0,0.13)',
+      bgActive: 'rgba(255,149,0,0.26)',
+      border: 'rgba(255,149,0,0.35)',
+      color: '#b35e00',
+      colorDark: '#ffb347',
     },
     {
       id: 'story',
       label: 'Conta uma história',
       prompt: 'Conta-me uma história sobre ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+      icon: '/icons/svg/color/open_book.svg',
+      bg: 'rgba(88,86,214,0.10)',
+      bgActive: 'rgba(88,86,214,0.22)',
+      border: 'rgba(88,86,214,0.30)',
+      color: '#3a38a0',
+      colorDark: '#a89fff',
     },
     {
       id: 'math',
       label: 'Resolve um problema',
       prompt: 'Resolve este problema matemático: ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
+      icon: '/icons/svg/color/math.svg',
+      bg: 'rgba(52,199,89,0.10)',
+      bgActive: 'rgba(52,199,89,0.22)',
+      border: 'rgba(52,199,89,0.32)',
+      color: '#1a7a35',
+      colorDark: '#4cd964',
     },
     {
       id: 'search',
-      label: 'Procure por...',
+      label: 'Procure na web',
       prompt: 'Procura por ',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      icon: '/icons/svg/color/browser.svg',
+      bg: 'rgba(0,199,190,0.10)',
+      bgActive: 'rgba(0,199,190,0.22)',
+      border: 'rgba(0,199,190,0.32)',
+      color: '#00706b',
+      colorDark: '#5ff5f0',
+    },
+    {
+      id: 'slides',
+      label: 'Cria slides',
+      prompt: 'Cria uma apresentação de slides sobre ',
+      icon: '/icons/svg/color/slides.svg',
+      bg: 'rgba(0,122,255,0.10)',
+      bgActive: 'rgba(0,122,255,0.22)',
+      border: 'rgba(0,122,255,0.30)',
+      color: '#0051c7',
+      colorDark: '#4da3ff',
+    },
+    {
+      id: 'pdf',
+      label: 'Analisa um PDF',
+      prompt: 'Analisa este PDF: ',
+      icon: '/icons/svg/color/pdf.svg',
+      bg: 'rgba(255,59,48,0.10)',
+      bgActive: 'rgba(255,59,48,0.22)',
+      border: 'rgba(255,59,48,0.30)',
+      color: '#c0160e',
+      colorDark: '#ff6b63',
     },
   ];
 
@@ -368,22 +411,27 @@
 
     {#if lottieFinished}
       <div class="toggles-wrap" class:toggles-in={togglesVisible}>
-        <div class="toggles-row">
-          {#each SUGGESTION_TOGGLES.slice(0,2) as t, i}
-            <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{i*60}ms" on:click={() => selectToggle(t)}>
-              <span class="toggle-icon">{@html t.icon}</span>
-              <span class="toggle-label">{t.label}</span>
-            </button>
-          {/each}
-        </div>
-        <div class="toggles-row">
-          {#each SUGGESTION_TOGGLES.slice(2) as t, i}
-            <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{(i+2)*60}ms" on:click={() => selectToggle(t)}>
-              <span class="toggle-icon">{@html t.icon}</span>
-              <span class="toggle-label">{t.label}</span>
-            </button>
-          {/each}
-        </div>
+        {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
+          <div class="toggles-row">
+            {#each row as t, i}
+              <button
+                class="suggestion-toggle pulse-tap"
+                class:toggle-active={activeToggle?.id === t.id}
+                style="
+                  animation-delay:{(ri*2+i)*55}ms;
+                  --t-bg:{t.bg};
+                  --t-bg-active:{t.bgActive};
+                  --t-border:{t.border};
+                  --t-color:{isDark ? t.colorDark : t.color};
+                "
+                on:click={() => selectToggle(t)}
+              >
+                <img src={t.icon} alt={t.label} class="toggle-img" />
+                <span class="toggle-label">{t.label}</span>
+              </button>
+            {/each}
+          </div>
+        {/each}
       </div>
     {/if}
   </main>
@@ -595,11 +643,6 @@
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --drawer-row-active: rgba(255,255,255,0.06);
     --drawer-sub-bg:     rgba(255,255,255,0.04);
-    --toggle-border:     rgba(255,255,255,0.22);
-    --toggle-bg:         rgba(255,255,255,0.08);
-    --toggle-bg-active:  rgba(255,255,255,0.18);
-    --toggle-text:       rgba(255,255,255,0.80);
-    --toggle-text-active:rgba(255,255,255,1);
   }
   :global([data-theme="light"]) {
     --surface:           rgba(255,255,255,0.55);
@@ -629,17 +672,11 @@
     --drawer-overlay-in: rgba(0,0,0,0.20);
     --drawer-row-active: rgba(0,0,0,0.05);
     --drawer-sub-bg:     rgba(0,0,0,0.04);
-    --toggle-border:     rgba(0,0,0,0.18);
-    --toggle-bg:         rgba(0,0,0,0.05);
-    --toggle-bg-active:  rgba(0,0,0,0.12);
-    --toggle-text:       rgba(20,20,20,0.72);
-    --toggle-text-active:rgba(20,20,20,1);
   }
 
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
   .bg-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
 
-  /* Header alinhado ao topo com padding mínimo */
   .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 6px) 16px 6px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
   .header.in { opacity:1; transform:translateY(0); }
   .header.header-lifted { z-index:62; }
@@ -653,19 +690,30 @@
   .lottie-wrap { width:220px; height:220px; transition:opacity .35s ease, transform .35s ease; }
   .lottie-hidden { opacity:0; transform:scale(0.85); pointer-events:none; position:absolute; }
 
-  /* Toggles 2+2 */
-  .toggles-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 20px; width:100%; opacity:0; transform:translateY(16px); transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1); }
+  /* ── Toggles coloridos 2+2+2 ── */
+  .toggles-wrap { display:flex; flex-direction:column; align-items:center; gap:9px; padding:0 16px; width:100%; opacity:0; transform:translateY(16px); transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1); }
   .toggles-in { opacity:1; transform:translateY(0); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:8px; }
-  .suggestion-toggle { display:inline-flex; align-items:center; gap:7px; padding:10px 16px; border-radius:999px; border:1.5px solid var(--toggle-border); background:var(--toggle-bg); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); cursor:pointer; font-family:inherit; white-space:nowrap; transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1); opacity:0; transform:scale(0.92) translateY(8px); animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards; }
+
+  .suggestion-toggle {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:9px 14px;
+    border-radius:999px;
+    border:1.5px solid var(--t-border);
+    background:var(--t-bg);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    cursor:pointer; font-family:inherit; white-space:nowrap;
+    transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    opacity:0; transform:scale(0.90) translateY(8px);
+    animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
+  }
   .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
-  @keyframes toggleIn { from{opacity:0;transform:scale(0.92) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
-  .suggestion-toggle:active { transform:scale(0.96); }
-  .toggle-active { background:var(--toggle-bg-active) !important; border-color:var(--icon-soft) !important; }
-  .toggle-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--toggle-text); width:15px; height:15px; }
-  .toggle-icon :global(svg) { display:block; }
-  .toggle-label { font-size:13px; font-weight:500; color:var(--toggle-text); }
-  .toggle-active .toggle-label { color:var(--toggle-text-active); }
+  @keyframes toggleIn { from{opacity:0;transform:scale(0.90) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  .suggestion-toggle:active { transform:scale(0.95); }
+  .toggle-active { background:var(--t-bg-active) !important; }
+
+  .toggle-img { width:18px; height:18px; object-fit:contain; flex-shrink:0; }
+  .toggle-label { font-size:13px; font-weight:600; color:var(--t-color); }
 
   .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }
   .bottom.in { opacity:1; transform:translateY(0); }

@@ -26,7 +26,7 @@ export const AVAILABLE_MODELS = [
 
 export const ALL_APPS = [
   { id: 'home', label: 'Home', icon: '/icons/png/home.png', path: '/home/' },
-  { id: 'ai', label: 'IA', icon: '/icons/png/logo.png', path: '/ai/' },
+  { id: 'ai', label: 'IA', icon: '/icons/png/ai.png', path: '/ai/' },
   { id: 'music', label: 'Music', icon: '/icons/png/music.png', path: '/music/' },
   { id: 'games', label: 'Games', icon: '/icons/png/games.png', path: '/games/' },
   { id: 'media', label: 'Media', icon: '/icons/png/media.png', path: '/media/' },

@@ -369,7 +369,7 @@
     {#if lottieFinished}
       <div class="toggles-wrap" class:toggles-in={togglesVisible}>
         <div class="toggles-row">
-          {#each SUGGESTION_TOGGLES.slice(0,3) as t, i}
+          {#each SUGGESTION_TOGGLES.slice(0,2) as t, i}
             <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{i*60}ms" on:click={() => selectToggle(t)}>
               <span class="toggle-icon">{@html t.icon}</span>
               <span class="toggle-label">{t.label}</span>
@@ -377,8 +377,8 @@
           {/each}
         </div>
         <div class="toggles-row">
-          {#each SUGGESTION_TOGGLES.slice(3) as t, i}
-            <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{(i+3)*60}ms" on:click={() => selectToggle(t)}>
+          {#each SUGGESTION_TOGGLES.slice(2) as t, i}
+            <button class="suggestion-toggle pulse-tap" class:toggle-active={activeToggle?.id === t.id} style="animation-delay:{(i+2)*60}ms" on:click={() => selectToggle(t)}>
               <span class="toggle-icon">{@html t.icon}</span>
               <span class="toggle-label">{t.label}</span>
             </button>
@@ -522,21 +522,17 @@
   {#if drawerOpen}
     <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
     <div class="drawer" class:drawer-in={drawerVisible}>
-
       <div class="drawer-avatar-block">
         <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
         <span class="drawer-user-name">{userName}</span>
       </div>
-
       <div class="drawer-sep"></div>
-
       <nav class="drawer-nav">
         <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Tema</span>
           <span class="icon-mask drawer-chevron" class:drawer-chevron-open={themeExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
         </button>
-
         <div class="theme-accordion" class:theme-accordion-open={themeExpanded}>
           <div class="theme-accordion-inner">
             {#each THEME_OPTIONS as opt}
@@ -549,7 +545,6 @@
             {/each}
           </div>
         </div>
-
         {#each DRAWER_ITEMS as item}
           <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
@@ -557,15 +552,12 @@
           </button>
         {/each}
       </nav>
-
       <div style="flex:1"></div>
       <div class="drawer-sep"></div>
-
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
         <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
       </button>
-
       <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
     </div>
   {/if}
@@ -647,7 +639,8 @@
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
   .bg-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
 
-  .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
+  /* Header alinhado ao topo com padding mínimo */
+  .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 6px) 16px 6px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
   .header.in { opacity:1; transform:translateY(0); }
   .header.header-lifted { z-index:62; }
   .logo-img { width:80px; height:80px; object-fit:contain; }
@@ -660,6 +653,7 @@
   .lottie-wrap { width:220px; height:220px; transition:opacity .35s ease, transform .35s ease; }
   .lottie-hidden { opacity:0; transform:scale(0.85); pointer-events:none; position:absolute; }
 
+  /* Toggles 2+2 */
   .toggles-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 20px; width:100%; opacity:0; transform:translateY(16px); transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1); }
   .toggles-in { opacity:1; transform:translateY(0); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:8px; }

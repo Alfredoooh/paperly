@@ -139,52 +139,39 @@
       id: 'image',
       label: 'Cria uma imagem',
       prompt: 'Cria uma imagem de ',
-      icon: '/icons/svg/color/image.svg',
-      color: '#4296FF',
+      icon: '/icons/svg/bw/image.svg',
     },
     {
       id: 'story',
       label: 'Conta uma história',
       prompt: 'Conta-me uma história sobre ',
-      icon: '/icons/svg/color/open_book.svg',
-      color: '#52a85a',
+      icon: '/icons/svg/bw/open_book.svg',
     },
     {
       id: 'math',
       label: 'Resolve um problema',
       prompt: 'Resolve este problema matemático: ',
-      icon: '/icons/svg/color/math.svg',
-      color: '#34c759',
+      icon: '/icons/svg/bw/math.svg',
     },
     {
       id: 'search',
       label: 'Procure na web',
       prompt: 'Procura por ',
-      icon: '/icons/svg/color/browser.svg',
-      color: '#2F88FF',
+      icon: '/icons/svg/bw/browser.svg',
     },
     {
       id: 'slides',
       label: 'Cria slides',
       prompt: 'Cria uma apresentação de slides sobre ',
-      icon: '/icons/svg/color/slides.svg',
-      color: '#ff8c00',
+      icon: '/icons/svg/bw/slides.svg',
     },
     {
       id: 'pdf',
       label: 'Analisa um PDF',
       prompt: 'Analisa este PDF: ',
-      icon: '/icons/svg/color/pdf.svg',
-      color: '#e2574c',
+      icon: '/icons/svg/bw/pdf.svg',
     },
   ];
-
-  function hexToRgb(hex) {
-    const r = parseInt(hex.slice(1,3),16);
-    const g = parseInt(hex.slice(3,5),16);
-    const b = parseInt(hex.slice(5,7),16);
-    return `${r},${g},${b}`;
-  }
 
   let activeToggle = null;
 
@@ -399,7 +386,7 @@
               <button
                 class="suggestion-toggle pulse-tap"
                 class:toggle-active={activeToggle?.id === t.id}
-                style="animation-delay:{(ri*2+i)*55}ms; --t-rgb:{hexToRgb(t.color)};"
+                style="animation-delay:{(ri*2+i)*55}ms;"
                 on:click={() => selectToggle(t)}
               >
                 <img src={t.icon} alt={t.label} class="toggle-img" />
@@ -619,10 +606,12 @@
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --drawer-row-active: rgba(255,255,255,0.06);
     --drawer-sub-bg:     rgba(255,255,255,0.04);
-    --t-bg-a:   0.18;
-    --t-bg-act: 0.32;
-    --t-bd-a:   0.50;
-    --t-lbl-a:  1;
+    /* toggles */
+    --toggle-bg:         rgba(255,255,255,0.18);
+    --toggle-bg-act:     rgba(255,255,255,0.30);
+    --toggle-border:     rgba(255,255,255,0.28);
+    --toggle-border-act: rgba(255,255,255,0.55);
+    --toggle-label:      rgba(255,255,255,0.90);
   }
   :global([data-theme="light"]) {
     --surface:           rgba(255,255,255,0.55);
@@ -652,10 +641,12 @@
     --drawer-overlay-in: rgba(0,0,0,0.20);
     --drawer-row-active: rgba(0,0,0,0.05);
     --drawer-sub-bg:     rgba(0,0,0,0.04);
-    --t-bg-a:   0.14;
-    --t-bg-act: 0.26;
-    --t-bd-a:   0.40;
-    --t-lbl-a:  0.85;
+    /* toggles */
+    --toggle-bg:         rgba(255,255,255,0.72);
+    --toggle-bg-act:     rgba(255,255,255,0.92);
+    --toggle-border:     rgba(0,0,0,0.12);
+    --toggle-border-act: rgba(0,0,0,0.28);
+    --toggle-label:      rgba(20,20,20,0.82);
   }
 
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
@@ -670,31 +661,61 @@
   .hdr-seg:active { background:var(--hdr-seg-active); }
   .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  .content { flex:1; position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; }
-  .lottie-wrap { width:220px; height:220px; transition:opacity .35s ease, transform .35s ease; }
-  .lottie-hidden { opacity:0; transform:scale(0.85); pointer-events:none; position:absolute; }
+  /* ── Content: empurra os toggles para baixo do centro ── */
+  .content {
+    flex:1;
+    position:relative;
+    z-index:10;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    padding-bottom:28px;
+    gap:0;
+  }
+  .lottie-wrap {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    width:220px;
+    height:220px;
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  .lottie-hidden { opacity:0; transform:translate(-50%,-50%) scale(0.85); pointer-events:none; }
 
   /* ── Toggles ── */
   .toggles-wrap {
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-    padding:0 20px; width:100%;
-    opacity:0; transform:translateY(16px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    padding:0 20px;
+    width:100%;
+    opacity:0;
+    transform:translateY(16px);
     transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
   }
   .toggles-in { opacity:1; transform:translateY(0); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:7px; }
 
   .suggestion-toggle {
-    display:inline-flex; align-items:center; gap:7px;
-    padding:7px 12px 7px 7px;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:7px 14px 7px 7px;
     border-radius:999px;
-    border:1.5px solid rgba(var(--t-rgb), var(--t-bd-a));
-    background:rgba(var(--t-rgb), var(--t-bg-a));
-    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-    cursor:pointer; font-family:inherit; white-space:nowrap;
+    border:1px solid var(--toggle-border);
+    background:var(--toggle-bg);
+    backdrop-filter:blur(18px) saturate(1.6);
+    -webkit-backdrop-filter:blur(18px) saturate(1.6);
+    cursor:pointer;
+    font-family:inherit;
+    white-space:nowrap;
     transition:background .18s ease, border-color .18s ease,
                transform .18s cubic-bezier(0.34,1.56,0.64,1);
-    opacity:0; transform:scale(0.90) translateY(8px);
+    opacity:0;
+    transform:scale(0.90) translateY(8px);
     animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
   }
   .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
@@ -704,8 +725,8 @@
   }
   .suggestion-toggle:active { transform:scale(0.95); }
   .toggle-active {
-    background:rgba(var(--t-rgb), var(--t-bg-act)) !important;
-    border-color:rgba(var(--t-rgb), 0.70) !important;
+    background:var(--toggle-bg-act) !important;
+    border-color:var(--toggle-border-act) !important;
   }
 
   .toggle-img {
@@ -718,7 +739,7 @@
   .toggle-label {
     font-size:13px;
     font-weight:600;
-    color:rgba(var(--t-rgb), var(--t-lbl-a));
+    color:var(--toggle-label);
   }
 
   .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }

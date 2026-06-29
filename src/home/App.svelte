@@ -134,75 +134,59 @@
   let lottieFinished = false;
   let togglesVisible = false;
 
-  // bg = pill background, text = label color
+  // cor = cor dominante do fundo do SVG
   const SUGGESTION_TOGGLES = [
     {
       id: 'image',
       label: 'Cria uma imagem',
       prompt: 'Cria uma imagem de ',
       icon: '/icons/svg/color/image.svg',
-      bg: 'rgba(255,149,0,0.13)',
-      bgActive: 'rgba(255,149,0,0.26)',
-      border: 'rgba(255,149,0,0.35)',
-      color: '#b35e00',
-      colorDark: '#ffb347',
+      color: '#4296FF',
     },
     {
       id: 'story',
       label: 'Conta uma história',
       prompt: 'Conta-me uma história sobre ',
       icon: '/icons/svg/color/open_book.svg',
-      bg: 'rgba(88,86,214,0.10)',
-      bgActive: 'rgba(88,86,214,0.22)',
-      border: 'rgba(88,86,214,0.30)',
-      color: '#3a38a0',
-      colorDark: '#a89fff',
+      color: '#92d19c',
     },
     {
       id: 'math',
       label: 'Resolve um problema',
       prompt: 'Resolve este problema matemático: ',
       icon: '/icons/svg/color/math.svg',
-      bg: 'rgba(52,199,89,0.10)',
-      bgActive: 'rgba(52,199,89,0.22)',
-      border: 'rgba(52,199,89,0.32)',
-      color: '#1a7a35',
-      colorDark: '#4cd964',
+      color: '#69ff78',
     },
     {
       id: 'search',
       label: 'Procure na web',
       prompt: 'Procura por ',
       icon: '/icons/svg/color/browser.svg',
-      bg: 'rgba(0,199,190,0.10)',
-      bgActive: 'rgba(0,199,190,0.22)',
-      border: 'rgba(0,199,190,0.32)',
-      color: '#00706b',
-      colorDark: '#5ff5f0',
+      color: '#2F88FF',
     },
     {
       id: 'slides',
       label: 'Cria slides',
       prompt: 'Cria uma apresentação de slides sobre ',
       icon: '/icons/svg/color/slides.svg',
-      bg: 'rgba(0,122,255,0.10)',
-      bgActive: 'rgba(0,122,255,0.22)',
-      border: 'rgba(0,122,255,0.30)',
-      color: '#0051c7',
-      colorDark: '#4da3ff',
+      color: '#ffbf94',
     },
     {
       id: 'pdf',
       label: 'Analisa um PDF',
       prompt: 'Analisa este PDF: ',
       icon: '/icons/svg/color/pdf.svg',
-      bg: 'rgba(255,59,48,0.10)',
-      bgActive: 'rgba(255,59,48,0.22)',
-      border: 'rgba(255,59,48,0.30)',
-      color: '#c0160e',
-      colorDark: '#ff6b63',
+      color: '#ffc2c2',
     },
   ];
+
+  // converte hex em rgb para uso no CSS com opacidade variável
+  function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `${r},${g},${b}`;
+  }
 
   let activeToggle = null;
 
@@ -419,10 +403,7 @@
                 class:toggle-active={activeToggle?.id === t.id}
                 style="
                   animation-delay:{(ri*2+i)*55}ms;
-                  --t-bg:{t.bg};
-                  --t-bg-active:{t.bgActive};
-                  --t-border:{t.border};
-                  --t-color:{isDark ? t.colorDark : t.color};
+                  --t-rgb:{hexToRgb(t.color)};
                 "
                 on:click={() => selectToggle(t)}
               >
@@ -643,6 +624,10 @@
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --drawer-row-active: rgba(255,255,255,0.06);
     --drawer-sub-bg:     rgba(255,255,255,0.04);
+    --toggle-bg-opacity:     0.13;
+    --toggle-bg-opacity-act: 0.24;
+    --toggle-border-opacity: 0.30;
+    --toggle-label-opacity:  0.90;
   }
   :global([data-theme="light"]) {
     --surface:           rgba(255,255,255,0.55);
@@ -672,6 +657,10 @@
     --drawer-overlay-in: rgba(0,0,0,0.20);
     --drawer-row-active: rgba(0,0,0,0.05);
     --drawer-sub-bg:     rgba(0,0,0,0.04);
+    --toggle-bg-opacity:     0.12;
+    --toggle-bg-opacity-act: 0.22;
+    --toggle-border-opacity: 0.28;
+    --toggle-label-opacity:  0.85;
   }
 
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
@@ -690,30 +679,53 @@
   .lottie-wrap { width:220px; height:220px; transition:opacity .35s ease, transform .35s ease; }
   .lottie-hidden { opacity:0; transform:scale(0.85); pointer-events:none; position:absolute; }
 
-  /* ── Toggles coloridos 2+2+2 ── */
-  .toggles-wrap { display:flex; flex-direction:column; align-items:center; gap:9px; padding:0 16px; width:100%; opacity:0; transform:translateY(16px); transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1); }
+  /* ── Toggles ── */
+  .toggles-wrap {
+    display:flex; flex-direction:column; align-items:center; gap:9px;
+    padding:0 16px; width:100%;
+    opacity:0; transform:translateY(16px);
+    transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
+  }
   .toggles-in { opacity:1; transform:translateY(0); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:8px; }
 
   .suggestion-toggle {
-    display:inline-flex; align-items:center; gap:7px;
-    padding:9px 14px;
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 14px 8px 8px;
     border-radius:999px;
-    border:1.5px solid var(--t-border);
-    background:var(--t-bg);
+    border:1.5px solid rgba(var(--t-rgb), var(--toggle-border-opacity));
+    background:rgba(var(--t-rgb), var(--toggle-bg-opacity));
     backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
     cursor:pointer; font-family:inherit; white-space:nowrap;
-    transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
     opacity:0; transform:scale(0.90) translateY(8px);
     animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
   }
   .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
-  @keyframes toggleIn { from{opacity:0;transform:scale(0.90) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  @keyframes toggleIn {
+    from { opacity:0; transform:scale(0.90) translateY(8px); }
+    to   { opacity:1; transform:scale(1)    translateY(0);   }
+  }
   .suggestion-toggle:active { transform:scale(0.95); }
-  .toggle-active { background:var(--t-bg-active) !important; }
+  .toggle-active {
+    background:rgba(var(--t-rgb), var(--toggle-bg-opacity-act)) !important;
+    border-color:rgba(var(--t-rgb), 0.55) !important;
+  }
 
-  .toggle-img { width:18px; height:18px; object-fit:contain; flex-shrink:0; }
-  .toggle-label { font-size:13px; font-weight:600; color:var(--t-color); }
+  /* ícone self-contained: deixa o SVG mostrar o seu próprio fundo colorido */
+  .toggle-img {
+    width:28px;
+    height:28px;
+    object-fit:contain;
+    flex-shrink:0;
+    border-radius:6px; /* pequeno radius para cantos suaves no fundo circular */
+  }
+
+  .toggle-label {
+    font-size:13px;
+    font-weight:600;
+    color:rgba(var(--t-rgb), var(--toggle-label-opacity));
+  }
 
   .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }
   .bottom.in { opacity:1; transform:translateY(0); }

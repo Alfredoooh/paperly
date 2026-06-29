@@ -132,8 +132,54 @@
 
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
+  // ── Lottie + toggles ──────────────────────────────────────────────────────
   let lottieEl;
   let lottieInstance;
+  let lottieFinished = false;
+  let togglesVisible = false;
+
+  const SUGGESTION_TOGGLES = [
+    {
+      id: 'image',
+      label: 'Cria uma imagem',
+      prompt: 'Cria uma imagem de ',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    },
+    {
+      id: 'story',
+      label: 'Conta-me uma história',
+      prompt: 'Conta-me uma história sobre ',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+    },
+    {
+      id: 'math',
+      label: 'Resolve um problema',
+      prompt: 'Resolve este problema matemático: ',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
+    },
+    {
+      id: 'search',
+      label: 'Procure por...',
+      prompt: 'Procura por ',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+    },
+  ];
+
+  let activeToggle = null;
+
+  function selectToggle(t) {
+    activeToggle = activeToggle?.id === t.id ? null : t;
+    if (activeToggle) {
+      inputText = activeToggle.prompt;
+      setTimeout(() => {
+        if (textInputEl) { autoResize(); textInputEl.focus(); textInputEl.setSelectionRange(inputText.length, inputText.length); }
+      }, 80);
+    } else {
+      inputText = '';
+      setTimeout(autoResize, 10);
+    }
+  }
+
   async function loadLottie() {
     if (typeof window === 'undefined') return;
     if (!window.lottie) {
@@ -147,8 +193,12 @@
     if (window.lottie && lottieEl) {
       lottieInstance = window.lottie.loadAnimation({
         container: lottieEl, renderer: 'svg',
-        loop: true, autoplay: true,
+        loop: false, autoplay: true,
         path: '/icons/lottie/welcome.json',
+      });
+      lottieInstance.addEventListener('complete', () => {
+        lottieFinished = true;
+        setTimeout(() => { togglesVisible = true; }, 60);
       });
     }
   }
@@ -308,18 +358,34 @@
         {#if showApps}
           <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:15px;height:15px;background:var(--icon-on-accent)"></span>
         {:else}
-          <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
+          <img src="/icons/png/apps.png" alt="Apps" class="hdr-icon-img" />
         {/if}
       </button>
       <div class="hdr-seg-divider"></div>
       <button class="hdr-seg pulse-tap" on:click={openDrawer}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
+        <img src="/icons/png/menu.png" alt="Menu" class="hdr-icon-img" />
       </button>
     </div>
   </header>
 
   <main class="content">
-    <div class="lottie-wrap" bind:this={lottieEl}></div>
+    <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
+
+    {#if lottieFinished}
+      <div class="toggles-wrap" class:toggles-in={togglesVisible}>
+        {#each SUGGESTION_TOGGLES as t, i}
+          <button
+            class="suggestion-toggle pulse-tap"
+            class:toggle-active={activeToggle?.id === t.id}
+            style="animation-delay:{i * 60}ms"
+            on:click={() => selectToggle(t)}
+          >
+            <span class="toggle-icon">{@html t.icon}</span>
+            <span class="toggle-label">{t.label}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
   </main>
 
   <div class="bottom" class:in={mounted}>
@@ -445,13 +511,7 @@
         {#each platformApps as app, i}
           <button class="ag-item pulse-tap" style="animation-delay:{i*25}ms" class:ag-in={appsVisible} on:click={() => openApp(app)}>
             <div class="ag-icon">
-              {#if app.id === 'ai'}
-                <img src="/icons/png/ia.png" alt={app.label} class="ag-img" />
-              {:else if app.icon && !app.icon.endsWith('.svg')}
-                <img src={app.icon} alt={app.label} class="ag-img" />
-              {:else}
-                <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');width:36px;height:36px;background:var(--icon-strong)"></span>
-              {/if}
+              <img src={app.icon} alt={app.label} class="ag-img" />
             </div>
             <span class="ag-name">{app.label}</span>
           </button>
@@ -475,7 +535,6 @@
 
       <nav class="drawer-nav">
 
-        <!-- Tema -->
         <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Tema</span>
@@ -505,7 +564,6 @@
       </nav>
 
       <div style="flex:1"></div>
-
       <div class="drawer-sep"></div>
 
       <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
@@ -551,6 +609,11 @@
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --drawer-row-active: rgba(255,255,255,0.06);
     --drawer-sub-bg:     rgba(255,255,255,0.04);
+    --toggle-border:     rgba(255,255,255,0.22);
+    --toggle-bg:         rgba(255,255,255,0.08);
+    --toggle-bg-active:  rgba(255,255,255,0.18);
+    --toggle-text:       rgba(255,255,255,0.80);
+    --toggle-text-active:rgba(255,255,255,1);
   }
   :global([data-theme="light"]) {
     --surface:           rgba(255,255,255,0.55);
@@ -580,6 +643,11 @@
     --drawer-overlay-in: rgba(0,0,0,0.20);
     --drawer-row-active: rgba(0,0,0,0.05);
     --drawer-sub-bg:     rgba(0,0,0,0.04);
+    --toggle-border:     rgba(0,0,0,0.18);
+    --toggle-bg:         rgba(0,0,0,0.05);
+    --toggle-bg-active:  rgba(0,0,0,0.12);
+    --toggle-text:       rgba(20,20,20,0.72);
+    --toggle-text-active:rgba(20,20,20,1);
   }
 
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
@@ -588,14 +656,68 @@
   .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
   .header.in { opacity:1; transform:translateY(0); }
   .header.header-lifted { z-index:62; }
-  .logo-img { width:44px; height:44px; object-fit:contain; }
-  .header-right { display:flex; align-items:center; height:34px; border-radius:17px; background:var(--hdr-seg-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); overflow:hidden; }
-  .hdr-seg { width:36px; height:34px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .18s ease; }
-  .hdr-seg:active { background:var(--hdr-seg-active); }
-  .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  .content { flex:1; position:relative; z-index:10; display:flex; align-items:center; justify-content:center; }
-  .lottie-wrap { width:220px; height:220px; }
+  /* Logo maior */
+  .logo-img { width:56px; height:56px; object-fit:contain; }
+
+  .header-right { display:flex; align-items:center; height:40px; border-radius:20px; background:var(--hdr-seg-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); overflow:hidden; }
+  .hdr-seg { width:44px; height:40px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .18s ease; }
+  .hdr-seg:active { background:var(--hdr-seg-active); }
+  .hdr-seg-divider { width:1px; height:18px; background:var(--hdr-seg-divider); }
+
+  /* Ícones PNG no header */
+  .hdr-icon-img { width:22px; height:22px; object-fit:contain; }
+
+  .content { flex:1; position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:32px; }
+
+  .lottie-wrap { width:220px; height:220px; transition:opacity .35s ease, transform .35s ease; }
+  .lottie-hidden { opacity:0; transform:scale(0.85); pointer-events:none; position:absolute; }
+
+  /* ── Toggles ── */
+  .toggles-wrap {
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    padding:0 24px; width:100%; max-width:360px;
+    opacity:0; transform:translateY(16px);
+    transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
+  }
+  .toggles-in { opacity:1; transform:translateY(0); }
+
+  .suggestion-toggle {
+    display:flex; align-items:center; gap:10px;
+    width:100%; padding:14px 20px;
+    border-radius:999px;
+    border:1.5px solid var(--toggle-border);
+    background:var(--toggle-bg);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    cursor:pointer; font-family:inherit;
+    transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    opacity:0; transform:scale(0.92) translateY(8px);
+    animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
+  }
+  .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
+  @keyframes toggleIn {
+    from { opacity:0; transform:scale(0.92) translateY(8px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+  }
+  .suggestion-toggle:active { transform:scale(0.96); }
+  .toggle-active {
+    background:var(--toggle-bg-active) !important;
+    border-color:var(--icon-soft) !important;
+  }
+
+  .toggle-icon {
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; color:var(--toggle-text);
+    width:18px; height:18px;
+  }
+  .toggle-icon :global(svg) { display:block; }
+
+  .toggle-label {
+    font-size:14px; font-weight:500;
+    color:var(--toggle-text);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .toggle-active .toggle-label { color:var(--toggle-text-active); }
 
   .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }
   .bottom.in { opacity:1; transform:translateY(0); }
@@ -651,52 +773,29 @@
   .ag-item:active .ag-img { transform:scale(0.84); }
   .ag-name { font-size:10px; font-weight:500; color:var(--icon-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:58px; text-align:center; line-height:1.2; }
 
-  /* ══ DRAWER ══════════════════════════════════════════════════════════ */
   .drawer-overlay { position:fixed; inset:0; z-index:70; background:transparent; transition:background .28s ease; }
   .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
-
-  .drawer {
-    position:fixed; top:0; right:0; bottom:0; z-index:71;
-    width:min(288px,82vw);
-    background:var(--drawer-bg);
-    border-left:0.5px solid var(--drawer-border);
-    box-shadow:-12px 0 48px var(--drawer-shadow);
-    display:flex; flex-direction:column;
-    padding-top:max(env(safe-area-inset-top,0px),16px);
-    overflow:hidden;
-    transform:translateX(100%);
-    transition:transform .28s cubic-bezier(0.25,0.46,0.45,0.94);
-  }
+  .drawer { position:fixed; top:0; right:0; bottom:0; z-index:71; width:min(288px,82vw); background:var(--drawer-bg); border-left:0.5px solid var(--drawer-border); box-shadow:-12px 0 48px var(--drawer-shadow); display:flex; flex-direction:column; padding-top:max(env(safe-area-inset-top,0px),16px); overflow:hidden; transform:translateX(100%); transition:transform .28s cubic-bezier(0.25,0.46,0.45,0.94); }
   .drawer.drawer-in { transform:translateX(0); }
-
   .drawer-avatar-block { display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 20px; flex-shrink:0; }
   .drawer-avatar { width:84px; height:84px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:700; color:#fff; }
   .drawer-user-name { font-size:16px; font-weight:700; color:var(--drawer-text); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-
   .drawer-sep { height:0.5px; background:var(--drawer-sep); margin:0 14px; flex-shrink:0; }
-
   .drawer-nav { display:flex; flex-direction:column; padding:8px 6px; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; flex:1; }
-
   .drawer-item { display:flex; align-items:center; gap:16px; padding:13px 14px; border-radius:10px; border:none; background:transparent; cursor:pointer; font-family:inherit; text-align:left; transition:background .12s ease; width:100%; }
   .drawer-item:active { background:var(--drawer-row-active); }
   .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); }
-
   .drawer-chevron { transition:transform .25s cubic-bezier(0.25,0.46,0.45,0.94); }
   .drawer-chevron-open { transform:rotate(90deg); }
-
-  /* Accordion tema — grid-template-rows igual ao Drawer.svelte original */
   .theme-accordion { display:grid; grid-template-rows:0fr; transition:grid-template-rows .25s cubic-bezier(0.25,0.46,0.45,0.94); }
   .theme-accordion-open { grid-template-rows:1fr; }
   .theme-accordion-inner { overflow:hidden; min-height:0; }
-
   .theme-opt { display:flex; align-items:center; justify-content:space-between; width:100%; padding:11px 14px 11px 52px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; border-radius:8px; transition:background .12s ease; }
   .theme-opt:active { background:var(--drawer-row-active); }
   .theme-opt-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
-
   .drawer-logout { flex-shrink:0; }
 
   .pulse-tap { cursor:pointer; transition:transform .14s cubic-bezier(0.25,0.46,0.45,0.94), opacity .14s ease; }
   .pulse-tap:active { transform:scale(0.96); opacity:.80; }
-
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

@@ -25,13 +25,13 @@ export const AVAILABLE_MODELS = [
 ];
 
 export const ALL_APPS = [
-  { id: 'home',       label: 'Home',       icon: '/icons/svg/home_filled.svg',   path: '/home/' },
-  { id: 'ai',         label: 'IA',         icon: '/icons/png/logo.png',           path: '/ai/' },
-  { id: 'music',      label: 'Music',      icon: '/icons/png/music.png',          path: '/music/' },
-  { id: 'games',      label: 'Games',      icon: '/icons/png/games.png',          path: '/games/' },
-  { id: 'media',      label: 'Media',      icon: '/icons/png/preview.png',        path: '/media/' },
-  { id: 'news',       label: 'News',       icon: '/icons/svg/web.svg',            path: '/news/' },
-  { id: 'downloader', label: 'Downloader', icon: '/icons/svg/download.svg',       path: '/downloader/' },
+  { id: 'home', label: 'Home', icon: '/icons/png/home.png', path: '/home/' },
+  { id: 'ai', label: 'IA', icon: '/icons/png/logo.png', path: '/ai/' },
+  { id: 'music', label: 'Music', icon: '/icons/png/music.png', path: '/music/' },
+  { id: 'games', label: 'Games', icon: '/icons/png/games.png', path: '/games/' },
+  { id: 'media', label: 'Media', icon: '/icons/png/media.png', path: '/media/' },
+  { id: 'news', label: 'News', icon: '/icons/png/news.png', path: '/news/' },
+  { id: 'downloader', label: 'Downloader', icon: '/icons/png/downloader.png', path: '/downloader/' },
 ];
 
 export const PLANS_DATA = {

@@ -395,8 +395,9 @@
   }
 
   // ── Keyboard-aware bottom bar ───────────────────────────────
+  // Fonte única de verdade: visualViewport. Sem interval, sem
+  // listeners concorrentes — só resize/scroll do visualViewport.
   let kbOffset = 0;
-  let kbInterval;
   let vv;
 
   function updateKbOffset() {
@@ -441,17 +442,7 @@
       vv = window.visualViewport;
       vv.addEventListener('resize', updateKbOffset);
       vv.addEventListener('scroll', updateKbOffset);
-      if ('onvirtualkeyboardpolicychange' in navigator || navigator.virtualKeyboard) {
-        try { navigator.virtualKeyboard.overlaysContent = true; } catch (e) {}
-      }
-      if (navigator.virtualKeyboard) {
-        navigator.virtualKeyboard.addEventListener('geometrychange', () => {
-          const r = navigator.virtualKeyboard.boundingRect;
-          kbOffset = r && r.height > 0 ? Math.round(r.height) : 0;
-        });
-      }
       updateKbOffset();
-      kbInterval = setInterval(updateKbOffset, 300);
     }
 
     requestAnimationFrame(() => { mounted = true; });
@@ -465,7 +456,6 @@
         vv.removeEventListener('resize', updateKbOffset);
         vv.removeEventListener('scroll', updateKbOffset);
       }
-      clearInterval(kbInterval);
       clearTimeout(suggestDebounce);
       abortSuggest?.abort();
     };

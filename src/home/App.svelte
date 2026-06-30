@@ -416,7 +416,7 @@
   let headerHeight = 0;
   let bottomBarHeight = 0;
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
-  $: contentPaddingBottom = bottomBarHeight ? bottomBarHeight + 12 : 28;
+  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28) + kbOffset;
 
   let mounted = false;
   onMount(() => {
@@ -601,10 +601,12 @@
       </div>
     {/if}
 
-    <div class="legal-row">
-      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
-      <span class="legal-dot">·</span>
-      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
+    <div class="legal-card">
+      <div class="legal-row">
+        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
+        <span class="legal-dot">·</span>
+        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
+      </div>
     </div>
 
   </div>
@@ -867,7 +869,7 @@
 
   /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport) ── */
   .bottom {
-    position:fixed; left:0; right:0; z-index:20;
+    position:fixed; bottom:0; left:0; right:0; z-index:20;
     padding-left:16px; padding-right:16px;
     opacity:0; transform:translateY(18px);
     transition:opacity .6s .3s ease, transform .6s .3s ease, bottom .18s ease, padding-bottom .18s ease;
@@ -914,8 +916,18 @@
   .suggest-fill { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1); }
   .suggest-fill:active { background:var(--btn-bg-active); transform:scale(0.86); }
 
-  /* ── Termos / privacidade, fica debaixo do bottom-bar ── */
-  .legal-row { display:flex; align-items:center; justify-content:center; gap:6px; padding-top:10px; }
+  /* ── Card legal (termos/privacidade) ── */
+  .legal-card {
+    margin-top: 10px;
+    border-radius: 22px;
+    background: var(--surface);
+    backdrop-filter: blur(30px) saturate(1.7);
+    -webkit-backdrop-filter: blur(30px) saturate(1.7);
+    border: 0.5px solid var(--border-soft);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.20);
+    padding: 10px 16px;
+  }
+  .legal-row { display:flex; align-items:center; justify-content:center; gap:6px; }
   .legal-link { background:none; border:none; font-family:inherit; font-size:10.5px; font-weight:500; color:var(--text-faint); cursor:pointer; padding:2px 1px; }
   .legal-link:active { color:var(--icon-soft); }
   .legal-dot { font-size:10px; color:var(--text-faint); }

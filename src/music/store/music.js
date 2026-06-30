@@ -1,3 +1,4 @@
+// src/music/store/music.js
 import { writable } from 'svelte/store';
 
 export const PROXY    = 'https://nexavps00001-test.onrender.com';
@@ -28,7 +29,8 @@ export const audioLoading  = writable(false);
 
 // Navigation
 export const currentArtist = writable(null);
-export const currentPage   = writable('home'); // home | search | library | artist
+export const currentPage   = writable('home'); // home | search | library | artist | search-active
+export const searchBarRect = writable(null);   // DOMRect do botão de pesquisa, p/ container transform
 
 export let audioInstance = null;
 let progressTimer        = null;

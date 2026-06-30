@@ -464,7 +464,7 @@
 </script>
 
 <svelte:head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
 </svelte:head>
 
 <div class="root">
@@ -741,7 +741,6 @@
 
   :global(html), :global(body) {
     overflow: hidden;
-    overscroll-behavior: none;
     height: 100%;
     width: 100%;
   }

@@ -237,12 +237,6 @@
   // ───────────────────────────────────────────────────────────
   // Search suggestions (public-API-backed, via own Worker proxy)
   // ───────────────────────────────────────────────────────────
-  // NOTE: calling Google/DuckDuckGo suggest endpoints directly
-  // from the browser fails with a CORS error (verified — they
-  // don't send Access-Control-Allow-Origin for arbitrary origins).
-  // So this hits your own Worker (same one used for /ai/transcribe),
-  // which fetches the suggestions server-side and returns clean JSON.
-  // See the Worker route at the bottom of this answer.
   let searchSuggestions = [];
   let suggestLoading    = false;
   let suggestDebounce;
@@ -275,7 +269,7 @@
       );
       if (!res.ok) throw new Error('suggest http ' + res.status);
       const data = await res.json();
-      if (inputText.trim() !== q) return; // stale response, user kept typing
+      if (inputText.trim() !== q) return;
       searchSuggestions = (Array.isArray(data?.suggestions) ? data.suggestions : [])
         .filter(Boolean)
         .slice(0, 6);
@@ -400,31 +394,26 @@
     waveAnalyser = null;
   }
 
-  // ── Keyboard-aware bottom bar (visualViewport API) ──
-  // Debounce por tempo: só aplicamos kbOffset depois de a sequência de
-  // resize events do teclado assentar. O Android dispara vários resizes
-  // intermédios durante a animação nativa do teclado a abrir/fechar; sem
-  // este debounce, cada evento intermédio reposicionava a bottom bar a
-  // meio da transição, causando o "sobe demais e depois volta" (overshoot).
-  // Aplicar só o valor final (após KB_SETTLE_MS sem novos eventos) resolve
-  // isto na raiz, em vez de tentar compensar via easing/transition CSS.
-  const KB_SETTLE_MS = 80;
+  // ── Keyboard-aware bottom bar ───────────────────────────────
+  // Usar transform em vez de bottom evita o “sobe demais e depois volta”
+  // causado por múltiplos resize intermédios do teclado no Android.
   let kbOffset = 0;
   let vv;
-  let kbDebounce;
+  let kbRaf = 0;
 
   function updateKbOffset() {
     if (!vv) return;
-    clearTimeout(kbDebounce);
-    kbDebounce = setTimeout(() => {
-      const overlap = window.innerHeight - vv.height - vv.offsetTop;
-      kbOffset = Math.max(0, Math.round(overlap));
-    }, KB_SETTLE_MS);
+
+    cancelAnimationFrame(kbRaf);
+    kbRaf = requestAnimationFrame(() => {
+      const next = Math.max(0, Math.round(window.innerHeight - vv.height));
+      if (Math.abs(next - kbOffset) >= 2) {
+        kbOffset = next;
+      }
+    });
   }
 
-  $: bottomOffsetStyle = kbOffset > 0
-    ? `bottom:${kbOffset}px; padding-bottom:18px;`
-    : `bottom:0; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+  $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
 
   // ── Live-measured header/bottom heights → content padding ──
   let headerHeight = 0;
@@ -432,15 +421,7 @@
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
   $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28) + kbOffset;
 
-  // ── Toggles: montados UMA ÚNICA VEZ quando o lottie termina, nunca mais
-  // destruídos/recriados. Antes, o {#if lottieFinished && !inputText.trim()}
-  // destruía e recriava o bloco inteiro de toggles sempre que inputText
-  // passava de vazio→preenchido→vazio — o que acontece sozinho ao focar/
-  // desfocar o textarea com o teclado. Cada recriação disparava de novo a
-  // animação CSS toggleIn com animation-delay escalonado por botão, dando
-  // a sensação de "saltar" sempre que mexias no teclado. Agora o bloco
-  // monta-se uma vez (mountToggles fica true e nunca mais volta a false) e
-  // só alternamos visibilidade via opacity/pointer-events, sem destruir DOM.
+  // ── Toggles mounted once ────────────────────────────────────
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
   $: togglesShouldShow = lottieFinished && !inputText.trim();
@@ -450,8 +431,10 @@
     user = requireAuth(); if (!user) return;
     const saved = getTheme();
     applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
+
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', handleSystemChange);
+
     function onStorage(e) {
       if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
     }
@@ -461,11 +444,14 @@
       vv = window.visualViewport;
       vv.addEventListener('resize', updateKbOffset);
       vv.addEventListener('scroll', updateKbOffset);
+      window.addEventListener('resize', updateKbOffset);
+      window.addEventListener('orientationchange', updateKbOffset);
       updateKbOffset();
     }
 
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
+
     return () => {
       if (lottieInstance) lottieInstance.destroy();
       mediaQuery?.removeEventListener('change', handleSystemChange);
@@ -474,7 +460,9 @@
         vv.removeEventListener('resize', updateKbOffset);
         vv.removeEventListener('scroll', updateKbOffset);
       }
-      clearTimeout(kbDebounce);
+      window.removeEventListener('resize', updateKbOffset);
+      window.removeEventListener('orientationchange', updateKbOffset);
+      cancelAnimationFrame(kbRaf);
       clearTimeout(suggestDebounce);
       abortSuggest?.abort();
     };
@@ -482,13 +470,6 @@
 </script>
 
 <svelte:head>
-  <!--
-    Sem override de interactive-widget: deixamos o default do browser
-    (equivalente a resizes-visual), que é o modo que updateKbOffset()
-    acima espera — ele lê vv.height e vv.offsetTop, que só mudam nesse
-    modo quando o teclado abre. overlays-content desativava esse resize
-    por completo, por isso o bottom ficava sempre preso em bottom:0.
-  -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 </svelte:head>
 
@@ -834,7 +815,6 @@
   .root { position:fixed; inset:0; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
   .bg-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
 
-  /* ── Header: SEMPRE fixo, nunca se move (nem com teclado, nem com scroll) ── */
   .header {
     position:fixed; top:0; left:0; right:0; z-index:30;
     display:flex; align-items:center; justify-content:space-between;
@@ -850,13 +830,6 @@
   .hdr-seg:active { background:var(--hdr-seg-active); }
   .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  /* ── Content: ocupa o ecrã todo por trás do header/bottom (ambos fixed).
-     SEM transition no padding-top/padding-bottom: estes valores já chegam
-     "assentados" (kbOffset vem debounced do updateKbOffset), por isso
-     aplicamos diretamente sem animação CSS própria. Animar isto era o
-     segundo sítio a causar overshoot — cada resize intermédio do Android
-     fazia o padding perseguir um alvo móvel em vez de saltar direto para
-     o valor final, deslocando os toggles e o resto do conteúdo. ── */
   .content {
     position:absolute; inset:0; z-index:10;
     display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
@@ -899,19 +872,20 @@
   .toggle-img { width:22px; height:22px; object-fit:contain; flex-shrink:0; border-radius:5px; }
   .toggle-label { font-size:13px; font-weight:600; color:var(--toggle-label); }
 
-  /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport).
-     SEM transition em bottom/padding-bottom: kbOffset só chega já
-     "assentado" (debounce no JS), por isso aplicamos diretamente sem
-     animação CSS própria — animar aqui era o que causava o overshoot
-     original, porque cada resize intermédio do Android reiniciava uma
-     transição de 0.18s a perseguir um alvo que ainda não era o final. ── */
   .bottom {
-    position:fixed; bottom:0; left:0; right:0; z-index:20;
-    padding-left:16px; padding-right:16px;
-    opacity:0; transform:translateY(18px);
-    transition:opacity .6s .3s ease, transform .6s .3s ease;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:20;
+    padding-left:16px;
+    padding-right:16px;
+    transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
+    will-change:transform;
+    opacity:0;
+    transition:opacity .6s .3s ease, transform .18s ease;
   }
-  .bottom.in { opacity:1; transform:translateY(0); }
+  .bottom.in { opacity:1; transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0); }
   .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong); max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text; }
   .chat-input::placeholder { color:var(--text-faint); }
@@ -935,7 +909,6 @@
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
   .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--icon-strong); letter-spacing:.06em; }
 
-  /* ── Caixa de sugestões de pesquisa (acima do bottom-bar) ── */
   .suggest-box {
     border-radius:18px; background:var(--surface-strong);
     backdrop-filter:blur(28px) saturate(1.7); -webkit-backdrop-filter:blur(28px) saturate(1.7);
@@ -953,7 +926,6 @@
   .suggest-fill { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1); }
   .suggest-fill:active { background:var(--btn-bg-active); transform:scale(0.86); }
 
-  /* ── Card legal (termos/privacidade) ── */
   .legal-card {
     margin-top: 10px;
     border-radius: 22px;

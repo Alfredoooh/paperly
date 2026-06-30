@@ -24,9 +24,6 @@
   let originRect = null;
   let transformReady = false;
   
-  let scrollTop = 0;
-  $: collapseAmt = Math.min(Math.max(scrollTop / 40, 0), 1);
-  
   onMount(async () => {
     let r = null;
     searchBarRect.subscribe(v => r = v)();
@@ -69,10 +66,6 @@
     dispatch('close');
   }
   
-  function onScroll(e) {
-    scrollTop = e.target.scrollTop;
-  }
-  
   let openMenuFor = null;
   
   function toggleMenu(id) {
@@ -90,24 +83,19 @@
   <div class="page" class:enter={transformReady} style={originRect && !transformReady ? ` --ox:${originRect.left}px; --oy:${originRect.top}px; --ow:${originRect.width}px; --oh:${originRect.height}px; ` : '' }>
     
     <div class="appbar">
-      <div class="appbar-row" style="opacity:{1 - collapseAmt};max-height:{collapseAmt>0.85?0:40}px;margin-bottom:{collapseAmt>0.85?0:6}px;">
-        <span class="appbar-row-label" style="color:{txtSec}">Pesquisa</span>
-      </div>
-      <div class="appbar-input-row">
-        <div class="search-bar" style="background:{bgCard}">
-          <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:16px;height:16px;"></span>
-          <input bind:this={inputEl} class="search-input" style="color:{txtPrim}" placeholder="O que queres ouvir?" value={query} on:input={onInput} />
-          {#if query}
-          <button class="clear-btn" on:click={clear}>
-            <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{txtSec};width:14px;height:14px;"></span>
-          </button>
-        {/if}
-      </div>
-      <button class="cancel-btn" style="color:{txtPrim}" on:click={close}>Cancelar</button>
+      <div class="search-bar" style="background:{bgCard}">
+        <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:16px;height:16px;"></span>
+        <input bind:this={inputEl} class="search-input" style="color:{txtPrim}" placeholder="O que queres ouvir?" value={query} on:input={onInput} />
+        {#if query}
+        <button class="clear-btn" on:click={clear}>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{txtSec};width:14px;height:14px;"></span>
+        </button>
+      {/if}
     </div>
+    <button class="cancel-btn" style="color:{txtPrim}" on:click={close}>Cancelar</button>
   </div>
 
-  <div class="scroll-body" on:scroll={onScroll}>
+  <div class="scroll-body">
 
     {#if searching}
       <div class="center-pad">
@@ -192,7 +180,7 @@
 
     {/if}
 
-    <div style="height:{currentTrackExists?148:88}px"></div>
+    <div style="height:160px"></div>
   </div>
 
 </div>
@@ -216,11 +204,7 @@
       border-radius .32s cubic-bezier(.2,.8,.2,1);
   }
 
-  .appbar { flex-shrink:0;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px;position:relative;z-index:2;min-width:0; }
-  .appbar-row { overflow:hidden;transition:opacity .18s ease,max-height .22s ease,margin-bottom .22s ease; }
-  .appbar-row-label { font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em; }
-
-  .appbar-input-row { display:flex;align-items:center;gap:8px;width:100%;min-width:0; }
+  .appbar { flex-shrink:0;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;display:flex;align-items:center;gap:8px;width:100%;min-width:0; }
   .search-bar {
     flex:1 1 0%;min-width:0;max-width:100%;
     display:flex;align-items:center;gap:10px;

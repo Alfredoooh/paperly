@@ -29,8 +29,8 @@ export const audioLoading  = writable(false);
 
 // Navigation
 export const currentArtist = writable(null);
-export const currentPage   = writable('home'); // home | search | library | artist | search-active
-export const searchBarRect = writable(null);   // DOMRect do botão de pesquisa, p/ container transform
+export const currentPage   = writable('home');
+export const searchBarRect = writable(null);
 
 export let audioInstance = null;
 let progressTimer        = null;
@@ -41,20 +41,22 @@ export async function loadFeed() {
   feedLoading.set(true);
   feedError.set(false);
   try {
-    const [feedRes, playlistsRes, artistsRes] = await Promise.all([
-      fetch(`${PROXY}/api/feed`),
-      fetch(`${PROXY}/api/deezer/chart/0/playlists?limit=20`),
-      fetch(`${PROXY}/api/deezer/chart/0/artists?limit=20`),
-    ]);
-    const feed      = await feedRes.json();
-    const pls       = await playlistsRes.json();
-    const arts      = await artistsRes.json();
+    const res = await fetch(`${PROXY}/api/feed`);
+    if (!res.ok) throw new Error(`Feed HTTP ${res.status}`);
+    const feed = await res.json();
+
     feedTracks.set(feed.tracks    || []);
     newAlbums.set(feed.albums     || []);
     trendTracks.set((feed.tracks  || []).slice(50));
-    playlists.set(pls.data        || []);
-    artists.set(arts.data         || []);
-  } catch {
+    playlists.set(feed.playlists  || []);
+    artists.set(feed.artists      || []);
+
+    // Se literalmente nada veio, trata como erro de verdade (todas as fontes falharam no servidor)
+    const isEmpty = !(feed.tracks?.length || feed.albums?.length || feed.playlists?.length || feed.artists?.length);
+    if (isEmpty) feedError.set(true);
+
+  } catch (err) {
+    console.error('[loadFeed]', err);
     feedError.set(true);
   } finally {
     feedLoading.set(false);
@@ -194,21 +196,17 @@ export async function loadArtist(artist) {
   currentArtist.set(null);
   currentPage.set('artist');
   try {
-    const [topRes, albumsRes, relatedRes] = await Promise.all([
-      fetch(`${PROXY}/api/deezer/artist/${artist.id}/top?limit=10`),
-      fetch(`${PROXY}/api/deezer/artist/${artist.id}/albums?limit=20`),
-      fetch(`${PROXY}/api/deezer/artist/${artist.id}/related?limit=10`),
-    ]);
-    const top     = await topRes.json();
-    const albums  = await albumsRes.json();
-    const related = await relatedRes.json();
+    const res = await fetch(`${PROXY}/api/artist/${artist.id}`);
+    if (!res.ok) throw new Error(`Artist HTTP ${res.status}`);
+    const data = await res.json();
     currentArtist.set({
       ...artist,
-      topTracks: top.data     || [],
-      albums:    albums.data  || [],
-      related:   related.data || [],
+      topTracks: data.topTracks || [],
+      albums:    data.albums    || [],
+      related:   data.related   || [],
     });
   } catch (err) {
     console.error('[loadArtist]', err);
+    currentArtist.set({ ...artist, topTracks: [], albums: [], related: [] });
   }
 }

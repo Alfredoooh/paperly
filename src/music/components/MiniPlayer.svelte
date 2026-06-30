@@ -7,6 +7,7 @@
   export let txtSec = '#aaaaaa';
   export let divider = 'rgba(255,255,255,0.07)';
   export let bg = '#181818';
+  export let hasBottomBar = true; // false quando não há bottom-bar (busca ativa, artista)
   
   $: pct = $duration > 0 ? ($progress / $duration) * 100 : 0;
   
@@ -16,7 +17,7 @@
 </script>
 
 {#if $currentTrack && !$playerOpen}
-  <div class="mini-wrap">
+  <div class="mini-wrap" class:no-bar={!hasBottomBar}>
     <div class="mini-progress-track">
       <div class="mini-progress-fill" style="width:{pct}%"></div>
     </div>
@@ -68,6 +69,10 @@
     overflow:hidden;
     z-index:65;
     box-shadow:0 8px 32px rgba(0,0,0,0.4);
+    transition:bottom .2s ease;
+  }
+  .mini-wrap.no-bar {
+    bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
   }
   .mini-progress-track {
     height:2px;

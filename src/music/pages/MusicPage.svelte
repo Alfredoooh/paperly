@@ -100,13 +100,7 @@
           {:else if id === 'search'}
             <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
-              fill="{activeTab===id?(isDark?'#fff':'#000'):'none'}"
-              stroke="{activeTab===id?txtPrim:txtSec}"
-              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
+            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {/if}
           <span class="tab-label" style="color:{activeTab===id?txtPrim:txtSec}">{label}</span>
         </button>

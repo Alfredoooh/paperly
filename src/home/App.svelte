@@ -394,48 +394,28 @@
     waveAnalyser = null;
   }
 
-  // ── Keyboard-aware bottom bar (estabilização por frames consecutivos) ──
-  const KB_STABLE_FRAMES = 8;
-  let kbOffset = 0;
-  let vv;
-  let stableCheckRaf = null;
-  let lastOverlap = null;
-  let stableCount = 0;
+  // ── Keyboard-aware bottom bar ───────────────────────────────
+  // Usar transform em vez de bottom evita o “sobe demais e depois volta”
+  // causado por múltiplos resize intermédios do teclado no Android.
+  // ── Keyboard-aware bottom bar ───────────────────────────────
+let kbOffset = 0;
+let vv;
 
-  function updateKbOffset() {
-    if (!vv) return;
-    const overlap = Math.max(0, Math.round(window.innerHeight - vv.height));
-    if (overlap !== lastOverlap) {
-      lastOverlap = overlap;
-      stableCount = 0;
-    }
-    if (stableCount < KB_STABLE_FRAMES) {
-      stableCount++;
-      if (!stableCheckRaf) {
-        stableCheckRaf = requestAnimationFrame(() => {
-          stableCheckRaf = null;
-          updateKbOffset();
-        });
-      }
-      return;
-    }
-    kbOffset = overlap;
-    stableCheckRaf = null;
-    stableCount = 0;
-    lastOverlap = null;
-  }
+function updateKbOffset() {
+  if (!vv) return;
+  const next = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  kbOffset = next < 80 ? 0 : next;
+}
 
-  $: bottomOffsetStyle = kbOffset > 0
-    ? `bottom:${kbOffset}px; padding-bottom:18px;`
-    : `bottom:0; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+$: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
 
   // ── Live-measured header/bottom heights → content padding ──
   let headerHeight = 0;
   let bottomBarHeight = 0;
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
-  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28);
+  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28) + kbOffset;
 
-  // ── Toggles: montados UMA ÚNICA VEZ ──
+  // ── Toggles mounted once ────────────────────────────────────
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
   $: togglesShouldShow = lottieFinished && !inputText.trim();
@@ -445,22 +425,25 @@
     user = requireAuth(); if (!user) return;
     const saved = getTheme();
     applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
+
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', handleSystemChange);
+
     function onStorage(e) {
       if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
     }
     window.addEventListener('storage', onStorage);
 
-    if (window.visualViewport) {
-      vv = window.visualViewport;
-      vv.addEventListener('resize', updateKbOffset);
-      vv.addEventListener('scroll', updateKbOffset);
-      updateKbOffset();
-    }
+   if (window.visualViewport) {
+  vv = window.visualViewport;
+  vv.addEventListener('resize', updateKbOffset);
+  vv.addEventListener('scroll', updateKbOffset);
+  updateKbOffset();
+}
 
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
+
     return () => {
       if (lottieInstance) lottieInstance.destroy();
       mediaQuery?.removeEventListener('change', handleSystemChange);
@@ -469,7 +452,6 @@
         vv.removeEventListener('resize', updateKbOffset);
         vv.removeEventListener('scroll', updateKbOffset);
       }
-      if (stableCheckRaf) cancelAnimationFrame(stableCheckRaf);
       clearTimeout(suggestDebounce);
       abortSuggest?.abort();
     };
@@ -481,6 +463,7 @@
 </svelte:head>
 
 <div class="root">
+
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
   <header class="header" class:in={mounted} class:header-lifted={showApps} bind:clientHeight={headerHeight}>
@@ -525,6 +508,7 @@
   </main>
 
   <div class="bottom" class:in={mounted} style={bottomOffsetStyle} bind:clientHeight={bottomBarHeight}>
+
     {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
       <div class="suggest-box">
         {#if suggestLoading && !searchSuggestions.length}
@@ -620,6 +604,7 @@
         <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
       </div>
     </div>
+
   </div>
 
   {#if showPopup}
@@ -741,6 +726,7 @@
       <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
     </div>
   {/if}
+
 </div>
 
 <style>
@@ -876,12 +862,19 @@
   .toggle-label { font-size:13px; font-weight:600; color:var(--toggle-label); }
 
   .bottom {
-    position:fixed; bottom:0; left:0; right:0; z-index:20;
-    padding-left:16px; padding-right:16px;
-    opacity:0; transform:translateY(18px);
-    transition:opacity .6s .3s ease, transform .6s .3s ease;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:20;
+    padding-left:16px;
+    padding-right:16px;
+    transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
+    will-change:transform;
+    opacity:0;
+    transition:opacity .6s .3s ease, transform .35s cubic-bezier(0.25, 0.1, 0.25, 1);
   }
-  .bottom.in { opacity:1; transform:translateY(0); }
+  .bottom.in { opacity:1; transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0); }
   .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong); max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text; }
   .chat-input::placeholder { color:var(--text-faint); }

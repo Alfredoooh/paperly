@@ -395,29 +395,38 @@
   }
 
   // ── Keyboard-aware bottom bar ───────────────────────────────
-  // Fonte única de verdade: visualViewport. Sem interval, sem
-  // listeners concorrentes — só resize/scroll do visualViewport.
   let kbOffset = 0;
   let vv;
 
   function updateKbOffset() {
     if (!vv) return;
-    const raw = window.innerHeight - vv.height - vv.offsetTop;
-    kbOffset = raw < 80 ? 0 : Math.round(raw);
+    // Aguarda o próximo frame para garantir que a viewport já foi atualizada
+    requestAnimationFrame(() => {
+      const diff = window.innerHeight - vv.height;
+      kbOffset = diff > 80 ? Math.round(diff) : 0;
+    });
   }
 
   $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
 
   // ── Input focus state (esconde os toggles ao focar) ────────
   let inputFocused = false;
-  function handleInputFocus() { inputFocused = true; }
-  function handleInputBlur()  { inputFocused = false; }
+  function handleInputFocus() {
+    inputFocused = true;
+    // Força atualização da offset quando o teclado aparece
+    setTimeout(updateKbOffset, 100);
+    setTimeout(updateKbOffset, 300);
+  }
+  function handleInputBlur() {
+    inputFocused = false;
+    // Força atualização quando o teclado desaparece
+    setTimeout(updateKbOffset, 100);
+  }
 
   // ── Live-measured header/bottom heights → content padding ──
   let headerHeight = 0;
   let bottomBarHeight = 0;
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
-  // AQUI A CORREÇÃO: contentPaddingBottom já não inclui kbOffset
   $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28);
 
   // ── Toggles mounted once ────────────────────────────────────
@@ -464,7 +473,7 @@
 </script>
 
 <svelte:head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 </svelte:head>
 
 <div class="root">

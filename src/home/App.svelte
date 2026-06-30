@@ -394,13 +394,12 @@
     waveAnalyser = null;
   }
 
-  // ── ONLY bottom bar moves, nothing else ──
+  // ── Keyboard offset (só para a bottom bar) ──
   let kbOffset = 0;
   let vv;
 
   function updateKbOffset() {
     if (!vv) return;
-    // Garante que a viewport já foi atualizada antes de ler a altura
     requestAnimationFrame(() => {
       const diff = window.innerHeight - vv.height;
       kbOffset = diff > 80 ? Math.round(diff) : 0;
@@ -409,7 +408,6 @@
 
   $: bottomTransformStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
 
-  // Força atualização extra quando o campo ganha/perde foco
   function handleInputFocus() {
     inputFocused = true;
     setTimeout(updateKbOffset, 100);
@@ -421,10 +419,9 @@
   }
 
   let headerHeight = 0;
-  let bottomBarHeight = 0;
-  $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
-  // Nada de kbOffset aqui – o conteúdo não se mexe
-  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28);
+  $: contentPaddingTop = headerHeight ? headerHeight + 8 : 100;
+  // A root já não contém a bottom bar, portanto o padding inferior é fixo
+  $: contentPaddingBottom = 28;
 
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
@@ -469,13 +466,12 @@
   });
 </script>
 
-<!-- CRUCIAL: interactive-widget=overlays-content impede que a tela toda se mova -->
 <svelte:head>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
 </svelte:head>
 
+<!-- CONTEÚDO FIXO (fundo, header, main) -->
 <div class="root">
-
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
   <header class="header" class:in={mounted} class:header-lifted={showApps} bind:clientHeight={headerHeight}>
@@ -518,230 +514,229 @@
       </div>
     {/if}
   </main>
+</div>
 
-  <!-- APENAS este elemento se move com o teclado -->
-  <div class="bottom" class:in={mounted} style={bottomTransformStyle} bind:clientHeight={bottomBarHeight}>
-
-    {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
-      <div class="suggest-box">
-        {#if suggestLoading && !searchSuggestions.length}
-          <div class="suggest-row suggest-loading">
+<!-- BARRA INFERIOR SEPARADA (move com o teclado) -->
+<div class="bottom" class:in={mounted} style={bottomTransformStyle}>
+  {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
+    <div class="suggest-box">
+      {#if suggestLoading && !searchSuggestions.length}
+        <div class="suggest-row suggest-loading">
+          <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
+        </div>
+      {:else}
+        {#each searchSuggestions as s (s)}
+          <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
             <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="7"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
-          </div>
-        {:else}
-          {#each searchSuggestions as s (s)}
-            <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
-              <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="7"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <span class="suggest-text">{s}</span>
+            <span
+              class="suggest-fill pulse-tap"
+              role="button"
+              tabindex="0"
+              on:click|stopPropagation={() => fillSuggestion(s)}
+              on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="17" y1="7" x2="7" y2="17"/>
+                <polyline points="7 9 7 17 15 17"/>
               </svg>
-              <span class="suggest-text">{s}</span>
-              <span
-                class="suggest-fill pulse-tap"
-                role="button"
-                tabindex="0"
-                on:click|stopPropagation={() => fillSuggestion(s)}
-                on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="17" y1="7" x2="7" y2="17"/>
-                  <polyline points="7 9 7 17 15 17"/>
-                </svg>
-              </span>
-            </button>
-          {/each}
-        {/if}
-      </div>
-    {/if}
+            </span>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  {/if}
 
-    {#if isRecording}
-      <div class="rec-card">
-        <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
-        <div class="rec-inner">
-          <button class="rec-btn pulse-tap" on:click={cancelRecording}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          </button>
-          <div class="rec-center">
-            <div class="rec-dot"></div>
-            <span class="rec-timer">{recTimerStr}</span>
-          </div>
-          <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          </button>
+  {#if isRecording}
+    <div class="rec-card">
+      <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
+      <div class="rec-inner">
+        <button class="rec-btn pulse-tap" on:click={cancelRecording}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+        </button>
+        <div class="rec-center">
+          <div class="rec-dot"></div>
+          <span class="rec-timer">{recTimerStr}</span>
         </div>
-      </div>
-    {:else}
-      <div class="bottom-bar">
-        <textarea
-          class="chat-input"
-          placeholder="Escreve aqui..."
-          rows="1"
-          bind:value={inputText}
-          bind:this={textInputEl}
-          on:input={autoResize}
-          on:keydown={handleKeyDown}
-          on:focus={handleInputFocus}
-          on:blur={handleInputBlur}
-        ></textarea>
-        <div class="bb-row">
-          <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          </button>
-          <div class="flex1"></div>
-          <button class="model-pill pulse-tap" on:click={(e) => openPopup('models', e)}>
-            <span class="model-pill-label">{currentModel.label}</span>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:11px;height:11px;background:var(--icon-soft)"></span>
-          </button>
-          <div style="width:8px"></div>
-          {#if inputText.trim()}
-            <button class="bb-btn pulse-tap" on:click={navigateToAI}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
-            </button>
-          {:else}
-            <button class="bb-btn pulse-tap" on:click={startRecording}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-            </button>
-          {/if}
-        </div>
-      </div>
-    {/if}
-
-    <div class="legal-card">
-      <div class="legal-row">
-        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
-        <span class="legal-dot">·</span>
-        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
+        <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </button>
       </div>
     </div>
-  </div>
+  {:else}
+    <div class="bottom-bar">
+      <textarea
+        class="chat-input"
+        placeholder="Escreve aqui..."
+        rows="1"
+        bind:value={inputText}
+        bind:this={textInputEl}
+        on:input={autoResize}
+        on:keydown={handleKeyDown}
+        on:focus={handleInputFocus}
+        on:blur={handleInputBlur}
+      ></textarea>
+      <div class="bb-row">
+        <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+        </button>
+        <div class="flex1"></div>
+        <button class="model-pill pulse-tap" on:click={(e) => openPopup('models', e)}>
+          <span class="model-pill-label">{currentModel.label}</span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:11px;height:11px;background:var(--icon-soft)"></span>
+        </button>
+        <div style="width:8px"></div>
+        {#if inputText.trim()}
+          <button class="bb-btn pulse-tap" on:click={navigateToAI}>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
+          </button>
+        {:else}
+          <button class="bb-btn pulse-tap" on:click={startRecording}>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
-  {#if showPopup}
-    <div class="popup-overlay" on:click={closePopup}></div>
-    <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
-      <div class="popup-content" class:fading={popupFading}>
-        {#if popupMode === 'add'}
-          <label class="popup-row pulse-tap" style="cursor:pointer">
-            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-            <span class="popup-label">Enviar Imagem</span>
-            <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
-          </label>
-          <div class="popup-sep"></div>
-          <label class="popup-row pulse-tap" style="cursor:pointer">
-            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-            <span class="popup-label">Enviar Ficheiro</span>
-            <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
-          </label>
-          <div class="popup-sep"></div>
-          <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
-            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-            <span class="popup-label" style="flex:1">Extras</span>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
+  <div class="legal-card">
+    <div class="legal-row">
+      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
+      <span class="legal-dot">·</span>
+      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUPS / DRAWER (continuam fixed, fora da root e da bottom, para não serem afetadas) -->
+{#if showPopup}
+  <div class="popup-overlay" on:click={closePopup}></div>
+  <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
+    <div class="popup-content" class:fading={popupFading}>
+      {#if popupMode === 'add'}
+        <label class="popup-row pulse-tap" style="cursor:pointer">
+          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+          <span class="popup-label">Enviar Imagem</span>
+          <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
+        </label>
+        <div class="popup-sep"></div>
+        <label class="popup-row pulse-tap" style="cursor:pointer">
+          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+          <span class="popup-label">Enviar Ficheiro</span>
+          <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
+        </label>
+        <div class="popup-sep"></div>
+        <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
+          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+          <span class="popup-label" style="flex:1">Extras</span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
+        </button>
+      {:else if popupMode === 'extras'}
+        <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:var(--icon-faint)"></span>
+          <span class="popup-label" style="color:var(--text-faint);font-size:13px">Extras</span>
+        </button>
+        <div class="popup-sep"></div>
+        {#each [
+          [flashMode,    'Flash',      'flash',  'flash_filled',  () => { flashMode     = !flashMode;     if (flashMode)     thinkMoreMode = false; }],
+          [thinkMoreMode,'Think More', 'brain',  'brain_filled',  () => { thinkMoreMode = !thinkMoreMode; if (thinkMoreMode) flashMode     = false; }],
+          [sheetsEnabled,'Sheets',     'sheets', 'sheets_filled', () => { sheetsEnabled = !sheetsEnabled; }],
+        ] as [active, title, ico, icoOn, action], i}
+          {#if i > 0}<div class="popup-sep"></div>{/if}
+          <button class="popup-row pulse-tap" style={active ? 'background:var(--row-active)' : ''} on:click={action}>
+            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+            <span class="popup-label" style="flex:1">{title}</span>
+            {#if active}<div class="popup-active-dot"></div>{/if}
           </button>
-        {:else if popupMode === 'extras'}
-          <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:var(--icon-faint)"></span>
-            <span class="popup-label" style="color:var(--text-faint);font-size:13px">Extras</span>
+        {/each}
+      {:else if popupMode === 'models'}
+        <div class="popup-title">Modelo</div>
+        {#each MODELS as model, i}
+          {#if i > 0}<div class="popup-sep"></div>{/if}
+          <button class="popup-row pulse-tap" style={currentModelId === model.id ? 'background:var(--row-active)' : ''} on:click={() => { currentModelId = model.id; closePopup(); }}>
+            <div class="model-info">
+              <span class="popup-label">{model.label}</span>
+              <span class="model-sub">{model.sublabel}</span>
+            </div>
+            {#if currentModelId === model.id}
+              <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
+            {/if}
           </button>
-          <div class="popup-sep"></div>
-          {#each [
-            [flashMode,    'Flash',      'flash',  'flash_filled',  () => { flashMode     = !flashMode;     if (flashMode)     thinkMoreMode = false; }],
-            [thinkMoreMode,'Think More', 'brain',  'brain_filled',  () => { thinkMoreMode = !thinkMoreMode; if (thinkMoreMode) flashMode     = false; }],
-            [sheetsEnabled,'Sheets',     'sheets', 'sheets_filled', () => { sheetsEnabled = !sheetsEnabled; }],
-          ] as [active, title, ico, icoOn, action], i}
-            {#if i > 0}<div class="popup-sep"></div>{/if}
-            <button class="popup-row pulse-tap" style={active ? 'background:var(--row-active)' : ''} on:click={action}>
-              <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-              <span class="popup-label" style="flex:1">{title}</span>
-              {#if active}<div class="popup-active-dot"></div>{/if}
-            </button>
-          {/each}
-        {:else if popupMode === 'models'}
-          <div class="popup-title">Modelo</div>
-          {#each MODELS as model, i}
-            {#if i > 0}<div class="popup-sep"></div>{/if}
-            <button class="popup-row pulse-tap" style={currentModelId === model.id ? 'background:var(--row-active)' : ''} on:click={() => { currentModelId = model.id; closePopup(); }}>
-              <div class="model-info">
-                <span class="popup-label">{model.label}</span>
-                <span class="model-sub">{model.sublabel}</span>
-              </div>
-              {#if currentModelId === model.id}
-                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
+        {/each}
+      {/if}
+    </div>
+  </div>
+{/if}
+
+{#if showApps}
+  <div class="apps-overlay" on:click={closeApps}></div>
+  <div class="apps-popup" class:apps-popup-in={appsVisible} style="top:{appsPos.top}px;right:{appsPos.right}px;">
+    <div class="apps-popup-label">Apps</div>
+    <div class="apps-grid">
+      {#each platformApps as app, i}
+        <button class="ag-item pulse-tap" style="animation-delay:{i*25}ms" class:ag-in={appsVisible} on:click={() => openApp(app)}>
+          <div class="ag-icon">
+            <img src={app.icon} alt={app.label} class="ag-img" />
+          </div>
+          <span class="ag-name">{app.label}</span>
+        </button>
+      {/each}
+    </div>
+    <div style="height:8px"></div>
+  </div>
+{/if}
+
+{#if drawerOpen}
+  <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
+  <div class="drawer" class:drawer-in={drawerVisible}>
+    <div class="drawer-avatar-block">
+      <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
+      <span class="drawer-user-name">{userName}</span>
+    </div>
+    <div class="drawer-sep"></div>
+    <nav class="drawer-nav">
+      <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+        <span class="drawer-item-label" style="flex:1">Tema</span>
+        <span class="icon-mask drawer-chevron" class:drawer-chevron-open={themeExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
+      </button>
+      <div class="theme-accordion" class:theme-accordion-open={themeExpanded}>
+        <div class="theme-accordion-inner">
+          {#each THEME_OPTIONS as opt}
+            <button class="theme-opt pulse-tap" on:click={() => { applyThemeValue(opt.id); themeExpanded = false; }}>
+              <span class="theme-opt-label" style={themeValue === opt.id ? 'color:var(--drawer-text);font-weight:600' : ''}>{opt.label}</span>
+              {#if themeValue === opt.id}
+                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:14px;height:14px;background:var(--drawer-text);display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0;"></span>
               {/if}
             </button>
           {/each}
-        {/if}
-      </div>
-    </div>
-  {/if}
-
-  {#if showApps}
-    <div class="apps-overlay" on:click={closeApps}></div>
-    <div class="apps-popup" class:apps-popup-in={appsVisible} style="top:{appsPos.top}px;right:{appsPos.right}px;">
-      <div class="apps-popup-label">Apps</div>
-      <div class="apps-grid">
-        {#each platformApps as app, i}
-          <button class="ag-item pulse-tap" style="animation-delay:{i*25}ms" class:ag-in={appsVisible} on:click={() => openApp(app)}>
-            <div class="ag-icon">
-              <img src={app.icon} alt={app.label} class="ag-img" />
-            </div>
-            <span class="ag-name">{app.label}</span>
-          </button>
-        {/each}
-      </div>
-      <div style="height:8px"></div>
-    </div>
-  {/if}
-
-  {#if drawerOpen}
-    <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
-    <div class="drawer" class:drawer-in={drawerVisible}>
-      <div class="drawer-avatar-block">
-        <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
-        <span class="drawer-user-name">{userName}</span>
-      </div>
-      <div class="drawer-sep"></div>
-      <nav class="drawer-nav">
-        <button class="drawer-item pulse-tap" on:click={toggleThemeExpanded}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Tema</span>
-          <span class="icon-mask drawer-chevron" class:drawer-chevron-open={themeExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
-        </button>
-        <div class="theme-accordion" class:theme-accordion-open={themeExpanded}>
-          <div class="theme-accordion-inner">
-            {#each THEME_OPTIONS as opt}
-              <button class="theme-opt pulse-tap" on:click={() => { applyThemeValue(opt.id); themeExpanded = false; }}>
-                <span class="theme-opt-label" style={themeValue === opt.id ? 'color:var(--drawer-text);font-weight:600' : ''}>{opt.label}</span>
-                {#if themeValue === opt.id}
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:14px;height:14px;background:var(--drawer-text);display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0;"></span>
-                {/if}
-              </button>
-            {/each}
-          </div>
         </div>
-        {#each DRAWER_ITEMS as item}
-          <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-            <span class="drawer-item-label">{item.label}</span>
-          </button>
-        {/each}
-      </nav>
-      <div style="flex:1"></div>
-      <div class="drawer-sep"></div>
-      <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
-        <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
-      </button>
-      <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
-    </div>
-  {/if}
-
-</div>
+      </div>
+      {#each DRAWER_ITEMS as item}
+        <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="drawer-item-label">{item.label}</span>
+        </button>
+      {/each}
+    </nav>
+    <div style="flex:1"></div>
+    <div class="drawer-sep"></div>
+    <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
+      <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
+    </button>
+    <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
+  </div>
+{/if}
 
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -751,7 +746,6 @@
     overscroll-behavior: none;
     height: 100%;
     width: 100%;
-    position: fixed; /* trava a tela mesmo sem o overlay */
   }
 
   :global([data-theme="dark"]) {

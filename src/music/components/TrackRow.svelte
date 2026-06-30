@@ -1,3 +1,4 @@
+<!-- src/music/components/TrackRow.svelte -->
 <script>
   import { currentTrack, playing, liked, toggleLike, playTrack, audioLoading } from '../store/music.js';
   
@@ -19,7 +20,7 @@
       <img src={track.album.cover_medium} alt={track.title} class="thumb" loading="lazy" />
     {:else}
       <div class="thumb no-img" style="background:{bgCard}">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{txtSec}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');background:{txtSec};width:18px;height:18px;"></span>
       </div>
     {/if}
     {#if $currentTrack?.id === track.id}
@@ -27,9 +28,9 @@
         {#if $audioLoading}
           <div class="mini-spinner"></div>
         {:else if $playing}
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/pause.svg');-webkit-mask-image:url('/icons/svg/pause.svg');background:#fff;width:14px;height:14px;"></span>
         {:else}
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5,3 19,12 5,21"/></svg>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/play.svg');-webkit-mask-image:url('/icons/svg/play.svg');background:#fff;width:14px;height:14px;"></span>
         {/if}
       </div>
     {/if}
@@ -42,9 +43,9 @@
 
   <button class="like-btn" on:click|stopPropagation={() => toggleLike(track.id)}>
     {#if $liked.has(track.id)}
-      <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="#FC3C44" stroke="#FC3C44" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <span class="svg-mask" style="mask-image:url('/icons/svg/bookmark_filled.svg');-webkit-mask-image:url('/icons/svg/bookmark_filled.svg');background:#FC3C44;width:17px;height:17px;"></span>
     {:else}
-      <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{txtSec}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <span class="svg-mask" style="mask-image:url('/icons/svg/bookmark.svg');-webkit-mask-image:url('/icons/svg/bookmark.svg');background:{txtSec};width:17px;height:17px;"></span>
     {/if}
   </button>
 </button>
@@ -64,4 +65,5 @@
   .artist { display:block;font-size:13px;margin-top:2px; }
   .like-btn { width:32px;height:32px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0; }
   .like-btn:active { opacity:0.5; }
+  .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }
 </style>

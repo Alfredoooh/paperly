@@ -1,5 +1,7 @@
+<!-- src/music/pages/SearchPage.svelte -->
 <script>
   import { createEventDispatcher } from 'svelte';
+  import { searchBarRect } from '../store/music.js';
   
   export let isDark = false;
   export let bgCard = '#242424';
@@ -23,14 +25,15 @@
     { label: 'Kuduro', color: '#FF9F0A' },
   ];
   
-  function openSearch() {
+  function openSearch(e) {
+    const btn = e.currentTarget;
+    searchBarRect.set(btn.getBoundingClientRect());
     dispatch('openSearch');
   }
 </script>
 
 <div class="page">
   
-  <!-- Search trigger (não é input real, abre a tela de pesquisa) -->
   <div class="search-wrap">
     <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
       <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
@@ -38,9 +41,8 @@
     </button>
   </div>
   
-  <!-- Explorar géneros -->
   <div class="section-hdr">
-    <span class="section-title" style="color:{txtPrim}">Explorar</span>
+    <span class="section-title" style="color:{txtPrim}">Categorias</span>
   </div>
   <div class="genre-grid">
     {#each genres as g}

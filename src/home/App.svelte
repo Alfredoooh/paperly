@@ -234,16 +234,12 @@
     window.location.href = ai.path;
   }
 
-  // ───────────────────────────────────────────────────────────
-  // Search suggestions (public-API-backed, via own Worker proxy)
-  // ───────────────────────────────────────────────────────────
   let searchSuggestions = [];
   let suggestLoading    = false;
   let suggestDebounce;
   let abortSuggest;
 
   $: showSuggestBox = !!inputText.trim() && !isRecording;
-
   $: scheduleSuggestFetch(inputText);
 
   function scheduleSuggestFetch(text) {
@@ -394,16 +390,12 @@
     waveAnalyser = null;
   }
 
-  // ── Keyboard-aware bottom bar ───────────────────────────────
-  // Usar transform em vez de bottom evita o “sobe demais e depois volta”
-  // causado por múltiplos resize intermédios do teclado no Android.
   let kbOffset = 0;
   let vv;
   let kbRaf = 0;
 
   function updateKbOffset() {
     if (!vv) return;
-
     cancelAnimationFrame(kbRaf);
     kbRaf = requestAnimationFrame(() => {
       const next = Math.max(0, Math.round(window.innerHeight - vv.height));
@@ -415,13 +407,11 @@
 
   $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
 
-  // ── Live-measured header/bottom heights → content padding ──
   let headerHeight = 0;
   let bottomBarHeight = 0;
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
-  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28) + kbOffset;
+  $: contentPaddingBottom = bottomBarHeight ? bottomBarHeight + 12 : 28;
 
-  // ── Toggles mounted once ────────────────────────────────────
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
   $: togglesShouldShow = lottieFinished && !inputText.trim();
@@ -886,6 +876,7 @@
     transition:opacity .6s .3s ease, transform .18s ease;
   }
   .bottom.in { opacity:1; transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0); }
+
   .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong); max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text; }
   .chat-input::placeholder { color:var(--text-faint); }

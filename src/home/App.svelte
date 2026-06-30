@@ -395,19 +395,24 @@
   }
 
   // ── Keyboard-aware bottom bar ───────────────────────────────
-  // Usar transform em vez de bottom evita o “sobe demais e depois volta”
-  // causado por múltiplos resize intermédios do teclado no Android.
-  // ── Keyboard-aware bottom bar ───────────────────────────────
-let kbOffset = 0;
-let vv;
+  let kbOffset = 0;
+  let kbActive = false;
+  let vv;
 
-function updateKbOffset() {
-  if (!vv) return;
-  const next = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-  kbOffset = next < 80 ? 0 : next;
-}
+  function updateKbOffset() {
+    if (!vv) return;
+    const raw = window.innerHeight - vv.height - vv.offsetTop;
+    const next = raw < 80 ? 0 : Math.round(raw);
+    if (next !== kbOffset) kbOffset = next;
+    kbActive = next > 0;
+  }
 
-$: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+  $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+
+  // ── Input focus state (esconde os toggles ao focar) ────────
+  let inputFocused = false;
+  function handleInputFocus() { inputFocused = true; }
+  function handleInputBlur()  { inputFocused = false; }
 
   // ── Live-measured header/bottom heights → content padding ──
   let headerHeight = 0;
@@ -418,7 +423,7 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
   // ── Toggles mounted once ────────────────────────────────────
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
-  $: togglesShouldShow = lottieFinished && !inputText.trim();
+  $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
 
   let mounted = false;
   onMount(() => {
@@ -434,12 +439,12 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
     }
     window.addEventListener('storage', onStorage);
 
-   if (window.visualViewport) {
-  vv = window.visualViewport;
-  vv.addEventListener('resize', updateKbOffset);
-  vv.addEventListener('scroll', updateKbOffset);
-  updateKbOffset();
-}
+    if (window.visualViewport) {
+      vv = window.visualViewport;
+      vv.addEventListener('resize', updateKbOffset);
+      vv.addEventListener('scroll', updateKbOffset);
+      updateKbOffset();
+    }
 
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
@@ -573,6 +578,8 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
           bind:this={textInputEl}
           on:input={autoResize}
           on:keydown={handleKeyDown}
+          on:focus={handleInputFocus}
+          on:blur={handleInputBlur}
         ></textarea>
         <div class="bb-row">
           <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
@@ -732,6 +739,15 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
 
+  :global(html), :global(body) {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    height: 100%;
+    width: 100%;
+  }
+
   :global([data-theme="dark"]) {
     --surface:           rgba(18,18,18,0.52);
     --surface-strong:    rgba(24,24,26,0.84);
@@ -801,17 +817,19 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
     --toggle-label:      rgba(20,20,20,0.82);
   }
 
-  .root { position:fixed; inset:0; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
+  .root { position:fixed; inset:0; overflow:hidden; overscroll-behavior:none; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; touch-action: pan-y; }
   .bg-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
 
   .header {
     position:fixed; top:0; left:0; right:0; z-index:30;
     display:flex; align-items:center; justify-content:space-between;
     padding:calc(env(safe-area-inset-top,0px) + 6px) 16px 6px;
-    opacity:0; transform:translateY(-12px);
+    opacity:0; transform:translateY(-12px) translateZ(0);
     transition:opacity .55s ease, transform .55s ease;
+    contain: layout style paint;
+    will-change: transform;
   }
-  .header.in { opacity:1; transform:translateY(0); }
+  .header.in { opacity:1; transform:translateY(0) translateZ(0); }
   .header.header-lifted { z-index:62; }
   .logo-img { width:80px; height:80px; object-fit:contain; }
   .header-right { display:flex; align-items:center; height:34px; border-radius:17px; background:var(--hdr-seg-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); overflow:hidden; }

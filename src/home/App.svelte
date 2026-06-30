@@ -432,6 +432,19 @@
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
   $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28) + kbOffset;
 
+  // ── Toggles: montados UMA ÚNICA VEZ quando o lottie termina, nunca mais
+  // destruídos/recriados. Antes, o {#if lottieFinished && !inputText.trim()}
+  // destruía e recriava o bloco inteiro de toggles sempre que inputText
+  // passava de vazio→preenchido→vazio — o que acontece sozinho ao focar/
+  // desfocar o textarea com o teclado. Cada recriação disparava de novo a
+  // animação CSS toggleIn com animation-delay escalonado por botão, dando
+  // a sensação de "saltar" sempre que mexias no teclado. Agora o bloco
+  // monta-se uma vez (mountToggles fica true e nunca mais volta a false) e
+  // só alternamos visibilidade via opacity/pointer-events, sem destruir DOM.
+  let mountToggles = false;
+  $: if (lottieFinished && !mountToggles) mountToggles = true;
+  $: togglesShouldShow = lottieFinished && !inputText.trim();
+
   let mounted = false;
   onMount(() => {
     user = requireAuth(); if (!user) return;
@@ -503,8 +516,8 @@
   <main class="content" style="padding-top:{contentPaddingTop}px;padding-bottom:{contentPaddingBottom}px;">
     <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
 
-    {#if lottieFinished && !inputText.trim()}
-      <div class="toggles-wrap" class:toggles-in={togglesVisible}>
+    {#if mountToggles}
+      <div class="toggles-wrap" class:toggles-in={togglesVisible && togglesShouldShow} class:toggles-hidden={!togglesShouldShow}>
         {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
           <div class="toggles-row">
             {#each row as t, i}
@@ -837,11 +850,16 @@
   .hdr-seg:active { background:var(--hdr-seg-active); }
   .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  /* ── Content: ocupa o ecrã todo por trás do header/bottom (ambos fixed), com padding dinâmico medido em runtime ── */
+  /* ── Content: ocupa o ecrã todo por trás do header/bottom (ambos fixed).
+     SEM transition no padding-top/padding-bottom: estes valores já chegam
+     "assentados" (kbOffset vem debounced do updateKbOffset), por isso
+     aplicamos diretamente sem animação CSS própria. Animar isto era o
+     segundo sítio a causar overshoot — cada resize intermédio do Android
+     fazia o padding perseguir um alvo móvel em vez de saltar direto para
+     o valor final, deslocando os toggles e o resto do conteúdo. ── */
   .content {
     position:absolute; inset:0; z-index:10;
     display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
-    transition:padding-top .18s ease, padding-bottom .18s ease;
   }
   .lottie-wrap {
     position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
@@ -857,6 +875,7 @@
     transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
   }
   .toggles-in { opacity:1; transform:translateY(0); }
+  .toggles-hidden { opacity:0; pointer-events:none; transform:translateY(16px); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:7px; }
 
   .suggestion-toggle {
@@ -880,12 +899,12 @@
   .toggle-img { width:22px; height:22px; object-fit:contain; flex-shrink:0; border-radius:5px; }
   .toggle-label { font-size:13px; font-weight:600; color:var(--toggle-label); }
 
-  /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport) ──
-     SEM transition em bottom/padding-bottom: o valor de kbOffset só chega
-     já "assentado" (debounce no JS), por isso aplicamos diretamente sem
-     animação CSS própria — animar aqui era o que causava o overshoot,
-     porque cada resize intermédio do Android reiniciava uma transição de
-     0.18s a perseguir um alvo que ainda não era o final. ── */
+  /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport).
+     SEM transition em bottom/padding-bottom: kbOffset só chega já
+     "assentado" (debounce no JS), por isso aplicamos diretamente sem
+     animação CSS própria — animar aqui era o que causava o overshoot
+     original, porque cada resize intermédio do Android reiniciava uma
+     transição de 0.18s a perseguir um alvo que ainda não era o final. ── */
   .bottom {
     position:fixed; bottom:0; left:0; right:0; z-index:20;
     padding-left:16px; padding-right:16px;

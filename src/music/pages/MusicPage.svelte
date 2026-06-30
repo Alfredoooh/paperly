@@ -97,7 +97,7 @@
           {#if id === 'home'}
             <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {:else if id === 'search'}
-            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
+            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {:else}
             <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'librar_filled':'librar_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'librar_filled':'librar_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {/if}

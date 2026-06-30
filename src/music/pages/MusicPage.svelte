@@ -3,6 +3,7 @@
   import Drawer from '../components/Drawer.svelte';
   import HomePage    from './HomePage.svelte';
   import SearchPage  from './SearchPage.svelte';
+  import SearchActivePage from './SearchActivePage.svelte';
   import LibraryPage from './LibraryPage.svelte';
   import ArtistPage  from './ArtistPage.svelte';
   import MiniPlayer  from '../components/MiniPlayer.svelte';
@@ -45,6 +46,10 @@
 
   $: themeProps = { isDark, bg, bgCard, bgChip, txtPrim, txtSec, divider };
   $: showArtist = $currentPage === 'artist';
+  $: showSearchActive = $currentPage === 'search-active';
+  $: hideChrome = showArtist || showSearchActive;
+
+  $: appbarTitle = activeTab === 'home' ? 'Início' : activeTab === 'search' ? 'Pesquisa' : 'Biblioteca';
 
   function tapTab(id) {
     activeTab = id;
@@ -52,6 +57,14 @@
     const seq = ++pulseSeq;
     pulseTab = id;
     setTimeout(() => { if (pulseSeq === seq) pulseTab = null; }, 380);
+  }
+
+  function openSearchActive() {
+    currentPage.set('search-active');
+  }
+
+  function closeSearchActive() {
+    currentPage.set('search');
   }
 </script>
 
@@ -61,13 +74,13 @@
     on:close={() => drawerOpen=false}
     on:openSettings={() => dispatch('nav', { to:'settings' })} />
 
-  <!-- APP BAR — esconde quando está no artista -->
-  {#if !showArtist}
+  <!-- APP BAR — esconde quando está no artista ou na pesquisa ativa -->
+  {#if !hideChrome}
     <div class="appbar" style="background:{bg}">
       <button class="icon-btn" on:click={() => drawerOpen=true}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
       </button>
-      <span class="appbar-title" style="color:{txtPrim}">Music</span>
+      <span class="appbar-title" style="color:{txtPrim}">{appbarTitle}</span>
     </div>
   {/if}
 
@@ -75,10 +88,12 @@
   <div class="body">
     {#if showArtist}
       <ArtistPage {...themeProps} currentTrackExists={!!$currentTrack} />
+    {:else if showSearchActive}
+      <SearchActivePage {...themeProps} currentTrackExists={!!$currentTrack} on:close={closeSearchActive} />
     {:else if activeTab === 'home'}
       <HomePage {...themeProps} currentTrackExists={!!$currentTrack} />
     {:else if activeTab === 'search'}
-      <SearchPage {...themeProps} currentTrackExists={!!$currentTrack} />
+      <SearchPage {...themeProps} currentTrackExists={!!$currentTrack} on:openSearch={openSearchActive} />
     {:else if activeTab === 'library'}
       <LibraryPage {...themeProps} currentTrackExists={!!$currentTrack} />
     {/if}
@@ -87,7 +102,7 @@
   <MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} />
 
   <!-- BOTTOM BAR -->
-  {#if !showArtist}
+  {#if !hideChrome}
     <div class="bottom-bar" style="background:{isDark ? 'rgba(18,18,18,0.72)' : 'rgba(255,255,255,0.72)'}">
       {#each [['home','Home'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
         <button class="tab-btn" on:click={() => tapTab(id)}>

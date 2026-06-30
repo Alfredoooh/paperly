@@ -455,15 +455,13 @@
 
 <svelte:head>
   <!--
-    interactive-widget=overlays-content faz o teclado NÃO encolher o
-    layout viewport — em vez disso o visualViewport encolhe e o JS
-    acima (kbOffset) é que empurra a bottom bar. É isto que torna o
-    comportamento determinístico em todas as versões de Android, em
-    vez de depender do comportamento "às vezes funciona" por omissão.
-    Se já tiveres uma meta viewport no teu app.html / +layout.svelte,
-    apaga essa e deixa só esta (ou junta o parâmetro lá).
+    Sem override de interactive-widget: deixamos o default do browser
+    (equivalente a resizes-visual), que é o modo que updateKbOffset()
+    abaixo espera — ele lê vv.height e vv.offsetTop, que só mudam
+    nesse modo quando o teclado abre. overlays-content desativava
+    esse resize, por isso o bottom ficava sempre preso em bottom:0.
   -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 </svelte:head>
 
 <div class="root">

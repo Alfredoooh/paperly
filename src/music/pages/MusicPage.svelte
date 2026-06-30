@@ -63,12 +63,11 @@
 
   <!-- APP BAR — esconde quando está no artista -->
   {#if !showArtist}
-    <div class="appbar" style="background:{bg};border-bottom:0.5px solid {divider}">
+    <div class="appbar" style="background:{bg}">
       <button class="icon-btn" on:click={() => drawerOpen=true}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
       </button>
       <span class="appbar-title" style="color:{txtPrim}">Music</span>
-      <div style="width:36px"></div>
     </div>
   {/if}
 
@@ -100,7 +99,7 @@
           {:else if id === 'search'}
             <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'magnifying_glass_filled':'magnifying_glass_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {:else}
-            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
+            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'librar_filled':'librar_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'librar_filled':'librar_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {/if}
           <span class="tab-label" style="color:{activeTab===id?txtPrim:txtSec}">{label}</span>
         </button>
@@ -114,8 +113,8 @@
 
 <style>
   .root { position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }
-  .appbar { display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;flex-shrink:0; }
-  .appbar-title { font-size:17px;font-weight:700;letter-spacing:-.3px; }
+  .appbar { display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;flex-shrink:0; }
+  .appbar-title { font-size:22px;font-weight:900;letter-spacing:-.5px; }
   .icon-btn { width:36px;height:36px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .15s;flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
   .body { flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch; }

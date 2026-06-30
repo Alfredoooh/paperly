@@ -417,7 +417,8 @@
   let headerHeight = 0;
   let bottomBarHeight = 0;
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
-  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28) + kbOffset;
+  // AQUI A CORREÇÃO: contentPaddingBottom já não inclui kbOffset
+  $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28);
 
   // ── Toggles mounted once ────────────────────────────────────
   let mountToggles = false;

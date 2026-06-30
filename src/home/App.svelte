@@ -460,31 +460,31 @@
 
   <main class="content" style="padding-top:{contentPaddingTop}px;padding-bottom:{contentPaddingBottom}px;">
     <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
-
-    {#if mountToggles}
-      <div class="toggles-wrap" class:toggles-in={togglesVisible && togglesShouldShow} class:toggles-hidden={!togglesShouldShow}>
-        {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
-          <div class="toggles-row">
-            {#each row as t, i}
-              <button
-                class="suggestion-toggle pulse-tap"
-                class:toggle-active={activeToggle?.id === t.id}
-                style="animation-delay:{(ri*2+i)*55}ms;"
-                on:click={() => selectToggle(t)}
-              >
-                <img src={t.icon} alt={t.label} class="toggle-img" />
-                <span class="toggle-label">{t.label}</span>
-              </button>
-            {/each}
-          </div>
-        {/each}
-      </div>
-    {/if}
   </main>
 </div>
 
 <!-- BARRA INFERIOR SEPARADA -->
 <div class="bottom" class:in={mounted}>
+  {#if mountToggles}
+    <div class="toggles-wrap" class:toggles-in={togglesVisible && togglesShouldShow} class:toggles-hidden={!togglesShouldShow}>
+      {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
+        <div class="toggles-row">
+          {#each row as t, i}
+            <button
+              class="suggestion-toggle pulse-tap"
+              class:toggle-active={activeToggle?.id === t.id}
+              style="animation-delay:{(ri*2+i)*55}ms;"
+              on:click={() => selectToggle(t)}
+            >
+              <img src={t.icon} alt={t.label} class="toggle-img" />
+              <span class="toggle-label">{t.label}</span>
+            </button>
+          {/each}
+        </div>
+      {/each}
+    </div>
+  {/if}
+
   {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
     <div class="suggest-box">
       {#if suggestLoading && !searchSuggestions.length}
@@ -816,7 +816,8 @@
 
   .toggles-wrap {
     display:flex; flex-direction:column; align-items:center; gap:8px;
-    padding:0 20px; width:100%;
+    width:100%;
+    padding-bottom:10px;
     opacity:0; transform:translateY(16px);
     transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
   }

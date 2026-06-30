@@ -23,6 +23,8 @@
 
   let activeTab  = 'home';
   let drawerOpen = false;
+  let pulseTab   = null;
+  let pulseSeq   = 0;
 
   // Sync currentPage store com activeTab
   $: if ($currentPage === 'home' && activeTab !== 'home') {}
@@ -43,6 +45,14 @@
 
   $: themeProps = { isDark, bg, bgCard, bgChip, txtPrim, txtSec, divider };
   $: showArtist = $currentPage === 'artist';
+
+  function tapTab(id) {
+    activeTab = id;
+    currentPage.set(id);
+    const seq = ++pulseSeq;
+    pulseTab = id;
+    setTimeout(() => { if (pulseSeq === seq) pulseTab = null; }, 380);
+  }
 </script>
 
 <div class="root" style="background:{bg};color:{txtPrim}">
@@ -79,9 +89,12 @@
 
   <!-- BOTTOM BAR -->
   {#if !showArtist}
-    <div class="bottom-bar" style="background:{bg};border-top:0.5px solid {divider}">
+    <div class="bottom-bar" style="background:{isDark ? 'rgba(18,18,18,0.72)' : 'rgba(255,255,255,0.72)'}">
       {#each [['home','Home'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
-        <button class="tab-btn" on:click={() => { activeTab=id; currentPage.set(id); }}>
+        <button class="tab-btn" on:click={() => tapTab(id)}>
+          {#if pulseTab === id}
+            <span class="pulse-ring" style="background:{txtPrim}"></span>
+          {/if}
           {#if id === 'home'}
             <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
           {:else if id === 'search'}
@@ -112,9 +125,11 @@
   .icon-btn { width:36px;height:36px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .15s;flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
   .body { flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch; }
-  .bottom-bar { flex-shrink:0;display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));position:relative;z-index:40; }
-  .tab-btn { display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:opacity .15s; }
-  .tab-btn:active { opacity:0.6; }
+  .bottom-bar { flex-shrink:0;display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));position:relative;z-index:40;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px); }
+  .tab-btn { position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:transform .15s; overflow:visible; }
+  .tab-btn:active { transform:scale(0.88); }
+  .pulse-ring { position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;transform:translate(-50%,-50%) scale(0.3);opacity:0.18;pointer-events:none;animation:tabPulse .38s ease-out forwards; }
+  @keyframes tabPulse { 0% { transform:translate(-50%,-50%) scale(0.3); opacity:0.22; } 100% { transform:translate(-50%,-50%) scale(1.15); opacity:0; } }
   .tab-icon { width:24px;height:24px;display:block; }
   .tab-label { font-size:10px;font-weight:500; }
   .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }

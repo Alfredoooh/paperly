@@ -393,19 +393,20 @@
     if (waveCtx)      { try { waveCtx.close(); }         catch(e) {} waveCtx = null; }
     waveAnalyser = null;
   }
-  
-// ── Keyboard-aware bottom bar ───────────────────────────────
-let kbOffset = 0;
-let kbInterval;let kbInterval;
-let vv;
 
-function updateKbOffset() {
-  if (!vv) return;
-  const raw = window.innerHeight - vv.height - vv.offsetTop;
-  kbOffset = raw < 80 ? 0 : Math.round(raw);
-}
+  // ── Keyboard-aware bottom bar ───────────────────────────────
+  let kbOffset = 0;
+  let kbInterval;
+  let vv;
 
-$: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+  function updateKbOffset() {
+    if (!vv) return;
+    const raw = window.innerHeight - vv.height - vv.offsetTop;
+    kbOffset = raw < 80 ? 0 : Math.round(raw);
+  }
+
+  $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+
   // ── Input focus state (esconde os toggles ao focar) ────────
   let inputFocused = false;
   function handleInputFocus() { inputFocused = true; }
@@ -437,36 +438,37 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
     window.addEventListener('storage', onStorage);
 
     if (window.visualViewport) {
-  vv = window.visualViewport;
-  vv.addEventListener('resize', updateKbOffset);
-  vv.addEventListener('scroll', updateKbOffset);
-  if ('onvirtualkeyboardpolicychange' in navigator || navigator.virtualKeyboard) {
-    try { navigator.virtualKeyboard.overlaysContent = true; } catch (e) {}
-  }
-  if (navigator.virtualKeyboard) {
-    navigator.virtualKeyboard.addEventListener('geometrychange', () => {
-      const r = navigator.virtualKeyboard.boundingRect;
-      kbOffset = r && r.height > 0 ? Math.round(r.height) : 0;
-    });
-  }
-  kbInterval = setInterval(updateKbOffset, 300);
-}
+      vv = window.visualViewport;
+      vv.addEventListener('resize', updateKbOffset);
+      vv.addEventListener('scroll', updateKbOffset);
+      if ('onvirtualkeyboardpolicychange' in navigator || navigator.virtualKeyboard) {
+        try { navigator.virtualKeyboard.overlaysContent = true; } catch (e) {}
+      }
+      if (navigator.virtualKeyboard) {
+        navigator.virtualKeyboard.addEventListener('geometrychange', () => {
+          const r = navigator.virtualKeyboard.boundingRect;
+          kbOffset = r && r.height > 0 ? Math.round(r.height) : 0;
+        });
+      }
+      updateKbOffset();
+      kbInterval = setInterval(updateKbOffset, 300);
+    }
 
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
 
     return () => {
-  if (lottieInstance) lottieInstance.destroy();
-  mediaQuery?.removeEventListener('change', handleSystemChange);
-  window.removeEventListener('storage', onStorage);
-  if (vv) {
-    vv.removeEventListener('resize', updateKbOffset);
-    vv.removeEventListener('scroll', updateKbOffset);
-  }
-  clearInterval(kbInterval);
-  clearTimeout(suggestDebounce);
-  abortSuggest?.abort();
-};
+      if (lottieInstance) lottieInstance.destroy();
+      mediaQuery?.removeEventListener('change', handleSystemChange);
+      window.removeEventListener('storage', onStorage);
+      if (vv) {
+        vv.removeEventListener('resize', updateKbOffset);
+        vv.removeEventListener('scroll', updateKbOffset);
+      }
+      clearInterval(kbInterval);
+      clearTimeout(suggestDebounce);
+      abortSuggest?.abort();
+    };
   });
 </script>
 
@@ -748,6 +750,7 @@ $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-
 
   :global(html), :global(body) {
     overflow: hidden;
+    overscroll-behavior: none;
     height: 100%;
     width: 100%;
   }

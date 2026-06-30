@@ -401,13 +401,27 @@
   }
 
   // ── Keyboard-aware bottom bar (visualViewport API) ──
+  // Debounce por tempo: só aplicamos kbOffset depois de a sequência de
+  // resize events do teclado assentar. O Android dispara vários resizes
+  // intermédios durante a animação nativa do teclado a abrir/fechar; sem
+  // este debounce, cada evento intermédio reposicionava a bottom bar a
+  // meio da transição, causando o "sobe demais e depois volta" (overshoot).
+  // Aplicar só o valor final (após KB_SETTLE_MS sem novos eventos) resolve
+  // isto na raiz, em vez de tentar compensar via easing/transition CSS.
+  const KB_SETTLE_MS = 80;
   let kbOffset = 0;
   let vv;
+  let kbDebounce;
+
   function updateKbOffset() {
     if (!vv) return;
-    const overlap = window.innerHeight - vv.height - vv.offsetTop;
-    kbOffset = Math.max(0, Math.round(overlap));
+    clearTimeout(kbDebounce);
+    kbDebounce = setTimeout(() => {
+      const overlap = window.innerHeight - vv.height - vv.offsetTop;
+      kbOffset = Math.max(0, Math.round(overlap));
+    }, KB_SETTLE_MS);
   }
+
   $: bottomOffsetStyle = kbOffset > 0
     ? `bottom:${kbOffset}px; padding-bottom:18px;`
     : `bottom:0; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
@@ -447,6 +461,7 @@
         vv.removeEventListener('resize', updateKbOffset);
         vv.removeEventListener('scroll', updateKbOffset);
       }
+      clearTimeout(kbDebounce);
       clearTimeout(suggestDebounce);
       abortSuggest?.abort();
     };
@@ -457,9 +472,9 @@
   <!--
     Sem override de interactive-widget: deixamos o default do browser
     (equivalente a resizes-visual), que é o modo que updateKbOffset()
-    abaixo espera — ele lê vv.height e vv.offsetTop, que só mudam
-    nesse modo quando o teclado abre. overlays-content desativava
-    esse resize, por isso o bottom ficava sempre preso em bottom:0.
+    acima espera — ele lê vv.height e vv.offsetTop, que só mudam nesse
+    modo quando o teclado abre. overlays-content desativava esse resize
+    por completo, por isso o bottom ficava sempre preso em bottom:0.
   -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 </svelte:head>
@@ -865,12 +880,17 @@
   .toggle-img { width:22px; height:22px; object-fit:contain; flex-shrink:0; border-radius:5px; }
   .toggle-label { font-size:13px; font-weight:600; color:var(--toggle-label); }
 
-  /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport) ── */
+  /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport) ──
+     SEM transition em bottom/padding-bottom: o valor de kbOffset só chega
+     já "assentado" (debounce no JS), por isso aplicamos diretamente sem
+     animação CSS própria — animar aqui era o que causava o overshoot,
+     porque cada resize intermédio do Android reiniciava uma transição de
+     0.18s a perseguir um alvo que ainda não era o final. ── */
   .bottom {
     position:fixed; bottom:0; left:0; right:0; z-index:20;
     padding-left:16px; padding-right:16px;
     opacity:0; transform:translateY(18px);
-    transition:opacity .6s .3s ease, transform .6s .3s ease, bottom .18s ease, padding-bottom .18s ease;
+    transition:opacity .6s .3s ease, transform .6s .3s ease;
   }
   .bottom.in { opacity:1; transform:translateY(0); }
   .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }

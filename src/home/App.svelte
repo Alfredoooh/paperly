@@ -234,6 +234,73 @@
     window.location.href = ai.path;
   }
 
+  // ───────────────────────────────────────────────────────────
+  // Search suggestions (public-API-backed, via own Worker proxy)
+  // ───────────────────────────────────────────────────────────
+  // NOTE: calling Google/DuckDuckGo suggest endpoints directly
+  // from the browser fails with a CORS error (verified — they
+  // don't send Access-Control-Allow-Origin for arbitrary origins).
+  // So this hits your own Worker (same one used for /ai/transcribe),
+  // which fetches the suggestions server-side and returns clean JSON.
+  // See the Worker route at the bottom of this answer.
+  let searchSuggestions = [];
+  let suggestLoading    = false;
+  let suggestDebounce;
+  let abortSuggest;
+
+  $: showSuggestBox = !!inputText.trim() && !isRecording;
+
+  $: scheduleSuggestFetch(inputText);
+
+  function scheduleSuggestFetch(text) {
+    clearTimeout(suggestDebounce);
+    const q = (text || '').trim();
+    if (!q) {
+      abortSuggest?.abort();
+      searchSuggestions = [];
+      suggestLoading = false;
+      return;
+    }
+    suggestDebounce = setTimeout(() => fetchSuggestions(q), 250);
+  }
+
+  async function fetchSuggestions(q) {
+    abortSuggest?.abort();
+    abortSuggest = new AbortController();
+    suggestLoading = true;
+    try {
+      const res = await fetch(
+        `https://ipc.alfredoooh.workers.dev/ai/suggest?q=${encodeURIComponent(q)}&lang=pt-PT`,
+        { headers: { 'Authorization': 'Bearer ' + (user?.token || '') }, signal: abortSuggest.signal }
+      );
+      if (!res.ok) throw new Error('suggest http ' + res.status);
+      const data = await res.json();
+      if (inputText.trim() !== q) return; // stale response, user kept typing
+      searchSuggestions = (Array.isArray(data?.suggestions) ? data.suggestions : [])
+        .filter(Boolean)
+        .slice(0, 6);
+    } catch (e) {
+      if (e?.name !== 'AbortError') searchSuggestions = [];
+    } finally {
+      suggestLoading = false;
+    }
+  }
+
+  function fillSuggestion(s) {
+    inputText = s;
+    searchSuggestions = [];
+    setTimeout(() => {
+      autoResize();
+      textInputEl?.focus();
+      textInputEl?.setSelectionRange(inputText.length, inputText.length);
+    }, 10);
+  }
+
+  function useSuggestion(s) {
+    inputText = s;
+    setTimeout(navigateToAI, 10);
+  }
+
   let mediaRecorder = null, audioChunks = [], isRecording = false;
   let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
   let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
@@ -333,6 +400,24 @@
     waveAnalyser = null;
   }
 
+  // ── Keyboard-aware bottom bar (visualViewport API) ──
+  let kbOffset = 0;
+  let vv;
+  function updateKbOffset() {
+    if (!vv) return;
+    const overlap = window.innerHeight - vv.height - vv.offsetTop;
+    kbOffset = Math.max(0, Math.round(overlap));
+  }
+  $: bottomOffsetStyle = kbOffset > 0
+    ? `bottom:${kbOffset}px; padding-bottom:18px;`
+    : `bottom:0; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+
+  // ── Live-measured header/bottom heights → content padding ──
+  let headerHeight = 0;
+  let bottomBarHeight = 0;
+  $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
+  $: contentPaddingBottom = bottomBarHeight ? bottomBarHeight + 12 : 28;
+
   let mounted = false;
   onMount(() => {
     user = requireAuth(); if (!user) return;
@@ -344,21 +429,48 @@
       if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
     }
     window.addEventListener('storage', onStorage);
+
+    if (window.visualViewport) {
+      vv = window.visualViewport;
+      vv.addEventListener('resize', updateKbOffset);
+      vv.addEventListener('scroll', updateKbOffset);
+      updateKbOffset();
+    }
+
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
     return () => {
       if (lottieInstance) lottieInstance.destroy();
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
+      if (vv) {
+        vv.removeEventListener('resize', updateKbOffset);
+        vv.removeEventListener('scroll', updateKbOffset);
+      }
+      clearTimeout(suggestDebounce);
+      abortSuggest?.abort();
     };
   });
 </script>
+
+<svelte:head>
+  <!--
+    interactive-widget=overlays-content faz o teclado NÃO encolher o
+    layout viewport — em vez disso o visualViewport encolhe e o JS
+    acima (kbOffset) é que empurra a bottom bar. É isto que torna o
+    comportamento determinístico em todas as versões de Android, em
+    vez de depender do comportamento "às vezes funciona" por omissão.
+    Se já tiveres uma meta viewport no teu app.html / +layout.svelte,
+    apaga essa e deixa só esta (ou junta o parâmetro lá).
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
+</svelte:head>
 
 <div class="root">
 
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
-  <header class="header" class:in={mounted} class:header-lifted={showApps}>
+  <header class="header" class:in={mounted} class:header-lifted={showApps} bind:clientHeight={headerHeight}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
     <div class="header-right" bind:this={appsAnchorEl}>
       <button class="hdr-seg pulse-tap" on:click={toggleApps}>
@@ -375,10 +487,10 @@
     </div>
   </header>
 
-  <main class="content">
+  <main class="content" style="padding-top:{contentPaddingTop}px;padding-bottom:{contentPaddingBottom}px;">
     <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
 
-    {#if lottieFinished}
+    {#if lottieFinished && !inputText.trim()}
       <div class="toggles-wrap" class:toggles-in={togglesVisible}>
         {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
           <div class="toggles-row">
@@ -399,7 +511,44 @@
     {/if}
   </main>
 
-  <div class="bottom" class:in={mounted}>
+  <div class="bottom" class:in={mounted} style={bottomOffsetStyle} bind:clientHeight={bottomBarHeight}>
+
+    {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
+      <div class="suggest-box">
+        {#if suggestLoading && !searchSuggestions.length}
+          <div class="suggest-row suggest-loading">
+            <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
+          </div>
+        {:else}
+          {#each searchSuggestions as s (s)}
+            <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
+              <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span class="suggest-text">{s}</span>
+              <span
+                class="suggest-fill pulse-tap"
+                role="button"
+                tabindex="0"
+                on:click|stopPropagation={() => fillSuggestion(s)}
+                on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="17" y1="7" x2="7" y2="17"/>
+                  <polyline points="7 9 7 17 15 17"/>
+                </svg>
+              </span>
+            </button>
+          {/each}
+        {/if}
+      </div>
+    {/if}
+
     {#if isRecording}
       <div class="rec-card">
         <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
@@ -451,6 +600,13 @@
         </div>
       </div>
     {/if}
+
+    <div class="legal-row">
+      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
+      <span class="legal-dot">·</span>
+      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
+    </div>
+
   </div>
 
   {#if showPopup}
@@ -606,7 +762,6 @@
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --drawer-row-active: rgba(255,255,255,0.06);
     --drawer-sub-bg:     rgba(255,255,255,0.04);
-    /* toggles */
     --toggle-bg:         rgba(255,255,255,0.18);
     --toggle-bg-act:     rgba(255,255,255,0.30);
     --toggle-border:     rgba(255,255,255,0.28);
@@ -641,7 +796,6 @@
     --drawer-overlay-in: rgba(0,0,0,0.20);
     --drawer-row-active: rgba(0,0,0,0.05);
     --drawer-sub-bg:     rgba(0,0,0,0.04);
-    /* toggles */
     --toggle-bg:         rgba(255,255,255,0.72);
     --toggle-bg-act:     rgba(255,255,255,0.92);
     --toggle-border:     rgba(0,0,0,0.12);
@@ -649,10 +803,17 @@
     --toggle-label:      rgba(20,20,20,0.82);
   }
 
-  .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
+  .root { position:fixed; inset:0; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif; }
   .bg-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; }
 
-  .header { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top,0px) + 6px) 16px 6px; flex-shrink:0; opacity:0; transform:translateY(-12px); transition:opacity .55s ease, transform .55s ease; }
+  /* ── Header: SEMPRE fixo, nunca se move (nem com teclado, nem com scroll) ── */
+  .header {
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top,0px) + 6px) 16px 6px;
+    opacity:0; transform:translateY(-12px);
+    transition:opacity .55s ease, transform .55s ease;
+  }
   .header.in { opacity:1; transform:translateY(0); }
   .header.header-lifted { z-index:62; }
   .logo-img { width:80px; height:80px; object-fit:contain; }
@@ -661,61 +822,36 @@
   .hdr-seg:active { background:var(--hdr-seg-active); }
   .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
-  /* ── Content: empurra os toggles para baixo do centro ── */
+  /* ── Content: ocupa o ecrã todo por trás do header/bottom (ambos fixed), com padding dinâmico medido em runtime ── */
   .content {
-    flex:1;
-    position:relative;
-    z-index:10;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:flex-end;
-    padding-bottom:28px;
-    gap:0;
+    position:absolute; inset:0; z-index:10;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    transition:padding-top .18s ease, padding-bottom .18s ease;
   }
   .lottie-wrap {
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%, -50%);
-    width:220px;
-    height:220px;
+    position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:220px; height:220px;
     transition:opacity .35s ease, transform .35s ease;
   }
   .lottie-hidden { opacity:0; transform:translate(-50%,-50%) scale(0.85); pointer-events:none; }
 
-  /* ── Toggles ── */
   .toggles-wrap {
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-    padding:0 20px;
-    width:100%;
-    opacity:0;
-    transform:translateY(16px);
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:0 20px; width:100%;
+    opacity:0; transform:translateY(16px);
     transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
   }
   .toggles-in { opacity:1; transform:translateY(0); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:7px; }
 
   .suggestion-toggle {
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    padding:7px 14px 7px 7px;
-    border-radius:999px;
-    border:1px solid var(--toggle-border);
-    background:var(--toggle-bg);
-    backdrop-filter:blur(18px) saturate(1.6);
-    -webkit-backdrop-filter:blur(18px) saturate(1.6);
-    cursor:pointer;
-    font-family:inherit;
-    white-space:nowrap;
-    transition:background .18s ease, border-color .18s ease,
-               transform .18s cubic-bezier(0.34,1.56,0.64,1);
-    opacity:0;
-    transform:scale(0.90) translateY(8px);
+    display:inline-flex; align-items:center; gap:7px;
+    padding:7px 14px 7px 7px; border-radius:999px;
+    border:1px solid var(--toggle-border); background:var(--toggle-bg);
+    backdrop-filter:blur(18px) saturate(1.6); -webkit-backdrop-filter:blur(18px) saturate(1.6);
+    cursor:pointer; font-family:inherit; white-space:nowrap;
+    transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    opacity:0; transform:scale(0.90) translateY(8px);
     animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
   }
   .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
@@ -724,25 +860,18 @@
     to   { opacity:1; transform:scale(1)    translateY(0);   }
   }
   .suggestion-toggle:active { transform:scale(0.95); }
-  .toggle-active {
-    background:var(--toggle-bg-act) !important;
-    border-color:var(--toggle-border-act) !important;
-  }
+  .toggle-active { background:var(--toggle-bg-act) !important; border-color:var(--toggle-border-act) !important; }
 
-  .toggle-img {
-    width:22px;
-    height:22px;
-    object-fit:contain;
-    flex-shrink:0;
-    border-radius:5px;
-  }
-  .toggle-label {
-    font-size:13px;
-    font-weight:600;
-    color:var(--toggle-label);
-  }
+  .toggle-img { width:22px; height:22px; object-fit:contain; flex-shrink:0; border-radius:5px; }
+  .toggle-label { font-size:13px; font-weight:600; color:var(--toggle-label); }
 
-  .bottom { position:relative; z-index:10; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 18px); flex-shrink:0; opacity:0; transform:translateY(18px); transition:opacity .6s .3s ease, transform .6s .3s ease; }
+  /* ── Bottom: fixo, posição vertical controlada via JS (visualViewport) ── */
+  .bottom {
+    position:fixed; left:0; right:0; z-index:20;
+    padding-left:16px; padding-right:16px;
+    opacity:0; transform:translateY(18px);
+    transition:opacity .6s .3s ease, transform .6s .3s ease, bottom .18s ease, padding-bottom .18s ease;
+  }
   .bottom.in { opacity:1; transform:translateY(0); }
   .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong); max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text; }
@@ -766,6 +895,30 @@
   .rec-dot { width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; }
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
   .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--icon-strong); letter-spacing:.06em; }
+
+  /* ── Caixa de sugestões de pesquisa (acima do bottom-bar) ── */
+  .suggest-box {
+    border-radius:18px; background:var(--surface-strong);
+    backdrop-filter:blur(28px) saturate(1.7); -webkit-backdrop-filter:blur(28px) saturate(1.7);
+    border:0.5px solid var(--border-soft); box-shadow:0 10px 34px rgba(0,0,0,0.18);
+    overflow:hidden; margin-bottom:8px;
+    animation:suggestIn .22s cubic-bezier(0.2,0.9,0.3,1) both;
+  }
+  @keyframes suggestIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .suggest-row { display:flex; align-items:center; gap:12px; width:100%; padding:11px 12px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; transition:background .14s ease; }
+  .suggest-row:active { background:var(--row-active); }
+  .suggest-loading { cursor:default; }
+  .suggest-search-ico { flex-shrink:0; }
+  .suggest-text { flex:1; font-size:14px; font-weight:500; color:var(--icon-strong); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .suggest-text-faint { color:var(--text-faint); font-weight:400; }
+  .suggest-fill { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1); }
+  .suggest-fill:active { background:var(--btn-bg-active); transform:scale(0.86); }
+
+  /* ── Termos / privacidade, fica debaixo do bottom-bar ── */
+  .legal-row { display:flex; align-items:center; justify-content:center; gap:6px; padding-top:10px; }
+  .legal-link { background:none; border:none; font-family:inherit; font-size:10.5px; font-weight:500; color:var(--text-faint); cursor:pointer; padding:2px 1px; }
+  .legal-link:active { color:var(--icon-soft); }
+  .legal-dot { font-size:10px; color:var(--text-faint); }
 
   .popup-overlay { position:fixed; inset:0; z-index:50; }
   .popup-box { position:fixed; z-index:51; border-radius:18px; background:var(--surface-strong); backdrop-filter:blur(32px) saturate(1.9); -webkit-backdrop-filter:blur(32px) saturate(1.9); border:0.5px solid var(--border-soft); box-shadow:0 14px 44px rgba(0,0,0,0.30); overflow:hidden; transform-origin:bottom left; opacity:0; transform:scale(0.86) translateY(8px); transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1); pointer-events:none; }

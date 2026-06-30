@@ -1,3 +1,4 @@
+<!-- src/music/pages/MusicPage.svelte -->
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import Drawer from '../components/Drawer.svelte';
@@ -27,7 +28,6 @@
   let pulseTab   = null;
   let pulseSeq   = 0;
 
-  // Sync currentPage store com activeTab
   $: if ($currentPage === 'home' && activeTab !== 'home') {}
   $: if ($currentPage === 'artist') {}
 
@@ -74,7 +74,6 @@
     on:close={() => drawerOpen=false}
     on:openSettings={() => dispatch('nav', { to:'settings' })} />
 
-  <!-- APP BAR — esconde quando está no artista ou na pesquisa ativa -->
   {#if !hideChrome}
     <div class="appbar" style="background:{bg}">
       <button class="icon-btn" on:click={() => drawerOpen=true}>
@@ -84,7 +83,6 @@
     </div>
   {/if}
 
-  <!-- BODY -->
   <div class="body">
     {#if showArtist}
       <ArtistPage {...themeProps} currentTrackExists={!!$currentTrack} />
@@ -99,9 +97,6 @@
     {/if}
   </div>
 
-  <MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} />
-
-  <!-- BOTTOM BAR -->
   {#if !hideChrome}
     <div class="bottom-bar" style="background:{isDark ? 'rgba(18,18,18,0.72)' : 'rgba(255,255,255,0.72)'}">
       {#each [['home','Home'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
@@ -123,6 +118,10 @@
   {/if}
 
 </div>
+
+{#if !hideChrome}
+  <MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} />
+{/if}
 
 <FullPlayer />
 

@@ -394,39 +394,21 @@
     waveAnalyser = null;
   }
 
-  // ── Keyboard offset (só para a bottom bar) ──
-  let kbOffset = 0;
-  let vv;
-
-  function updateKbOffset() {
-    if (!vv) return;
-    requestAnimationFrame(() => {
-      const diff = window.innerHeight - vv.height;
-      kbOffset = diff > 80 ? Math.round(diff) : 0;
-    });
-  }
-
-  $: bottomTransformStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
-
-  function handleInputFocus() {
-    inputFocused = true;
-    setTimeout(updateKbOffset, 100);
-    setTimeout(updateKbOffset, 300);
-  }
-  function handleInputBlur() {
-    inputFocused = false;
-    setTimeout(updateKbOffset, 100);
-  }
-
   let headerHeight = 0;
   $: contentPaddingTop = headerHeight ? headerHeight + 8 : 100;
-  // A root já não contém a bottom bar, portanto o padding inferior é fixo
   $: contentPaddingBottom = 28;
 
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
   let inputFocused = false;
   $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
+
+  function handleInputFocus() {
+    inputFocused = true;
+  }
+  function handleInputBlur() {
+    inputFocused = false;
+  }
 
   let mounted = false;
   onMount(() => {
@@ -442,13 +424,6 @@
     }
     window.addEventListener('storage', onStorage);
 
-    if (window.visualViewport) {
-      vv = window.visualViewport;
-      vv.addEventListener('resize', updateKbOffset);
-      vv.addEventListener('scroll', updateKbOffset);
-      updateKbOffset();
-    }
-
     requestAnimationFrame(() => { mounted = true; });
     loadLottie();
 
@@ -456,24 +431,16 @@
       if (lottieInstance) lottieInstance.destroy();
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
-      if (vv) {
-        vv.removeEventListener('resize', updateKbOffset);
-        vv.removeEventListener('scroll', updateKbOffset);
-      }
       clearTimeout(suggestDebounce);
       abortSuggest?.abort();
     };
   });
 </script>
 
-<svelte:head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
-</svelte:head>
-
 <!-- CONTEÚDO FIXO (fundo, header, main) -->
 <div class="root">
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
-
+  
   <header class="header" class:in={mounted} class:header-lifted={showApps} bind:clientHeight={headerHeight}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
     <div class="header-right" bind:this={appsAnchorEl}>
@@ -516,8 +483,8 @@
   </main>
 </div>
 
-<!-- BARRA INFERIOR SEPARADA (move com o teclado) -->
-<div class="bottom" class:in={mounted} style={bottomTransformStyle}>
+<!-- BARRA INFERIOR SEPARADA -->
+<div class="bottom" class:in={mounted}>
   {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
     <div class="suggest-box">
       {#if suggestLoading && !searchSuggestions.length}
@@ -617,7 +584,6 @@
   </div>
 </div>
 
-<!-- POPUPS / DRAWER (continuam fixed, fora da root e da bottom, para não serem afetadas) -->
 {#if showPopup}
   <div class="popup-overlay" on:click={closePopup}></div>
   <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
@@ -887,12 +853,11 @@
     z-index:20;
     padding-left:16px;
     padding-right:16px;
-    transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
-    will-change:transform;
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     opacity:0;
-    transition:opacity .6s .3s ease, transform .35s cubic-bezier(0.25, 0.1, 0.25, 1);
+    transition:opacity .6s .3s ease;
   }
-  .bottom.in { opacity:1; transform:translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0); }
+  .bottom.in { opacity:1; }
   .bottom-bar { border-radius:22px; background:var(--surface); backdrop-filter:blur(30px) saturate(1.7); -webkit-backdrop-filter:blur(30px) saturate(1.7); border:0.5px solid var(--border-soft); box-shadow:0 8px 32px rgba(0,0,0,0.20); display:flex; flex-direction:column; }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong); max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text; }
   .chat-input::placeholder { color:var(--text-faint); }

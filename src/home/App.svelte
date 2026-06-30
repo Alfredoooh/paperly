@@ -235,7 +235,7 @@
   }
 
   // ───────────────────────────────────────────────────────────
-  // Search suggestions (public-API-backed, via own Worker proxy)
+  // Search suggestions
   // ───────────────────────────────────────────────────────────
   let searchSuggestions = [];
   let suggestLoading    = false;
@@ -394,44 +394,41 @@
     waveAnalyser = null;
   }
 
-  // ── Keyboard-aware bottom bar ───────────────────────────────
+  // ── ONLY bottom bar moves, nothing else ──
   let kbOffset = 0;
   let vv;
 
   function updateKbOffset() {
     if (!vv) return;
-    // Aguarda o próximo frame para garantir que a viewport já foi atualizada
+    // Garante que a viewport já foi atualizada antes de ler a altura
     requestAnimationFrame(() => {
       const diff = window.innerHeight - vv.height;
       kbOffset = diff > 80 ? Math.round(diff) : 0;
     });
   }
 
-  $: bottomOffsetStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
+  $: bottomTransformStyle = `--kb-offset:${kbOffset}px; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);`;
 
-  // ── Input focus state (esconde os toggles ao focar) ────────
-  let inputFocused = false;
+  // Força atualização extra quando o campo ganha/perde foco
   function handleInputFocus() {
     inputFocused = true;
-    // Força atualização da offset quando o teclado aparece
     setTimeout(updateKbOffset, 100);
     setTimeout(updateKbOffset, 300);
   }
   function handleInputBlur() {
     inputFocused = false;
-    // Força atualização quando o teclado desaparece
     setTimeout(updateKbOffset, 100);
   }
 
-  // ── Live-measured header/bottom heights → content padding ──
   let headerHeight = 0;
   let bottomBarHeight = 0;
   $: contentPaddingTop    = headerHeight    ? headerHeight + 8  : 100;
+  // Nada de kbOffset aqui – o conteúdo não se mexe
   $: contentPaddingBottom = (bottomBarHeight ? bottomBarHeight + 12 : 28);
 
-  // ── Toggles mounted once ────────────────────────────────────
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
+  let inputFocused = false;
   $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
 
   let mounted = false;
@@ -472,8 +469,9 @@
   });
 </script>
 
+<!-- CRUCIAL: interactive-widget=overlays-content impede que a tela toda se mova -->
 <svelte:head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
 </svelte:head>
 
 <div class="root">
@@ -521,7 +519,8 @@
     {/if}
   </main>
 
-  <div class="bottom" class:in={mounted} style={bottomOffsetStyle} bind:clientHeight={bottomBarHeight}>
+  <!-- APENAS este elemento se move com o teclado -->
+  <div class="bottom" class:in={mounted} style={bottomTransformStyle} bind:clientHeight={bottomBarHeight}>
 
     {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
       <div class="suggest-box">
@@ -620,7 +619,6 @@
         <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
       </div>
     </div>
-
   </div>
 
   {#if showPopup}
@@ -753,6 +751,7 @@
     overscroll-behavior: none;
     height: 100%;
     width: 100%;
+    position: fixed; /* trava a tela mesmo sem o overlay */
   }
 
   :global([data-theme="dark"]) {

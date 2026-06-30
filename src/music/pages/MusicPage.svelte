@@ -47,6 +47,7 @@
   $: themeProps = { isDark, bg, bgCard, bgChip, txtPrim, txtSec, divider };
   $: showArtist = $currentPage === 'artist';
   $: showSearchActive = $currentPage === 'search-active';
+  // Esconde appbar/bottom-bar do shell na busca ativa e no artista
   $: hideChrome = showArtist || showSearchActive;
 
   $: appbarTitle = activeTab === 'home' ? 'Início' : activeTab === 'search' ? 'Pesquisa' : 'Biblioteca';
@@ -119,9 +120,9 @@
 
 </div>
 
-{#if !hideChrome}
-  <MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} />
-{/if}
+<!-- MiniPlayer fica visível em qualquer tela do shell, inclusive busca ativa e artista.
+     Ele mesmo se esconde quando o FullPlayer está aberto (ver MiniPlayer.svelte). -->
+<MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} />
 
 <FullPlayer />
 

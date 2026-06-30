@@ -12,6 +12,45 @@
   $: pct = $duration > 0 ? ($progress / $duration) * 100 : 0;
   $: coverUrl = $currentTrack?.album?.cover_big || $currentTrack?.album?.cover_medium || null;
 
+  // ---- Cor dominante sólida extraída da capa ----
+  let dominantColor = '#1a1a2e';
+  let imgEl;
+
+  function extractColor() {
+    if (!imgEl || !imgEl.complete || !imgEl.naturalWidth) return;
+    try {
+      const canvas = document.createElement('canvas');
+      const size = 24;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgEl, 0, 0, size, size);
+      const data = ctx.getImageData(0, 0, size, size).data;
+
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3];
+        if (alpha < 200) continue;
+        r += data[i]; g += data[i + 1]; b += data[i + 2];
+        count++;
+      }
+      if (!count) return;
+      r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+
+      // Escurece para garantir contraste de fundo sólido
+      const darken = 0.55;
+      r = Math.round(r * darken);
+      g = Math.round(g * darken);
+      b = Math.round(b * darken);
+
+      dominantColor = `rgb(${r},${g},${b})`;
+    } catch {
+      // canvas pode falhar por CORS — mantém fallback
+    }
+  }
+
+  $: if (coverUrl) { dominantColor = '#1a1a2e'; }
+
   function handleSeek(e) {
     const rect = e.currentTarget.getBoundingClientRect();
     seekTo((e.clientX - rect.left) / rect.width);
@@ -31,16 +70,14 @@
 </script>
 
 {#if $playerOpen && $currentTrack}
-  <div class="screen">
+  <div class="screen" style="background:{dominantColor}">
 
-    <div class="bg-blur">
-      {#if coverUrl}
-        <img src={coverUrl} alt="" class="bg-img" />
-      {:else}
-        <div class="bg-fallback"></div>
-      {/if}
-      <div class="bg-overlay"></div>
-    </div>
+    {#if coverUrl}
+      <img bind:this={imgEl} src={coverUrl} alt="" crossorigin="anonymous"
+        class="hidden-sampler" on:load={extractColor} />
+    {/if}
+
+    <div class="bg-overlay"></div>
 
     <div class="header">
       <button class="icon-btn" on:click={handleClose}>
@@ -172,12 +209,16 @@
 {/if}
 
 <style>
-  .screen { position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);overflow:hidden; }
+  .screen {
+    position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+    overflow:hidden;
+    transition:background .4s ease;
+  }
 
-  .bg-blur { position:absolute;inset:0;z-index:0;overflow:hidden; }
-  .bg-img { width:100%;height:100%;object-fit:cover;filter:blur(60px) saturate(1.8) brightness(0.4);transform:scale(1.2); }
-  .bg-fallback { width:100%;height:100%;background:#1a1a2e; }
-  .bg-overlay { position:absolute;inset:0;background:rgba(0,0,0,0.45); }
+  .hidden-sampler { position:absolute;width:1px;height:1px;opacity:0;pointer-events:none; }
+
+  .bg-overlay { position:absolute;inset:0;z-index:0;background:linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%); }
 
   .header,.tabs,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap { position:relative;z-index:1; }
 
@@ -208,7 +249,7 @@
   .ctrl-sm:active { opacity:0.6; }
   .ctrl-md { width:52px;height:52px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer; }
   .ctrl-md:active { opacity:0.6; }
-  .play-btn { width:70px;height:70px;border-radius:50%;border:none;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 24px rgba(252,60,68,0.4); }
+  .play-btn { width:70px;height:70px;border-radius:50%;border:none;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 24px rgba(0,0,0,0.4); }
   .play-btn:active { transform:scale(0.94); }
   .play-btn:disabled { opacity:0.7; }
   .play-icon { margin-left:3px; }

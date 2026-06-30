@@ -1,3 +1,4 @@
+<!-- src/music/pages/SearchActivePage.svelte -->
 <script>
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import { PROXY, queue, loadArtist, searchBarRect, playTrack } from '../store/music.js';
@@ -19,16 +20,12 @@
   let searchErr = false;
   let debounce = null;
   let inputEl;
-  let bodyEl;
-  let appbarEl;
   
-  // ---- Container transform (entrada a partir do botão de pesquisa) ----
   let originRect = null;
   let transformReady = false;
   
-  // ---- Appbar que recolhe no scroll, input fixo ----
   let scrollTop = 0;
-  $: collapseAmt = Math.min(Math.max(scrollTop / 40, 0), 1); // 0 -> expandido, 1 -> recolhido
+  $: collapseAmt = Math.min(Math.max(scrollTop / 40, 0), 1);
   
   onMount(async () => {
     let r = null;
@@ -92,8 +89,7 @@
   
   <div class="page" class:enter={transformReady} style={originRect && !transformReady ? ` --ox:${originRect.left}px; --oy:${originRect.top}px; --ow:${originRect.width}px; --oh:${originRect.height}px; ` : '' }>
     
-    <!-- App bar com input integrado — input sempre fixo, linha de cima recolhe -->
-    <div class="appbar" bind:this={appbarEl} style="background:{bgCard ? 'transparent' : 'transparent'}">
+    <div class="appbar">
       <div class="appbar-row" style="opacity:{1 - collapseAmt};max-height:{collapseAmt>0.85?0:40}px;margin-bottom:{collapseAmt>0.85?0:6}px;">
         <span class="appbar-row-label" style="color:{txtSec}">Pesquisa</span>
       </div>
@@ -111,7 +107,7 @@
     </div>
   </div>
 
-  <div class="scroll-body" bind:this={bodyEl} on:scroll={onScroll}>
+  <div class="scroll-body" on:scroll={onScroll}>
 
     {#if searching}
       <div class="center-pad">
@@ -133,16 +129,16 @@
         <div class="tracks-list">
           {#each results.tracks as t}
             <div class="result-row">
-              <TrackRow track={t} {isDark} {bgCard} {txtPrim} {txtSec} />
-              <button class="circle-btn" style="background:{bgCard}" on:click|stopPropagation={() => playTrack(t)}>
-                <span class="svg-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');background:{txtPrim};width:14px;height:14px;"></span>
-              </button>
+              <div class="result-track">
+                <TrackRow track={t} {isDark} {bgCard} {txtPrim} {txtSec} />
+              </div>
               <div class="more-wrap">
                 <button class="more-btn" on:click|stopPropagation={() => toggleMenu(t.id)}>
                   <span class="svg-mask" style="mask-image:url('/icons/svg/more_vertical.svg');-webkit-mask-image:url('/icons/svg/more_vertical.svg');background:{txtSec};width:16px;height:16px;"></span>
                 </button>
                 {#if openMenuFor === t.id}
                   <div class="menu" style="background:{bgCard}" on:click|stopPropagation>
+                    <button class="menu-item" style="color:{txtPrim}" on:click={() => { playTrack(t); openMenuFor=null; }}>Reproduzir</button>
                     <button class="menu-item" style="color:{txtPrim}" on:click={() => addToQueueAndClose(t)}>Adicionar à fila</button>
                     <button class="menu-item" style="color:{txtPrim}" on:click={() => { loadArtist(t.artist); openMenuFor = null; }}>Ver artista</button>
                   </div>
@@ -204,14 +200,13 @@
 <style>
   .page {
     position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
-    overflow:hidden;
+    overflow:hidden;background:inherit;
   }
   .page:not(.enter) {
     position:fixed;
     top:var(--oy);left:var(--ox);
     width:var(--ow);height:var(--oh);
     border-radius:14px;
-    transform-origin:top left;
   }
   .page.enter {
     top:0;left:0;width:100%;height:100%;
@@ -221,14 +216,21 @@
       border-radius .32s cubic-bezier(.2,.8,.2,1);
   }
 
-  .appbar { flex-shrink:0;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px;position:relative;z-index:2; }
+  .appbar { flex-shrink:0;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px;position:relative;z-index:2;min-width:0; }
   .appbar-row { overflow:hidden;transition:opacity .18s ease,max-height .22s ease,margin-bottom .22s ease; }
   .appbar-row-label { font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em; }
-  .appbar-input-row { display:flex;align-items:center;gap:10px; }
-  .search-bar { flex:1;display:flex;align-items:center;gap:10px;border-radius:14px;padding:11px 14px; }
-  .search-input { flex:1;border:none;background:transparent;font-size:16px;outline:none;font-family:inherit; }
-  .clear-btn { border:none;background:transparent;cursor:pointer;display:flex;padding:0; }
-  .cancel-btn { border:none;background:transparent;cursor:pointer;font-size:16px;font-family:inherit;padding:0;white-space:nowrap;transition:opacity .15s; }
+
+  .appbar-input-row { display:flex;align-items:center;gap:8px;width:100%;min-width:0; }
+  .search-bar {
+    flex:1 1 0%;min-width:0;max-width:100%;
+    display:flex;align-items:center;gap:10px;
+    border-radius:14px;padding:11px 14px;
+    overflow:hidden;
+    box-sizing:border-box;
+  }
+  .search-input { flex:1 1 0%;min-width:0;border:none;background:transparent;font-size:16px;outline:none;font-family:inherit; }
+  .clear-btn { border:none;background:transparent;cursor:pointer;display:flex;padding:0;flex-shrink:0; }
+  .cancel-btn { flex:0 0 auto;border:none;background:transparent;cursor:pointer;font-size:15px;font-family:inherit;padding:0;white-space:nowrap;transition:opacity .15s; }
   .cancel-btn:active { opacity:0.5; }
 
   .scroll-body { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch; }
@@ -238,14 +240,12 @@
   .section-title { font-size:20px;font-weight:800;letter-spacing:-.4px; }
   .tracks-list { display:flex;flex-direction:column;padding:0 16px; }
 
-  .result-row { display:flex;align-items:center;gap:6px; }
-  .result-row > :global(.row) { flex:1;min-width:0; }
-  .circle-btn { width:30px;height:30px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0; }
-  .circle-btn:active { opacity:0.6; }
-  .more-wrap { position:relative;flex-shrink:0; }
-  .more-btn { width:30px;height:30px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer; }
+  .result-row { display:flex;align-items:center; }
+  .result-track { flex:1;min-width:0; }
+  .more-wrap { position:relative;flex-shrink:0;margin-left:2px; }
+  .more-btn { width:32px;height:32px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer; }
   .more-btn:active { opacity:0.6; }
-  .menu { position:absolute;top:34px;right:0;border-radius:12px;padding:6px;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,0.35);z-index:10;display:flex;flex-direction:column; }
+  .menu { position:absolute;top:36px;right:0;border-radius:12px;padding:6px;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,0.35);z-index:10;display:flex;flex-direction:column; }
   .menu-item { background:none;border:none;text-align:left;padding:10px 10px;font-size:14px;font-family:inherit;cursor:pointer;border-radius:8px; }
   .menu-item:active { opacity:0.6; }
 

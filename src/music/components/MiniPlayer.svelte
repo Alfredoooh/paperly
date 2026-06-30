@@ -66,7 +66,7 @@
     bottom:calc(env(safe-area-inset-bottom,0px) + 58px + 10px);
     border-radius:14px;
     overflow:hidden;
-    z-index:50;
+    z-index:65;
     box-shadow:0 8px 32px rgba(0,0,0,0.4);
   }
   .mini-progress-track {

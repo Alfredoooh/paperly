@@ -740,8 +740,6 @@
   * { box-sizing:border-box; margin:0; padding:0; }
 
   :global(html), :global(body) {
-    position: fixed;
-    inset: 0;
     overflow: hidden;
     overscroll-behavior: none;
     height: 100%;

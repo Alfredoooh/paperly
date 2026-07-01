@@ -99,9 +99,9 @@
 
   {#if !hideChrome}
     <div class="bottom-bar-gradient" class:dark={isDark}></div>
-    <div class="bottom-bar" class:light={!isDark} class:dark={isDark}>
+    <div class="bottom-bar">
       {#each [['home','Início'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
-        <button class="tab-btn pulse-tap" on:click={() => tapTab(id)}>
+        <button class="tab-btn" on:click={() => tapTab(id)}>
           {#if pulseTab === id}
             <span class="pulse-ring" style="background:{txtPrim}"></span>
           {/if}
@@ -132,19 +132,21 @@
   .icon-btn:active { opacity:0.5; }
   .body { flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch; }
 
-  .bottom-bar-gradient { position:absolute;left:0;right:0;bottom:0;height:130px;pointer-events:none;z-index:39; }
-  .bottom-bar-gradient:not(.dark) { background:linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 100%); }
-  .bottom-bar-gradient.dark { background:linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0.95) 40%, rgba(18,18,18,0) 100%); }
+  .bottom-bar-gradient {
+    position:absolute;left:0;right:0;bottom:0;height:130px;pointer-events:none;z-index:39;
+  }
+  .bottom-bar-gradient:not(.dark) {
+    background:linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 100%);
+  }
+  .bottom-bar-gradient.dark {
+    background:linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0.95) 40%, rgba(18,18,18,0) 100%);
+  }
 
   .bottom-bar {
-    position:absolute;bottom:0;left:16px;right:16px;z-index:40;
-    margin-bottom:20px;border-radius:22px;
-    display:flex;align-items:center;justify-content:space-around;
+    flex-shrink:0;display:flex;align-items:center;justify-content:space-around;
     padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
-    transition:background-color .3s ease, box-shadow .3s ease;
+    position:relative;z-index:40;background:transparent;
   }
-  .bottom-bar.light { background:#FFFFFF;box-shadow:0 4px 24px rgba(0,0,0,.08); }
-  .bottom-bar.dark  { background:#1F1F1F;box-shadow:0 4px 24px rgba(0,0,0,.30); }
 
   .tab-btn { position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:transform .15s;overflow:visible; }
   .tab-btn:active { transform:scale(0.88); }
@@ -153,7 +155,4 @@
   .tab-icon { width:24px;height:24px;display:block; }
   .tab-label { font-size:10px;font-weight:500; }
   .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }
-
-  .pulse-tap { cursor:pointer;transition:transform .11s cubic-bezier(0.4,0,.2,1),opacity .11s cubic-bezier(0.4,0,.2,1); }
-  .pulse-tap:active { transform:scale(0.97);opacity:.86; }
 </style>

@@ -97,8 +97,7 @@
   </div>
 
   {#if !hideChrome}
-    <div class="bottom-bar-gradient" class:dark={isDark}></div>
-    <div class="bottom-bar">
+    <div class="bottom-bar" style="border-top:0.5px solid {divider}">
       {#each [['home','Início'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
         <button class="tab-btn" on:click={() => tapTab(id)}>
           {#if pulseTab === id}
@@ -130,11 +129,18 @@
   .icon-btn:active { opacity:0.5; }
   .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
 
-  .bottom-bar-gradient { position:absolute; left:0; right:0; bottom:0; height:130px; pointer-events:none; z-index:39; }
-  .bottom-bar-gradient:not(.dark) { background:linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 100%); }
-  .bottom-bar-gradient.dark { background:linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0.95) 40%, rgba(18,18,18,0) 100%); }
-
-  .bottom-bar { flex-shrink:0; display:flex; align-items:center; justify-content:space-around; padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px)); position:relative; z-index:40; background:transparent; }
+  .bottom-bar {
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-around;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
+    position:relative;
+    z-index:40;
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    background:transparent;
+  }
 
   .tab-btn { position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; cursor:pointer; padding:4px 20px; transition:transform .15s; overflow:visible; }
   .tab-btn:active { transform:scale(0.88); }

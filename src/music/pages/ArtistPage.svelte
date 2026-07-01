@@ -22,7 +22,6 @@
   const HERO_H = 320;
   const COLLAPSE_AT = HERO_H - 90;
 
-  // progresso de 0 a 1 conforme o scroll avança até o ponto de colapso
   $: collapseProgress = Math.min(Math.max(scrollY / COLLAPSE_AT, 0), 1);
   $: headerTitleOpacity = Math.min(Math.max((scrollY - (COLLAPSE_AT - 40)) / 40, 0), 1);
 
@@ -44,6 +43,10 @@
     return `${n} fãs`;
   }
 
+  function icon(name) {
+    return `mask-image:url('/icons/svg/${name}.svg');-webkit-mask-image:url('/icons/svg/${name}.svg');`;
+  }
+
   onMount(() => {
     requestAnimationFrame(() => { mounted = true; });
   });
@@ -51,10 +54,10 @@
 
 <div class="page">
 
-  <!-- Sticky compact header (aparece ao rolar) -->
+  <!-- Sticky compact header (aparece ao rolar, mesma barra assume o "Seguir") -->
   <div class="sticky-header" style="opacity:{headerTitleOpacity}; pointer-events:{headerTitleOpacity > 0.5 ? 'auto' : 'none'}; background:{isDark ? 'rgba(18,18,18,0.92)' : 'rgba(255,255,255,0.92)'}">
     <button class="sticky-back" on:click={goBack} style="color:{txtPrim}">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="icon-mask" style="{icon('back_arrow')}background:{txtPrim};width:22px;height:22px;"></span>
     </button>
     <span class="sticky-title" style="color:{txtPrim}">{artist?.name || ''}</span>
     <button class="sticky-follow" class:active={following} on:click={toggleFollow}>
@@ -62,9 +65,9 @@
     </button>
   </div>
 
-  <!-- Back button flutuante (sempre visível, funde no sticky header) -->
+  <!-- Back button flutuante sobre o hero, funde-se com a sticky ao rolar -->
   <button class="float-back" on:click={goBack} style="opacity:{1 - headerTitleOpacity}">
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <span class="icon-mask" style="{icon('back_arrow')}background:#fff;width:22px;height:22px;"></span>
   </button>
 
   <div class="scroll-area" bind:this={scrollEl} on:scroll={handleScroll}>
@@ -80,7 +83,6 @@
       {/if}
       <div class="hero-overlay"></div>
 
-      <!-- Artist name -->
       <div class="hero-info" style="opacity:{1 - collapseProgress * 1.3}; transform: translateY({collapseProgress * 12}px)">
         <span class="hero-name">{artist?.name}</span>
         {#if artist?.nb_fan}
@@ -106,10 +108,10 @@
       </div>
     {:else}
 
-      <!-- Barra de ações (Reproduzir + Seguir) fixa logo abaixo do hero -->
+      <!-- Única barra de ações: Reproduzir + Seguir (nunca duplicado com o header) -->
       <div class="actions-bar" style="background:{isDark ? '#121212' : '#fff'}">
         <button class="play-all-btn" on:click={() => artist?.topTracks?.[0] && playTrack(artist.topTracks[0])}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="6,3 20,12 6,21"/></svg>
+          <span class="icon-mask" style="{icon('play')}background:#fff;width:16px;height:16px;"></span>
           Reproduzir
         </button>
         <button class="follow-btn" class:active={following} on:click={toggleFollow} style="color:{following ? '#fff' : txtPrim}; border-color:{following ? '#FC3C44' : (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)')}; background:{following ? '#FC3C44' : 'transparent'}">
@@ -119,7 +121,6 @@
 
       <div class="content" class:reveal={mounted}>
 
-        <!-- Top tracks -->
         {#if artist.topTracks?.length}
           <div class="section-hdr">
             <span class="section-title" style="color:{txtPrim}">Músicas populares</span>
@@ -133,7 +134,6 @@
           </div>
         {/if}
 
-        <!-- Albums -->
         {#if artist.albums?.length}
           <div class="section-hdr" style="margin-top:28px">
             <span class="section-title" style="color:{txtPrim}">Discografia</span>
@@ -145,7 +145,6 @@
           </div>
         {/if}
 
-        <!-- Related artists -->
         {#if artist.related?.length}
           <div class="section-hdr" style="margin-top:28px">
             <span class="section-title" style="color:{txtPrim}">Artistas relacionados</span>
@@ -183,7 +182,6 @@
     overscroll-behavior-y:contain;
   }
 
-  /* Sticky header fixo — nunca "sobe", fica sempre no topo */
   .sticky-header {
     position:absolute;
     top:0; left:0; right:0;
@@ -225,7 +223,6 @@
   .sticky-follow.active { background:#FC3C44; border-color:#FC3C44; color:#fff; }
   .sticky-follow:active { transform:scale(0.94); }
 
-  /* Botão voltar flutuante sobre o hero, funde com sticky ao rolar */
   .float-back {
     position:absolute;
     top:calc(env(safe-area-inset-top,0px) + 12px);
@@ -266,7 +263,6 @@
   .hero-name { display:block;font-size:34px;font-weight:900;color:#fff;letter-spacing:-.8px;text-shadow:0 2px 12px rgba(0,0,0,0.3); }
   .hero-fans { display:block;font-size:14px;color:rgba(255,255,255,0.65);margin-top:4px; }
 
-  /* Barra de ações — fica logo abaixo do hero, dentro do fluxo normal */
   .actions-bar {
     position:sticky;
     top:calc(env(safe-area-inset-top,0px) + 56px);
@@ -319,7 +315,6 @@
   .rel-fallback span { font-size:22px;font-weight:700;color:#fff; }
   .rel-name { font-size:12px;font-weight:600;text-align:center; }
 
-  /* Skeleton loading nativo */
   .skeleton-wrap { padding:16px; }
   .skel-row, .skel-line, .skel-thumb {
     background:linear-gradient(90deg, rgba(128,128,128,0.12) 25%, rgba(128,128,128,0.22) 37%, rgba(128,128,128,0.12) 63%);
@@ -334,4 +329,6 @@
   .skel-lines { flex:1;display:flex;flex-direction:column;gap:8px; }
   .skel-line { height:14px; }
   @keyframes shimmer { 0% { background-position:100% 0; } 100% { background-position:-100% 0; } }
+
+  .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

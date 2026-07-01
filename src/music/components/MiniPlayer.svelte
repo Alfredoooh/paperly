@@ -1,7 +1,7 @@
 <!-- src/music/components/MiniPlayer.svelte -->
 <script>
   import { onDestroy } from 'svelte';
-  import { currentTrack, playing, playerOpen, progress, duration, togglePlay, stopAll, audioLoading } from '../store/music.js';
+  import { currentTrack, playing, playerOpen, progress, duration, togglePlay, playNext, playPrev, audioLoading } from '../store/music.js';
   
   export let bgCard = '#1c1c1e';
   export let txtPrim = '#ffffff';
@@ -87,9 +87,44 @@
   }
 
   $: accentColor = dominantColor ? `rgb(${dominantColor})` : '#FC3C44';
+  $: tintBg = dominantColor ? `rgba(${dominantColor},0.14)` : 'rgba(255,255,255,0.04)';
 
   function open() {
     playerOpen.set(true);
+  }
+
+  // ---- Handle bar acima do card: arrasta pra cima abre o FullPlayer, pra baixo fecha tudo ----
+  let dragging = false;
+  let dragStartY = 0;
+  let dragDeltaY = 0;
+
+  function onHandleDragStart(e) {
+    dragging = true;
+    dragStartY = (e.touches ? e.touches[0].clientY : e.clientY);
+    dragDeltaY = 0;
+  }
+  function onHandleDragMove(e) {
+    if (!dragging) return;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY);
+    dragDeltaY = y - dragStartY;
+  }
+  function onHandleDragEnd() {
+    if (!dragging) return;
+    dragging = false;
+    const threshold = 40;
+    if (dragDeltaY < -threshold) {
+      // deslizar para cima -> abre o full player
+      playerOpen.set(true);
+    } else if (dragDeltaY > threshold) {
+      // deslizar para baixo -> fecha e para a música
+      stopPlayback();
+    }
+    dragDeltaY = 0;
+  }
+
+  function stopPlayback() {
+    if ($playing) togglePlay();
+    currentTrack.set(null);
   }
 
   onDestroy(() => {
@@ -100,13 +135,23 @@
 
 {#if $currentTrack && !$playerOpen}
   <div class="mini-wrap" class:no-bar={!hasBottomBar}>
+
+    <div
+      class="handle-zone"
+      on:touchstart={onHandleDragStart}
+      on:touchmove={onHandleDragMove}
+      on:touchend={onHandleDragEnd}
+    >
+      <div class="handle-bar"></div>
+    </div>
+
     <div class="mini-progress-track">
       <div class="mini-progress-fill" style="width:{pct}%; background:{accentColor};"></div>
     </div>
 
-    <button class="mini" style="background:{bgCard}" on:click={open}>
+    <button class="mini" style="background:linear-gradient(135deg, {tintBg}, {bgCard} 60%)" on:click={open}>
 
-      <div class="thumb-wrap">
+      <div class="disc-wrap" class:spin={$playing}>
         {#if $currentTrack.album?.cover_medium}
           <img src={$currentTrack.album.cover_medium} alt={$currentTrack.title} class="thumb" />
         {:else}
@@ -114,6 +159,7 @@
             <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');background:{txtSec};width:16px;height:16px;"></span>
           </div>
         {/if}
+        <div class="thumb-hole"></div>
       </div>
 
       <div class="info">
@@ -122,6 +168,9 @@
       </div>
 
       <div class="controls">
+        <button class="ctrl" on:click|stopPropagation={playPrev}>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/backward.svg');-webkit-mask-image:url('/icons/svg/backward.svg');background:{txtPrim};width:18px;height:18px;"></span>
+        </button>
         {#if $audioLoading}
           <div class="spinner" style="border-top-color:{accentColor};"></div>
         {:else}
@@ -133,8 +182,8 @@
             {/if}
           </button>
         {/if}
-        <button class="ctrl" on:click|stopPropagation={stopAll}>
-          <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{txtSec};width:16px;height:16px;"></span>
+        <button class="ctrl" on:click|stopPropagation={playNext}>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/forward.svg');-webkit-mask-image:url('/icons/svg/forward.svg');background:{txtPrim};width:18px;height:18px;"></span>
         </button>
       </div>
 
@@ -147,7 +196,7 @@
     position:fixed;
     left:10px;right:10px;
     bottom:calc(env(safe-area-inset-bottom,0px) + 58px + 10px);
-    border-radius:14px;
+    border-radius:999px;
     overflow:hidden;
     z-index:65;
     box-shadow:0 8px 32px rgba(0,0,0,0.4);
@@ -156,6 +205,23 @@
   .mini-wrap.no-bar {
     bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
   }
+
+  .handle-zone {
+    position:absolute;
+    top:-22px;left:0;right:0;
+    height:22px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    padding-bottom:6px;
+    touch-action:none;
+    z-index:2;
+  }
+  .handle-bar {
+    width:36px;height:4px;border-radius:999px;
+    background:rgba(255,255,255,0.4);
+  }
+
   .mini-progress-track {
     height:2px;
     background:rgba(255,255,255,0.12);
@@ -167,21 +233,47 @@
   }
   .mini {
     display:flex;align-items:center;gap:12px;
-    padding:10px 12px;
+    padding:8px 10px 8px 8px;
     border:none;cursor:pointer;text-align:left;width:100%;
+    border-radius:999px;
     backdrop-filter:blur(24px);
     -webkit-backdrop-filter:blur(24px);
   }
-  .thumb-wrap { flex-shrink:0; }
-  .thumb { width:44px;height:44px;border-radius:8px;object-fit:cover;display:block; }
+
+  .disc-wrap {
+    position:relative;
+    flex-shrink:0;
+    width:44px;height:44px;
+    border-radius:50%;
+  }
+  .disc-wrap.spin {
+    animation:mini-disc-spin 6s linear infinite;
+  }
+  @keyframes mini-disc-spin {
+    from { transform:rotate(0deg); }
+    to { transform:rotate(360deg); }
+  }
+
+  .thumb { width:100%;height:100%;border-radius:50%;object-fit:cover;display:block; }
   .no-img { display:flex;align-items:center;justify-content:center; }
+
+  .thumb-hole {
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:24%;height:24%;
+    border-radius:50%;
+    background:#0a0a0a;
+    box-shadow:0 0 0 1.5px rgba(255,255,255,0.15) inset;
+  }
+
   .info { flex:1;min-width:0; }
   .title { display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .artist { display:block;font-size:12px;margin-top:1px; }
-  .controls { display:flex;align-items:center;gap:4px; }
-  .ctrl { width:36px;height:36px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0; }
+  .controls { display:flex;align-items:center;gap:2px; }
+  .ctrl { width:32px;height:32px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0; }
   .ctrl:active { opacity:0.5; }
-  .spinner { width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);animation:spin .7s linear infinite;margin:0 8px; }
+  .spinner { width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);animation:spin .7s linear infinite;margin:0 6px; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }
 </style>

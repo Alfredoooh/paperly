@@ -9,6 +9,7 @@
   import { tick } from 'svelte';
 
   let tab = 'player';
+  const tabOrder = ['player', 'lyrics'];
   let visible = false;
   let entered = false;
 
@@ -16,6 +17,10 @@
   let dragging = false;
   let dragStartY = 0;
   let dragStartedOnHandle = false;
+
+  let tabDragging = false;
+  let tabDragStartX = 0;
+  let tabDragDeltaX = 0;
 
   $: pct = $duration > 0 ? ($progress / $duration) * 100 : 0;
   $: coverUrl = $currentTrack?.album?.cover_big || $currentTrack?.album?.cover_medium || null;
@@ -127,6 +132,30 @@
     seekTo((e.clientX - rect.left) / rect.width);
   }
 
+  // ---- Swipe horizontal para trocar de tab ----
+  function onTabDragStart(e) {
+    tabDragging = true;
+    tabDragStartX = (e.touches ? e.touches[0].clientX : e.clientX);
+    tabDragDeltaX = 0;
+  }
+  function onTabDragMove(e) {
+    if (!tabDragging) return;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX);
+    tabDragDeltaX = x - tabDragStartX;
+  }
+  function onTabDragEnd() {
+    if (!tabDragging) return;
+    tabDragging = false;
+    const threshold = 60;
+    const idx = tabOrder.indexOf(tab);
+    if (tabDragDeltaX < -threshold && idx < tabOrder.length - 1) {
+      tab = tabOrder[idx + 1];
+    } else if (tabDragDeltaX > threshold && idx > 0) {
+      tab = tabOrder[idx - 1];
+    }
+    tabDragDeltaX = 0;
+  }
+
   function fmtTime(s) {
     if (!s || isNaN(s)) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
@@ -186,21 +215,39 @@
       </button>
     </div>
 
-    <div class="tabs">
-      {#each [['player','Player'],['lyrics','Letra'],['queue','Fila']] as [id,label]}
-        <button class="tab-btn" style="color:{tab===id?'#fff':'rgba(255,255,255,0.4)'};border-bottom:2px solid {tab===id?'#FC3C44':'transparent'}"
-          on:click={() => tab=id}>{label}</button>
-      {/each}
+    <div class="tabs-pill-wrap">
+      <div class="tabs-pill">
+        {#each [['player','Tocando'],['lyrics','Letra']] as [id,label]}
+          <button
+            class="tab-pill-btn"
+            class:active={tab===id}
+            on:click={() => tab=id}
+          >{label}</button>
+        {/each}
+      </div>
     </div>
+
+    <div
+      class="tab-swipe-area"
+      on:touchstart={onTabDragStart}
+      on:touchmove={onTabDragMove}
+      on:touchend={onTabDragEnd}
+    >
 
     {#if tab === 'player'}
 
       <div class="cover-wrap">
         {#if coverUrl}
-          <img src={coverUrl} alt={$currentTrack.title} class="cover" class:pop={entered} />
+          <div class="disc-wrap" class:spin={$playing}>
+            <img src={coverUrl} alt={$currentTrack.title} class="cover" class:pop={entered} />
+            <div class="disc-hole"></div>
+          </div>
         {:else}
-          <div class="cover no-cover">
-            <span class="icon-mask" style="{icon('playlist_music')}background:rgba(255,255,255,0.3);width:64px;height:64px;"></span>
+          <div class="disc-wrap">
+            <div class="cover no-cover">
+              <span class="icon-mask" style="{icon('playlist_music')}background:rgba(255,255,255,0.3);width:64px;height:64px;"></span>
+            </div>
+            <div class="disc-hole"></div>
           </div>
         {/if}
       </div>
@@ -290,15 +337,9 @@
           </div>
         {/if}
       </div>
-
-    {:else if tab === 'queue'}
-      <div class="queue-wrap">
-        <p class="queue-label">A seguir</p>
-        <div class="lyrics-center">
-          <span class="lyrics-empty">Fila em breve</span>
-        </div>
-      </div>
     {/if}
+
+    </div>
 
   </div>
 {/if}
@@ -347,23 +388,80 @@
 
   .bg-overlay { position:absolute;inset:0;z-index:0;background:linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%); }
 
-  .header,.tabs,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap { position:relative;z-index:1; }
+  .header,.tabs-pill-wrap,.tab-swipe-area,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap { position:relative;z-index:1; }
 
   .header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
   .header-center { flex:1;text-align:center; }
   .header-label { font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:.04em; }
 
-  .tabs { display:flex;gap:0;margin-bottom:16px;border-bottom:0.5px solid rgba(255,255,255,0.1); }
-  .tab-btn { flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:8px 0;font-size:14px;font-weight:600;cursor:pointer;color:rgba(255,255,255,0.4);font-family:inherit;transition:color .2s;margin-bottom:-0.5px; }
+  .tabs-pill-wrap { display:flex;justify-content:center;margin-bottom:20px; }
+  .tabs-pill {
+    display:inline-flex;
+    background:rgba(255,255,255,0.1);
+    border-radius:999px;
+    padding:3px;
+    gap:2px;
+  }
+  .tab-pill-btn {
+    border:none;
+    background:transparent;
+    border-radius:999px;
+    padding:7px 20px;
+    font-size:13px;
+    font-weight:600;
+    font-family:inherit;
+    color:rgba(255,255,255,0.55);
+    cursor:pointer;
+    transition:background .25s cubic-bezier(.4,0,.2,1), color .25s ease;
+  }
+  .tab-pill-btn.active {
+    background:rgba(255,255,255,0.95);
+    color:#1c1c1e;
+  }
+
+  .tab-swipe-area { flex:1;display:flex;flex-direction:column;min-height:0;touch-action:pan-y; }
 
   .cover-wrap { flex:1;display:flex;align-items:center;justify-content:center;margin-bottom:20px; }
-  .cover {
-    width:min(72vw,300px);height:min(72vw,300px);border-radius:16px;object-fit:cover;box-shadow:0 32px 80px rgba(0,0,0,0.6);
+
+  .disc-wrap {
+    position:relative;
+    width:min(72vw,300px);height:min(72vw,300px);
+    border-radius:50%;
     transform:scale(0.92);opacity:0;
     transition:transform .42s cubic-bezier(.2,.7,.3,1) .06s, opacity .42s ease .06s;
   }
-  .cover.pop { transform:scale(1);opacity:1; }
-  .no-cover { background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center; }
+  .cover-wrap :global(.disc-wrap.spin) {
+    animation:disc-spin 18s linear infinite;
+  }
+
+  .cover {
+    width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;box-shadow:0 32px 80px rgba(0,0,0,0.6);
+  }
+  .no-cover { width:100%;height:100%;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center; }
+
+  .disc-hole {
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:14%;height:14%;
+    border-radius:50%;
+    background:#0a0a0a;
+    box-shadow:0 0 0 2px rgba(255,255,255,0.15) inset;
+  }
+
+  @keyframes disc-spin {
+    from { transform:rotate(0deg); }
+    to { transform:rotate(360deg); }
+  }
+
+  .cover-wrap .disc-wrap.pop-init,
+  .disc-wrap {
+    /* mantém animação de entrada baseada na classe .pop aplicada à img, controlando via wrapper */
+  }
+  .cover.pop { }
+  .disc-wrap:has(.cover.pop) {
+    transform:scale(1);opacity:1;
+  }
 
   .info-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:16px; }
   .info { min-width:0;flex:1; }
@@ -373,7 +471,13 @@
   .progress-wrap { margin-bottom:12px; }
   .progress-track { position:relative;height:5px;border-radius:999px;background:rgba(255,255,255,0.18);cursor:pointer;margin-bottom:8px;width:100%;border:none;padding:0; }
   .progress-fill { height:100%;border-radius:999px;background:#FC3C44;transition:width .5s linear; }
-  .progress-thumb { position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,0.4); }
+  .progress-thumb {
+    position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,0.4);
+    transition:left .5s linear, transform .15s cubic-bezier(.4,0,.2,1);
+  }
+  .progress-track:active .progress-thumb {
+    transform:translate(-50%,-50%) scale(1.35);
+  }
   .times { display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.45); }
 
   .controls { display:flex;align-items:center;justify-content:space-between;margin-bottom:24px; }

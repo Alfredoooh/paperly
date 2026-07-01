@@ -4,6 +4,14 @@ import { writable } from 'svelte/store';
 export const PROXY    = 'https://nexavps00001-test.onrender.com';
 export const ACCENT   = '#FC3C44';
 
+// Debug visual (aparece na tela, sem precisar de DevTools)
+export const debugLog = writable([]);
+function log(msg) {
+  const line = `${new Date().toLocaleTimeString()} — ${msg}`;
+  console.log(line);
+  debugLog.update(l => [...l.slice(-19), line]);
+}
+
 // Feed
 export const feedTracks    = writable([]);
 export const newAlbums     = writable([]);
@@ -51,7 +59,6 @@ export async function loadFeed() {
     playlists.set(feed.playlists  || []);
     artists.set(feed.artists      || []);
 
-    // Se literalmente nada veio, trata como erro de verdade (todas as fontes falharam no servidor)
     const isEmpty = !(feed.tracks?.length || feed.albums?.length || feed.playlists?.length || feed.artists?.length);
     if (isEmpty) feedError.set(true);
 
@@ -64,7 +71,12 @@ export async function loadFeed() {
 }
 
 export async function playTrack(track) {
-  if (!track) return;
+  log(`playTrack chamado: ${track?.title || 'SEM TITULO'}`);
+
+  if (!track) {
+    log('ERRO: track é null/undefined');
+    return;
+  }
 
   if (audioInstance) {
     audioInstance.pause();
@@ -79,18 +91,36 @@ export async function playTrack(track) {
   lyrics.set(null);
   audioLoading.set(true);
 
+  const fetchUrl = `${PROXY}/api/audio/url?track=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist?.name || '')}`;
+  log(`fetch: ${fetchUrl}`);
+
   try {
-    const res = await fetch(
-      `${PROXY}/api/audio/url?track=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist?.name || '')}`
-    );
-    if (!res.ok) throw new Error('Audio not found');
-    const { url } = await res.json();
+    const res = await fetch(fetchUrl);
+    log(`status HTTP: ${res.status}`);
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      log(`corpo erro: ${errBody.slice(0, 150)}`);
+      throw new Error(`Audio not found (status ${res.status})`);
+    }
+
+    const data = await res.json();
+    log(`JSON recebido, url presente: ${!!data.url}`);
+
+    const { url } = data;
+    if (!url) {
+      log('ERRO: resposta sem campo url');
+      throw new Error('Resposta sem url de áudio');
+    }
+
+    log(`url stream: ${url.slice(0, 60)}...`);
 
     const audio = new Audio(url);
     audio.crossOrigin = 'anonymous';
     setAudio(audio);
 
     audio.onloadedmetadata = () => {
+      log(`metadata OK, duration: ${audio.duration}`);
       duration.set(audio.duration || 0);
       audioLoading.set(false);
     };
@@ -104,9 +134,16 @@ export async function playTrack(track) {
       else playNext();
     };
 
-    audio.onerror = () => { audioLoading.set(false); playing.set(false); };
+    audio.onerror = (e) => {
+      const code = audio.error?.code;
+      const msgs = { 1:'ABORTED', 2:'NETWORK', 3:'DECODE', 4:'SRC_NOT_SUPPORTED' };
+      log(`ERRO no <audio>: código ${code} (${msgs[code] || 'desconhecido'})`);
+      audioLoading.set(false);
+      playing.set(false);
+    };
 
     await audio.play();
+    log('audio.play() executado com sucesso');
     playing.set(true);
 
     progressTimer = setInterval(() => {
@@ -114,7 +151,7 @@ export async function playTrack(track) {
     }, 500);
 
   } catch (err) {
-    console.error('[playTrack]', err);
+    log(`ERRO CAPTURADO: ${err.message}`);
     audioLoading.set(false);
     playing.set(false);
   }

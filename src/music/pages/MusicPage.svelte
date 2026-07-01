@@ -9,7 +9,7 @@
   import ArtistPage  from './ArtistPage.svelte';
   import MiniPlayer  from '../components/MiniPlayer.svelte';
   import FullPlayer  from '../components/FullPlayer.svelte';
-  import { loadFeed, currentTrack, currentPage } from '../store/music.js';
+  import { loadFeed, currentTrack, currentPage, debugLog } from '../store/music.js';
 
   export let isDark = false;
   export let user   = null;
@@ -27,6 +27,7 @@
   let drawerOpen = false;
   let pulseTab   = null;
   let pulseSeq   = 0;
+  let showDebug  = true;
 
   $: if ($currentPage === 'home' && activeTab !== 'home') {}
   $: if ($currentPage === 'artist') {}
@@ -123,6 +124,25 @@
 
 <FullPlayer />
 
+{#if showDebug}
+  <div class="debug-panel">
+    <div class="debug-header">
+      <span>DEBUG</span>
+      <button on:click={() => showDebug = false}>✕</button>
+    </div>
+    <div class="debug-body">
+      {#each $debugLog as line}
+        <div class="debug-line">{line}</div>
+      {/each}
+      {#if $debugLog.length === 0}
+        <div class="debug-line dim">Aguardando... clica em play numa música</div>
+      {/if}
+    </div>
+  </div>
+{:else}
+  <button class="debug-toggle" on:click={() => showDebug = true}>DEBUG</button>
+{/if}
+
 <style>
   .root { position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }
   .appbar { display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;flex-shrink:0; }
@@ -138,4 +158,12 @@
   .tab-icon { width:24px;height:24px;display:block; }
   .tab-label { font-size:10px;font-weight:500; }
   .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }
+
+  .debug-panel { position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;background:rgba(0,0,0,0.92);border-radius:10px;z-index:9999;display:flex;flex-direction:column;font-family:monospace;box-shadow:0 4px 20px rgba(0,0,0,0.5); }
+  .debug-header { display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.15);color:#0f0;font-size:11px;font-weight:700;letter-spacing:1px; }
+  .debug-header button { background:none;border:none;color:#fff;font-size:14px;cursor:pointer;padding:2px 8px; }
+  .debug-body { overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:4px; }
+  .debug-line { color:#0f0;font-size:10.5px;word-break:break-all;line-height:1.4; }
+  .debug-line.dim { color:#777; }
+  .debug-toggle { position:fixed;right:12px;bottom:12px;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;border:1px solid #0f0;border-radius:6px;padding:6px 10px;font-size:10px;font-weight:700;font-family:monospace; }
 </style>

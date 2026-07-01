@@ -97,22 +97,25 @@
   </div>
 
   {#if !hideChrome}
-    <div class="bottom-bar" style="border-top:0.5px solid {divider}">
-      {#each [['home','Início'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
-        <button class="tab-btn" on:click={() => tapTab(id)}>
-          {#if pulseTab === id}
-            <span class="pulse-ring" style="background:{txtPrim}"></span>
-          {/if}
-          {#if id === 'home'}
-            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
-          {:else if id === 'search'}
-            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
-          {:else}
-            <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'librar_filled':'librar_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'librar_filled':'librar_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
-          {/if}
-          <span class="tab-label" style="color:{activeTab===id?txtPrim:txtSec}">{label}</span>
-        </button>
-      {/each}
+    <div class="bottom-chrome">
+      <div class="bottom-bar-gradient" class:dark={isDark}></div>
+      <div class="bottom-bar">
+        {#each [['home','Início'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
+          <button class="tab-btn" on:click={() => tapTab(id)}>
+            {#if pulseTab === id}
+              <span class="pulse-ring" style="background:{txtPrim}"></span>
+            {/if}
+            {#if id === 'home'}
+              <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
+            {:else if id === 'search'}
+              <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
+            {:else}
+              <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
+            {/if}
+            <span class="tab-label" style="color:{activeTab===id?txtPrim:txtSec}">{label}</span>
+          </button>
+        {/each}
+      </div>
     </div>
   {/if}
 
@@ -129,17 +132,24 @@
   .icon-btn:active { opacity:0.5; }
   .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
 
+  .bottom-chrome { position:absolute; left:0; right:0; bottom:0; z-index:39; pointer-events:none; }
+
+  .bottom-bar-gradient {
+    position:absolute; left:0; right:0; bottom:0; height:130px;
+  }
+  .bottom-bar-gradient:not(.dark) {
+    background:linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 100%);
+  }
+  .bottom-bar-gradient.dark {
+    background:linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0.95) 40%, rgba(18,18,18,0) 100%);
+  }
+
   .bottom-bar {
-    flex-shrink:0;
-    display:flex;
-    align-items:center;
-    justify-content:space-around;
+    position:absolute; left:0; right:0; bottom:0; z-index:40;
+    display:flex; align-items:center; justify-content:space-around;
     padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
-    position:relative;
-    z-index:40;
-    backdrop-filter:blur(20px);
-    -webkit-backdrop-filter:blur(20px);
     background:transparent;
+    pointer-events:all;
   }
 
   .tab-btn { position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; cursor:pointer; padding:4px 20px; transition:transform .15s; overflow:visible; }

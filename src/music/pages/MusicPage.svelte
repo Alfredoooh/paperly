@@ -98,7 +98,8 @@
   </div>
 
   {#if !hideChrome}
-    <div class="bottom-bar" style="background:linear-gradient(to bottom, {isDark ? 'rgba(18,18,18,0) 0%, rgba(18,18,18,0.55) 35%, rgba(18,18,18,0.92) 70%, rgba(18,18,18,1) 100%' : 'rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 35%, rgba(255,255,255,0.92) 70%, rgba(255,255,255,1) 100%'})">
+    <div class="bottom-bar-gradient" class:dark={isDark}></div>
+    <div class="bottom-bar">
       {#each [['home','Home'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
         <button class="tab-btn" on:click={() => tapTab(id)}>
           {#if pulseTab === id}
@@ -130,7 +131,12 @@
   .icon-btn { width:36px;height:36px;border-radius:50%;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .15s;flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
   .body { flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch; }
-  .bottom-bar { flex-shrink:0;display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));position:relative;z-index:40; }
+
+  .bottom-bar-gradient { position:absolute;left:0;right:0;bottom:0;height:130px;pointer-events:none;z-index:39; }
+  .bottom-bar-gradient:not(.dark) { background:linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 100%); }
+  .bottom-bar-gradient.dark { background:linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0.95) 40%, rgba(18,18,18,0) 100%); }
+
+  .bottom-bar { flex-shrink:0;display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));position:relative;z-index:40;background:transparent; }
   .tab-btn { position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:transform .15s; overflow:visible; }
   .tab-btn:active { transform:scale(0.88); }
   .pulse-ring { position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;transform:translate(-50%,-50%) scale(0.3);opacity:0.18;pointer-events:none;animation:tabPulse .38s ease-out forwards; }

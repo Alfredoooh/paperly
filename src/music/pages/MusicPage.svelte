@@ -99,9 +99,9 @@
 
   {#if !hideChrome}
     <div class="bottom-bar-gradient" class:dark={isDark}></div>
-    <div class="bottom-bar">
-      {#each [['home','Home'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
-        <button class="tab-btn" on:click={() => tapTab(id)}>
+    <div class="bottom-bar" class:light={!isDark} class:dark={isDark}>
+      {#each [['home','Início'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
+        <button class="tab-btn pulse-tap" on:click={() => tapTab(id)}>
           {#if pulseTab === id}
             <span class="pulse-ring" style="background:{txtPrim}"></span>
           {/if}
@@ -136,12 +136,24 @@
   .bottom-bar-gradient:not(.dark) { background:linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 100%); }
   .bottom-bar-gradient.dark { background:linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0.95) 40%, rgba(18,18,18,0) 100%); }
 
-  .bottom-bar { flex-shrink:0;display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));position:relative;z-index:40;background:transparent; }
-  .tab-btn { position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:transform .15s; overflow:visible; }
+  .bottom-bar {
+    position:absolute;bottom:0;left:16px;right:16px;z-index:40;
+    margin-bottom:20px;border-radius:22px;
+    display:flex;align-items:center;justify-content:space-around;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
+    transition:background-color .3s ease, box-shadow .3s ease;
+  }
+  .bottom-bar.light { background:#FFFFFF;box-shadow:0 4px 24px rgba(0,0,0,.08); }
+  .bottom-bar.dark  { background:#1F1F1F;box-shadow:0 4px 24px rgba(0,0,0,.30); }
+
+  .tab-btn { position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 20px;transition:transform .15s;overflow:visible; }
   .tab-btn:active { transform:scale(0.88); }
   .pulse-ring { position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;transform:translate(-50%,-50%) scale(0.3);opacity:0.18;pointer-events:none;animation:tabPulse .38s ease-out forwards; }
   @keyframes tabPulse { 0% { transform:translate(-50%,-50%) scale(0.3); opacity:0.22; } 100% { transform:translate(-50%,-50%) scale(1.15); opacity:0; } }
   .tab-icon { width:24px;height:24px;display:block; }
   .tab-label { font-size:10px;font-weight:500; }
   .svg-mask { display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0; }
+
+  .pulse-tap { cursor:pointer;transition:transform .11s cubic-bezier(0.4,0,.2,1),opacity .11s cubic-bezier(0.4,0,.2,1); }
+  .pulse-tap:active { transform:scale(0.97);opacity:.86; }
 </style>

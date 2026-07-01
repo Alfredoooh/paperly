@@ -6,17 +6,16 @@
     togglePlay, seekTo, toggleLike, playNext, playPrev,
     lyrics, lyricsLoading
   } from '../store/music.js';
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { tick } from 'svelte';
 
   let tab = 'player';
-  let visible = false;   // controla montagem/desmontagem
-  let entered = false;   // controla a classe que dispara a transição CSS
-  let closing = false;
+  let visible = false;
+  let entered = false;
 
   let dragY = 0;
   let dragging = false;
   let dragStartY = 0;
-  let sheetEl;
+  let dragStartedOnHandle = false;
 
   $: pct = $duration > 0 ? ($progress / $duration) * 100 : 0;
   $: coverUrl = $currentTrack?.album?.cover_big || $currentTrack?.album?.cover_medium || null;
@@ -58,35 +57,48 @@
 
   $: if (coverUrl) { dominantColor = '#1a1a2e'; }
 
-  // ---- Abertura/fecho com animação nativa (slide-up + fade do fundo) ----
+  // ---- Abertura/fecho: sempre a mesma transição CSS de transform, nos dois sentidos ----
+  let closeTimer = null;
+
   $: if ($playerOpen) {
     openSheet();
-  } else if (visible) {
+  } else {
     closeSheet();
   }
 
   async function openSheet() {
-    closing = false;
-    visible = true;
-    entered = false;
-    await tick();
-    requestAnimationFrame(() => { entered = true; });
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+    if (!visible) {
+      visible = true;
+      entered = false;
+      dragY = 0;
+      await tick();
+      requestAnimationFrame(() => { entered = true; });
+    } else {
+      // já montado (ex: estava a meio de um drag) — apenas garante estado aberto
+      dragY = 0;
+      entered = true;
+    }
   }
 
   function closeSheet() {
-    closing = true;
-    entered = false;
-    setTimeout(() => {
+    if (!visible) return;
+    entered = false; // dispara a transição de saída (translateY 0 -> 100%)
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
       visible = false;
-      closing = false;
       dragY = 0;
-    }, 340);
+      closeTimer = null;
+    }, 380);
   }
 
-  function handleClose() { playerOpen.set(false); }
+  function handleClose() {
+    playerOpen.set(false);
+  }
 
-  // ---- Drag-to-dismiss (arrastar para baixo fecha, como iOS/Android nativo) ----
+  // ---- Drag-to-dismiss suave: segue o dedo 1:1, sem transição durante o arrasto ----
   function onDragStart(e) {
+    dragStartedOnHandle = true;
     dragging = true;
     dragStartY = (e.touches ? e.touches[0].clientY : e.clientY);
   }
@@ -99,9 +111,13 @@
   function onDragEnd() {
     if (!dragging) return;
     dragging = false;
-    if (dragY > 120) {
+    dragStartedOnHandle = false;
+    if (dragY > 110) {
+      // solta a meio caminho: continua a animação de saída suavemente a partir da posição atual
+      entered = false;
       handleClose();
     } else {
+      // volta suavemente à posição aberta
       dragY = 0;
     }
   }
@@ -125,18 +141,21 @@
 {#if visible && $currentTrack}
   <div
     class="scrim"
-    class:show={entered && !closing}
+    class:show={entered}
     on:click={handleClose}
   ></div>
 
   <div
     class="screen"
-    class:entered={entered && !closing}
-    bind:this={sheetEl}
-    style="background:{dominantColor}; transform:translateY({dragging ? dragY : 0}px); transition:{dragging ? 'none' : undefined}"
+    class:dragging
+    style="
+      background:{dominantColor};
+      transform:translateY({dragging ? dragY : (entered ? 0 : '100%')}{dragging ? 'px' : ''});
+    "
     on:touchstart={onDragStart}
     on:touchmove={onDragMove}
     on:touchend={onDragEnd}
+    on:touchcancel={onDragEnd}
   >
 
     {#if coverUrl}
@@ -146,10 +165,17 @@
 
     <div class="bg-overlay"></div>
 
-    <div class="drag-handle"></div>
+    <div
+      class="drag-handle-zone"
+      on:touchstart={onDragStart}
+      on:touchmove={onDragMove}
+      on:touchend={onDragEnd}
+    >
+      <div class="drag-handle"></div>
+    </div>
 
     <div class="header">
-      <button class="icon-btn" on:click={handleClose}>
+      <button class="icon-btn" on:click={handleClose} aria-label="Fechar">
         <span class="icon-mask" style="{icon('chevron_right')}background:#fff;width:20px;height:20px;transform:rotate(90deg);"></span>
       </button>
       <div class="header-center">
@@ -171,7 +197,7 @@
 
       <div class="cover-wrap">
         {#if coverUrl}
-          <img src={coverUrl} alt={$currentTrack.title} class="cover" class:pop={entered && !closing} />
+          <img src={coverUrl} alt={$currentTrack.title} class="cover" class:pop={entered} />
         {:else}
           <div class="cover no-cover">
             <span class="icon-mask" style="{icon('playlist_music')}background:rgba(255,255,255,0.3);width:64px;height:64px;"></span>
@@ -282,7 +308,7 @@
     position:fixed;inset:0;z-index:199;
     background:rgba(0,0,0,0);
     opacity:0;
-    transition:opacity .32s cubic-bezier(.32,.72,0,1), background .32s cubic-bezier(.32,.72,0,1);
+    transition:opacity .38s cubic-bezier(.32,.72,0,1), background .38s cubic-bezier(.32,.72,0,1);
     pointer-events:none;
   }
   .scrim.show {
@@ -291,30 +317,37 @@
     pointer-events:auto;
   }
 
+  /* Sem bordas arredondadas — ecrã cheio, cantos retos */
   .screen {
     position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
     padding:calc(env(safe-area-inset-top,0px) + 6px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);
     overflow:hidden;
-    border-radius:20px 20px 0 0;
-    transform:translateY(100%);
     transition:transform .38s cubic-bezier(.32,.72,0,1), background .4s ease;
     will-change:transform;
-    box-shadow:0 -8px 40px rgba(0,0,0,0.35);
   }
-  .screen.entered { transform:translateY(0); }
+  /* Durante o gesto, zero transição — segue o dedo 1:1 */
+  .screen.dragging {
+    transition:none;
+  }
 
+  .drag-handle-zone {
+    flex-shrink:0;
+    padding:2px 0 10px;
+    margin:0 -20px;
+    display:flex;
+    justify-content:center;
+    touch-action:none;
+  }
   .drag-handle {
     width:36px;height:4px;border-radius:999px;
     background:rgba(255,255,255,0.35);
-    margin:2px auto 8px;
-    flex-shrink:0;
   }
 
   .hidden-sampler { position:absolute;width:1px;height:1px;opacity:0;pointer-events:none; }
 
-  .bg-overlay { position:absolute;inset:0;z-index:0;background:linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%);border-radius:20px 20px 0 0; }
+  .bg-overlay { position:absolute;inset:0;z-index:0;background:linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%); }
 
-  .header,.tabs,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap,.drag-handle { position:relative;z-index:1; }
+  .header,.tabs,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap { position:relative;z-index:1; }
 
   .header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
   .header-center { flex:1;text-align:center; }
@@ -324,8 +357,11 @@
   .tab-btn { flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:8px 0;font-size:14px;font-weight:600;cursor:pointer;color:rgba(255,255,255,0.4);font-family:inherit;transition:color .2s;margin-bottom:-0.5px; }
 
   .cover-wrap { flex:1;display:flex;align-items:center;justify-content:center;margin-bottom:20px; }
-  .cover { width:min(72vw,300px);height:min(72vw,300px);border-radius:16px;object-fit:cover;box-shadow:0 32px 80px rgba(0,0,0,0.6);
-    transform:scale(0.9);opacity:0;transition:transform .4s cubic-bezier(.2,.7,.3,1) .1s, opacity .4s ease .1s; }
+  .cover {
+    width:min(72vw,300px);height:min(72vw,300px);border-radius:16px;object-fit:cover;box-shadow:0 32px 80px rgba(0,0,0,0.6);
+    transform:scale(0.92);opacity:0;
+    transition:transform .42s cubic-bezier(.2,.7,.3,1) .06s, opacity .42s ease .06s;
+  }
   .cover.pop { transform:scale(1);opacity:1; }
   .no-cover { background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center; }
 

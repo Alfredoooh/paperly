@@ -54,15 +54,13 @@
 
 <div class="page">
 
-  <!-- Sticky compact header (aparece ao rolar, mesma barra assume o "Seguir") -->
+  <!-- Sticky compact header: SÓ o título e voltar. Sem botão de Seguir aqui. -->
   <div class="sticky-header" style="opacity:{headerTitleOpacity}; pointer-events:{headerTitleOpacity > 0.5 ? 'auto' : 'none'}; background:{isDark ? 'rgba(18,18,18,0.92)' : 'rgba(255,255,255,0.92)'}">
     <button class="sticky-back" on:click={goBack} style="color:{txtPrim}">
       <span class="icon-mask" style="{icon('back_arrow')}background:{txtPrim};width:22px;height:22px;"></span>
     </button>
     <span class="sticky-title" style="color:{txtPrim}">{artist?.name || ''}</span>
-    <button class="sticky-follow" class:active={following} on:click={toggleFollow}>
-      {following ? 'Seguindo' : 'Seguir'}
-    </button>
+    <div class="sticky-spacer"></div>
   </div>
 
   <!-- Back button flutuante sobre o hero, funde-se com a sticky ao rolar -->
@@ -108,14 +106,24 @@
       </div>
     {:else}
 
-      <!-- Única barra de ações: Reproduzir + Seguir (nunca duplicado com o header) -->
+      <!-- Única barra de ações: Reproduzir + botão circular de Add (seguir). Sem duplicação, sem glow vermelho. -->
       <div class="actions-bar" style="background:{isDark ? '#121212' : '#fff'}">
         <button class="play-all-btn" on:click={() => artist?.topTracks?.[0] && playTrack(artist.topTracks[0])}>
           <span class="icon-mask" style="{icon('play')}background:#fff;width:16px;height:16px;"></span>
           Reproduzir
         </button>
-        <button class="follow-btn" class:active={following} on:click={toggleFollow} style="color:{following ? '#fff' : txtPrim}; border-color:{following ? '#FC3C44' : (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)')}; background:{following ? '#FC3C44' : 'transparent'}">
-          {following ? 'Seguindo ✓' : 'Seguir'}
+        <button
+          class="add-circle-btn"
+          class:active={following}
+          on:click={toggleFollow}
+          aria-label={following ? 'Seguindo' : 'Seguir'}
+          style="border-color:{isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)'}"
+        >
+          {#if following}
+            <span class="icon-mask" style="{icon('close')}background:{txtPrim};width:16px;height:16px;transform:rotate(45deg);"></span>
+          {:else}
+            <span class="icon-mask" style="{icon('add')}background:{txtPrim};width:18px;height:18px;"></span>
+          {/if}
         </button>
       </div>
 
@@ -209,19 +217,7 @@
     font-size:16px;font-weight:700;letter-spacing:-.2px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
-  .sticky-follow {
-    flex-shrink:0;
-    background:transparent;
-    border:1.5px solid rgba(128,128,128,0.35);
-    border-radius:999px;
-    padding:6px 16px;
-    font-size:13px;font-weight:700;
-    color:#FC3C44;
-    cursor:pointer;
-    transition:all .15s ease;
-  }
-  .sticky-follow.active { background:#FC3C44; border-color:#FC3C44; color:#fff; }
-  .sticky-follow:active { transform:scale(0.94); }
+  .sticky-spacer { width:36px;flex-shrink:0; }
 
   .float-back {
     position:absolute;
@@ -268,7 +264,7 @@
     top:calc(env(safe-area-inset-top,0px) + 56px);
     z-index:10;
     display:flex;
-    gap:10px;
+    gap:12px;
     align-items:center;
     padding:14px 16px;
     border-bottom:1px solid rgba(128,128,128,0.08);
@@ -278,20 +274,21 @@
     background:#FC3C44;border:none;border-radius:999px;
     padding:11px 22px;font-size:15px;font-weight:700;color:#fff;
     cursor:pointer;
-    box-shadow:0 4px 14px rgba(252,60,68,0.35);
-    transition:transform .12s ease;
+    transition:transform .12s ease, opacity .12s ease;
   }
-  .play-all-btn:active { transform:scale(0.95); box-shadow:0 2px 8px rgba(252,60,68,0.3); }
+  .play-all-btn:active { transform:scale(0.95); opacity:0.9; }
 
-  .follow-btn {
+  .add-circle-btn {
+    width:42px;height:42px;flex-shrink:0;
+    border-radius:50%;
     border:1.5px solid;
-    border-radius:999px;
-    padding:10px 20px;
-    font-size:15px;font-weight:600;
+    background:transparent;
+    display:flex;align-items:center;justify-content:center;
     cursor:pointer;
-    transition:all .15s ease;
+    transition:transform .12s ease, background .15s ease, border-color .15s ease;
   }
-  .follow-btn:active { transform:scale(0.95); }
+  .add-circle-btn:active { transform:scale(0.9); }
+  .add-circle-btn.active { background:rgba(128,128,128,0.12); }
 
   .content { padding-top:4px; }
   .content.reveal .track-item { animation:slideUp .35s cubic-bezier(.2,.7,.3,1) backwards; }

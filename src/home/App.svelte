@@ -18,6 +18,8 @@
   $: avatarColor = getAvatarColor(userName);
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
+  $: topApps = platformApps.slice(0, 3);
+  $: bottomApps = platformApps.slice(3, 6);
 
   const MODELS = [
     { id: 'mistral-nemo',    label: 'Nemo',     sublabel: 'mistral-nemo'    },
@@ -543,17 +545,29 @@
 
 <div class="bottom" class:in={mounted}>
   {#if mountToggles}
-    <div class="home-apps-card" class:apps-in={togglesVisible && togglesShouldShow}>
-      <div class="home-apps-title">Apps</div>
-      <div class="home-apps-strip">
-        {#each platformApps as app, i}
-          <button class="home-app-btn pulse-tap" style="animation-delay:{i*18}ms" on:click={() => openApp(app)}>
-            <div class="home-app-icon">
-              <img src={app.icon} alt={app.label} class="home-app-img" />
-            </div>
-            <span class="home-app-name">{app.label}</span>
-          </button>
-        {/each}
+    <div class="home-apps-fixed" class:apps-in={togglesVisible && togglesShouldShow}>
+      <div class="apps-grid-fixed">
+        <div class="apps-row-fixed">
+          {#each topApps as app}
+            <button class="home-app-btn pulse-tap" on:click={() => openApp(app)}>
+              <div class="home-app-icon">
+                <img src={app.icon} alt={app.label} class="home-app-img" />
+              </div>
+              <span class="home-app-name">{app.label}</span>
+            </button>
+          {/each}
+        </div>
+
+        <div class="apps-row-fixed">
+          {#each bottomApps as app}
+            <button class="home-app-btn pulse-tap" on:click={() => openApp(app)}>
+              <div class="home-app-icon">
+                <img src={app.icon} alt={app.label} class="home-app-img" />
+              </div>
+              <span class="home-app-name">{app.label}</span>
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
 
@@ -821,6 +835,7 @@
     --toggle-border-act: rgba(255,255,255,0.55);
     --toggle-label:      rgba(255,255,255,0.90);
   }
+
   :global([data-theme="light"]) {
     --surface:           rgba(255,255,255,0.55);
     --surface-strong:    rgba(255,255,255,0.86);
@@ -951,43 +966,33 @@
   }
   .bottom.in { opacity:1; }
 
-  .home-apps-card {
-    margin-bottom:10px;
-    border-radius:22px;
-    background:var(--surface-strong);
-    backdrop-filter:blur(18px) saturate(1.5);
-    -webkit-backdrop-filter:blur(18px) saturate(1.5);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 8px 32px rgba(0,0,0,0.20);
-    padding:10px 12px 12px;
+  .home-apps-fixed {
+    margin-bottom:28px;
     opacity:0;
-    transform:translateY(10px);
-    transition:opacity .35s ease, transform .35s ease;
+    transform:translateY(12px);
+    transition:opacity .38s ease, transform .38s ease;
   }
-  .home-apps-card.apps-in {
+  .home-apps-fixed.apps-in {
     opacity:1;
     transform:translateY(0);
   }
-  .home-apps-title {
-    padding:2px 4px 10px;
-    font-size:11px;
-    font-weight:700;
-    letter-spacing:.07em;
-    text-transform:uppercase;
-    color:var(--text-faint);
-  }
-  .home-apps-strip {
+  .apps-grid-fixed {
     display:flex;
-    gap:8px;
-    overflow-x:auto;
-    overflow-y:hidden;
-    padding-bottom:2px;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
+    flex-direction:column;
+    gap:18px;
+    align-items:center;
+    width:100%;
   }
-  .home-apps-strip::-webkit-scrollbar { display:none; }
+  .apps-row-fixed {
+    display:flex;
+    justify-content:space-between;
+    width:100%;
+    gap:10px;
+    padding:0 6px;
+  }
+
   .home-app-btn {
-    min-width:70px;
+    width:calc((100% - 20px) / 3);
     display:flex;
     flex-direction:column;
     align-items:center;

@@ -60,7 +60,6 @@
       drawerVisible = true;
     });
   }
-
   function closeDrawer() {
     drawerVisible = false;
     themeExpanded = false;
@@ -68,7 +67,6 @@
       drawerOpen = false;
     }, 280);
   }
-
   function toggleThemeExpanded() {
     themeExpanded = !themeExpanded;
   }
@@ -84,13 +82,52 @@
     { icon: 'help', label: 'Ajuda', action: () => {} },
   ];
 
+  function openApp(app) {
+    if (app.id === 'ai') {
+      try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {}
+    }
+    window.location.href = app.path;
+  }
+
+  const POPUP_W = 230;
+  let showPopup = false;
+  let popupVisible = false;
+  let popupMode = '';
+  let popupPos = { bottom: 0, left: 0 };
+  let popupFading = false;
+  let flashMode = false;
+  let thinkMoreMode = false;
+  let sheetsEnabled = false;
+
+  function openPopup(mode, event) {
+    popupMode = mode;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const M = 12;
+    let left = rect.left - 8;
+    if (left + POPUP_W > window.innerWidth - M) left = window.innerWidth - POPUP_W - M;
+    if (left < M) left = M;
+    popupPos = { bottom: window.innerHeight - rect.top + 8, left };
+    showPopup = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { popupVisible = true; }));
+  }
+  function closePopup() {
+    popupVisible = false;
+    setTimeout(() => {
+      showPopup = false;
+      popupMode = '';
+    }, 220);
+  }
+  function switchPopup(mode) {
+    popupFading = true;
+    setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
+  }
+
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
   let lottieEl;
   let lottieInstance;
   let lottieFinished = false;
   let togglesVisible = false;
-  let homeAppsVisible = false;
 
   const SUGGESTION_TOGGLES = [
     {
@@ -171,17 +208,13 @@
       });
       lottieInstance.addEventListener('complete', () => {
         lottieFinished = true;
-        setTimeout(() => {
-          togglesVisible = true;
-          homeAppsVisible = true;
-        }, 60);
+        setTimeout(() => { togglesVisible = true; }, 60);
       });
     }
   }
 
   let inputText = '';
   let textInputEl;
-
   function autoResize() {
     if (!textInputEl) return;
     textInputEl.style.height = 'auto';
@@ -215,18 +248,8 @@
   let suggestDebounce;
   let abortSuggest;
 
-  let mediaRecorder = null, audioChunks = [], isRecording = false;
-  let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
-  let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
-  let wavePhase = 0;
-
   $: showSuggestBox = !!inputText.trim() && !isRecording;
   $: scheduleSuggestFetch(inputText);
-
-  $: recTimerStr = (() => {
-    const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
-    return `${m}:${s.toString().padStart(2,'0')}`;
-  })();
 
   function scheduleSuggestFetch(text) {
     clearTimeout(suggestDebounce);
@@ -258,6 +281,7 @@
 
       let raw = [];
       if (Array.isArray(data) && Array.isArray(data[1])) raw = data[1];
+      else if (data?.[1] && Array.isArray(data[1])) raw = data[1];
 
       if (inputText.trim() !== q) return;
       searchSuggestions = raw.filter(Boolean).slice(0, 6);
@@ -297,6 +321,16 @@
     inputText = s;
     setTimeout(navigateToAI, 10);
   }
+
+  let mediaRecorder = null, audioChunks = [], isRecording = false;
+  let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
+  let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
+  let wavePhase = 0;
+
+  $: recTimerStr = (() => {
+    const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
+    return `${m}:${s.toString().padStart(2,'0')}`;
+  })();
 
   async function startRecording() {
     if (isRecording) return;
@@ -399,25 +433,25 @@
         waveAnalyser.getByteFrequencyData(freq);
         const L = freq.length;
         const def = [
-          [0, Math.floor(L*.04)],
-          [Math.floor(L*.04), Math.floor(L*.10)],
-          [Math.floor(L*.10), Math.floor(L*.25)],
-          [Math.floor(L*.25), Math.floor(L*.50)],
-          [Math.floor(L*.50), Math.floor(L*.80)],
+          [0, Math.floor(L * .04)],
+          [Math.floor(L * .04), Math.floor(L * .10)],
+          [Math.floor(L * .10), Math.floor(L * .25)],
+          [Math.floor(L * .25), Math.floor(L * .50)],
+          [Math.floor(L * .50), Math.floor(L * .80)]
         ];
         bands = def.map(([s,e]) => {
           const sl = [...freq].slice(s,e);
-          return Math.pow(sl.reduce((a,b)=>a+b,0)/sl.length/255, 0.5);
+          return Math.pow(sl.reduce((a,b)=>a+b,0)/sl.length/255,0.5);
         });
       } else {
         wavePhase += 0.04;
         bands = [0,1,2,3,4].map(i => 0.06 + Math.abs(Math.sin(wavePhase * 1.2 + i * 0.8)) * 0.18);
       }
 
-      for (let i = 0; i < N; i++) bh[i] += (bands[i] - bh[i]) * (bands[i] > bh[i] ? 0.65 : 0.12);
+      for (let i=0; i<N; i++) bh[i] += (bands[i] - bh[i]) * (bands[i] > bh[i] ? 0.65 : 0.12);
       const bw = 3.5, gap = 5, tw = N * bw + (N - 1) * gap, sx = (w - tw) / 2, cy = h / 2, mh = h * 0.72;
 
-      for (let i = 0; i < N; i++) {
+      for (let i=0; i<N; i++) {
         const bhi = Math.max(4, bh[i] * mh), x = sx + i * (bw + gap), y = cy - bhi / 2;
         ctx.beginPath();
         ctx.roundRect(x, y, bw, bhi, bw / 2);
@@ -449,22 +483,16 @@
   $: contentPaddingTop = headerHeight ? headerHeight + 8 : 100;
   $: contentPaddingBottom = 28;
 
+  let mountToggles = false;
+  $: if (lottieFinished && !mountToggles) mountToggles = true;
   let inputFocused = false;
   $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
 
   function handleInputFocus() {
     inputFocused = true;
   }
-
   function handleInputBlur() {
     inputFocused = false;
-  }
-
-  function openApp(app) {
-    if (app.id === 'ai') {
-      try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {}
-    }
-    window.location.href = app.path;
   }
 
   let mounted = false;
@@ -510,30 +538,25 @@
 
   <main class="content" style="padding-top:{contentPaddingTop}px;padding-bottom:{contentPaddingBottom}px;">
     <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
-
-    {#if homeAppsVisible}
-      <section class="home-apps" class:home-apps-in={homeAppsVisible}>
-        <div class="home-apps-head">
-          <span class="home-apps-title">Apps</span>
-          <span class="home-apps-count">{platformApps.length}</span>
-        </div>
-        <div class="home-apps-grid">
-          {#each platformApps as app, i}
-            <button class="home-app-item pulse-tap" style="animation-delay:{i * 20}ms" on:click={() => openApp(app)}>
-              <div class="home-app-icon">
-                <img src={app.icon} alt={app.label} class="home-app-img" />
-              </div>
-              <span class="home-app-name">{app.label}</span>
-            </button>
-          {/each}
-        </div>
-      </section>
-    {/if}
   </main>
 </div>
 
 <div class="bottom" class:in={mounted}>
-  {#if lottieFinished}
+  {#if mountToggles}
+    <div class="home-apps-card" class:apps-in={togglesVisible && togglesShouldShow}>
+      <div class="home-apps-title">Apps</div>
+      <div class="home-apps-strip">
+        {#each platformApps as app, i}
+          <button class="home-app-btn pulse-tap" style="animation-delay:{i*18}ms" on:click={() => openApp(app)}>
+            <div class="home-app-icon">
+              <img src={app.icon} alt={app.label} class="home-app-img" />
+            </div>
+            <span class="home-app-name">{app.label}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+
     <div class="toggles-wrap" class:toggles-in={togglesVisible && togglesShouldShow} class:toggles-hidden={!togglesShouldShow}>
       {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
         <div class="toggles-row">
@@ -621,7 +644,7 @@
         on:blur={handleInputBlur}
       ></textarea>
       <div class="bb-row">
-        <button class="bb-btn pulse-tap" on:click={() => { inputText = inputText; }}>
+        <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
         </button>
         <div class="flex1"></div>
@@ -656,7 +679,43 @@
   <div class="popup-overlay" on:click={closePopup}></div>
   <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
     <div class="popup-content" class:fading={popupFading}>
-      {#if popupMode === 'models'}
+      {#if popupMode === 'add'}
+        <label class="popup-row pulse-tap" style="cursor:pointer">
+          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+          <span class="popup-label">Enviar Imagem</span>
+          <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
+        </label>
+        <div class="popup-sep"></div>
+        <label class="popup-row pulse-tap" style="cursor:pointer">
+          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+          <span class="popup-label">Enviar Ficheiro</span>
+          <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
+        </label>
+        <div class="popup-sep"></div>
+        <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
+          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+          <span class="popup-label" style="flex:1">Extras</span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
+        </button>
+      {:else if popupMode === 'extras'}
+        <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:var(--icon-faint)"></span>
+          <span class="popup-label" style="color:var(--text-faint);font-size:13px">Extras</span>
+        </button>
+        <div class="popup-sep"></div>
+        {#each [
+          [flashMode,     'Flash',      'flash',  'flash_filled',  () => { flashMode = !flashMode; if (flashMode) thinkMoreMode = false; }],
+          [thinkMoreMode, 'Think More', 'brain',  'brain_filled',  () => { thinkMoreMode = !thinkMoreMode; if (thinkMoreMode) flashMode = false; }],
+          [sheetsEnabled, 'Sheets',     'sheets', 'sheets_filled', () => { sheetsEnabled = !sheetsEnabled; }],
+        ] as [active, title, ico, icoOn, action], i}
+          {#if i > 0}<div class="popup-sep"></div>{/if}
+          <button class="popup-row pulse-tap" style={active ? 'background:var(--row-active)' : ''} on:click={action}>
+            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
+            <span class="popup-label" style="flex:1">{title}</span>
+            {#if active}<div class="popup-active-dot"></div>{/if}
+          </button>
+        {/each}
+      {:else if popupMode === 'models'}
         <div class="popup-title">Modelo</div>
         {#each MODELS as model, i}
           {#if i > 0}<div class="popup-sep"></div>{/if}
@@ -863,7 +922,6 @@
     align-items:center;
     justify-content:flex-end;
   }
-
   .lottie-wrap {
     position:absolute;
     top:50%;
@@ -879,98 +937,96 @@
     pointer-events:none;
   }
 
-  .home-apps {
-    position:absolute;
-    left:16px;
-    right:16px;
-    top:calc(50% + 126px);
-    bottom:calc(env(safe-area-inset-bottom,0px) + 188px);
+  .bottom {
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:20;
+    padding-left:16px;
+    padding-right:16px;
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     opacity:0;
-    transform:translateY(14px) scale(0.98);
-    transition:opacity .42s ease, transform .42s cubic-bezier(0.2,0.9,0.3,1);
-    pointer-events:none;
+    transition:opacity .6s .3s ease;
   }
-  .home-apps-in {
-    opacity:1;
-    transform:translateY(0) scale(1);
-    pointer-events:auto;
-  }
-  .home-apps-head {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
+  .bottom.in { opacity:1; }
+
+  .home-apps-card {
     margin-bottom:10px;
-    padding:0 4px;
+    border-radius:22px;
+    background:var(--surface-strong);
+    backdrop-filter:blur(18px) saturate(1.5);
+    -webkit-backdrop-filter:blur(18px) saturate(1.5);
+    border:0.5px solid var(--border-soft);
+    box-shadow:0 8px 32px rgba(0,0,0,0.20);
+    padding:10px 12px 12px;
+    opacity:0;
+    transform:translateY(10px);
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  .home-apps-card.apps-in {
+    opacity:1;
+    transform:translateY(0);
   }
   .home-apps-title {
-    font-size:12px;
+    padding:2px 4px 10px;
+    font-size:11px;
     font-weight:700;
-    letter-spacing:.08em;
+    letter-spacing:.07em;
     text-transform:uppercase;
     color:var(--text-faint);
   }
-  .home-apps-count {
-    font-size:11px;
-    font-weight:600;
-    color:var(--icon-faint);
-  }
-  .home-apps-grid {
-    display:grid;
-    grid-template-columns:repeat(4, minmax(0, 1fr));
-    gap:10px 8px;
-    align-content:start;
-    max-height:100%;
-    overflow-y:auto;
-    padding-right:2px;
+  .home-apps-strip {
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding-bottom:2px;
     -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
   }
-  .home-app-item {
+  .home-apps-strip::-webkit-scrollbar { display:none; }
+  .home-app-btn {
+    min-width:70px;
     display:flex;
     flex-direction:column;
     align-items:center;
     gap:6px;
+    background:transparent;
     border:none;
-    background:var(--surface);
-    border:0.5px solid var(--border-soft);
-    border-radius:20px;
-    padding:10px 8px 9px;
-    backdrop-filter:blur(16px) saturate(1.4);
-    -webkit-backdrop-filter:blur(16px) saturate(1.4);
-    box-shadow:0 8px 22px rgba(0,0,0,0.14);
-    cursor:pointer;
-    opacity:0;
-    transform:translateY(10px) scale(0.96);
-    animation:appIn .32s cubic-bezier(0.2,0.9,0.3,1) forwards;
-  }
-  @keyframes appIn {
-    to { opacity:1; transform:translateY(0) scale(1); }
-  }
-  .home-app-item:active { transform:scale(0.94); }
-  .home-app-icon {
-    width:48px;
-    height:48px;
+    padding:8px 4px;
     border-radius:16px;
-    background:rgba(255,255,255,0.06);
+    cursor:pointer;
+    flex-shrink:0;
+    transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .home-app-btn:active {
+    background:var(--row-active);
+    transform:scale(0.96);
+  }
+  .home-app-icon {
+    width:42px;
+    height:42px;
     display:flex;
     align-items:center;
     justify-content:center;
-    overflow:hidden;
   }
   .home-app-img {
     width:100%;
     height:100%;
     object-fit:contain;
+    border-radius:12px;
   }
   .home-app-name {
-    font-size:10.5px;
-    font-weight:600;
-    color:var(--icon-strong);
-    text-align:center;
-    line-height:1.15;
-    max-width:100%;
+    font-size:10px;
+    font-weight:500;
+    color:var(--icon-soft);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
+    max-width:64px;
+    text-align:center;
+    line-height:1.2;
   }
 
   .toggles-wrap {
@@ -1016,19 +1072,6 @@
   .toggle-img { width:22px; height:22px; object-fit:contain; flex-shrink:0; border-radius:5px; }
   .toggle-label { font-size:13px; font-weight:600; color:var(--toggle-label); }
 
-  .bottom {
-    position:fixed;
-    bottom:0;
-    left:0;
-    right:0;
-    z-index:20;
-    padding-left:16px;
-    padding-right:16px;
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
-    opacity:0;
-    transition:opacity .6s .3s ease;
-  }
-  .bottom.in { opacity:1; }
   .bottom-bar {
     border-radius:22px;
     background:var(--surface);
@@ -1102,7 +1145,7 @@
   }
   @keyframes recIn {
     from { opacity:0; transform:scale(0.92) translateY(10px); }
-    to { opacity:1; transform:scale(1) translateY(0); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
   }
   .rec-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
   .rec-inner { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; height:100%; padding:0 10px; }

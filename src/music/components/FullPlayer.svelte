@@ -165,9 +165,24 @@
 
   // App só reproduz previews de 30s — plataformas externas abrem a faixa completa (visual, sem ação real ainda)
   const platforms = [
-    { name: 'spotify', label: 'Spotify', color: '#1DB954' },
-    { name: 'apple_music', label: 'Apple Music', color: '#FA243C' },
-    { name: 'youtube_music', label: 'YouTube Music', color: '#FF0000' },
+    {
+      name: 'spotify',
+      label: 'Spotify',
+      color: '#1DB954',
+      logo: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/spotify.svg'
+    },
+    {
+      name: 'apple_music',
+      label: 'Apple Music',
+      color: '#FA243C',
+      logo: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/applemusic.svg'
+    },
+    {
+      name: 'youtube_music',
+      label: 'YouTube Music',
+      color: '#FF0000',
+      logo: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/youtubemusic.svg'
+    },
   ];
 </script>
 
@@ -334,7 +349,7 @@
         <div class="platforms-icons">
           {#each platforms as p}
             <button class="platform-btn" style="background:{p.color}" aria-label={p.label}>
-              <span class="icon-mask" style="{icon(p.name)}background:#fff;width:20px;height:20px;"></span>
+              <img class="platform-logo" src={p.logo} alt={p.label} />
             </button>
           {/each}
         </div>
@@ -522,8 +537,18 @@
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 4px 14px rgba(0,0,0,0.3);
     transition:transform .12s ease, opacity .15s ease;
+    overflow:hidden;
   }
   .platform-btn:active { transform:scale(0.9);opacity:0.85; }
+  .platform-logo {
+    width:19px;
+    height:19px;
+    display:block;
+    object-fit:contain;
+    filter: brightness(0) invert(1);
+    pointer-events:none;
+    user-select:none;
+  }
 
   .lyrics-wrap { flex:1;overflow-y:auto;padding:4px 0; }
   .lyrics-text { font-size:16px;line-height:1.9;color:rgba(255,255,255,0.85);white-space:pre-wrap;margin:0; }

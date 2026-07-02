@@ -235,7 +235,7 @@
   }
 
   // ───────────────────────────────────────────────────────────
-  // Search suggestions
+  // Search suggestions — API pública do Google (sem backend próprio)
   // ───────────────────────────────────────────────────────────
   let searchSuggestions = [];
   let suggestLoading    = false;
@@ -263,14 +263,16 @@
     abortSuggest = new AbortController();
     suggestLoading = true;
     try {
+      // API pública de autocomplete do Google (formato Firefox, devolve JSON puro sem JSONP)
       const res = await fetch(
-        `https://ipc.alfredoooh.workers.dev/ai/suggest?q=${encodeURIComponent(q)}&lang=pt-PT`,
-        { headers: { 'Authorization': 'Bearer ' + (user?.token || '') }, signal: abortSuggest.signal }
+        `https://suggestqueries.google.com/complete/search?client=firefox&hl=pt-PT&q=${encodeURIComponent(q)}`,
+        { signal: abortSuggest.signal }
       );
       if (!res.ok) throw new Error('suggest http ' + res.status);
       const data = await res.json();
       if (inputText.trim() !== q) return;
-      searchSuggestions = (Array.isArray(data?.suggestions) ? data.suggestions : [])
+      // formato: [ "query", ["sugestão1","sugestão2", ...] ]
+      searchSuggestions = (Array.isArray(data?.[1]) ? data[1] : [])
         .filter(Boolean)
         .slice(0, 6);
     } catch (e) {
@@ -940,10 +942,25 @@
   .ag-item:active .ag-img { transform:scale(0.84); }
   .ag-name { font-size:10px; font-weight:500; color:var(--icon-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:58px; text-align:center; line-height:1.2; }
 
-  .drawer-overlay { position:fixed; inset:0; z-index:70; background:transparent; transition:background .28s ease; }
+  .drawer-overlay { position:fixed; inset:0; z-index:70; background:transparent; transition:background .28s ease; will-change:background; }
   .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
-  .drawer { position:fixed; top:0; right:0; bottom:0; z-index:71; width:min(288px,82vw); background:var(--drawer-bg); border-left:0.5px solid var(--drawer-border); box-shadow:-12px 0 48px var(--drawer-shadow); display:flex; flex-direction:column; padding-top:max(env(safe-area-inset-top,0px),16px); overflow:hidden; transform:translateX(100%); transition:transform .28s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .drawer.drawer-in { transform:translateX(0); }
+  .drawer {
+    position:fixed; top:0; right:0; bottom:0; z-index:71;
+    width:min(288px,82vw);
+    background:var(--drawer-bg);
+    border-left:0.5px solid var(--drawer-border);
+    box-shadow:-12px 0 48px var(--drawer-shadow);
+    display:flex; flex-direction:column;
+    padding-top:max(env(safe-area-inset-top,0px),16px);
+    overflow:hidden;
+    transform:translate3d(100%,0,0);
+    transition:transform .28s cubic-bezier(0.25,0.46,0.45,0.94);
+    will-change:transform;
+    contain:layout paint style;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+  }
+  .drawer.drawer-in { transform:translate3d(0,0,0); }
   .drawer-avatar-block { display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 20px; flex-shrink:0; }
   .drawer-avatar { width:84px; height:84px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:700; color:#fff; }
   .drawer-user-name { font-size:16px; font-weight:700; color:var(--drawer-text); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
@@ -954,9 +971,19 @@
   .drawer-item-label { font-size:15px; font-weight:400; color:var(--drawer-text); }
   .drawer-chevron { transition:transform .25s cubic-bezier(0.25,0.46,0.45,0.94); }
   .drawer-chevron-open { transform:rotate(90deg); }
-  .theme-accordion { display:grid; grid-template-rows:0fr; transition:grid-template-rows .25s cubic-bezier(0.25,0.46,0.45,0.94); }
-  .theme-accordion-open { grid-template-rows:1fr; }
-  .theme-accordion-inner { overflow:hidden; min-height:0; }
+
+  /* Trocado de grid-template-rows para max-height: muito mais leve para o compositor
+     e evita o freeze causado por duas transições pesadas simultâneas (drawer + accordion) */
+  .theme-accordion {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .25s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+  .theme-accordion-open {
+    max-height: 220px;
+  }
+  .theme-accordion-inner { overflow:hidden; }
+
   .theme-opt { display:flex; align-items:center; justify-content:space-between; width:100%; padding:11px 14px 11px 52px; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; border-radius:8px; transition:background .12s ease; }
   .theme-opt:active { background:var(--drawer-row-active); }
   .theme-opt-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }

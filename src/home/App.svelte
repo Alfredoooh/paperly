@@ -481,13 +481,14 @@
     waveAnalyser = null;
   }
 
-  let headerHeight = 0;
   $: contentPaddingBottom = 28;
 
   let mountToggles = false;
   $: if (lottieFinished && !mountToggles) mountToggles = true;
   let inputFocused = false;
   $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
+  // Painel de apps só pode ser visível exatamente quando os toggles também estão visíveis
+  $: panelShouldShow = togglesVisible && togglesShouldShow;
 
   function handleInputFocus() {
     inputFocused = true;
@@ -528,7 +529,7 @@
 <div class="root">
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
-  <div class="top-panel" class:in={mounted}>
+  <div class="top-panel" class:in={mounted && panelShouldShow}>
     <header class="header">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
       <div class="header-right">
@@ -570,7 +571,7 @@
 
 <div class="bottom" class:in={mounted}>
   {#if mountToggles}
-    <div class="toggles-wrap" class:toggles-in={togglesVisible && togglesShouldShow} class:toggles-hidden={!togglesShouldShow}>
+    <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow}>
       {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
         <div class="toggles-row">
           {#each row as t, i}
@@ -887,38 +888,44 @@
     background-position:center;
   }
 
-  /* Container grande do topo: engloba header (logo + menu) e o grid de apps.
-     Fica "por trás" visualmente do header (header sobreposto no topo do painel),
-     com fundo glass translúcido e cantos inferiores arredondados. */
+  /* Container do topo com margem lateral (não toca nas bordas da tela).
+     Border-radius total (pílula/curva completa) igual ao raio do botão de
+     menu (34px de altura → 17px de raio total), aplicando o mesmo valor
+     absoluto em todos os 4 cantos para casar visualmente com o botão. */
   .top-panel {
     position:fixed;
-    top:0;
-    left:0;
-    right:0;
+    top:12px;
+    left:12px;
+    right:12px;
     z-index:15;
     display:flex;
     flex-direction:column;
     background:var(--surface);
     backdrop-filter:blur(20px) saturate(1.5);
     -webkit-backdrop-filter:blur(20px) saturate(1.5);
-    border-bottom:0.5px solid var(--border-soft);
-    border-radius:0 0 32px 32px;
+    border:0.5px solid var(--border-soft);
+    border-radius:28px;
     box-shadow:0 12px 36px rgba(0,0,0,0.14);
-    padding-bottom:22px;
+    padding-bottom:18px;
     opacity:0;
     transform:translateY(-16px) translateZ(0);
-    transition:opacity .55s ease, transform .55s ease;
+    transition:opacity .4s ease, transform .4s ease;
+    pointer-events:none;
     contain: layout style paint;
   }
-  .top-panel.in { opacity:1; transform:translateY(0) translateZ(0); }
+  .top-panel.in {
+    opacity:1;
+    transform:translateY(0) translateZ(0);
+    pointer-events:auto;
+  }
 
   .header {
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:calc(env(safe-area-inset-top,0px) + 6px) 16px 6px;
+    padding:calc(env(safe-area-inset-top,0px) + 6px) 14px 6px;
   }
-  .logo-img { width:80px; height:80px; object-fit:contain; }
+  .logo-img { width:72px; height:72px; object-fit:contain; }
   .header-right {
     display:flex;
     align-items:center;
@@ -945,29 +952,28 @@
   .apps-grid-fixed {
     display:flex;
     flex-direction:column;
-    gap:18px;
+    gap:14px;
     align-items:center;
     width:100%;
-    padding-top:8px;
+    padding-top:6px;
   }
 
-  /* Container spacing follows a 1.7 : 2.3 icon-to-container ratio,
-     with a minimum gap of 0.5 of that same unit between containers.
-     Ícones aumentados para 2.5x o tamanho original. */
+  /* Ícones reduzidos para um tamanho justo, mantendo a proporção
+     ícone/container de 1.7 : 2.3 e o gap mínimo de 0.5 unidade. */
   .apps-row-fixed {
     display:flex;
     justify-content:center;
     align-items:flex-start;
     width:100%;
-    gap:22px; /* 105px container * (0.5/2.3) ≈ 23px, ajustado para caber 3 por linha */
+    gap:12px;
   }
 
   .home-app-btn {
-    width:120px;
+    width:72px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:8px;
+    gap:6px;
     background:transparent;
     border:none;
     padding:0;
@@ -981,9 +987,9 @@
     transform:scale(0.96);
   }
   .home-app-icon {
-    width:105px;   /* container = 2.3 units, 42px * 2.5 = 105px */
-    height:105px;
-    border-radius:32px; /* radius scaled proportionally with container */
+    width:54px;   /* container = 2.3 units */
+    height:54px;
+    border-radius:16.5px;
     overflow:hidden;
     display:flex;
     align-items:center;
@@ -991,8 +997,8 @@
     flex-shrink:0;
   }
   .home-app-img {
-    width:77.5px;   /* icon = 1.7 units → 105 * (1.7/2.3) ≈ 77.5px */
-    height:77.5px;
+    width:40px;   /* icon = 1.7 units → 54 * (1.7/2.3) ≈ 40px */
+    height:40px;
     object-fit:contain;
     display:block;
   }
@@ -1003,7 +1009,7 @@
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-    max-width:120px;
+    max-width:72px;
     text-align:center;
     line-height:1.2;
   }

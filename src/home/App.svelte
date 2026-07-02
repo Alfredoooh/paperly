@@ -983,23 +983,26 @@
     align-items:center;
     width:100%;
   }
+
+  /* Container spacing follows a 1.7 : 2.3 icon-to-container ratio,
+     with a minimum gap of 0.5 of that same unit between containers. */
   .apps-row-fixed {
     display:flex;
-    justify-content:space-between;
+    justify-content:center;
+    align-items:flex-start;
     width:100%;
-    gap:10px;
-    padding:0 6px;
+    gap:9px; /* 42px container * (0.5/2.3) ≈ 9px */
   }
 
   .home-app-btn {
-    width:calc((100% - 20px) / 3);
+    width:64px;
     display:flex;
     flex-direction:column;
     align-items:center;
     gap:6px;
     background:transparent;
     border:none;
-    padding:8px 4px;
+    padding:0;
     border-radius:16px;
     cursor:pointer;
     flex-shrink:0;
@@ -1010,17 +1013,20 @@
     transform:scale(0.96);
   }
   .home-app-icon {
-    width:42px;
+    width:42px;   /* container = 2.3 units */
     height:42px;
+    border-radius:12.8px; /* radius = 7 units, scaled proportionally to container */
+    overflow:hidden;
     display:flex;
     align-items:center;
     justify-content:center;
+    flex-shrink:0;
   }
   .home-app-img {
-    width:100%;
-    height:100%;
+    width:31px;   /* icon = 1.7 units → 42 * (1.7/2.3) ≈ 31px */
+    height:31px;
     object-fit:contain;
-    border-radius:12px;
+    display:block;
   }
   .home-app-name {
     font-size:10px;

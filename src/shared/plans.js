@@ -30,7 +30,7 @@ export const ALL_APPS = [
   { id: 'music', label: 'Music', icon: '/icons/png/music.png', path: '/music/' },
   { id: 'games', label: 'Games', icon: '/icons/png/games.png', path: '/games/' },
   { id: 'media', label: 'Media', icon: '/icons/png/media.png', path: '/media/' },
-  { id: 'news', label: 'News', icon: '/icons/png/news.png', path: '/news/' },
+  { id: 'profilelens', label: 'ProfileLens', icon: '/icons/png/profilelens.png', path: '/ProfileLens/' },
   { id: 'downloader', label: 'Downloader', icon: '/icons/png/downloader.png', path: '/downloader/' },
 ];
 

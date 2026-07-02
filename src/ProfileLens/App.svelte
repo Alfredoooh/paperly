@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
-  import NewsPage    from './pages/NewsPage.svelte';
+  import ProfileLensPage    from './pages/ProfileLensPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
 
   let route  = 'main';
@@ -29,13 +29,13 @@
     if (data?.logout) { localStorage.removeItem('nexa_user'); window.location.href = '/auth/'; return; }
     if (to === 'home') { window.location.href = '/home/'; return; }
     if (to === 'settings') { route = 'settings'; return; }
-    if (to === 'main' || to === 'News') { route = 'main'; return; }
+    if (to === 'main' || to === 'ProfileLens') { route = 'main'; return; }
   }
 </script>
 
 {#if ready}
   {#if route === 'main'}
-    <NewsPage    {isDark} {user} on:nav={handleNav} />
+    <ProfileLensPage    {isDark} {user} on:nav={handleNav} />
   {:else if route === 'settings'}
     <SettingsPage {isDark} {user} on:nav={handleNav} />
   {/if}

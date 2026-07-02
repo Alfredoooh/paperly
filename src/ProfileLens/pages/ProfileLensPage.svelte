@@ -27,13 +27,13 @@
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => drawerOpen=true}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
-    <span class="appbar-title" style="color:{c.textPrimary}">News</span>
+    <span class="appbar-title" style="color:{c.textPrimary}">ProfileLens</span>
     <div style="width:36px"></div>
   </div>
 
   <div class="placeholder">
-    <img src="/icons/png/News.png" class="placeholder-icon" alt="News" />
-    <div class="placeholder-title" style="color:{c.textPrimary}">News</div>
+    <img src="/icons/png/ProfileLens.png" class="placeholder-icon" alt="ProfileLens" />
+    <div class="placeholder-title" style="color:{c.textPrimary}">ProfileLens</div>
     <div class="placeholder-sub" style="color:{c.textSecondary}">Em desenvolvimento</div>
   </div>
 </div>

@@ -60,6 +60,7 @@
       drawerVisible = true;
     });
   }
+
   function closeDrawer() {
     drawerVisible = false;
     themeExpanded = false;
@@ -67,6 +68,7 @@
       drawerOpen = false;
     }, 280);
   }
+
   function toggleThemeExpanded() {
     themeExpanded = !themeExpanded;
   }
@@ -82,72 +84,13 @@
     { icon: 'help', label: 'Ajuda', action: () => {} },
   ];
 
-  let showApps = false;
-  let appsVisible = false;
-  let appsAnchorEl;
-  let appsPos = { top: 0, right: 0 };
-
-  function openApps() {
-    if (appsAnchorEl) {
-      const rect = appsAnchorEl.getBoundingClientRect();
-      appsPos = { top: rect.bottom + 8, right: window.innerWidth - rect.right };
-    }
-    showApps = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { appsVisible = true; }));
-  }
-  function closeApps() {
-    appsVisible = false;
-    setTimeout(() => { showApps = false; }, 220);
-  }
-  function toggleApps() {
-    if (showApps) closeApps();
-    else openApps();
-  }
-
-  function openApp(app) {
-    closeApps();
-    if (app.id === 'ai') {
-      try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {}
-    }
-    window.location.href = app.path;
-  }
-
-  const POPUP_W = 230;
-  let showPopup = false;
-  let popupVisible = false;
-  let popupMode = '';
-  let popupPos = { bottom: 0, left: 0 };
-  let popupFading = false;
-  let flashMode = false;
-  let thinkMoreMode = false;
-  let sheetsEnabled = false;
-
-  function openPopup(mode, event) {
-    popupMode = mode;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const M = 12;
-    let left = rect.left - 8;
-    if (left + POPUP_W > window.innerWidth - M) left = window.innerWidth - POPUP_W - M;
-    if (left < M) left = M;
-    popupPos = { bottom: window.innerHeight - rect.top + 8, left };
-    showPopup = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { popupVisible = true; }));
-  }
-  function closePopup() {
-    popupVisible = false;
-    setTimeout(() => { showPopup = false; popupMode = ''; }, 220);
-  }
-  function switchPopup(mode) {
-    popupFading = true;
-    setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
-  }
-
   const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
   let lottieEl;
   let lottieInstance;
   let lottieFinished = false;
   let togglesVisible = false;
+  let homeAppsVisible = false;
 
   const SUGGESTION_TOGGLES = [
     {
@@ -228,13 +171,17 @@
       });
       lottieInstance.addEventListener('complete', () => {
         lottieFinished = true;
-        setTimeout(() => { togglesVisible = true; }, 60);
+        setTimeout(() => {
+          togglesVisible = true;
+          homeAppsVisible = true;
+        }, 60);
       });
     }
   }
 
   let inputText = '';
   let textInputEl;
+
   function autoResize() {
     if (!textInputEl) return;
     textInputEl.style.height = 'auto';
@@ -268,8 +215,18 @@
   let suggestDebounce;
   let abortSuggest;
 
+  let mediaRecorder = null, audioChunks = [], isRecording = false;
+  let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
+  let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
+  let wavePhase = 0;
+
   $: showSuggestBox = !!inputText.trim() && !isRecording;
   $: scheduleSuggestFetch(inputText);
+
+  $: recTimerStr = (() => {
+    const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
+    return `${m}:${s.toString().padStart(2,'0')}`;
+  })();
 
   function scheduleSuggestFetch(text) {
     clearTimeout(suggestDebounce);
@@ -301,7 +258,6 @@
 
       let raw = [];
       if (Array.isArray(data) && Array.isArray(data[1])) raw = data[1];
-      else if (data?.[1] && Array.isArray(data[1])) raw = data[1];
 
       if (inputText.trim() !== q) return;
       searchSuggestions = raw.filter(Boolean).slice(0, 6);
@@ -341,16 +297,6 @@
     inputText = s;
     setTimeout(navigateToAI, 10);
   }
-
-  let mediaRecorder = null, audioChunks = [], isRecording = false;
-  let waveCtx = null, waveAnalyser = null, waveSource = null, waveStream = null;
-  let waveAnimFrame = null, recSeconds = 0, recInterval = null, recCanvasEl;
-  let wavePhase = 0;
-
-  $: recTimerStr = (() => {
-    const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
-    return `${m}:${s.toString().padStart(2,'0')}`;
-  })();
 
   async function startRecording() {
     if (isRecording) return;
@@ -453,25 +399,25 @@
         waveAnalyser.getByteFrequencyData(freq);
         const L = freq.length;
         const def = [
-          [0, Math.floor(L * .04)],
-          [Math.floor(L * .04), Math.floor(L * .10)],
-          [Math.floor(L * .10), Math.floor(L * .25)],
-          [Math.floor(L * .25), Math.floor(L * .50)],
-          [Math.floor(L * .50), Math.floor(L * .80)]
+          [0, Math.floor(L*.04)],
+          [Math.floor(L*.04), Math.floor(L*.10)],
+          [Math.floor(L*.10), Math.floor(L*.25)],
+          [Math.floor(L*.25), Math.floor(L*.50)],
+          [Math.floor(L*.50), Math.floor(L*.80)],
         ];
         bands = def.map(([s,e]) => {
           const sl = [...freq].slice(s,e);
-          return Math.pow(sl.reduce((a,b)=>a+b,0)/sl.length/255,0.5);
+          return Math.pow(sl.reduce((a,b)=>a+b,0)/sl.length/255, 0.5);
         });
       } else {
         wavePhase += 0.04;
         bands = [0,1,2,3,4].map(i => 0.06 + Math.abs(Math.sin(wavePhase * 1.2 + i * 0.8)) * 0.18);
       }
 
-      for (let i=0; i<N; i++) bh[i] += (bands[i] - bh[i]) * (bands[i] > bh[i] ? 0.65 : 0.12);
+      for (let i = 0; i < N; i++) bh[i] += (bands[i] - bh[i]) * (bands[i] > bh[i] ? 0.65 : 0.12);
       const bw = 3.5, gap = 5, tw = N * bw + (N - 1) * gap, sx = (w - tw) / 2, cy = h / 2, mh = h * 0.72;
 
-      for (let i=0; i<N; i++) {
+      for (let i = 0; i < N; i++) {
         const bhi = Math.max(4, bh[i] * mh), x = sx + i * (bw + gap), y = cy - bhi / 2;
         ctx.beginPath();
         ctx.roundRect(x, y, bw, bhi, bw / 2);
@@ -503,16 +449,22 @@
   $: contentPaddingTop = headerHeight ? headerHeight + 8 : 100;
   $: contentPaddingBottom = 28;
 
-  let mountToggles = false;
-  $: if (lottieFinished && !mountToggles) mountToggles = true;
   let inputFocused = false;
   $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
 
   function handleInputFocus() {
     inputFocused = true;
   }
+
   function handleInputBlur() {
     inputFocused = false;
+  }
+
+  function openApp(app) {
+    if (app.id === 'ai') {
+      try { sessionStorage.removeItem('nexa_pending_message'); } catch(e) {}
+    }
+    window.location.href = app.path;
   }
 
   let mounted = false;
@@ -547,17 +499,9 @@
 <div class="root">
   <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
 
-  <header class="header" class:in={mounted} class:header-lifted={showApps} bind:clientHeight={headerHeight}>
+  <header class="header" class:in={mounted} bind:clientHeight={headerHeight}>
     <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
-    <div class="header-right" bind:this={appsAnchorEl}>
-      <button class="hdr-seg pulse-tap" on:click={toggleApps}>
-        {#if showApps}
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:15px;height:15px;background:var(--icon-on-accent)"></span>
-        {:else}
-          <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
-        {/if}
-      </button>
-      <div class="hdr-seg-divider"></div>
+    <div class="header-right">
       <button class="hdr-seg pulse-tap" on:click={openDrawer}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
       </button>
@@ -566,11 +510,30 @@
 
   <main class="content" style="padding-top:{contentPaddingTop}px;padding-bottom:{contentPaddingBottom}px;">
     <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
+
+    {#if homeAppsVisible}
+      <section class="home-apps" class:home-apps-in={homeAppsVisible}>
+        <div class="home-apps-head">
+          <span class="home-apps-title">Apps</span>
+          <span class="home-apps-count">{platformApps.length}</span>
+        </div>
+        <div class="home-apps-grid">
+          {#each platformApps as app, i}
+            <button class="home-app-item pulse-tap" style="animation-delay:{i * 20}ms" on:click={() => openApp(app)}>
+              <div class="home-app-icon">
+                <img src={app.icon} alt={app.label} class="home-app-img" />
+              </div>
+              <span class="home-app-name">{app.label}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
   </main>
 </div>
 
 <div class="bottom" class:in={mounted}>
-  {#if mountToggles}
+  {#if lottieFinished}
     <div class="toggles-wrap" class:toggles-in={togglesVisible && togglesShouldShow} class:toggles-hidden={!togglesShouldShow}>
       {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
         <div class="toggles-row">
@@ -658,7 +621,7 @@
         on:blur={handleInputBlur}
       ></textarea>
       <div class="bb-row">
-        <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
+        <button class="bb-btn pulse-tap" on:click={() => { inputText = inputText; }}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
         </button>
         <div class="flex1"></div>
@@ -693,43 +656,7 @@
   <div class="popup-overlay" on:click={closePopup}></div>
   <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
     <div class="popup-content" class:fading={popupFading}>
-      {#if popupMode === 'add'}
-        <label class="popup-row pulse-tap" style="cursor:pointer">
-          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-          <span class="popup-label">Enviar Imagem</span>
-          <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
-        </label>
-        <div class="popup-sep"></div>
-        <label class="popup-row pulse-tap" style="cursor:pointer">
-          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-          <span class="popup-label">Enviar Ficheiro</span>
-          <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
-        </label>
-        <div class="popup-sep"></div>
-        <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
-          <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-          <span class="popup-label" style="flex:1">Extras</span>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
-        </button>
-      {:else if popupMode === 'extras'}
-        <button class="popup-row popup-back pulse-tap" on:click={() => switchPopup('add')}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:15px;height:15px;background:var(--icon-faint)"></span>
-          <span class="popup-label" style="color:var(--text-faint);font-size:13px">Extras</span>
-        </button>
-        <div class="popup-sep"></div>
-        {#each [
-          [flashMode,     'Flash',      'flash',  'flash_filled',  () => { flashMode = !flashMode; if (flashMode) thinkMoreMode = false; }],
-          [thinkMoreMode, 'Think More', 'brain',  'brain_filled',  () => { thinkMoreMode = !thinkMoreMode; if (thinkMoreMode) flashMode = false; }],
-          [sheetsEnabled, 'Sheets',     'sheets', 'sheets_filled', () => { sheetsEnabled = !sheetsEnabled; }],
-        ] as [active, title, ico, icoOn, action], i}
-          {#if i > 0}<div class="popup-sep"></div>{/if}
-          <button class="popup-row pulse-tap" style={active ? 'background:var(--row-active)' : ''} on:click={action}>
-            <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
-            <span class="popup-label" style="flex:1">{title}</span>
-            {#if active}<div class="popup-active-dot"></div>{/if}
-          </button>
-        {/each}
-      {:else if popupMode === 'models'}
+      {#if popupMode === 'models'}
         <div class="popup-title">Modelo</div>
         {#each MODELS as model, i}
           {#if i > 0}<div class="popup-sep"></div>{/if}
@@ -745,24 +672,6 @@
         {/each}
       {/if}
     </div>
-  </div>
-{/if}
-
-{#if showApps}
-  <div class="apps-overlay" on:click={closeApps}></div>
-  <div class="apps-popup" class:apps-popup-in={appsVisible} style="top:{appsPos.top}px;right:{appsPos.right}px;">
-    <div class="apps-popup-label">Apps</div>
-    <div class="apps-grid">
-      {#each platformApps as app, i}
-        <button class="ag-item pulse-tap" style="animation-delay:{i*25}ms" class:ag-in={appsVisible} on:click={() => openApp(app)}>
-          <div class="ag-icon">
-            <img src={app.icon} alt={app.label} class="ag-img" />
-          </div>
-          <span class="ag-name">{app.label}</span>
-        </button>
-      {/each}
-    </div>
-    <div style="height:8px"></div>
   </div>
 {/if}
 
@@ -921,7 +830,6 @@
     contain: layout style paint;
   }
   .header.in { opacity:1; transform:translateY(0) translateZ(0); }
-  .header.header-lifted { z-index:62; }
   .logo-img { width:80px; height:80px; object-fit:contain; }
   .header-right {
     display:flex;
@@ -945,7 +853,6 @@
     transition:background .18s ease;
   }
   .hdr-seg:active { background:var(--hdr-seg-active); }
-  .hdr-seg-divider { width:1px; height:16px; background:var(--hdr-seg-divider); }
 
   .content {
     position:absolute;
@@ -956,6 +863,7 @@
     align-items:center;
     justify-content:flex-end;
   }
+
   .lottie-wrap {
     position:absolute;
     top:50%;
@@ -969,6 +877,100 @@
     opacity:0;
     transform:translate(-50%,-50%) scale(0.85);
     pointer-events:none;
+  }
+
+  .home-apps {
+    position:absolute;
+    left:16px;
+    right:16px;
+    top:calc(50% + 126px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 188px);
+    opacity:0;
+    transform:translateY(14px) scale(0.98);
+    transition:opacity .42s ease, transform .42s cubic-bezier(0.2,0.9,0.3,1);
+    pointer-events:none;
+  }
+  .home-apps-in {
+    opacity:1;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  .home-apps-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+    padding:0 4px;
+  }
+  .home-apps-title {
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+  .home-apps-count {
+    font-size:11px;
+    font-weight:600;
+    color:var(--icon-faint);
+  }
+  .home-apps-grid {
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+    gap:10px 8px;
+    align-content:start;
+    max-height:100%;
+    overflow-y:auto;
+    padding-right:2px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .home-app-item {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    border:none;
+    background:var(--surface);
+    border:0.5px solid var(--border-soft);
+    border-radius:20px;
+    padding:10px 8px 9px;
+    backdrop-filter:blur(16px) saturate(1.4);
+    -webkit-backdrop-filter:blur(16px) saturate(1.4);
+    box-shadow:0 8px 22px rgba(0,0,0,0.14);
+    cursor:pointer;
+    opacity:0;
+    transform:translateY(10px) scale(0.96);
+    animation:appIn .32s cubic-bezier(0.2,0.9,0.3,1) forwards;
+  }
+  @keyframes appIn {
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  .home-app-item:active { transform:scale(0.94); }
+  .home-app-icon {
+    width:48px;
+    height:48px;
+    border-radius:16px;
+    background:rgba(255,255,255,0.06);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .home-app-img {
+    width:100%;
+    height:100%;
+    object-fit:contain;
+  }
+  .home-app-name {
+    font-size:10.5px;
+    font-weight:600;
+    color:var(--icon-strong);
+    text-align:center;
+    line-height:1.15;
+    max-width:100%;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
 
   .toggles-wrap {
@@ -1007,7 +1009,7 @@
   .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
   @keyframes toggleIn {
     from { opacity:0; transform:scale(0.90) translateY(8px); }
-    to   { opacity:1; transform:scale(1)    translateY(0);   }
+    to   { opacity:1; transform:scale(1) translateY(0); }
   }
   .suggestion-toggle:active { transform:scale(0.95); }
   .toggle-active { background:var(--toggle-bg-act) !important; border-color:var(--toggle-border-act) !important; }
@@ -1100,7 +1102,7 @@
   }
   @keyframes recIn {
     from { opacity:0; transform:scale(0.92) translateY(10px); }
-    to   { opacity:1; transform:scale(1) translateY(0); }
+    to { opacity:1; transform:scale(1) translateY(0); }
   }
   .rec-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
   .rec-inner { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; height:100%; padding:0 10px; }
@@ -1123,7 +1125,7 @@
   .rec-dot { width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; }
   @keyframes recPulse {
     0%,100% { opacity:1; transform:scale(1); }
-    50%     { opacity:.4; transform:scale(.75); }
+    50% { opacity:.4; transform:scale(.75); }
   }
   .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--icon-strong); letter-spacing:.06em; }
 
@@ -1140,7 +1142,7 @@
   }
   @keyframes suggestIn {
     from { opacity:0; transform:translateY(8px); }
-    to   { opacity:1; transform:translateY(0); }
+    to { opacity:1; transform:translateY(0); }
   }
   .suggest-row {
     display:flex;
@@ -1266,65 +1268,6 @@
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-  }
-
-  .apps-overlay { position:fixed; inset:0; z-index:60; background:var(--overlay-soft); }
-  .apps-popup {
-    position:fixed;
-    z-index:63;
-    width:256px;
-    border-radius:20px;
-    background:var(--surface-popover);
-    backdrop-filter:blur(44px) saturate(2);
-    -webkit-backdrop-filter:blur(44px) saturate(2);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 18px 50px rgba(0,0,0,0.35);
-    overflow:hidden;
-    transform-origin:top right;
-    opacity:0;
-    transform:scale(0.88) translateY(-6px);
-    transition:opacity .22s cubic-bezier(0.2,0.9,0.3,1), transform .22s cubic-bezier(0.2,0.9,0.3,1);
-    pointer-events:none;
-  }
-  .apps-popup.apps-popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
-  .apps-popup-label {
-    padding:13px 15px 6px;
-    font-size:11px;
-    font-weight:700;
-    letter-spacing:.07em;
-    text-transform:uppercase;
-    color:var(--text-faint);
-  }
-  .apps-grid { display:grid; grid-template-columns:repeat(4,1fr); padding:4px 6px 6px; gap:0; }
-  .ag-item {
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:5px;
-    background:none;
-    border:none;
-    cursor:pointer;
-    padding:8px 2px;
-    border-radius:14px;
-    opacity:0;
-    transform:scale(0.82) translateY(6px);
-    transition:opacity .28s ease, transform .28s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
-  }
-  .ag-item.ag-in { opacity:1; transform:scale(1) translateY(0); }
-  .ag-item:active { background:var(--row-active); }
-  .ag-icon { width:46px; height:46px; display:flex; align-items:center; justify-content:center; }
-  .ag-img { width:100%; height:100%; object-fit:contain; border-radius:12px; transition:transform .20s cubic-bezier(0.34,1.56,0.64,1); }
-  .ag-item:active .ag-img { transform:scale(0.84); }
-  .ag-name {
-    font-size:10px;
-    font-weight:500;
-    color:var(--icon-soft);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    max-width:58px;
-    text-align:center;
-    line-height:1.2;
   }
 
   .drawer-overlay {

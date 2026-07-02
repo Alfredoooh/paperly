@@ -16,7 +16,6 @@
   let dragY = 0;
   let dragging = false;
   let dragStartY = 0;
-  let dragStartedOnHandle = false;
 
   let tabDragging = false;
   let tabDragStartX = 0;
@@ -101,9 +100,8 @@
     playerOpen.set(false);
   }
 
-  // ---- Drag-to-dismiss suave: segue o dedo 1:1, sem transição durante o arrasto ----
+  // ---- Drag-to-dismiss: só inicia a partir da zona do handle no topo, nunca a partir do resto do ecrã ----
   function onDragStart(e) {
-    dragStartedOnHandle = true;
     dragging = true;
     dragStartY = (e.touches ? e.touches[0].clientY : e.clientY);
   }
@@ -116,7 +114,6 @@
   function onDragEnd() {
     if (!dragging) return;
     dragging = false;
-    dragStartedOnHandle = false;
     if (dragY > 110) {
       // solta a meio caminho: continua a animação de saída suavemente a partir da posição atual
       entered = false;
@@ -165,6 +162,13 @@
   function icon(name) {
     return `mask-image:url('/icons/svg/${name}.svg');-webkit-mask-image:url('/icons/svg/${name}.svg');`;
   }
+
+  // App só reproduz previews de 30s — plataformas externas abrem a faixa completa (visual, sem ação real ainda)
+  const platforms = [
+    { name: 'spotify', label: 'Spotify', color: '#1DB954' },
+    { name: 'apple_music', label: 'Apple Music', color: '#FA243C' },
+    { name: 'youtube_music', label: 'YouTube Music', color: '#FF0000' },
+  ];
 </script>
 
 {#if visible && $currentTrack}
@@ -181,10 +185,6 @@
       background:{dominantColor};
       transform:translateY({dragging ? dragY : (entered ? 0 : '100%')}{dragging ? 'px' : ''});
     "
-    on:touchstart={onDragStart}
-    on:touchmove={onDragMove}
-    on:touchend={onDragEnd}
-    on:touchcancel={onDragEnd}
   >
 
     {#if coverUrl}
@@ -194,16 +194,24 @@
 
     <div class="bg-overlay"></div>
 
+    <!-- Única zona que inicia o drag-to-dismiss: o topo mesmo (handle + header) -->
     <div
       class="drag-handle-zone"
       on:touchstart={onDragStart}
       on:touchmove={onDragMove}
       on:touchend={onDragEnd}
+      on:touchcancel={onDragEnd}
     >
       <div class="drag-handle"></div>
     </div>
 
-    <div class="header">
+    <div
+      class="header"
+      on:touchstart={onDragStart}
+      on:touchmove={onDragMove}
+      on:touchend={onDragEnd}
+      on:touchcancel={onDragEnd}
+    >
       <button class="icon-btn" on:click={handleClose} aria-label="Fechar">
         <span class="icon-mask" style="{icon('chevron_right')}background:#fff;width:20px;height:20px;transform:rotate(90deg);"></span>
       </button>
@@ -315,13 +323,21 @@
           <span style="color:rgba(255,255,255,0.5);font-size:11px">Partilhar</span>
         </button>
         <button class="action-btn">
-          <span class="icon-mask" style="{icon('download')}background:rgba(255,255,255,0.6);width:20px;height:20px;"></span>
-          <span style="color:rgba(255,255,255,0.5);font-size:11px">Download</span>
-        </button>
-        <button class="action-btn">
           <span class="icon-mask" style="{icon('playlist_music')}background:rgba(255,255,255,0.6);width:20px;height:20px;"></span>
           <span style="color:rgba(255,255,255,0.5);font-size:11px">Playlist</span>
         </button>
+      </div>
+
+      <!-- Faixa é só preview de 30s: aqui ficam as opções de ouvir a versão completa nas plataformas -->
+      <div class="platforms-row">
+        <span class="platforms-label" style="color:rgba(255,255,255,0.4)">Ouvir completa em</span>
+        <div class="platforms-icons">
+          {#each platforms as p}
+            <button class="platform-btn" style="background:{p.color}" aria-label={p.label}>
+              <span class="icon-mask" style="{icon(p.name)}background:#fff;width:20px;height:20px;"></span>
+            </button>
+          {/each}
+        </div>
       </div>
 
     {:else if tab === 'lyrics'}
@@ -371,6 +387,7 @@
     transition:none;
   }
 
+  /* Zona de drag: só o topo (handle) inicia o gesto de fecho */
   .drag-handle-zone {
     flex-shrink:0;
     padding:2px 0 10px;
@@ -388,9 +405,9 @@
 
   .bg-overlay { position:absolute;inset:0;z-index:0;background:linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%); }
 
-  .header,.tabs-pill-wrap,.tab-swipe-area,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap { position:relative;z-index:1; }
+  .header,.tabs-pill-wrap,.tab-swipe-area,.cover-wrap,.info-row,.progress-wrap,.controls,.actions,.lyrics-wrap,.queue-wrap,.platforms-row { position:relative;z-index:1; }
 
-  .header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
+  .header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;touch-action:none; }
   .header-center { flex:1;text-align:center; }
   .header-label { font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:.04em; }
 
@@ -492,9 +509,21 @@
   .play-spinner { width:28px;height:28px;border-radius:50%;border:3px solid rgba(28,28,30,0.2);border-top-color:#1c1c1e;animation:spin .7s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
 
-  .actions { display:flex;align-items:center;justify-content:space-around; }
+  .actions { display:flex;align-items:center;justify-content:space-around;margin-bottom:22px; }
   .action-btn { display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:0; }
   .action-btn:active { opacity:0.6; }
+
+  /* Plataformas externas — substitui o antigo botão de download */
+  .platforms-row { display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:4px; }
+  .platforms-label { font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em; }
+  .platforms-icons { display:flex;align-items:center;gap:14px; }
+  .platform-btn {
+    width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    transition:transform .12s ease, opacity .15s ease;
+  }
+  .platform-btn:active { transform:scale(0.9);opacity:0.85; }
 
   .lyrics-wrap { flex:1;overflow-y:auto;padding:4px 0; }
   .lyrics-text { font-size:16px;line-height:1.9;color:rgba(255,255,255,0.85);white-space:pre-wrap;margin:0; }

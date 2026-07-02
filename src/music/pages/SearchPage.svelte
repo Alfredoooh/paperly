@@ -9,6 +9,7 @@
   export let txtSec = '#aaaaaa';
   export let divider = 'rgba(255,255,255,0.07)';
   export let currentTrackExists = false;
+  export let appbarHeight = 56; // altura do appbar do MusicPage, usada como limite do deslocamento da search-bar
 
   const dispatch = createEventDispatcher();
 
@@ -35,15 +36,22 @@
     dispatch('openSearch');
   }
 
-  // ── Appbar-on-scroll: avisa o MusicPage se deve esconder/mostrar ──
+  // ── Search-bar sobe junto com o appbar do MusicPage, mas trava assim que o appbar
+  //    desaparecer por completo — o input nunca fica oculto ──
   let scrollWrapEl;
   let lastScrollTop = 0;
+  let searchBarOffset = 0; // 0..appbarHeight
+
   function handleScroll() {
     if (!scrollWrapEl) return;
     const top = scrollWrapEl.scrollTop;
     const goingDown = top > lastScrollTop;
     const hidden = top > 40 && goingDown;
     lastScrollTop = top;
+
+    // acompanha o scroll 1:1 até ao limite da altura do appbar — depois disso para
+    searchBarOffset = Math.min(Math.max(top, 0), appbarHeight);
+
     dispatch('scrollState', { hidden });
   }
 
@@ -58,17 +66,11 @@
   let waveSource     = null;
   let waveAnimFrame  = null;
   let recCanvasEl;
-  let recSeconds     = 0;
-  let recInterval    = null;
   let wavePhase      = 0;
   let recognizing    = false;
   let recognizeError = null;
+  let recognizeOk    = false;
   let fileInputEl;
-
-  $: recTimerStr = (() => {
-    const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  })();
 
   function stopMicHard() {
     // Garante que o microfone é sempre libertado, mesmo se algo falhar a meio
@@ -81,6 +83,7 @@
   async function startRecording() {
     if (isRecording) return;
     recognizeError = null;
+    recognizeOk    = false;
     try {
       waveStream   = await navigator.mediaDevices.getUserMedia({ audio: true });
       waveCtx      = new (window.AudioContext || window.webkitAudioContext)();
@@ -101,8 +104,6 @@
       mediaRecorder.start();
       isRecording    = true;
       showRecOverlay = true;
-      recSeconds     = 0;
-      recInterval    = setInterval(() => recSeconds++, 1000);
       startWaveAnim();
     } catch (err) {
       console.error('Mic:', err);
@@ -112,7 +113,6 @@
   function stopRecording() {
     if (!isRecording || !mediaRecorder) return;
     isRecording = false;
-    clearInterval(recInterval);
     mediaRecorder.stop();
     // O stream só é fechado depois de handleRecStop terminar de enviar o áudio
   }
@@ -120,12 +120,17 @@
   function cancelRecording() {
     if (!isRecording || !mediaRecorder) return;
     isRecording = false;
-    clearInterval(recInterval);
     mediaRecorder.onstop = null;
     mediaRecorder.stop();
     audioChunks    = [];
     showRecOverlay = false;
     stopMicHard();
+  }
+
+  function closeOverlay() {
+    showRecOverlay = false;
+    recognizeError = null;
+    recognizeOk    = false;
   }
 
   function triggerUpload() {
@@ -173,6 +178,7 @@
     showRecOverlay = true;
     recognizing    = true;
     recognizeError = null;
+    recognizeOk    = false;
 
     try {
       const res = await fetch(`${PROXY}/api/recognize`, {
@@ -183,19 +189,19 @@
       const data = await res.json();
       if (!res.ok || !data.title) throw new Error(data.error || 'Não reconhecido');
 
-      showRecOverlay = false;
-      recognizing    = false;
+      recognizing = false;
+      recognizeOk = true;
 
       const query = data.artist ? `${data.artist} ${data.title}` : data.title;
-      dispatch('openSearch', { prefillQuery: query });
+      setTimeout(() => {
+        showRecOverlay = false;
+        recognizeOk    = false;
+        dispatch('openSearch', { prefillQuery: query });
+      }, 550);
 
     } catch (err) {
       recognizing    = false;
       recognizeError = err.message || 'Não foi possível reconhecer';
-      setTimeout(() => {
-        recognizeError = null;
-        showRecOverlay = false;
-      }, 2200);
     }
   }
 
@@ -210,16 +216,13 @@
       showRecOverlay = true;
       recognizing    = true;
       recognizeError = null;
+      recognizeOk    = false;
       try {
         const audioBlob = await extractAudioFromVideo(file);
         await sendForRecognition(audioBlob, 'audio/webm');
       } catch (err) {
         recognizing    = false;
         recognizeError = 'Não foi possível extrair áudio do vídeo';
-        setTimeout(() => {
-          recognizeError = null;
-          showRecOverlay = false;
-        }, 2200);
       }
     } else {
       await sendForRecognition(file, file.type || 'audio/webm');
@@ -293,7 +296,7 @@
 
 <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll}>
 
-  <div class="search-wrap">
+  <div class="search-wrap" style="transform:translateY(-{searchBarOffset}px);">
     <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
       <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
       <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
@@ -303,16 +306,17 @@
     </button>
   </div>
 
-  <div class="page">
+  <div class="page" style="margin-top:-{searchBarOffset}px;">
     <div class="section-hdr">
       <span class="section-title" style="color:{txtPrim}">Categorias</span>
     </div>
     <div class="genre-grid">
       {#each genres as g}
-        <button class="genre-card" on:click={openSearch}>
-          <img class="genre-img" src={genreImg(g.img)} alt={g.label} loading="lazy" />
-          <div class="genre-tint" style="background:{g.color}"></div>
+        <button class="genre-card" style="background:{g.color}" on:click={openSearch}>
           <span class="genre-label">{g.label}</span>
+          <div class="genre-poster">
+            <img class="genre-img" src={genreImg(g.img)} alt={g.label} loading="lazy" />
+          </div>
         </button>
       {/each}
     </div>
@@ -339,12 +343,25 @@
           <span class="rec-hint" style="color:{txtSec}">A reconhecer música…</span>
         </div>
 
+      {:else if recognizeOk}
+        <div class="rec-recognizing">
+          <div class="rec-check-circle">
+            <span class="svg-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:20px;height:20px;background:#fff"></span>
+          </div>
+          <span class="rec-hint" style="color:{txtSec}">Música encontrada</span>
+        </div>
+
       {:else if recognizeError}
         <div class="rec-recognizing">
           <span class="rec-error">{recognizeError}</span>
+          <button class="rec-retry-btn" style="color:{txtPrim};background:{isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'}" on:click={closeOverlay}>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:13px;height:13px;background:{txtPrim}"></span>
+            Fechar
+          </button>
         </div>
 
       {:else}
+        <!-- Card estilo player: mesmos botões redondos, sem cronómetro -->
         <div class="rec-inner">
           <button class="rec-btn" style="background:{isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'}" on:click={cancelRecording}>
             <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:{txtPrim}"></span>
@@ -352,18 +369,15 @@
           <div class="rec-center">
             <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
             <div class="rec-dot"></div>
-            <span class="rec-timer" style="color:{txtPrim}">{recTimerStr}</span>
           </div>
           <button class="rec-btn rec-send" style="background:{isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)'}" on:click={stopRecording}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={txtPrim} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:16px;height:16px;background:{txtPrim}"></span>
           </button>
         </div>
         <div class="rec-footer">
           <span class="rec-hint" style="color:{txtSec}">A ouvir… toca a música perto do microfone</span>
           <button class="rec-upload-btn" style="color:{txtSec}" on:click={triggerUpload}>
-            <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');width:13px;height:13px;background:{txtSec}"></span>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:13px;height:13px;background:{txtSec}"></span>
             Enviar áudio ou vídeo
           </button>
         </div>
@@ -375,9 +389,9 @@
 
 <style>
   .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
-  .page { padding:0 0 8px; }
+  .page { padding:0 0 8px; transition:margin-top .05s linear; }
 
-  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }
+  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; transition:transform .05s linear; }
   .search-bar {
     flex:1; display:flex; align-items:center; gap:10px;
     border-radius:999px; padding:13px 16px; border:none; cursor:pointer;
@@ -399,19 +413,30 @@
   .section-hdr { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 10px; }
   .section-title { font-size:20px; font-weight:800; letter-spacing:-.4px; }
   .genre-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 16px; }
+
+  /* Card estilo Spotify: fundo sólido, imagem "colada" no canto inferior direito como um cartaz inclinado */
   .genre-card {
     position:relative; border:none; border-radius:12px; overflow:hidden;
     height:100px; cursor:pointer; padding:0;
     transition:opacity .15s, transform .15s;
   }
   .genre-card:active { opacity:0.88; transform:scale(0.97); }
-  .genre-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  .genre-tint { position:absolute; inset:0; opacity:0.55; mix-blend-mode:multiply; }
   .genre-label {
-    position:absolute; left:16px; bottom:14px; z-index:1;
+    position:absolute; left:14px; top:14px; z-index:1;
     font-size:16px; font-weight:800; color:#fff; letter-spacing:-.3px;
-    text-shadow:0 1px 6px rgba(0,0,0,0.35);
+    max-width:62%;
+    text-shadow:0 1px 6px rgba(0,0,0,0.2);
   }
+  .genre-poster {
+    position:absolute;
+    right:-14px; bottom:-16px;
+    width:64px; height:64px;
+    transform:rotate(22deg);
+    border-radius:6px;
+    overflow:hidden;
+    box-shadow:0 6px 16px rgba(0,0,0,0.35);
+  }
+  .genre-img { width:100%; height:100%; object-fit:cover; display:block; }
 
   /* Floating recorder */
   .rec-overlay {
@@ -447,7 +472,6 @@
   .rec-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   .rec-dot { width:6px; height:6px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; z-index:1; }
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
-  .rec-timer { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:.06em; z-index:1; }
 
   .rec-footer { display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:2px; }
   .rec-hint { font-size:11px; font-weight:500; text-align:center; opacity:0.7; }
@@ -460,6 +484,20 @@
     transition:opacity .15s;
   }
   .rec-upload-btn:active { opacity:0.6; }
+  .rec-retry-btn {
+    display:flex; align-items:center; gap:6px;
+    border:none; cursor:pointer;
+    font-size:12px; font-weight:600;
+    padding:8px 16px; border-radius:999px;
+    transition:opacity .15s;
+  }
+  .rec-retry-btn:active { opacity:0.6; }
+
+  .rec-check-circle {
+    width:40px; height:40px; border-radius:50%;
+    background:#1DB954;
+    display:flex; align-items:center; justify-content:center;
+  }
 
   .rec-recognizing { display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px 0; }
   .spinner { width:24px; height:24px; border-radius:50%; border:3px solid rgba(128,128,128,0.2); animation:spin .8s linear infinite; }

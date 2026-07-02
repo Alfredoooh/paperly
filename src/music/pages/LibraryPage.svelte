@@ -1,44 +1,73 @@
 <script>
   import { newAlbums, playlists, artists, loadArtist } from '../store/music.js';
-  
+
   export let isDark = false;
   export let bgCard = '#1c1c1e';
   export let txtPrim = '#ffffff';
   export let txtSec = '#8e8e93';
   export let divider = 'rgba(255,255,255,0.08)';
   export let currentTrackExists = false;
-  
+
   const ACCENT = '#FC3C44';
-  
+
   let libTab = 'playlists';
-  
+  const tabOrder = ['playlists', 'albums', 'artists'];
+
   const tabs = [
     ['playlists', 'Playlists'],
     ['albums', 'Álbuns'],
     ['artists', 'Artistas'],
   ];
-  
+
   $: counts = {
     playlists: $playlists.length,
     albums: $newAlbums.length,
     artists: $artists.length,
   };
-  
+
   $: emptyLabel = libTab === 'playlists' ?
     'Nenhuma playlist ainda' :
     libTab === 'albums' ?
     'Nenhum álbum guardado' :
     'Nenhum artista seguido';
-  
+
   $: emptyHint = libTab === 'playlists' ?
     'As playlists que criares ou guardares aparecem aqui.' :
     libTab === 'albums' ?
     'Os álbuns que ouvires ou guardares aparecem aqui.' :
     'Segue artistas para os veres nesta lista.';
+
+  // ---- Swipe horizontal para trocar de tab (mesmo padrão do FullPlayer) ----
+  let tabDragging = false;
+  let tabDragStartX = 0;
+  let tabDragDeltaX = 0;
+
+  function onTabDragStart(e) {
+    tabDragging = true;
+    tabDragStartX = (e.touches ? e.touches[0].clientX : e.clientX);
+    tabDragDeltaX = 0;
+  }
+  function onTabDragMove(e) {
+    if (!tabDragging) return;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX);
+    tabDragDeltaX = x - tabDragStartX;
+  }
+  function onTabDragEnd() {
+    if (!tabDragging) return;
+    tabDragging = false;
+    const threshold = 60;
+    const idx = tabOrder.indexOf(libTab);
+    if (tabDragDeltaX < -threshold && idx < tabOrder.length - 1) {
+      libTab = tabOrder[idx + 1];
+    } else if (tabDragDeltaX > threshold && idx > 0) {
+      libTab = tabOrder[idx - 1];
+    }
+    tabDragDeltaX = 0;
+  }
 </script>
 
 <div class="lib">
-  
+
   <!-- Recentes: só aparece se houver conteúdo, dá ao topo uma sensação de "continuar" -->
   {#if $playlists.length || $newAlbums.length}
     <div class="recent-section">
@@ -63,18 +92,31 @@
     </div>
   {/if}
 
-  <!-- Tabs com contador -->
-  <div class="lib-tabs" style="border-bottom:0.5px solid {divider}">
-    {#each tabs as [id,label]}
-      <button class="lib-tab" on:click={() => libTab=id}>
-        <span class="lib-tab-label" style="color:{libTab===id?txtPrim:txtSec}">{label}</span>
-        <span class="lib-tab-count" style="color:{libTab===id?ACCENT:txtSec};opacity:{libTab===id?1:0.6}">{counts[id]}</span>
-        <span class="lib-tab-underline" style="background:{libTab===id?ACCENT:'transparent'}"></span>
-      </button>
-    {/each}
+  <!-- Tabs nativos em pill, mesmo padrão do FullPlayer -->
+  <div class="tabs-pill-wrap">
+    <div class="tabs-pill">
+      {#each tabs as [id,label]}
+        <button
+          class="tab-pill-btn"
+          class:active={libTab===id}
+          style="color:{libTab===id ? '#1c1c1e' : txtSec}"
+          on:click={() => libTab=id}
+        >
+          {label}
+          <span class="tab-pill-count" style="color:{libTab===id?ACCENT:txtSec};opacity:{libTab===id?1:0.7}">{counts[id]}</span>
+        </button>
+      {/each}
+    </div>
   </div>
 
-  <!-- Conteúdo -->
+  <!-- Conteúdo com swipe horizontal -->
+  <div
+    class="tab-swipe-area"
+    on:touchstart={onTabDragStart}
+    on:touchmove={onTabDragMove}
+    on:touchend={onTabDragEnd}
+  >
+
   {#if libTab === 'playlists'}
     {#if $playlists.length}
       <div class="lib-list">
@@ -167,6 +209,8 @@
     {/if}
   {/if}
 
+  </div>
+
   <div style="height:{currentTrackExists?148:88}px"></div>
 </div>
 
@@ -185,12 +229,39 @@
   .recent-img { width:100%;height:100%;object-fit:cover;display:block; }
   .recent-title { display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3; }
 
-  /* Tabs */
-  .lib-tabs { display:flex;padding:0 16px; }
-  .lib-tab { position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:none;border:none;padding:12px 0;cursor:pointer;font-family:inherit; }
-  .lib-tab-label { font-size:14.5px;font-weight:700;letter-spacing:-.1px;transition:color .18s; }
-  .lib-tab-count { font-size:12px;font-weight:700;transition:color .18s,opacity .18s; }
-  .lib-tab-underline { position:absolute;left:14px;right:14px;bottom:-0.5px;height:2.5px;border-radius:2px;transition:background .18s; }
+  /* Tabs pill nativos — mesmo padrão visual do FullPlayer */
+  .tabs-pill-wrap { display:flex;justify-content:center;padding:4px 16px 16px; }
+  .tabs-pill {
+    display:inline-flex;
+    background:rgba(128,128,128,0.14);
+    border-radius:999px;
+    padding:3px;
+    gap:2px;
+    width:100%;
+  }
+  .tab-pill-btn {
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:none;
+    background:transparent;
+    border-radius:999px;
+    padding:8px 10px;
+    font-size:13.5px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .25s cubic-bezier(.4,0,.2,1), color .25s ease;
+    white-space:nowrap;
+  }
+  .tab-pill-btn.active {
+    background:#ffffff;
+  }
+  .tab-pill-count { font-size:11.5px;font-weight:700; }
+
+  .tab-swipe-area { touch-action:pan-y; }
 
   /* Lista com índice numerado — encoda a posição/ordem real do item na biblioteca */
   .lib-list { display:flex;flex-direction:column;padding:6px 16px 4px; }

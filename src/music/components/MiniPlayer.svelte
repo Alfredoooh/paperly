@@ -93,33 +93,38 @@
     playerOpen.set(true);
   }
 
-  // ---- Handle bar acima do card: arrasta pra cima abre o FullPlayer, pra baixo fecha tudo ----
+  // ---- Handlebar flutuante acima do card: arrastar para baixo fecha e para a reprodução por completo ----
   let dragging = false;
   let dragStartY = 0;
   let dragDeltaY = 0;
+  let dismissing = false;
 
   function onHandleDragStart(e) {
     dragging = true;
+    dismissing = false;
     dragStartY = (e.touches ? e.touches[0].clientY : e.clientY);
     dragDeltaY = 0;
   }
   function onHandleDragMove(e) {
     if (!dragging) return;
     const y = (e.touches ? e.touches[0].clientY : e.clientY);
-    dragDeltaY = y - dragStartY;
+    dragDeltaY = Math.max(0, y - dragStartY);
   }
   function onHandleDragEnd() {
     if (!dragging) return;
     dragging = false;
     const threshold = 40;
-    if (dragDeltaY < -threshold) {
-      // deslizar para cima -> abre o full player
-      playerOpen.set(true);
-    } else if (dragDeltaY > threshold) {
-      // deslizar para baixo -> fecha e para a música
-      stopPlayback();
+    if (dragDeltaY > threshold) {
+      // deslizar para baixo -> desce, some e para a música por completo
+      dismissing = true;
+      setTimeout(() => {
+        stopPlayback();
+        dismissing = false;
+        dragDeltaY = 0;
+      }, 220);
+    } else {
+      dragDeltaY = 0;
     }
-    dragDeltaY = 0;
   }
 
   function stopPlayback() {
@@ -134,13 +139,20 @@
 </script>
 
 {#if $currentTrack && !$playerOpen}
-  <div class="mini-wrap" class:no-bar={!hasBottomBar}>
+  <div
+    class="mini-wrap"
+    class:no-bar={!hasBottomBar}
+    class:dismissing
+    style="transform:translateY({dragging ? dragDeltaY : 0}px);"
+  >
 
+    <!-- Handlebar flutuante, separado do card, acima dele -->
     <div
-      class="handle-zone"
+      class="handle-float"
       on:touchstart={onHandleDragStart}
       on:touchmove={onHandleDragMove}
       on:touchend={onHandleDragEnd}
+      on:touchcancel={onHandleDragEnd}
     >
       <div class="handle-bar"></div>
     </div>
@@ -197,18 +209,23 @@
     left:10px;right:10px;
     bottom:calc(env(safe-area-inset-bottom,0px) + 58px + 10px);
     border-radius:999px;
-    overflow:hidden;
+    overflow:visible;
     z-index:65;
-    box-shadow:0 8px 32px rgba(0,0,0,0.4);
-    transition:bottom .2s ease;
+    transition:bottom .2s ease, transform .22s cubic-bezier(.32,.72,0,1), opacity .22s ease;
   }
   .mini-wrap.no-bar {
     bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
   }
+  .mini-wrap.dismissing {
+    transform:translateY(140px) !important;
+    opacity:0;
+  }
 
-  .handle-zone {
+  /* Handlebar flutuante — separado do card, não sobrepõe drawer nem outro conteúdo por estar fora do fluxo do card */
+  .handle-float {
     position:absolute;
-    top:-22px;left:0;right:0;
+    left:0;right:0;
+    bottom:100%;
     height:22px;
     display:flex;
     align-items:flex-end;
@@ -220,12 +237,15 @@
   .handle-bar {
     width:36px;height:4px;border-radius:999px;
     background:rgba(255,255,255,0.4);
+    box-shadow:0 2px 8px rgba(0,0,0,0.3);
   }
 
   .mini-progress-track {
     height:2px;
     background:rgba(255,255,255,0.12);
     position:relative;
+    border-radius:999px 999px 0 0;
+    overflow:hidden;
   }
   .mini-progress-fill {
     height:100%;
@@ -235,9 +255,10 @@
     display:flex;align-items:center;gap:12px;
     padding:8px 10px 8px 8px;
     border:none;cursor:pointer;text-align:left;width:100%;
-    border-radius:999px;
+    border-radius:0 0 999px 999px;
     backdrop-filter:blur(24px);
     -webkit-backdrop-filter:blur(24px);
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
   }
 
   .disc-wrap {

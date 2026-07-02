@@ -1,6 +1,6 @@
 <!-- src/music/pages/MusicPage.svelte -->
 <script>
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import Drawer           from '../components/Drawer.svelte';
   import HomePage         from './HomePage.svelte';
   import SearchPage       from './SearchPage.svelte';
@@ -29,11 +29,6 @@
   let pulseSeq      = 0;
   let searchPrefill = '';
 
-  // ---- Appbar hide-on-scroll: só reage ao scroll do SearchPage, esconde-se por completo antes da search-bar parar ----
-  let appbarHidden = false;
-  let appbarEl;
-  let appbarHeight = 56; // valor de fallback até medirmos o elemento real
-
   const menuItems = [
     { icon: 'home_outline', label: 'Início',    action: () => { activeTab = 'home'; currentPage.set('home'); drawerOpen = false; } },
     { icon: 'bookmark',     label: 'Guardados', action: () => {} },
@@ -41,22 +36,20 @@
   ];
 
   let feedTimer = null;
-  onMount(async () => {
+  onMount(() => {
     loadFeed();
     feedTimer = setInterval(loadFeed, 60 * 1000);
-    await tick();
-    if (appbarEl) appbarHeight = appbarEl.offsetHeight;
     return () => clearInterval(feedTimer);
   });
 
   $: themeProps       = { isDark, bg, bgCard, bgChip, txtPrim, txtSec, divider };
   $: showArtist       = $currentPage === 'artist';
   $: showSearchActive = $currentPage === 'search-active';
-  $: hideChrome       = showArtist || showSearchActive;
-  $: appbarTitle      = activeTab === 'home' ? 'Início' : activeTab === 'search' ? 'Pesquisa' : 'Biblioteca';
-
-  // Sai do tab de pesquisa -> appbar volta sempre visível
-  $: if (activeTab !== 'search') { appbarHidden = false; }
+  // O tab de pesquisa passa a ter o próprio appbar (dentro do SearchPage), por isso
+  // também entra no hideChrome do appbar do MusicPage — mas mantém o bottom-bar.
+  $: hideAppbar       = showArtist || showSearchActive || activeTab === 'search';
+  $: hideBottomBar    = showArtist || showSearchActive;
+  $: appbarTitle      = activeTab === 'home' ? 'Início' : 'Biblioteca';
 
   function tapTab(id) {
     activeTab = id;
@@ -75,11 +68,6 @@
     searchPrefill = '';
     currentPage.set('search');
   }
-
-  // Disparado pelo SearchPage a cada scroll: só usado para saber se o appbar deve estar escondido
-  function handleSearchScrollState(e) {
-    appbarHidden = !!e.detail?.hidden;
-  }
 </script>
 
 <div class="root" style="background:{bg};color:{txtPrim}">
@@ -88,12 +76,8 @@
     on:close={() => drawerOpen = false}
     on:openSettings={() => dispatch('nav', { to: 'settings' })} />
 
-  {#if !hideChrome}
-    <div
-      class="appbar"
-      bind:this={appbarEl}
-      style="background:{bg};transform:translateY({appbarHidden ? '-100%' : '0'});"
-    >
+  {#if !hideAppbar}
+    <div class="appbar" style="background:{bg}">
       <button class="icon-btn" on:click={() => drawerOpen = true}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
       </button>
@@ -109,13 +93,13 @@
     {:else if activeTab === 'home'}
       <HomePage {...themeProps} currentTrackExists={!!$currentTrack} />
     {:else if activeTab === 'search'}
-      <SearchPage {...themeProps} currentTrackExists={!!$currentTrack} {appbarHeight} on:openSearch={openSearchActive} on:scrollState={handleSearchScrollState} />
+      <SearchPage {...themeProps} currentTrackExists={!!$currentTrack} onOpenDrawer={() => drawerOpen = true} on:openSearch={openSearchActive} />
     {:else if activeTab === 'library'}
       <LibraryPage {...themeProps} currentTrackExists={!!$currentTrack} />
     {/if}
   </div>
 
-  {#if !hideChrome}
+  {#if !hideBottomBar}
     <div class="bottom-chrome">
       <div class="bottom-bar-gradient" class:dark={isDark}></div>
       <div class="bottom-bar">
@@ -140,12 +124,12 @@
 
 </div>
 
-<MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} hasBottomBar={!hideChrome} />
+<MiniPlayer {bg} {bgCard} {txtPrim} {txtSec} {divider} hasBottomBar={!hideBottomBar} />
 <FullPlayer />
 
 <style>
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }
-  .appbar { display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px; flex-shrink:0; transition:transform .28s cubic-bezier(.4,0,.2,1); will-change:transform; }
+  .appbar { display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px; flex-shrink:0; }
   .appbar-title { font-size:22px; font-weight:900; letter-spacing:-.5px; }
   .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }

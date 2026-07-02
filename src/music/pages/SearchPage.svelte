@@ -9,9 +9,10 @@
   export let txtSec = '#aaaaaa';
   export let divider = 'rgba(255,255,255,0.07)';
   export let currentTrackExists = false;
-  export let appbarHeight = 56; // altura do appbar do MusicPage, usada como limite do deslocamento da search-bar
+  export let onOpenDrawer = () => {};
 
   const dispatch = createEventDispatcher();
+  const APPBAR_H = 56; // altura do appbar próprio do SearchPage — a search-bar trava aqui ao subir
 
   const genres = [
     { label: 'Pop',        color: '#FC3C44', img: 'pop-music-concert' },
@@ -36,23 +37,17 @@
     dispatch('openSearch');
   }
 
-  // ── Search-bar sobe junto com o appbar do MusicPage, mas trava assim que o appbar
-  //    desaparecer por completo — o input nunca fica oculto ──
+  // ── Appbar próprio sobe e desaparece ao rolar; a search-bar acompanha até ao limite
+  //    da altura do appbar e depois fica fixa (nunca fica oculta) ──
   let scrollWrapEl;
   let lastScrollTop = 0;
-  let searchBarOffset = 0; // 0..appbarHeight
+  let searchBarOffset = 0; // 0..APPBAR_H
 
   function handleScroll() {
     if (!scrollWrapEl) return;
     const top = scrollWrapEl.scrollTop;
-    const goingDown = top > lastScrollTop;
-    const hidden = top > 40 && goingDown;
     lastScrollTop = top;
-
-    // acompanha o scroll 1:1 até ao limite da altura do appbar — depois disso para
-    searchBarOffset = Math.min(Math.max(top, 0), appbarHeight);
-
-    dispatch('scrollState', { hidden });
+    searchBarOffset = Math.min(Math.max(top, 0), APPBAR_H);
   }
 
   // ── Recorder ──────────────────────────────────────────────
@@ -294,35 +289,46 @@
   }
 </script>
 
-<div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll}>
+<div class="page-root">
 
-  <div class="search-wrap" style="transform:translateY(-{searchBarOffset}px);">
-    <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
-      <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
-      <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
+  <!-- Appbar próprio do SearchPage: mesmo estilo/fonte do appbar do MusicPage, com o mesmo drawer -->
+  <div class="appbar" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{searchBarOffset}px);">
+    <button class="icon-btn" on:click={onOpenDrawer}>
+      <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
     </button>
-    <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
-      <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
-    </button>
+    <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
   </div>
 
-  <div class="page" style="margin-top:-{searchBarOffset}px;">
-    <div class="section-hdr">
-      <span class="section-title" style="color:{txtPrim}">Categorias</span>
-    </div>
-    <div class="genre-grid">
-      {#each genres as g}
-        <button class="genre-card" style="background:{g.color}" on:click={openSearch}>
-          <span class="genre-label">{g.label}</span>
-          <div class="genre-poster">
-            <img class="genre-img" src={genreImg(g.img)} alt={g.label} loading="lazy" />
-          </div>
-        </button>
-      {/each}
-    </div>
-  </div>
+  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{APPBAR_H}px;">
 
-  <div style="height:{currentTrackExists ? 148 : 88}px"></div>
+    <div class="search-wrap" style="transform:translateY(-{searchBarOffset}px);">
+      <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
+        <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
+      </button>
+      <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
+      </button>
+    </div>
+
+    <div class="page" style="margin-top:-{searchBarOffset}px;">
+      <div class="section-hdr">
+        <span class="section-title" style="color:{txtPrim}">Categorias</span>
+      </div>
+      <div class="genre-grid">
+        {#each genres as g}
+          <button class="genre-card" style="background:{g.color}" on:click={openSearch}>
+            <span class="genre-label">{g.label}</span>
+            <div class="genre-poster">
+              <img class="genre-img" src={genreImg(g.img)} alt={g.label} loading="lazy" />
+            </div>
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <div style="height:{currentTrackExists ? 148 : 88}px"></div>
+  </div>
 </div>
 
 <input
@@ -388,7 +394,20 @@
 {/if}
 
 <style>
-  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
+  .page-root { position:relative; height:100%; overflow:hidden; }
+
+  /* Appbar próprio — mesma fonte/tamanho do appbar do MusicPage */
+  .appbar {
+    position:absolute; top:0; left:0; right:0; z-index:5;
+    display:flex; align-items:center; gap:10px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
+    transition:transform .05s linear;
+  }
+  .appbar-title { font-size:22px; font-weight:900; letter-spacing:-.5px; }
+  .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
+  .icon-btn:active { opacity:0.5; }
+
+  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
   .page { padding:0 0 8px; transition:margin-top .05s linear; }
 
   .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; transition:transform .05s linear; }

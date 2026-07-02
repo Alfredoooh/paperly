@@ -19,10 +19,6 @@
     return 'Boa noite';
   })();
   
-  // --- Embaralhamento estável por sessão ---
-  // Cada vez que a Home monta, gera uma nova ordem para os grupos de conteúdo
-  // que variam à toa (quick picks, charts, tendências). Evita repetir a mesma
-  // "cara" da tela toda vez que o utilizador volta à Home.
   function shuffle(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -48,7 +44,6 @@
     shuffledPlaylists = shuffle($playlists);
   }
   
-  // Reembaralha sempre que os dados-fonte mudam (novo fetch) ou ao montar
   $: if (!$feedLoading && !$feedError && $feedTracks.length) {
     reshuffleAll();
   }
@@ -58,7 +53,6 @@
   }
   
   onMount(() => {
-    // Se já havia dados em cache no store ao montar, embaralha imediatamente
     if ($feedTracks.length) reshuffleAll();
   });
   
@@ -78,9 +72,7 @@
   
   {#if $feedLoading}
     <div class="loader-screen">
-      <div class="gradient-ring">
-        <div class="gradient-ring-inner" style="background:{isDark ? '#000' : '#fff'}"></div>
-      </div>
+      <div class="gradient-ring"></div>
       <span class="loader-label" style="color:{txtSec}">A preparar a tua música…</span>
     </div>
 
@@ -93,12 +85,10 @@
 
   {:else}
 
-    <!-- Greeting -->
     <div class="greeting-wrap">
       <h2 class="greeting" style="color:{txtPrim}">{greeting} 👋</h2>
     </div>
 
-    <!-- Quick picks (aleatórios) -->
     {#if shuffledQuickPicks.length}
       <div class="quick-grid">
         {#each shuffledQuickPicks as a (a.id)}
@@ -116,7 +106,6 @@
       </div>
     {/if}
 
-    <!-- Top Artistas -->
     {#if shuffledArtists.length}
       <div class="section-hdr">
         <span class="section-title" style="color:{txtPrim}">Artistas em destaque</span>
@@ -139,7 +128,6 @@
       </div>
     {/if}
 
-    <!-- Charts (embaralhado) -->
     {#if shuffledCharts.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">🔥 Para ti agora</span>
@@ -151,7 +139,6 @@
       </div>
     {/if}
 
-    <!-- Álbuns (embaralhado) -->
     {#if shuffledAlbums.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">Álbuns em destaque</span>
@@ -163,7 +150,6 @@
       </div>
     {/if}
 
-    <!-- Playlists (embaralhado) -->
     {#if shuffledPlaylists.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">Playlists editoriais</span>
@@ -187,7 +173,6 @@
       </div>
     {/if}
 
-    <!-- Géneros -->
     <div class="section-hdr" style="margin-top:24px">
       <span class="section-title" style="color:{txtPrim}">Explorar géneros</span>
     </div>
@@ -199,7 +184,6 @@
       {/each}
     </div>
 
-    <!-- Tendências (embaralhado) -->
     {#if shuffledTrends.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">Tendências</span>
@@ -258,7 +242,6 @@
   .center-pad.col { flex-direction:column;gap:0; }
   .retry-btn { border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:12px; }
 
-  /* Loader central em tela cheia com gradient ring */
   .loader-screen {
     display:flex;
     flex-direction:column;
@@ -275,15 +258,6 @@
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
     mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
     animation: spin 0.9s linear infinite;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .gradient-ring-inner {
-    width:100%;
-    height:100%;
-    border-radius:50%;
-    opacity:0;
   }
   .loader-label {
     font-size:13px;

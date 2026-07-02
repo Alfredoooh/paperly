@@ -1,6 +1,6 @@
 <!-- src/music/pages/SearchPage.svelte -->
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { searchBarRect, PROXY } from '../store/music.js';
 
   export let isDark = false;
@@ -13,22 +13,34 @@
   const dispatch = createEventDispatcher();
 
   const genres = [
-    { label: 'Pop',        color: '#FC3C44' },
-    { label: 'Hip-Hop',    color: '#5856D6' },
-    { label: 'R&B',        color: '#FF9500' },
-    { label: 'Electronic', color: '#007AFF' },
-    { label: 'Rock',       color: '#34C759' },
-    { label: 'Afro',       color: '#FF2D55' },
-    { label: 'Jazz',       color: '#AF52DE' },
-    { label: 'Clássica',   color: '#FF6B35' },
-    { label: 'Kizomba',    color: '#E8002D' },
-    { label: 'Kuduro',     color: '#FF9F0A' },
+    { label: 'Pop',        color: '#FC3C44', img: 'pop-music-concert' },
+    { label: 'Hip-Hop',    color: '#5856D6', img: 'hiphop-street' },
+    { label: 'R&B',        color: '#FF9500', img: 'rnb-mic' },
+    { label: 'Electronic', color: '#007AFF', img: 'electronic-dj' },
+    { label: 'Rock',       color: '#34C759', img: 'rock-guitar' },
+    { label: 'Afro',       color: '#FF2D55', img: 'afrobeat-drums' },
+    { label: 'Jazz',       color: '#AF52DE', img: 'jazz-saxophone' },
+    { label: 'Clássica',   color: '#FF6B35', img: 'classical-violin' },
+    { label: 'Kizomba',    color: '#E8002D', img: 'kizomba-dance' },
+    { label: 'Kuduro',     color: '#FF9F0A', img: 'kuduro-beat' },
   ];
+
+  function genreImg(seed) {
+    return `https://picsum.photos/seed/${seed}/300/300`;
+  }
 
   function openSearch(e) {
     const btn = e.currentTarget;
     searchBarRect.set(btn.getBoundingClientRect());
     dispatch('openSearch');
+  }
+
+  // ── Appbar-on-scroll ─────────────────────────────────────
+  let scrollWrapEl;
+  let scrolled = false;
+  function handleScroll() {
+    if (!scrollWrapEl) return;
+    scrolled = scrollWrapEl.scrollTop > 4;
   }
 
   // ── Recorder ──────────────────────────────────────────────
@@ -47,6 +59,7 @@
   let wavePhase      = 0;
   let recognizing    = false;
   let recognizeError = null;
+  let fileInputEl;
 
   $: recTimerStr = (() => {
     const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
@@ -103,6 +116,44 @@
     audioChunks    = [];
     showRecOverlay = false;
     stopWaveAnim();
+  }
+
+  function triggerUpload() {
+    fileInputEl?.click();
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    showRecOverlay = true;
+    recognizing    = true;
+    recognizeError = null;
+
+    try {
+      const res = await fetch(`${PROXY}/api/recognize`, {
+        method:  'POST',
+        headers: { 'Content-Type': file.type || 'audio/webm' },
+        body:    file,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.title) throw new Error(data.error || 'Não reconhecido');
+
+      showRecOverlay = false;
+      recognizing    = false;
+
+      const query = data.artist ? `${data.artist} ${data.title}` : data.title;
+      dispatch('openSearch', { prefillQuery: query });
+
+    } catch (err) {
+      recognizing    = false;
+      recognizeError = err.message || 'Não foi possível reconhecer';
+      setTimeout(() => {
+        recognizeError = null;
+        showRecOverlay = false;
+      }, 2200);
+    }
   }
 
   async function handleRecStop() {
@@ -191,32 +242,45 @@
   }
 </script>
 
-<div class="page">
+<div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll}>
 
-  <div class="search-wrap">
-    <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
-      <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
-      <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
-    </button>
-    <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
-      <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
-    </button>
-  </div>
-
-  <div class="section-hdr">
-    <span class="section-title" style="color:{txtPrim}">Categorias</span>
-  </div>
-  <div class="genre-grid">
-    {#each genres as g}
-      <button class="genre-card" style="background:{g.color}" on:click={openSearch}>
-        <span class="genre-label">{g.label}</span>
+  <div class="sticky-search" class:scrolled style="background:{scrolled ? bgCard : 'transparent'}">
+    <div class="search-wrap">
+      <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
+        <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
       </button>
-    {/each}
+      <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
+      </button>
+    </div>
   </div>
 
+  <div class="page">
+    <div class="section-hdr">
+      <span class="section-title" style="color:{txtPrim}">Categorias</span>
+    </div>
+    <div class="genre-grid">
+      {#each genres as g}
+        <button class="genre-card" on:click={openSearch}>
+          <img class="genre-img" src={genreImg(g.img)} alt={g.label} loading="lazy" />
+          <div class="genre-tint" style="background:{g.color}"></div>
+          <span class="genre-label">{g.label}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div style="height:{currentTrackExists ? 148 : 88}px"></div>
 </div>
 
-<div style="height:{currentTrackExists ? 148 : 88}px"></div>
+<input
+  bind:this={fileInputEl}
+  type="file"
+  accept="audio/*"
+  style="display:none"
+  on:change={handleFileUpload}
+/>
 
 {#if showRecOverlay}
   <div class="rec-overlay" class:dark={isDark}>
@@ -236,7 +300,7 @@
       {:else}
         <div class="rec-inner">
           <button class="rec-btn" style="background:{isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'}" on:click={cancelRecording}>
-            <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:{txtPrim}"></span>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:{txtPrim}"></span>
           </button>
           <div class="rec-center">
             <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
@@ -244,12 +308,18 @@
             <span class="rec-timer" style="color:{txtPrim}">{recTimerStr}</span>
           </div>
           <button class="rec-btn rec-send" style="background:{isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)'}" on:click={stopRecording}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={txtPrim} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={txtPrim} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </button>
         </div>
-        <span class="rec-hint" style="color:{txtSec}">A ouvir… toca a música perto do microfone</span>
+        <div class="rec-footer">
+          <span class="rec-hint" style="color:{txtSec}">A ouvir… toca a música perto do microfone</span>
+          <button class="rec-upload-btn" style="color:{txtSec}" on:click={triggerUpload}>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');width:13px;height:13px;background:{txtSec}"></span>
+            Enviar ficheiro áudio
+          </button>
+        </div>
       {/if}
 
     </div>
@@ -257,12 +327,19 @@
 {/if}
 
 <style>
+  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
   .page { padding:0 0 8px; }
+
+  .sticky-search {
+    position:sticky; top:0; z-index:30;
+    transition:background-color .2s ease;
+  }
+  .sticky-search.scrolled { box-shadow:0 1px 0 rgba(128,128,128,0.12); }
 
   .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }
   .search-bar {
     flex:1; display:flex; align-items:center; gap:10px;
-    border-radius:14px; padding:13px 14px; border:none; cursor:pointer;
+    border-radius:999px; padding:13px 16px; border:none; cursor:pointer;
     text-align:left; transition:opacity .15s, transform .15s;
   }
   .search-bar:active { opacity:0.7; transform:scale(0.99); }
@@ -270,7 +347,7 @@
 
   .rec-trigger {
     width:48px; height:48px; flex-shrink:0;
-    border-radius:14px; border:none; cursor:pointer;
+    border-radius:50%; border:none; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
     transition:opacity .15s, transform .15s;
   }
@@ -281,9 +358,19 @@
   .section-hdr { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 10px; }
   .section-title { font-size:20px; font-weight:800; letter-spacing:-.4px; }
   .genre-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 16px; }
-  .genre-card { border:none; border-radius:12px; padding:20px 16px; cursor:pointer; text-align:left; min-height:80px; display:flex; align-items:flex-end; transition:opacity .15s, transform .15s; }
-  .genre-card:active { opacity:0.8; transform:scale(0.97); }
-  .genre-label { font-size:16px; font-weight:800; color:#fff; letter-spacing:-.3px; }
+  .genre-card {
+    position:relative; border:none; border-radius:12px; overflow:hidden;
+    height:100px; cursor:pointer; padding:0;
+    transition:opacity .15s, transform .15s;
+  }
+  .genre-card:active { opacity:0.88; transform:scale(0.97); }
+  .genre-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .genre-tint { position:absolute; inset:0; opacity:0.55; mix-blend-mode:multiply; }
+  .genre-label {
+    position:absolute; left:16px; bottom:14px; z-index:1;
+    font-size:16px; font-weight:800; color:#fff; letter-spacing:-.3px;
+    text-shadow:0 1px 6px rgba(0,0,0,0.35);
+  }
 
   /* Floating recorder */
   .rec-overlay {
@@ -299,32 +386,41 @@
 
   .rec-card {
     width:100%; max-width:480px;
-    border-radius:24px;
-    padding:16px 16px 20px;
+    border-radius:32px;
+    padding:14px 14px 16px;
     box-shadow:0 16px 48px rgba(0,0,0,0.30);
     animation:cardIn .28s cubic-bezier(0.2,0.9,0.3,1) both;
-    display:flex; flex-direction:column; gap:10px;
+    display:flex; flex-direction:column; gap:8px;
   }
   @keyframes cardIn { from{opacity:0;transform:translateY(24px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
 
-  .rec-inner { display:flex; align-items:center; justify-content:space-between; height:52px; }
+  .rec-inner { display:flex; align-items:center; justify-content:space-between; height:44px; }
   .rec-btn {
-    width:44px; height:44px; flex-shrink:0;
+    width:38px; height:38px; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     border-radius:50%; border:none; cursor:pointer;
     transition:opacity .15s, transform .15s;
   }
   .rec-btn:active { opacity:0.7; transform:scale(0.88); }
-  .rec-center { flex:1; display:flex; align-items:center; justify-content:center; gap:10px; position:relative; height:44px; }
+  .rec-center { flex:1; display:flex; align-items:center; justify-content:center; gap:10px; position:relative; height:38px; }
   .rec-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-  .rec-dot { width:7px; height:7px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; z-index:1; }
+  .rec-dot { width:6px; height:6px; border-radius:50%; background:#FF3B30; flex-shrink:0; animation:recPulse 1.1s ease-in-out infinite; z-index:1; }
   @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
-  .rec-timer { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:.06em; z-index:1; }
+  .rec-timer { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:.06em; z-index:1; }
 
-  .rec-hint { font-size:12px; font-weight:500; text-align:center; opacity:0.7; }
+  .rec-footer { display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:2px; }
+  .rec-hint { font-size:11px; font-weight:500; text-align:center; opacity:0.7; }
   .rec-error { font-size:13px; font-weight:600; color:#FF3B30; text-align:center; }
+  .rec-upload-btn {
+    display:flex; align-items:center; gap:5px;
+    background:none; border:none; cursor:pointer;
+    font-size:11px; font-weight:600;
+    padding:4px 8px; border-radius:999px;
+    transition:opacity .15s;
+  }
+  .rec-upload-btn:active { opacity:0.6; }
 
-  .rec-recognizing { display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px 0; }
-  .spinner { width:26px; height:26px; border-radius:50%; border:3px solid rgba(128,128,128,0.2); animation:spin .8s linear infinite; }
+  .rec-recognizing { display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px 0; }
+  .spinner { width:24px; height:24px; border-radius:50%; border:3px solid rgba(128,128,128,0.2); animation:spin .8s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
 </style>

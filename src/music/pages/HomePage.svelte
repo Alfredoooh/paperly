@@ -72,7 +72,7 @@
   
   {#if $feedLoading}
     <div class="loader-screen">
-      <div class="gradient-ring"></div>
+      <div class="l14"></div>
       <span class="loader-label" style="color:{txtSec}">A preparar a tua música…</span>
     </div>
 
@@ -250,19 +250,24 @@
     gap:16px;
     min-height:70vh;
   }
-  .gradient-ring {
-    width:44px;
-    height:44px;
+
+  .l14 {
+    width:36px;
+    height:36px;
     border-radius:50%;
     background: conic-gradient(from 0deg, transparent, #fff);
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-    animation: spin 0.9s linear infinite;
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    animation: spin 1s linear infinite;
   }
+
   .loader-label {
     font-size:13px;
     font-weight:500;
     letter-spacing:.1px;
   }
-  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @keyframes spin {
+    to { transform:rotate(360deg); }
+  }
 </style>

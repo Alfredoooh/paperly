@@ -12,7 +12,6 @@
   export let onOpenDrawer = () => {};
 
   const dispatch = createEventDispatcher();
-  const APPBAR_H = 56; // altura do appbar próprio do SearchPage — a search-bar trava aqui ao subir
 
   const genres = [
     { label: 'Pop',        color: '#FC3C44', img: 'pop-music-concert' },
@@ -35,19 +34,6 @@
     const btn = e.currentTarget;
     searchBarRect.set(btn.getBoundingClientRect());
     dispatch('openSearch');
-  }
-
-  // ── Appbar próprio sobe e desaparece ao rolar; a search-bar acompanha até ao limite
-  //    da altura do appbar e depois fica fixa (nunca fica oculta) ──
-  let scrollWrapEl;
-  let lastScrollTop = 0;
-  let searchBarOffset = 0; // 0..APPBAR_H
-
-  function handleScroll() {
-    if (!scrollWrapEl) return;
-    const top = scrollWrapEl.scrollTop;
-    lastScrollTop = top;
-    searchBarOffset = Math.min(Math.max(top, 0), APPBAR_H);
   }
 
   // ── Recorder ──────────────────────────────────────────────
@@ -291,27 +277,29 @@
 
 <div class="page-root">
 
-  <!-- Appbar próprio do SearchPage: mesmo estilo/fonte do appbar do MusicPage, com o mesmo drawer -->
-  <div class="appbar" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{searchBarOffset}px);">
-    <button class="icon-btn" on:click={onOpenDrawer}>
-      <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
-    </button>
-    <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
-  </div>
+  <div class="scroll-wrap">
 
-  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{APPBAR_H}px;">
+    <!-- Appbar + search-bar num único bloco sticky: sobe com o scroll e trava no topo, sem JS -->
+    <div class="sticky-head" style="background:{isDark ? '#121212' : '#ffffff'};">
+      <div class="appbar">
+        <button class="icon-btn" on:click={onOpenDrawer}>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
+        </button>
+        <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
+      </div>
 
-    <div class="search-wrap" style="transform:translateY(-{searchBarOffset}px);">
-      <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
-        <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
-        <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
-      </button>
-      <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
-        <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
-      </button>
+      <div class="search-wrap">
+        <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
+          <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
+        </button>
+        <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
+          <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
+        </button>
+      </div>
     </div>
 
-    <div class="page" style="margin-top:-{searchBarOffset}px;">
+    <div class="page">
       <div class="section-hdr">
         <span class="section-title" style="color:{txtPrim}">Categorias</span>
       </div>
@@ -396,21 +384,24 @@
 <style>
   .page-root { position:relative; height:100%; overflow:hidden; }
 
-  /* Appbar próprio — mesma fonte/tamanho do appbar do MusicPage */
+  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
+
+  /* Bloco único sticky: appbar + search-bar sobem juntos com o scroll e travam no topo — sem handleScroll, sem transform manual */
+  .sticky-head {
+    position:sticky; top:0; z-index:5;
+  }
+
   .appbar {
-    position:absolute; top:0; left:0; right:0; z-index:5;
     display:flex; align-items:center; gap:10px;
     padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
-    transition:transform .05s linear;
   }
   .appbar-title { font-size:22px; font-weight:900; letter-spacing:-.5px; }
   .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
 
-  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
-  .page { padding:0 0 8px; transition:margin-top .05s linear; }
+  .page { padding:0 0 8px; }
 
-  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; transition:transform .05s linear; }
+  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }
   .search-bar {
     flex:1; display:flex; align-items:center; gap:10px;
     border-radius:999px; padding:13px 16px; border:none; cursor:pointer;

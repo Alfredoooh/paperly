@@ -12,6 +12,7 @@
   export let onOpenDrawer = () => {};
 
   const dispatch = createEventDispatcher();
+  const HEAD_H = 130; // altura total do bloco appbar+search-bar — desliza até desaparecer
 
   const genres = [
     { label: 'Pop',        color: '#FC3C44', img: 'pop-music-concert' },
@@ -24,6 +25,18 @@
     { label: 'Clássica',   color: '#FF6B35', img: 'classical-violin' },
     { label: 'Kizomba',    color: '#E8002D', img: 'kizomba-dance' },
     { label: 'Kuduro',     color: '#FF9F0A', img: 'kuduro-beat' },
+    { label: 'Semba',      color: '#00A896', img: 'semba-dance' },
+    { label: 'Country',    color: '#B5651D', img: 'country-guitar' },
+    { label: 'Reggae',     color: '#009B3A', img: 'reggae-vibes' },
+    { label: 'Gospel',     color: '#6A0DAD', img: 'gospel-choir' },
+    { label: 'Amapiano',   color: '#F72585', img: 'amapiano-dj' },
+    { label: 'Trap',       color: '#3A0CA3', img: 'trap-beats' },
+    { label: 'Funk',       color: '#FFB703', img: 'funk-brasil' },
+    { label: 'Indie',      color: '#8D99AE', img: 'indie-band' },
+    { label: 'Latina',     color: '#EF476F', img: 'latin-dance' },
+    { label: 'Soul',       color: '#B08968', img: 'soul-vinyl' },
+    { label: 'Ambient',    color: '#219EBC', img: 'ambient-synth' },
+    { label: 'Metal',      color: '#495057', img: 'metal-guitar' },
   ];
 
   function genreImg(seed) {
@@ -34,6 +47,15 @@
     const btn = e.currentTarget;
     searchBarRect.set(btn.getBoundingClientRect());
     dispatch('openSearch');
+  }
+
+  // ── Header desliza junto com o scroll até sair completamente do ecrã ──
+  let scrollWrapEl;
+  let headOffset = 0; // 0..HEAD_H
+
+  function handleScroll() {
+    if (!scrollWrapEl) return;
+    headOffset = Math.min(Math.max(scrollWrapEl.scrollTop, 0), HEAD_H);
   }
 
   // ── Recorder ──────────────────────────────────────────────
@@ -277,28 +299,27 @@
 
 <div class="page-root">
 
-  <div class="scroll-wrap">
-
-    <!-- Appbar + search-bar num único bloco sticky: sobe com o scroll e trava no topo, sem JS -->
-    <div class="sticky-head" style="background:{isDark ? '#121212' : '#ffffff'};">
-      <div class="appbar">
-        <button class="icon-btn" on:click={onOpenDrawer}>
-          <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
-        </button>
-        <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
-      </div>
-
-      <div class="search-wrap">
-        <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
-          <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
-          <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
-        </button>
-        <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
-          <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
-        </button>
-      </div>
+  <!-- Bloco único: appbar + search-bar deslizam juntos e desaparecem ao rolar -->
+  <div class="head" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{headOffset}px);">
+    <div class="appbar">
+      <button class="icon-btn" on:click={onOpenDrawer}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
+      </button>
+      <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
     </div>
 
+    <div class="search-wrap">
+      <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
+        <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
+      </button>
+      <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{HEAD_H}px;">
     <div class="page">
       <div class="section-hdr">
         <span class="section-title" style="color:{txtPrim}">Categorias</span>
@@ -384,11 +405,10 @@
 <style>
   .page-root { position:relative; height:100%; overflow:hidden; }
 
-  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
-
-  /* Bloco único sticky: appbar + search-bar sobem juntos com o scroll e travam no topo — sem handleScroll, sem transform manual */
-  .sticky-head {
-    position:sticky; top:0; z-index:5;
+  /* Bloco único que desliza para fora do ecrã ao rolar */
+  .head {
+    position:absolute; top:0; left:0; right:0; z-index:5;
+    transition:transform .05s linear;
   }
 
   .appbar {
@@ -399,6 +419,7 @@
   .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
 
+  .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
   .page { padding:0 0 8px; }
 
   .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }

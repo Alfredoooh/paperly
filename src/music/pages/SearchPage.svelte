@@ -12,7 +12,8 @@
   export let onOpenDrawer = () => {};
 
   const dispatch = createEventDispatcher();
-  const APPBAR_H = 56; // altura do título — o offset trava aqui, a search-bar não sobe mais que isto
+  const HEAD_H = 130;   // altura total reservada no scroll
+  const APPBAR_H = 58;  // só a parte do título/appbar que desliza
 
   const genres = [
     { label: 'Pop',        color: '#FC3C44', img: 'pop-music-concert' },
@@ -49,9 +50,9 @@
     dispatch('openSearch');
   }
 
-  // ── Título desliza e some por completo; a search-bar acompanha só até aí e trava ──
+  // ── Header desliza junto com o scroll, mas só até a appbar sumir ──
   let scrollWrapEl;
-  let headOffset = 0; // offset do bloco appbar (título) — vai de 0 até APPBAR_H e trava
+  let headOffset = 0; // 0..APPBAR_H
 
   function handleScroll() {
     if (!scrollWrapEl) return;
@@ -76,7 +77,6 @@
   let fileInputEl;
 
   function stopMicHard() {
-    // Garante que o microfone é sempre libertado, mesmo se algo falhar a meio
     try { mediaRecorder?.stream?.getTracks().forEach(t => t.stop()); } catch (e) {}
     waveStream?.getTracks().forEach(t => t.stop());
     waveStream = null;
@@ -117,7 +117,6 @@
     if (!isRecording || !mediaRecorder) return;
     isRecording = false;
     mediaRecorder.stop();
-    // O stream só é fechado depois de handleRecStop terminar de enviar o áudio
   }
 
   function cancelRecording() {
@@ -141,7 +140,6 @@
   }
 
   async function extractAudioFromVideo(file) {
-    // Reproduz o vídeo num elemento oculto e captura o áudio via Web Audio API
     const videoEl = document.createElement('video');
     videoEl.src = URL.createObjectURL(file);
     videoEl.muted = false;
@@ -166,7 +164,6 @@
 
     rec.start();
     videoEl.play();
-    // Captura só os primeiros 15s, suficiente para o fingerprint
     const captureMs = Math.min(15000, (videoEl.duration || 15) * 1000);
     await new Promise(r => setTimeout(r, captureMs));
     rec.stop();
@@ -233,7 +230,6 @@
   }
 
   async function handleRecStop() {
-    // O microfone é sempre libertado aqui, quer o reconhecimento tenha sucesso ou não
     stopMicHard();
 
     if (!audioChunks.length) { showRecOverlay = false; return; }
@@ -242,7 +238,6 @@
     await sendForRecognition(blob, 'audio/webm');
   }
 
-  // ── Wave animation (igual à HomePage) ─────────────────────
   function startWaveAnim() {
     const N = 5;
     const bh = new Array(N).fill(0);
@@ -299,18 +294,15 @@
 
 <div class="page-root">
 
-  <!-- Título: desliza e sai completamente de vista, offset trava em APPBAR_H -->
-  <div class="appbar" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{headOffset}px);">
-    <button class="icon-btn" on:click={onOpenDrawer}>
-      <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
-    </button>
-    <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
-  </div>
+  <div class="head" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{headOffset}px);">
+    <div class="appbar">
+      <button class="icon-btn" on:click={onOpenDrawer}>
+        <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
+      </button>
+      <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
+    </div>
 
-  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{APPBAR_H}px;">
-
-    <!-- Search-bar: sobe junto até o título sumir, depois pára ali, fixa no topo -->
-    <div class="search-wrap" style="transform:translateY(-{headOffset}px);">
+    <div class="search-wrap">
       <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
         <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
@@ -319,8 +311,10 @@
         <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
       </button>
     </div>
+  </div>
 
-    <div class="page" style="margin-top:-{headOffset}px;">
+  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{HEAD_H}px;">
+    <div class="page">
       <div class="section-hdr">
         <span class="section-title" style="color:{txtPrim}">Categorias</span>
       </div>
@@ -376,7 +370,6 @@
         </div>
 
       {:else}
-        <!-- Card estilo player: mesmos botões redondos, sem cronómetro -->
         <div class="rec-inner">
           <button class="rec-btn" style="background:{isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'}" on:click={cancelRecording}>
             <span class="svg-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:{txtPrim}"></span>
@@ -405,20 +398,23 @@
 <style>
   .page-root { position:relative; height:100%; overflow:hidden; }
 
-  .appbar {
+  .head {
     position:absolute; top:0; left:0; right:0; z-index:5;
+    transition:transform .05s linear;
+  }
+
+  .appbar {
     display:flex; align-items:center; gap:10px;
     padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
-    transition:transform .05s linear;
   }
   .appbar-title { font-size:22px; font-weight:900; letter-spacing:-.5px; }
   .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
 
   .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
-  .page { padding:0 0 8px; transition:margin-top .05s linear; }
+  .page { padding:0 0 8px; }
 
-  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; transition:transform .05s linear; }
+  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }
   .search-bar {
     flex:1; display:flex; align-items:center; gap:10px;
     border-radius:999px; padding:13px 16px; border:none; cursor:pointer;

@@ -71,7 +71,10 @@
 <div class="page">
   
   {#if $feedLoading}
-    <div class="loader-screen">
+    <div
+      class="loader-screen"
+      style="--loader-main:{isDark ? '#ffffff' : '#111111'}; --loader-track:{isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)'}"
+    >
       <div class="l14"></div>
       <span class="loader-label" style="color:{txtSec}">A preparar a tua música…</span>
     </div>
@@ -255,7 +258,7 @@
     width:36px;
     height:36px;
     border-radius:50%;
-    background: conic-gradient(from 0deg, transparent, #fff);
+    background: conic-gradient(from 0deg, transparent, var(--loader-main));
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
     mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
     animation: spin 1s linear infinite;

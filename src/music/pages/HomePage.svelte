@@ -2,6 +2,7 @@
   import { feedTracks, newAlbums, trendTracks, artists, playlists, feedLoading, feedError, loadFeed, queue, playTrack, loadArtist, currentPage, ACCENT } from '../store/music.js';
   import TrackRow from '../components/TrackRow.svelte';
   import AlbumCard from '../components/AlbumCard.svelte';
+  import { onMount } from 'svelte';
   
   export let isDark = false;
   export let bgCard = '#242424';
@@ -18,9 +19,48 @@
     return 'Boa noite';
   })();
   
-  $: {
-    queue.set($feedTracks);
+  // --- Embaralhamento estável por sessão ---
+  // Cada vez que a Home monta, gera uma nova ordem para os grupos de conteúdo
+  // que variam à toa (quick picks, charts, tendências). Evita repetir a mesma
+  // "cara" da tela toda vez que o utilizador volta à Home.
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
   }
+  
+  let shuffledQuickPicks = [];
+  let shuffledCharts = [];
+  let shuffledTrends = [];
+  let shuffledArtists = [];
+  let shuffledAlbums = [];
+  let shuffledPlaylists = [];
+  
+  function reshuffleAll() {
+    shuffledQuickPicks = shuffle($newAlbums).slice(0, 6);
+    shuffledCharts = shuffle($feedTracks).slice(0, 20);
+    shuffledTrends = shuffle($trendTracks).slice(0, 15);
+    shuffledArtists = shuffle($artists);
+    shuffledAlbums = shuffle($newAlbums);
+    shuffledPlaylists = shuffle($playlists);
+  }
+  
+  // Reembaralha sempre que os dados-fonte mudam (novo fetch) ou ao montar
+  $: if (!$feedLoading && !$feedError && $feedTracks.length) {
+    reshuffleAll();
+  }
+  
+  $: {
+    queue.set(shuffledCharts.length ? shuffledCharts : $feedTracks);
+  }
+  
+  onMount(() => {
+    // Se já havia dados em cache no store ao montar, embaralha imediatamente
+    if ($feedTracks.length) reshuffleAll();
+  });
   
   const genreColors = [
     { label: 'Pop', color: '#FC3C44' },
@@ -37,8 +77,11 @@
 <div class="page">
   
   {#if $feedLoading}
-    <div class="center-pad">
-      <div class="spinner" style="border-top-color:{txtPrim}"></div>
+    <div class="loader-screen">
+      <div class="gradient-ring">
+        <div class="gradient-ring-inner" style="background:{isDark ? '#000' : '#fff'}"></div>
+      </div>
+      <span class="loader-label" style="color:{txtSec}">A preparar a tua música…</span>
     </div>
 
   {:else if $feedError}
@@ -55,10 +98,10 @@
       <h2 class="greeting" style="color:{txtPrim}">{greeting} 👋</h2>
     </div>
 
-    <!-- Quick picks (top 6 albums as grid) -->
-    {#if $newAlbums.length}
+    <!-- Quick picks (aleatórios) -->
+    {#if shuffledQuickPicks.length}
       <div class="quick-grid">
-        {#each $newAlbums.slice(0,6) as a}
+        {#each shuffledQuickPicks as a (a.id)}
           <button class="quick-card" style="background:{bgCard}">
             {#if a.cover_medium}
               <img src={a.cover_medium} alt={a.title} class="quick-img" loading="lazy" />
@@ -74,12 +117,12 @@
     {/if}
 
     <!-- Top Artistas -->
-    {#if $artists.length}
+    {#if shuffledArtists.length}
       <div class="section-hdr">
         <span class="section-title" style="color:{txtPrim}">Artistas em destaque</span>
       </div>
       <div class="h-scroll">
-        {#each $artists as ar}
+        {#each shuffledArtists as ar (ar.id)}
           <button class="artist-card" on:click={() => loadArtist(ar)}>
             <div class="artist-avatar">
               {#if ar.picture_medium}
@@ -96,37 +139,37 @@
       </div>
     {/if}
 
-    <!-- Charts globais -->
-    {#if $feedTracks.length}
+    <!-- Charts (embaralhado) -->
+    {#if shuffledCharts.length}
       <div class="section-hdr" style="margin-top:24px">
-        <span class="section-title" style="color:{txtPrim}">🔥 Charts globais</span>
+        <span class="section-title" style="color:{txtPrim}">🔥 Para ti agora</span>
       </div>
       <div class="tracks-list">
-        {#each $feedTracks.slice(0,20) as t, i}
+        {#each shuffledCharts as t, i (t.id)}
           <TrackRow track={t} {isDark} {bgCard} {txtPrim} {txtSec} rank={i+1} />
         {/each}
       </div>
     {/if}
 
-    <!-- Álbuns em destaque -->
-    {#if $newAlbums.length}
+    <!-- Álbuns (embaralhado) -->
+    {#if shuffledAlbums.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">Álbuns em destaque</span>
       </div>
       <div class="h-scroll">
-        {#each $newAlbums as a}
+        {#each shuffledAlbums as a (a.id)}
           <AlbumCard album={a} {txtPrim} {txtSec} {bgCard} size={160} />
         {/each}
       </div>
     {/if}
 
-    <!-- Playlists editoriais -->
-    {#if $playlists.length}
+    <!-- Playlists (embaralhado) -->
+    {#if shuffledPlaylists.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">Playlists editoriais</span>
       </div>
       <div class="h-scroll">
-        {#each $playlists as pl}
+        {#each shuffledPlaylists as pl (pl.id)}
           <button class="playlist-card">
             <div class="playlist-img-wrap">
               {#if pl.picture_medium}
@@ -156,13 +199,13 @@
       {/each}
     </div>
 
-    <!-- Tendências -->
-    {#if $trendTracks.length}
+    <!-- Tendências (embaralhado) -->
+    {#if shuffledTrends.length}
       <div class="section-hdr" style="margin-top:24px">
         <span class="section-title" style="color:{txtPrim}">Tendências</span>
       </div>
       <div class="tracks-list">
-        {#each $trendTracks.slice(0,15) as t, i}
+        {#each shuffledTrends as t, i (t.id)}
           <TrackRow track={t} {isDark} {bgCard} {txtPrim} {txtSec} rank={i+1} />
         {/each}
       </div>
@@ -180,8 +223,8 @@
   .greeting { font-size:26px;font-weight:800;letter-spacing:-.5px;margin:0; }
 
   .quick-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 8px; }
-  .quick-card { display:flex;align-items:center;gap:10px;background:transparent;border:none;cursor:pointer;border-radius:8px;padding:0;overflow:hidden;text-align:left;transition:opacity .15s; }
-  .quick-card:active { opacity:0.7; }
+  .quick-card { display:flex;align-items:center;gap:10px;background:transparent;border:none;cursor:pointer;border-radius:8px;padding:0;overflow:hidden;text-align:left;transition:transform .12s, opacity .12s; }
+  .quick-card:active { opacity:0.7;transform:scale(0.97); }
   .quick-img { width:52px;height:52px;object-fit:cover;flex-shrink:0;border-radius:6px; }
   .quick-title { font-size:13px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
 
@@ -191,29 +234,61 @@
   .h-scroll { display:flex;gap:12px;padding:0 16px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
   .h-scroll::-webkit-scrollbar { display:none; }
 
-  .artist-card { display:flex;flex-direction:column;align-items:center;gap:8px;background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:0; }
-  .artist-card:active { opacity:0.7; }
+  .artist-card { display:flex;flex-direction:column;align-items:center;gap:8px;background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:0;transition:transform .12s; }
+  .artist-card:active { opacity:0.7;transform:scale(0.96); }
   .artist-avatar { width:80px;height:80px;border-radius:50%;overflow:hidden; }
   .artist-img { width:100%;height:100%;object-fit:cover;display:block; }
   .artist-name { font-size:12px;font-weight:600;text-align:center; }
 
   .tracks-list { display:flex;flex-direction:column;padding:0 16px; }
 
-  .playlist-card { flex-shrink:0;width:148px;background:transparent;border:none;cursor:pointer;text-align:left;padding:0; }
-  .playlist-card:active { opacity:0.7; }
+  .playlist-card { flex-shrink:0;width:148px;background:transparent;border:none;cursor:pointer;text-align:left;padding:0;transition:transform .12s; }
+  .playlist-card:active { opacity:0.7;transform:scale(0.97); }
   .playlist-img-wrap { width:148px;height:148px;border-radius:10px;overflow:hidden;margin-bottom:8px; }
   .playlist-img { width:100%;height:100%;object-fit:cover;display:block; }
   .playlist-title { display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .playlist-sub { display:block;font-size:12px;margin-top:2px; }
 
   .genre-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 8px; }
-  .genre-card { border:none;border-radius:12px;padding:20px 16px;cursor:pointer;text-align:left;min-height:72px;display:flex;align-items:flex-end;transition:opacity .15s; }
-  .genre-card:active { opacity:0.8; }
+  .genre-card { border:none;border-radius:12px;padding:20px 16px;cursor:pointer;text-align:left;min-height:72px;display:flex;align-items:flex-end;transition:transform .12s, opacity .12s; }
+  .genre-card:active { opacity:0.8;transform:scale(0.97); }
   .genre-label { font-size:16px;font-weight:800;color:#fff;letter-spacing:-.3px; }
 
   .center-pad { display:flex;align-items:center;justify-content:center;padding:80px 16px; }
   .center-pad.col { flex-direction:column;gap:0; }
-  .spinner { width:28px;height:28px;border-radius:50%;border:3px solid rgba(128,128,128,0.2);animation:spin .8s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
   .retry-btn { border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:12px; }
+
+  /* Loader central em tela cheia com gradient ring */
+  .loader-screen {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    min-height:70vh;
+  }
+  .gradient-ring {
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    background: conic-gradient(from 0deg, transparent, #fff);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation: spin 0.9s linear infinite;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .gradient-ring-inner {
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    opacity:0;
+  }
+  .loader-label {
+    font-size:13px;
+    font-weight:500;
+    letter-spacing:.1px;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
 </style>

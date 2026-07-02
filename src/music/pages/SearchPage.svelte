@@ -12,7 +12,7 @@
   export let onOpenDrawer = () => {};
 
   const dispatch = createEventDispatcher();
-  const HEAD_H = 130; // altura total do bloco appbar+search-bar — desliza até desaparecer
+  const APPBAR_H = 56; // altura do título — o offset trava aqui, a search-bar não sobe mais que isto
 
   const genres = [
     { label: 'Pop',        color: '#FC3C44', img: 'pop-music-concert' },
@@ -49,13 +49,13 @@
     dispatch('openSearch');
   }
 
-  // ── Header desliza junto com o scroll até sair completamente do ecrã ──
+  // ── Título desliza e some por completo; a search-bar acompanha só até aí e trava ──
   let scrollWrapEl;
-  let headOffset = 0; // 0..HEAD_H
+  let headOffset = 0; // offset do bloco appbar (título) — vai de 0 até APPBAR_H e trava
 
   function handleScroll() {
     if (!scrollWrapEl) return;
-    headOffset = Math.min(Math.max(scrollWrapEl.scrollTop, 0), HEAD_H);
+    headOffset = Math.min(Math.max(scrollWrapEl.scrollTop, 0), APPBAR_H);
   }
 
   // ── Recorder ──────────────────────────────────────────────
@@ -299,16 +299,18 @@
 
 <div class="page-root">
 
-  <!-- Bloco único: appbar + search-bar deslizam juntos e desaparecem ao rolar -->
-  <div class="head" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{headOffset}px);">
-    <div class="appbar">
-      <button class="icon-btn" on:click={onOpenDrawer}>
-        <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
-      </button>
-      <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
-    </div>
+  <!-- Título: desliza e sai completamente de vista, offset trava em APPBAR_H -->
+  <div class="appbar" style="background:{isDark ? '#121212' : '#ffffff'};transform:translateY(-{headOffset}px);">
+    <button class="icon-btn" on:click={onOpenDrawer}>
+      <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
+    </button>
+    <span class="appbar-title" style="color:{txtPrim}">Pesquisa</span>
+  </div>
 
-    <div class="search-wrap">
+  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{APPBAR_H}px;">
+
+    <!-- Search-bar: sobe junto até o título sumir, depois pára ali, fixa no topo -->
+    <div class="search-wrap" style="transform:translateY(-{headOffset}px);">
       <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
         <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
@@ -317,10 +319,8 @@
         <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
       </button>
     </div>
-  </div>
 
-  <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll} style="padding-top:{HEAD_H}px;">
-    <div class="page">
+    <div class="page" style="margin-top:-{headOffset}px;">
       <div class="section-hdr">
         <span class="section-title" style="color:{txtPrim}">Categorias</span>
       </div>
@@ -405,24 +405,20 @@
 <style>
   .page-root { position:relative; height:100%; overflow:hidden; }
 
-  /* Bloco único que desliza para fora do ecrã ao rolar */
-  .head {
-    position:absolute; top:0; left:0; right:0; z-index:5;
-    transition:transform .05s linear;
-  }
-
   .appbar {
+    position:absolute; top:0; left:0; right:0; z-index:5;
     display:flex; align-items:center; gap:10px;
     padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
+    transition:transform .05s linear;
   }
   .appbar-title { font-size:22px; font-weight:900; letter-spacing:-.5px; }
   .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
 
   .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; box-sizing:border-box; }
-  .page { padding:0 0 8px; }
+  .page { padding:0 0 8px; transition:margin-top .05s linear; }
 
-  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }
+  .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; transition:transform .05s linear; }
   .search-bar {
     flex:1; display:flex; align-items:center; gap:10px;
     border-radius:999px; padding:13px 16px; border:none; cursor:pointer;
@@ -445,7 +441,6 @@
   .section-title { font-size:20px; font-weight:800; letter-spacing:-.4px; }
   .genre-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 16px; }
 
-  /* Card estilo Spotify: fundo sólido, imagem "colada" no canto inferior direito como um cartaz inclinado */
   .genre-card {
     position:relative; border:none; border-radius:12px; overflow:hidden;
     height:100px; cursor:pointer; padding:0;
@@ -469,7 +464,6 @@
   }
   .genre-img { width:100%; height:100%; object-fit:cover; display:block; }
 
-  /* Floating recorder */
   .rec-overlay {
     position:fixed; inset:0; z-index:150;
     display:flex; align-items:flex-end; justify-content:center;

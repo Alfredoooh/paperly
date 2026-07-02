@@ -157,49 +157,52 @@
       <div class="handle-bar"></div>
     </div>
 
-    <div class="mini-progress-track">
-      <div class="mini-progress-fill" style="width:{pct}%; background:{accentColor};"></div>
-    </div>
+    <div class="mini-card" style="background:linear-gradient(135deg, {tintBg}, {bgCard} 60%)">
 
-    <button class="mini" style="background:linear-gradient(135deg, {tintBg}, {bgCard} 60%)" on:click={open}>
-
-      <div class="disc-wrap" class:spin={$playing}>
-        {#if $currentTrack.album?.cover_medium}
-          <img src={$currentTrack.album.cover_medium} alt={$currentTrack.title} class="thumb" />
-        {:else}
-          <div class="thumb no-img" style="background:{bg}">
-            <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');background:{txtSec};width:16px;height:16px;"></span>
-          </div>
-        {/if}
-        <div class="thumb-hole"></div>
+      <div class="mini-progress-track">
+        <div class="mini-progress-fill" style="width:{pct}%; background:{accentColor};"></div>
       </div>
 
-      <div class="info">
-        <span class="title" style="color:{txtPrim}">{$currentTrack.title}</span>
-        <span class="artist" style="color:{txtSec}">{$currentTrack.artist?.name}</span>
-      </div>
+      <button class="mini" on:click={open}>
 
-      <div class="controls">
-        <button class="ctrl" on:click|stopPropagation={playPrev}>
-          <span class="svg-mask" style="mask-image:url('/icons/svg/backward.svg');-webkit-mask-image:url('/icons/svg/backward.svg');background:{txtPrim};width:18px;height:18px;"></span>
-        </button>
-        {#if $audioLoading}
-          <div class="spinner" style="border-top-color:{accentColor};"></div>
-        {:else}
-          <button class="ctrl" on:click|stopPropagation={togglePlay}>
-            {#if $playing}
-              <span class="svg-mask" style="mask-image:url('/icons/svg/pause.svg');-webkit-mask-image:url('/icons/svg/pause.svg');background:{txtPrim};width:20px;height:20px;"></span>
-            {:else}
-              <span class="svg-mask" style="mask-image:url('/icons/svg/play.svg');-webkit-mask-image:url('/icons/svg/play.svg');background:{txtPrim};width:20px;height:20px;"></span>
-            {/if}
+        <div class="disc-wrap" class:spin={$playing}>
+          {#if $currentTrack.album?.cover_medium}
+            <img src={$currentTrack.album.cover_medium} alt={$currentTrack.title} class="thumb" />
+          {:else}
+            <div class="thumb no-img" style="background:{bg}">
+              <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');background:{txtSec};width:16px;height:16px;"></span>
+            </div>
+          {/if}
+          <div class="thumb-hole"></div>
+        </div>
+
+        <div class="info">
+          <span class="title" style="color:{txtPrim}">{$currentTrack.title}</span>
+          <span class="artist" style="color:{txtSec}">{$currentTrack.artist?.name}</span>
+        </div>
+
+        <div class="controls">
+          <button class="ctrl" on:click|stopPropagation={playPrev}>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/backward.svg');-webkit-mask-image:url('/icons/svg/backward.svg');background:{txtPrim};width:18px;height:18px;"></span>
           </button>
-        {/if}
-        <button class="ctrl" on:click|stopPropagation={playNext}>
-          <span class="svg-mask" style="mask-image:url('/icons/svg/forward.svg');-webkit-mask-image:url('/icons/svg/forward.svg');background:{txtPrim};width:18px;height:18px;"></span>
-        </button>
-      </div>
+          {#if $audioLoading}
+            <div class="spinner" style="border-top-color:{accentColor};"></div>
+          {:else}
+            <button class="ctrl" on:click|stopPropagation={togglePlay}>
+              {#if $playing}
+                <span class="svg-mask" style="mask-image:url('/icons/svg/pause.svg');-webkit-mask-image:url('/icons/svg/pause.svg');background:{txtPrim};width:20px;height:20px;"></span>
+              {:else}
+                <span class="svg-mask" style="mask-image:url('/icons/svg/play.svg');-webkit-mask-image:url('/icons/svg/play.svg');background:{txtPrim};width:20px;height:20px;"></span>
+              {/if}
+            </button>
+          {/if}
+          <button class="ctrl" on:click|stopPropagation={playNext}>
+            <span class="svg-mask" style="mask-image:url('/icons/svg/forward.svg');-webkit-mask-image:url('/icons/svg/forward.svg');background:{txtPrim};width:18px;height:18px;"></span>
+          </button>
+        </div>
 
-    </button>
+      </button>
+    </div>
   </div>
 {/if}
 
@@ -208,8 +211,6 @@
     position:fixed;
     left:10px;right:10px;
     bottom:calc(env(safe-area-inset-bottom,0px) + 58px + 10px);
-    border-radius:999px;
-    overflow:visible;
     z-index:65;
     transition:bottom .2s ease, transform .22s cubic-bezier(.32,.72,0,1), opacity .22s ease;
   }
@@ -240,12 +241,17 @@
     box-shadow:0 2px 8px rgba(0,0,0,0.3);
   }
 
+  /* Card com bordas curvas completas, como no original */
+  .mini-card {
+    border-radius:999px;
+    overflow:hidden;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  }
+
   .mini-progress-track {
     height:2px;
     background:rgba(255,255,255,0.12);
     position:relative;
-    border-radius:999px 999px 0 0;
-    overflow:hidden;
   }
   .mini-progress-fill {
     height:100%;
@@ -255,10 +261,9 @@
     display:flex;align-items:center;gap:12px;
     padding:8px 10px 8px 8px;
     border:none;cursor:pointer;text-align:left;width:100%;
-    border-radius:0 0 999px 999px;
+    background:transparent;
     backdrop-filter:blur(24px);
     -webkit-backdrop-filter:blur(24px);
-    box-shadow:0 8px 32px rgba(0,0,0,0.4);
   }
 
   .disc-wrap {

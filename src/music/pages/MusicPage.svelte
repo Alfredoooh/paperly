@@ -28,6 +28,7 @@
   let pulseTab      = null;
   let pulseSeq      = 0;
   let searchPrefill = '';
+  let appbarHidden  = false;
 
   const menuItems = [
     { icon: 'home_outline', label: 'Início',    action: () => { activeTab = 'home'; currentPage.set('home'); drawerOpen = false; } },
@@ -47,6 +48,15 @@
   $: showSearchActive = $currentPage === 'search-active';
   $: hideChrome       = showArtist || showSearchActive;
   $: appbarTitle      = activeTab === 'home' ? 'Início' : activeTab === 'search' ? 'Pesquisa' : 'Biblioteca';
+
+  // Appbar só recolhe ao deslizar quando estamos na aba de Pesquisa
+  $: canAppbarHide = activeTab === 'search' && !hideChrome;
+  $: if (!canAppbarHide) appbarHidden = false;
+
+  function handleAppbarScroll(e) {
+    if (!canAppbarHide) return;
+    appbarHidden = e.detail.hidden;
+  }
 
   function tapTab(id) {
     activeTab = id;
@@ -74,7 +84,7 @@
     on:openSettings={() => dispatch('nav', { to: 'settings' })} />
 
   {#if !hideChrome}
-    <div class="appbar" style="background:{bg}">
+    <div class="appbar" class:appbar-hidden={appbarHidden} style="background:{bg}">
       <button class="icon-btn" on:click={() => drawerOpen = true}>
         <span class="svg-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');background:{txtPrim};width:20px;height:20px;"></span>
       </button>
@@ -90,7 +100,7 @@
     {:else if activeTab === 'home'}
       <HomePage {...themeProps} currentTrackExists={!!$currentTrack} />
     {:else if activeTab === 'search'}
-      <SearchPage {...themeProps} currentTrackExists={!!$currentTrack} on:openSearch={openSearchActive} />
+      <SearchPage {...themeProps} currentTrackExists={!!$currentTrack} on:openSearch={openSearchActive} on:scrollState={handleAppbarScroll} />
     {:else if activeTab === 'library'}
       <LibraryPage {...themeProps} currentTrackExists={!!$currentTrack} />
     {/if}
@@ -100,21 +110,40 @@
     <div class="bottom-chrome">
       <div class="bottom-bar-gradient" class:dark={isDark}></div>
       <div class="bottom-bar">
-        {#each [['home','Início'],['search','Pesquisa'],['library','Biblioteca']] as [id,label]}
-          <button class="tab-btn" on:click={() => tapTab(id)}>
-            {#if pulseTab === id}
-              <span class="pulse-ring" style="background:{txtPrim}"></span>
-            {/if}
-            {#if id === 'home'}
-              <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='home'?'home_filled':'home_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
-            {:else if id === 'search'}
-              <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='search'?'search_filled':'search'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
-            {:else}
-              <span class="svg-mask tab-icon" style="mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');-webkit-mask-image:url('/icons/svg/{activeTab==='library'?'library_filled':'library_outline'}.svg');background:{activeTab===id?txtPrim:txtSec};"></span>
-            {/if}
-            <span class="tab-label" style="color:{activeTab===id?txtPrim:txtSec}">{label}</span>
-          </button>
-        {/each}
+        <button class="tab-btn" on:click={() => tapTab('home')}>
+          {#if pulseTab === 'home'}
+            <span class="pulse-ring" style="background:{txtPrim}"></span>
+          {/if}
+          <svg class="tab-icon" viewBox="0 0 24 24" fill={activeTab === 'home' ? txtPrim : 'none'} stroke={activeTab === 'home' ? txtPrim : txtSec} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10.5 12 3l9 7.5" />
+            <path d="M5 9.5V21h14V9.5" />
+          </svg>
+          <span class="tab-label" style="color:{activeTab==='home'?txtPrim:txtSec}">Início</span>
+        </button>
+
+        <button class="tab-btn" on:click={() => tapTab('search')}>
+          {#if pulseTab === 'search'}
+            <span class="pulse-ring" style="background:{txtPrim}"></span>
+          {/if}
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke={activeTab === 'search' ? txtPrim : txtSec} stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="20" y1="20" x2="16.4" y2="16.4" />
+          </svg>
+          <span class="tab-label" style="color:{activeTab==='search'?txtPrim:txtSec}">Pesquisa</span>
+        </button>
+
+        <button class="tab-btn" on:click={() => tapTab('library')}>
+          {#if pulseTab === 'library'}
+            <span class="pulse-ring" style="background:{txtPrim}"></span>
+          {/if}
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke={activeTab === 'library' ? txtPrim : txtSec} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="6" x2="4" y2="18" />
+            <line x1="9" y1="4" x2="9" y2="20" />
+            <line x1="14" y1="7" x2="14" y2="17" />
+            <path d="M19 6 21 18" transform="rotate(12 19 6)" />
+          </svg>
+          <span class="tab-label" style="color:{activeTab==='library'?txtPrim:txtSec}">Biblioteca</span>
+        </button>
       </div>
     </div>
   {/if}
@@ -126,13 +155,27 @@
 
 <style>
   .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }
-  .appbar { display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px; flex-shrink:0; }
+  .appbar {
+    display:flex; align-items:center; gap:10px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
+    flex-shrink:0;
+    transform:translateY(0);
+    max-height:60px;
+    transition:transform .22s ease, max-height .22s ease, padding .22s ease, opacity .22s ease;
+    overflow:hidden;
+  }
+  .appbar.appbar-hidden {
+    transform:translateY(-100%);
+    max-height:0;
+    padding-top:0; padding-bottom:0;
+    opacity:0;
+  }
   .appbar-title { font-size:22px; font-weight:900; letter-spacing:-.5px; }
   .icon-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:opacity .15s; flex-shrink:0; }
   .icon-btn:active { opacity:0.5; }
-  .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
+  .body { flex:1; overflow:hidden; }
 
-  .bottom-chrome { position:absolute; left:0; right:0; bottom:0; z-index:39; pointer-events:none; }
+  .bottom-chrome { position:absolute; left:0; right:0; bottom:0; z-index:10; pointer-events:none; }
 
   .bottom-bar-gradient {
     position:absolute; left:0; right:0; bottom:0; height:130px;
@@ -145,7 +188,7 @@
   }
 
   .bottom-bar {
-    position:absolute; left:0; right:0; bottom:0; z-index:40;
+    position:absolute; left:0; right:0; bottom:0; z-index:11;
     display:flex; align-items:center; justify-content:space-around;
     padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));
     background:transparent;

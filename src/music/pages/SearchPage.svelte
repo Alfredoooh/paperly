@@ -1,6 +1,6 @@
 <!-- src/music/pages/SearchPage.svelte -->
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { searchBarRect, PROXY } from '../store/music.js';
 
   export let isDark = false;
@@ -35,12 +35,16 @@
     dispatch('openSearch');
   }
 
-  // ── Appbar-on-scroll ─────────────────────────────────────
+  // ── Appbar-on-scroll: avisa o MusicPage se deve esconder/mostrar ──
   let scrollWrapEl;
-  let scrolled = false;
+  let lastScrollTop = 0;
   function handleScroll() {
     if (!scrollWrapEl) return;
-    scrolled = scrollWrapEl.scrollTop > 4;
+    const top = scrollWrapEl.scrollTop;
+    const goingDown = top > lastScrollTop;
+    const hidden = top > 40 && goingDown;
+    lastScrollTop = top;
+    dispatch('scrollState', { hidden });
   }
 
   // ── Recorder ──────────────────────────────────────────────
@@ -65,6 +69,14 @@
     const m = Math.floor(recSeconds / 60), s = recSeconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   })();
+
+  function stopMicHard() {
+    // Garante que o microfone é sempre libertado, mesmo se algo falhar a meio
+    try { mediaRecorder?.stream?.getTracks().forEach(t => t.stop()); } catch (e) {}
+    waveStream?.getTracks().forEach(t => t.stop());
+    waveStream = null;
+    stopWaveAnim();
+  }
 
   async function startRecording() {
     if (isRecording) return;
@@ -102,8 +114,7 @@
     isRecording = false;
     clearInterval(recInterval);
     mediaRecorder.stop();
-    waveStream?.getTracks().forEach(t => t.stop());
-    stopWaveAnim();
+    // O stream só é fechado depois de handleRecStop terminar de enviar o áudio
   }
 
   function cancelRecording() {
@@ -112,21 +123,53 @@
     clearInterval(recInterval);
     mediaRecorder.onstop = null;
     mediaRecorder.stop();
-    waveStream?.getTracks().forEach(t => t.stop());
     audioChunks    = [];
     showRecOverlay = false;
-    stopWaveAnim();
+    stopMicHard();
   }
 
   function triggerUpload() {
     fileInputEl?.click();
   }
 
-  async function handleFileUpload(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function extractAudioFromVideo(file) {
+    // Reproduz o vídeo num elemento oculto e captura o áudio via Web Audio API
+    const videoEl = document.createElement('video');
+    videoEl.src = URL.createObjectURL(file);
+    videoEl.muted = false;
+    videoEl.playsInline = true;
+    await new Promise((resolve, reject) => {
+      videoEl.onloadedmetadata = resolve;
+      videoEl.onerror = () => reject(new Error('Não foi possível ler o vídeo'));
+    });
 
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const sourceNode = ctx.createMediaElementSource(videoEl);
+    const dest = ctx.createMediaStreamDestination();
+    sourceNode.connect(dest);
+
+    const rec = new MediaRecorder(dest.stream);
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+    const done = new Promise(resolve => {
+      rec.onstop = () => resolve(new Blob(chunks, { type: 'audio/webm' }));
+    });
+
+    rec.start();
+    videoEl.play();
+    // Captura só os primeiros 15s, suficiente para o fingerprint
+    const captureMs = Math.min(15000, (videoEl.duration || 15) * 1000);
+    await new Promise(r => setTimeout(r, captureMs));
+    rec.stop();
+    videoEl.pause();
+    URL.revokeObjectURL(videoEl.src);
+    ctx.close();
+
+    return done;
+  }
+
+  async function sendForRecognition(blob, contentType) {
     showRecOverlay = true;
     recognizing    = true;
     recognizeError = null;
@@ -134,38 +177,7 @@
     try {
       const res = await fetch(`${PROXY}/api/recognize`, {
         method:  'POST',
-        headers: { 'Content-Type': file.type || 'audio/webm' },
-        body:    file,
-      });
-      const data = await res.json();
-      if (!res.ok || !data.title) throw new Error(data.error || 'Não reconhecido');
-
-      showRecOverlay = false;
-      recognizing    = false;
-
-      const query = data.artist ? `${data.artist} ${data.title}` : data.title;
-      dispatch('openSearch', { prefillQuery: query });
-
-    } catch (err) {
-      recognizing    = false;
-      recognizeError = err.message || 'Não foi possível reconhecer';
-      setTimeout(() => {
-        recognizeError = null;
-        showRecOverlay = false;
-      }, 2200);
-    }
-  }
-
-  async function handleRecStop() {
-    if (!audioChunks.length) { showRecOverlay = false; return; }
-    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-    audioChunks  = [];
-    recognizing  = true;
-
-    try {
-      const res = await fetch(`${PROXY}/api/recognize`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'audio/webm' },
+        headers: { 'Content-Type': contentType },
         body:    blob,
       });
       const data = await res.json();
@@ -185,6 +197,43 @@
         showRecOverlay = false;
       }, 2200);
     }
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const isVideo = file.type.startsWith('video/');
+
+    if (isVideo) {
+      showRecOverlay = true;
+      recognizing    = true;
+      recognizeError = null;
+      try {
+        const audioBlob = await extractAudioFromVideo(file);
+        await sendForRecognition(audioBlob, 'audio/webm');
+      } catch (err) {
+        recognizing    = false;
+        recognizeError = 'Não foi possível extrair áudio do vídeo';
+        setTimeout(() => {
+          recognizeError = null;
+          showRecOverlay = false;
+        }, 2200);
+      }
+    } else {
+      await sendForRecognition(file, file.type || 'audio/webm');
+    }
+  }
+
+  async function handleRecStop() {
+    // O microfone é sempre libertado aqui, quer o reconhecimento tenha sucesso ou não
+    stopMicHard();
+
+    if (!audioChunks.length) { showRecOverlay = false; return; }
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    audioChunks = [];
+    await sendForRecognition(blob, 'audio/webm');
   }
 
   // ── Wave animation (igual à HomePage) ─────────────────────
@@ -244,16 +293,14 @@
 
 <div class="scroll-wrap" bind:this={scrollWrapEl} on:scroll={handleScroll}>
 
-  <div class="sticky-search" class:scrolled style="background:{scrolled ? bgCard : 'transparent'}">
-    <div class="search-wrap">
-      <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
-        <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
-        <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
-      </button>
-      <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
-        <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
-      </button>
-    </div>
+  <div class="search-wrap">
+    <button class="search-bar" style="background:{bgCard}" on:click={openSearch}>
+      <span class="svg-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{txtSec};width:17px;height:17px;"></span>
+      <span class="search-placeholder" style="color:{txtSec}">O que queres ouvir?</span>
+    </button>
+    <button class="rec-trigger" style="background:{bgCard}" on:click={startRecording}>
+      <span class="svg-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');background:{txtSec};width:20px;height:20px;"></span>
+    </button>
   </div>
 
   <div class="page">
@@ -277,7 +324,7 @@
 <input
   bind:this={fileInputEl}
   type="file"
-  accept="audio/*"
+  accept="audio/*,video/*"
   style="display:none"
   on:change={handleFileUpload}
 />
@@ -317,7 +364,7 @@
           <span class="rec-hint" style="color:{txtSec}">A ouvir… toca a música perto do microfone</span>
           <button class="rec-upload-btn" style="color:{txtSec}" on:click={triggerUpload}>
             <span class="svg-mask" style="mask-image:url('/icons/svg/playlist_music.svg');-webkit-mask-image:url('/icons/svg/playlist_music.svg');width:13px;height:13px;background:{txtSec}"></span>
-            Enviar ficheiro áudio
+            Enviar áudio ou vídeo
           </button>
         </div>
       {/if}
@@ -329,12 +376,6 @@
 <style>
   .scroll-wrap { position:relative; height:100%; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
   .page { padding:0 0 8px; }
-
-  .sticky-search {
-    position:sticky; top:0; z-index:30;
-    transition:background-color .2s ease;
-  }
-  .sticky-search.scrolled { box-shadow:0 1px 0 rgba(128,128,128,0.12); }
 
   .search-wrap { padding:8px 16px 8px; display:flex; align-items:center; gap:10px; }
   .search-bar {
@@ -374,7 +415,7 @@
 
   /* Floating recorder */
   .rec-overlay {
-    position:fixed; inset:0; z-index:200;
+    position:fixed; inset:0; z-index:150;
     display:flex; align-items:flex-end; justify-content:center;
     padding:0 16px 40px;
     background:rgba(0,0,0,0.30);

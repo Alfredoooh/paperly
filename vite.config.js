@@ -3,7 +3,17 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { resolve } from 'path';
 import { cpSync, mkdirSync, existsSync } from 'fs';
 
-const apps = ['auth', 'home', 'ai', 'music', 'games', 'media', 'profilelens', 'downloader'];
+// nome da pasta no disco -> nome da rota final em dist/
+const apps = [
+  { dir: 'auth', route: 'auth' },
+  { dir: 'home', route: 'home' },
+  { dir: 'ai', route: 'ai' },
+  { dir: 'music', route: 'music' },
+  { dir: 'games', route: 'games' },
+  { dir: 'media', route: 'media' },
+  { dir: 'profilelens', route: 'profilelens' },
+  { dir: 'downloader', route: 'downloader' },
+];
 
 export default defineConfig({
   plugins: [
@@ -12,15 +22,15 @@ export default defineConfig({
       name: 'post-build-copy',
       closeBundle() {
         const dist = resolve(__dirname, 'dist');
-        for (const app of apps) {
-          const src = resolve(dist, 'src', app, 'index.html');
-          const dest = resolve(dist, app, 'index.html');
+        for (const { dir, route } of apps) {
+          const src = resolve(dist, 'src', dir, 'index.html');
+          const dest = resolve(dist, route, 'index.html');
           if (existsSync(src)) {
-            mkdirSync(resolve(dist, app), { recursive: true });
+            mkdirSync(resolve(dist, route), { recursive: true });
             cpSync(src, dest);
-            console.log(`✓ dist/${app}/index.html`);
+            console.log(`✓ dist/${route}/index.html`);
           } else {
-            console.warn(`⚠ não encontrado: dist/src/${app}/index.html`);
+            console.warn(`⚠ não encontrado: dist/src/${dir}/index.html`);
           }
         }
       }

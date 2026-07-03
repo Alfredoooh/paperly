@@ -556,7 +556,7 @@
       </button>
       <div class="header-right">
         <button class="hdr-seg pulse-tap" on:click={openDrawer}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-strong)"></span>
         </button>
       </div>
     </header>
@@ -602,7 +602,7 @@
             <button
               class="suggestion-toggle pulse-tap"
               class:toggle-active={activeToggle?.id === t.id}
-              style="animation-delay:{(ri*2+i)*55}ms;"
+              style="transition-delay:{panelShouldShow ? (ri*2+i)*45 : 0}ms;"
               on:click={() => selectToggle(t)}
             >
               <img src={t.icon} alt={t.label} class="toggle-img" />
@@ -959,14 +959,14 @@
   }
 
   .logo-wrap {
-    width:34px;
-    height:34px;
+    width:46px;
+    height:46px;
     display:flex;
     align-items:center;
     justify-content:center;
     flex-shrink:0;
   }
-  .logo-img { width:34px; height:34px; object-fit:contain; }
+  .logo-img { width:46px; height:46px; object-fit:contain; }
 
   .header-right {
     display:flex;
@@ -1118,12 +1118,7 @@
     gap:8px;
     width:100%;
     padding-bottom:10px;
-    opacity:0;
-    transform:translateY(16px);
-    transition:opacity .4s ease, transform .4s cubic-bezier(0.2,0.9,0.3,1);
   }
-  .toggles-in { opacity:1; transform:translateY(0); }
-  .toggles-hidden { opacity:0; pointer-events:none; transform:translateY(16px); }
   .toggles-row { display:flex; flex-direction:row; justify-content:center; gap:7px; }
 
   .suggestion-toggle {
@@ -1138,15 +1133,25 @@
     font-family:inherit;
     white-space:nowrap;
     box-shadow:0 2px 8px rgba(0,0,0,0.10);
-    transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
     opacity:0;
-    transform:scale(0.90) translateY(8px);
-    animation:toggleIn .38s cubic-bezier(0.2,0.9,0.3,1) forwards;
+    transform:scale(0.86) translateY(10px);
+    transition:
+      opacity .46s cubic-bezier(0.16,1,0.3,1),
+      transform .46s cubic-bezier(0.16,1,0.3,1),
+      background .18s ease,
+      border-color .18s ease;
   }
-  .toggles-in .suggestion-toggle { opacity:1; transform:scale(1) translateY(0); }
-  @keyframes toggleIn {
-    from { opacity:0; transform:scale(0.90) translateY(8px); }
-    to   { opacity:1; transform:scale(1) translateY(0); }
+  .toggles-in .suggestion-toggle {
+    opacity:1;
+    transform:scale(1) translateY(0);
+  }
+  .toggles-hidden .suggestion-toggle {
+    opacity:0;
+    transform:scale(0.92) translateY(6px);
+    transition:
+      opacity .22s cubic-bezier(0.4,0,1,1),
+      transform .22s cubic-bezier(0.4,0,1,1);
+    transition-delay:0ms !important;
   }
   .suggestion-toggle:active { transform:scale(0.95); }
   .toggle-active { background:var(--toggle-bg-act) !important; border-color:var(--toggle-border-act) !important; }

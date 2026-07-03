@@ -115,13 +115,22 @@ export async function playTrack(track) {
 
     log(`url stream: ${url.slice(0, 60)}...`);
 
-    const audio = new Audio(url);
-    audio.crossOrigin = 'anonymous';
+    // IMPORTANTE: sem crossOrigin. O stream vem do nosso próprio backend
+    // via pipe (sem Content-Length fixo), e crossOrigin=anonymous faz o
+    // browser exigir handshake CORS estrito que falha silenciosamente
+    // nesse tipo de resposta, resultando em áudio "mudo" sem erro visível.
+    const audio = new Audio();
+    audio.preload = 'auto';
     setAudio(audio);
 
     audio.onloadedmetadata = () => {
       log(`metadata OK, duration: ${audio.duration}`);
       duration.set(audio.duration || 0);
+      audioLoading.set(false);
+    };
+
+    audio.oncanplay = () => {
+      log('canplay disparado');
       audioLoading.set(false);
     };
 
@@ -134,13 +143,20 @@ export async function playTrack(track) {
       else playNext();
     };
 
-    audio.onerror = (e) => {
+    audio.onerror = () => {
       const code = audio.error?.code;
       const msgs = { 1:'ABORTED', 2:'NETWORK', 3:'DECODE', 4:'SRC_NOT_SUPPORTED' };
-      log(`ERRO no <audio>: código ${code} (${msgs[code] || 'desconhecido'})`);
+      log(`ERRO no <audio>: código ${code} (${msgs[code] || 'desconhecido'}) — ${audio.error?.message || ''}`);
       audioLoading.set(false);
       playing.set(false);
     };
+
+    audio.onstalled = () => log('audio stalled (sem dados a chegar)');
+    audio.onwaiting = () => log('audio waiting (buffering)');
+
+    // Define src DEPOIS de registrar os listeners, para não perder eventos iniciais
+    audio.src = url;
+    audio.load();
 
     await audio.play();
     log('audio.play() executado com sucesso');

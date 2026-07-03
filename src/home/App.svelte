@@ -91,6 +91,10 @@
     window.location.href = app.path;
   }
 
+  function goToPlans() {
+    window.location.href = '/plans';
+  }
+
   const POPUP_W = 230;
   let showPopup = false;
   let popupVisible = false;
@@ -123,8 +127,6 @@
     popupFading = true;
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
-
-  const BG_IMAGE = '/images/backgrounds/bg1.jpg';
 
   let lottieEl;
   let lottieInstance;
@@ -487,7 +489,6 @@
   $: if (lottieFinished && !mountToggles) mountToggles = true;
   let inputFocused = false;
   $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
-  // Painel de apps só pode ser visível exatamente quando os toggles também estão visíveis
   $: panelShouldShow = togglesVisible && togglesShouldShow;
 
   function handleInputFocus() {
@@ -527,11 +528,13 @@
 </script>
 
 <div class="root">
-  <div class="bg-layer" style="background-image:url('{BG_IMAGE}');"></div>
+  <div class="bg-layer"></div>
 
   <div class="top-panel" class:in={mounted && panelShouldShow}>
     <header class="header">
-      <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
+      <div class="logo-wrap">
+        <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
+      </div>
       <div class="header-right">
         <button class="hdr-seg pulse-tap" on:click={openDrawer}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
@@ -563,6 +566,11 @@
       </div>
     </div>
   </div>
+
+  <button class="upgrade-pill pulse-tap" class:in={mounted && panelShouldShow} on:click={goToPlans}>
+    <span class="icon-mask" style="mask-image:url('/icons/svg/star.svg');-webkit-mask-image:url('/icons/svg/star.svg');width:14px;height:14px;background:var(--upgrade-text)"></span>
+    <span class="upgrade-text">Upgrade</span>
+  </button>
 
   <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
     <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
@@ -783,9 +791,9 @@
     </nav>
     <div style="flex:1"></div>
     <div class="drawer-sep"></div>
-    <button class="drawer-item drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:20px;height:20px;background:var(--drawer-red)"></span>
-      <span class="drawer-item-label" style="color:var(--drawer-red)">Terminar sessão</span>
+    <button class="drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:#fff"></span>
+      <span class="drawer-logout-label">Terminar sessão</span>
     </button>
     <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
   </div>
@@ -801,74 +809,82 @@
     width: 100%;
   }
 
+  /* ===== TEMA ESCURO ===== */
   :global([data-theme="dark"]) {
-    --surface:           rgba(18,18,18,0.52);
-    --surface-strong:    rgba(24,24,26,0.84);
-    --surface-popover:   rgba(18,18,20,0.90);
-    --border-soft:       rgba(255,255,255,0.14);
-    --border-faint:      rgba(255,255,255,0.10);
-    --icon-strong:       rgba(255,255,255,0.85);
-    --icon-soft:         rgba(255,255,255,0.50);
-    --icon-faint:        rgba(255,255,255,0.30);
-    --icon-on-accent:    #fff;
-    --text-faint:        rgba(255,255,255,0.38);
-    --row-active:        rgba(255,255,255,0.07);
-    --btn-bg:            rgba(255,255,255,0.14);
-    --btn-bg-active:     rgba(255,255,255,0.22);
-    --hdr-seg-bg:        rgba(0,0,0,0.30);
-    --hdr-seg-active:    rgba(0,0,0,0.45);
-    --hdr-seg-divider:   rgba(255,255,255,0.16);
-    --overlay-soft:      rgba(0,0,0,0.22);
-    --drawer-bg:         #1c1c1e;
-    --drawer-border:     rgba(255,255,255,0.08);
-    --drawer-shadow:     rgba(0,0,0,0.45);
-    --drawer-text:       rgba(255,255,255,0.82);
-    --drawer-text-faint: rgba(255,255,255,0.35);
-    --drawer-sep:        rgba(255,255,255,0.10);
-    --drawer-red:        #FF453A;
-    --drawer-overlay-in: rgba(0,0,0,0.35);
-    --drawer-row-active: rgba(255,255,255,0.06);
-    --drawer-sub-bg:     rgba(255,255,255,0.04);
-    --toggle-bg:         rgba(255,255,255,0.18);
-    --toggle-bg-act:     rgba(255,255,255,0.30);
-    --toggle-border:     rgba(255,255,255,0.28);
-    --toggle-border-act: rgba(255,255,255,0.55);
-    --toggle-label:      rgba(255,255,255,0.90);
+    --app-bg:             #0b0b0d;
+    --surface:            #18181b;
+    --surface-strong:     #1e1e21;
+    --surface-popover:    #202023;
+    --border-soft:        rgba(255,255,255,0.12);
+    --border-faint:       rgba(255,255,255,0.09);
+    --icon-strong:        rgba(255,255,255,0.88);
+    --icon-soft:          rgba(255,255,255,0.52);
+    --icon-faint:         rgba(255,255,255,0.30);
+    --icon-on-accent:     #fff;
+    --text-faint:         rgba(255,255,255,0.38);
+    --row-active:         rgba(255,255,255,0.07);
+    --btn-bg:             rgba(255,255,255,0.10);
+    --btn-bg-active:      rgba(255,255,255,0.18);
+    --hdr-seg-bg:         rgba(255,255,255,0.08);
+    --hdr-seg-active:     rgba(255,255,255,0.16);
+    --overlay-soft:       rgba(0,0,0,0.22);
+    --drawer-bg:          #1c1c1e;
+    --drawer-border:      rgba(255,255,255,0.08);
+    --drawer-shadow:      rgba(0,0,0,0.45);
+    --drawer-text:        rgba(255,255,255,0.82);
+    --drawer-text-faint:  rgba(255,255,255,0.35);
+    --drawer-sep:         rgba(255,255,255,0.10);
+    --drawer-overlay-in:  rgba(0,0,0,0.35);
+    --drawer-row-active:  rgba(255,255,255,0.06);
+    --toggle-bg:          #232326;
+    --toggle-bg-act:      #2c2c30;
+    --toggle-border:      rgba(255,255,255,0.14);
+    --toggle-border-act:  rgba(255,255,255,0.32);
+    --toggle-label:       rgba(255,255,255,0.90);
+    --logo-border:        rgba(255,255,255,0.22);
+    --logo-bg:            #202023;
+    --upgrade-bg:         rgba(64,132,255,0.16);
+    --upgrade-border:     rgba(64,132,255,0.35);
+    --upgrade-text:       #6ea8ff;
   }
 
+  /* ===== TEMA CLARO ===== */
   :global([data-theme="light"]) {
-    --surface:           rgba(255,255,255,0.55);
-    --surface-strong:    rgba(255,255,255,0.86);
-    --surface-popover:   rgba(255,255,255,0.92);
-    --border-soft:       rgba(0,0,0,0.10);
-    --border-faint:      rgba(0,0,0,0.07);
-    --icon-strong:       rgba(20,20,20,0.82);
-    --icon-soft:         rgba(20,20,20,0.45);
-    --icon-faint:        rgba(20,20,20,0.28);
-    --icon-on-accent:    #fff;
-    --text-faint:        rgba(20,20,20,0.40);
-    --row-active:        rgba(0,0,0,0.06);
-    --btn-bg:            rgba(0,0,0,0.07);
-    --btn-bg-active:     rgba(0,0,0,0.12);
-    --hdr-seg-bg:        rgba(0,0,0,0.30);
-    --hdr-seg-active:    rgba(0,0,0,0.45);
-    --hdr-seg-divider:   rgba(255,255,255,0.30);
-    --overlay-soft:      rgba(0,0,0,0.14);
-    --drawer-bg:         #ffffff;
-    --drawer-border:     rgba(0,0,0,0.07);
-    --drawer-shadow:     rgba(0,0,0,0.13);
-    --drawer-text:       #111111;
-    --drawer-text-faint: rgba(0,0,0,0.30);
-    --drawer-sep:        rgba(0,0,0,0.09);
-    --drawer-red:        #d32d2d;
-    --drawer-overlay-in: rgba(0,0,0,0.20);
-    --drawer-row-active: rgba(0,0,0,0.05);
-    --drawer-sub-bg:     rgba(0,0,0,0.04);
-    --toggle-bg:         rgba(255,255,255,0.72);
-    --toggle-bg-act:     rgba(255,255,255,0.92);
-    --toggle-border:     rgba(0,0,0,0.12);
-    --toggle-border-act: rgba(0,0,0,0.28);
-    --toggle-label:      rgba(20,20,20,0.82);
+    --app-bg:             #f2f2f4;
+    --surface:            #ffffff;
+    --surface-strong:     #ffffff;
+    --surface-popover:    #ffffff;
+    --border-soft:        rgba(0,0,0,0.09);
+    --border-faint:       rgba(0,0,0,0.07);
+    --icon-strong:        rgba(20,20,20,0.85);
+    --icon-soft:          rgba(20,20,20,0.48);
+    --icon-faint:         rgba(20,20,20,0.28);
+    --icon-on-accent:     #fff;
+    --text-faint:         rgba(20,20,20,0.40);
+    --row-active:         rgba(0,0,0,0.05);
+    --btn-bg:             rgba(0,0,0,0.06);
+    --btn-bg-active:      rgba(0,0,0,0.11);
+    --hdr-seg-bg:         rgba(0,0,0,0.06);
+    --hdr-seg-active:     rgba(0,0,0,0.11);
+    --overlay-soft:       rgba(0,0,0,0.14);
+    --drawer-bg:          #ffffff;
+    --drawer-border:      rgba(0,0,0,0.07);
+    --drawer-shadow:      rgba(0,0,0,0.13);
+    --drawer-text:        #111111;
+    --drawer-text-faint:  rgba(0,0,0,0.30);
+    --drawer-sep:         rgba(0,0,0,0.09);
+    --drawer-overlay-in:  rgba(0,0,0,0.20);
+    --drawer-row-active:  rgba(0,0,0,0.05);
+    --toggle-bg:          #ffffff;
+    --toggle-bg-act:      #f0f0f2;
+    --toggle-border:      rgba(0,0,0,0.10);
+    --toggle-border-act:  rgba(0,0,0,0.24);
+    --toggle-label:       rgba(20,20,20,0.85);
+    --logo-border:        rgba(0,0,0,0.14);
+    --logo-bg:            #f5f5f7;
+    --upgrade-bg:         rgba(64,132,255,0.10);
+    --upgrade-border:     rgba(64,132,255,0.28);
+    --upgrade-text:       #2f6fe0;
   }
 
   .root {
@@ -884,14 +900,9 @@
     position:absolute;
     inset:0;
     z-index:0;
-    background-size:cover;
-    background-position:center;
+    background:var(--app-bg);
   }
 
-  /* Container do topo com margem lateral (não toca nas bordas da tela).
-     Border-radius total (pílula/curva completa) igual ao raio do botão de
-     menu (34px de altura → 17px de raio total), aplicando o mesmo valor
-     absoluto em todos os 4 cantos para casar visualmente com o botão. */
   .top-panel {
     position:fixed;
     top:12px;
@@ -901,12 +912,10 @@
     display:flex;
     flex-direction:column;
     background:var(--surface);
-    backdrop-filter:blur(20px) saturate(1.5);
-    -webkit-backdrop-filter:blur(20px) saturate(1.5);
     border:0.5px solid var(--border-soft);
-    border-radius:28px;
-    box-shadow:0 12px 36px rgba(0,0,0,0.14);
-    padding-bottom:18px;
+    border-radius:26px;
+    box-shadow:0 10px 28px rgba(0,0,0,0.16);
+    padding-bottom:10px;
     opacity:0;
     transform:translateY(-16px) translateZ(0);
     transition:opacity .4s ease, transform .4s ease;
@@ -923,17 +932,29 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:calc(env(safe-area-inset-top,0px) + 6px) 14px 6px;
+    padding:calc(env(safe-area-inset-top,0px) + 6px) 14px 4px;
   }
-  .logo-img { width:72px; height:72px; object-fit:contain; }
+
+  .logo-wrap {
+    width:58px;
+    height:58px;
+    border-radius:16px;
+    background:var(--logo-bg);
+    border:1px solid var(--logo-border);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .logo-img { width:40px; height:40px; object-fit:contain; }
+
   .header-right {
     display:flex;
     align-items:center;
     height:34px;
     border-radius:17px;
     background:var(--hdr-seg-bg);
-    backdrop-filter:blur(12px);
-    -webkit-backdrop-filter:blur(12px);
     overflow:hidden;
   }
   .hdr-seg {
@@ -952,32 +973,30 @@
   .apps-grid-fixed {
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:8px;
     align-items:center;
     width:100%;
-    padding-top:6px;
+    padding-top:2px;
   }
 
-  /* Ícones reduzidos para um tamanho justo, mantendo a proporção
-     ícone/container de 1.7 : 2.3 e o gap mínimo de 0.5 unidade. */
   .apps-row-fixed {
     display:flex;
     justify-content:center;
     align-items:flex-start;
     width:100%;
-    gap:12px;
+    gap:10px;
   }
 
   .home-app-btn {
-    width:72px;
+    width:66px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:6px;
+    gap:4px;
     background:transparent;
     border:none;
     padding:0;
-    border-radius:16px;
+    border-radius:14px;
     cursor:pointer;
     flex-shrink:0;
     transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1);
@@ -987,9 +1006,9 @@
     transform:scale(0.96);
   }
   .home-app-icon {
-    width:54px;   /* container = 2.3 units */
-    height:54px;
-    border-radius:16.5px;
+    width:44px;
+    height:44px;
+    border-radius:13px;
     overflow:hidden;
     display:flex;
     align-items:center;
@@ -997,21 +1016,50 @@
     flex-shrink:0;
   }
   .home-app-img {
-    width:40px;   /* icon = 1.7 units → 54 * (1.7/2.3) ≈ 40px */
-    height:40px;
+    width:32px;
+    height:32px;
     object-fit:contain;
     display:block;
   }
   .home-app-name {
-    font-size:10px;
+    font-size:9.5px;
     font-weight:500;
     color:var(--icon-soft);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-    max-width:72px;
+    max-width:66px;
     text-align:center;
     line-height:1.2;
+  }
+
+  .upgrade-pill {
+    position:fixed;
+    top:calc(12px + 6px);
+    left:78px;
+    z-index:16;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:5px 11px 5px 9px;
+    border-radius:999px;
+    background:var(--upgrade-bg);
+    border:1px solid var(--upgrade-border);
+    cursor:pointer;
+    opacity:0;
+    transform:translateY(-8px);
+    transition:opacity .35s ease, transform .35s ease;
+    pointer-events:none;
+  }
+  .upgrade-pill.in {
+    opacity:1;
+    transform:translateY(0);
+    pointer-events:auto;
+  }
+  .upgrade-text {
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--upgrade-text);
   }
 
   .content {
@@ -1075,11 +1123,10 @@
     border-radius:999px;
     border:1px solid var(--toggle-border);
     background:var(--toggle-bg);
-    backdrop-filter:blur(18px) saturate(1.6);
-    -webkit-backdrop-filter:blur(18px) saturate(1.6);
     cursor:pointer;
     font-family:inherit;
     white-space:nowrap;
+    box-shadow:0 2px 8px rgba(0,0,0,0.10);
     transition:background .18s ease, border-color .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
     opacity:0;
     transform:scale(0.90) translateY(8px);
@@ -1098,10 +1145,8 @@
   .bottom-bar {
     border-radius:22px;
     background:var(--surface);
-    backdrop-filter:blur(16px) saturate(1.4);
-    -webkit-backdrop-filter:blur(16px) saturate(1.4);
     border:0.5px solid var(--border-soft);
-    box-shadow:0 8px 32px rgba(0,0,0,0.20);
+    box-shadow:0 6px 24px rgba(0,0,0,0.16);
     display:flex;
     flex-direction:column;
   }
@@ -1159,10 +1204,8 @@
     overflow:hidden;
     border-radius:999px;
     background:var(--surface);
-    backdrop-filter:blur(28px) saturate(1.6);
-    -webkit-backdrop-filter:blur(28px) saturate(1.6);
     border:0.5px solid var(--border-soft);
-    box-shadow:0 8px 32px rgba(0,0,0,0.20);
+    box-shadow:0 6px 24px rgba(0,0,0,0.16);
     height:64px;
     animation:recIn .28s cubic-bezier(0.2,0.9,0.3,1) both;
   }
@@ -1198,10 +1241,8 @@
   .suggest-box {
     border-radius:18px;
     background:var(--surface-strong);
-    backdrop-filter:blur(28px) saturate(1.7);
-    -webkit-backdrop-filter:blur(28px) saturate(1.7);
     border:0.5px solid var(--border-soft);
-    box-shadow:0 10px 34px rgba(0,0,0,0.18);
+    box-shadow:0 8px 26px rgba(0,0,0,0.16);
     overflow:hidden;
     margin-bottom:8px;
     animation:suggestIn .22s cubic-bezier(0.2,0.9,0.3,1) both;
@@ -1253,7 +1294,7 @@
     border-radius: 22px;
     background: var(--surface-strong);
     border: 0.5px solid var(--border-soft);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.20);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.16);
     padding: 10px 16px;
   }
   .legal-row { display:flex; align-items:center; justify-content:center; gap:6px; }
@@ -1276,10 +1317,8 @@
     z-index:51;
     border-radius:18px;
     background:var(--surface-strong);
-    backdrop-filter:blur(32px) saturate(1.9);
-    -webkit-backdrop-filter:blur(32px) saturate(1.9);
     border:0.5px solid var(--border-soft);
-    box-shadow:0 14px 44px rgba(0,0,0,0.30);
+    box-shadow:0 12px 36px rgba(0,0,0,0.24);
     overflow:hidden;
     transform-origin:bottom left;
     opacity:0;
@@ -1449,7 +1488,28 @@
   }
   .theme-opt:active { background:var(--drawer-row-active); }
   .theme-opt-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
-  .drawer-logout { flex-shrink:0; }
+
+  .drawer-logout {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin:14px 14px 4px;
+    padding:14px 16px;
+    border-radius:999px;
+    border:none;
+    background:#E0342A;
+    box-shadow:0 6px 16px rgba(224,52,42,0.38);
+    cursor:pointer;
+    font-family:inherit;
+    flex-shrink:0;
+  }
+  .drawer-logout:active { background:#c62c23; }
+  .drawer-logout-label {
+    font-size:15px;
+    font-weight:700;
+    color:#fff;
+  }
 
   .pulse-tap {
     cursor:pointer;

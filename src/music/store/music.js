@@ -4,6 +4,7 @@ import { writable } from 'svelte/store';
 export const PROXY    = 'https://nexavps00001-test.onrender.com';
 export const ACCENT   = '#FC3C44';
 
+// Debug visual (aparece na tela, sem precisar de DevTools)
 export const debugLog = writable([]);
 function log(msg) {
   const line = `${new Date().toLocaleTimeString()} — ${msg}`;
@@ -11,6 +12,7 @@ function log(msg) {
   debugLog.update(l => [...l.slice(-19), line]);
 }
 
+// Feed
 export const feedTracks    = writable([]);
 export const newAlbums     = writable([]);
 export const trendTracks   = writable([]);
@@ -19,6 +21,7 @@ export const artists       = writable([]);
 export const feedLoading   = writable(true);
 export const feedError     = writable(false);
 
+// Player
 export const currentTrack  = writable(null);
 export const playing       = writable(false);
 export const progress      = writable(0);
@@ -32,6 +35,7 @@ export const lyrics        = writable(null);
 export const lyricsLoading = writable(false);
 export const audioLoading  = writable(false);
 
+// Navigation
 export const currentArtist = writable(null);
 export const currentPage   = writable('home');
 export const searchBarRect = writable(null);
@@ -77,7 +81,6 @@ export async function playTrack(track) {
   if (audioInstance) {
     audioInstance.pause();
     audioInstance.src = '';
-    audioInstance.load();
     clearInterval(progressTimer);
   }
 
@@ -97,12 +100,12 @@ export async function playTrack(track) {
 
     if (!res.ok) {
       const errBody = await res.text();
-      log(`corpo erro: ${errBody.slice(0, 200)}`);
+      log(`corpo erro: ${errBody.slice(0, 150)}`);
       throw new Error(`Audio not found (status ${res.status})`);
     }
 
     const data = await res.json();
-    log(`JSON recebido, url presente: ${!!data.url}, fonte: ${data.source || '?'}`);
+    log(`JSON recebido, url presente: ${!!data.url}`);
 
     const { url } = data;
     if (!url) {
@@ -110,30 +113,19 @@ export async function playTrack(track) {
       throw new Error('Resposta sem url de áudio');
     }
 
-    log(`url stream: ${url}`);
+    log(`url stream: ${url.slice(0, 60)}...`);
 
-    const audio = new Audio();
-    audio.preload = 'auto';
+    const audio = new Audio(url);
+    audio.crossOrigin = 'anonymous';
     setAudio(audio);
-
-    audio.onloadstart = () => log('loadstart disparado');
 
     audio.onloadedmetadata = () => {
       log(`metadata OK, duration: ${audio.duration}`);
-      duration.set(audio.duration || data.durationSeconds || 0);
-    };
-
-    audio.oncanplay = () => {
-      log('canplay disparado — pronto para tocar');
+      duration.set(audio.duration || 0);
       audioLoading.set(false);
     };
 
-    audio.oncanplaythrough = () => {
-      log('canplaythrough — buffer suficiente');
-    };
-
     audio.onended = () => {
-      log('faixa terminou');
       playing.set(false);
       progress.set(0);
       let r = 0;
@@ -142,41 +134,24 @@ export async function playTrack(track) {
       else playNext();
     };
 
-    audio.onerror = () => {
+    audio.onerror = (e) => {
       const code = audio.error?.code;
       const msgs = { 1:'ABORTED', 2:'NETWORK', 3:'DECODE', 4:'SRC_NOT_SUPPORTED' };
-      log(`❌ ERRO no <audio>: código ${code} (${msgs[code] || 'desconhecido'}) — ${audio.error?.message || 'sem mensagem'}`);
+      log(`ERRO no <audio>: código ${code} (${msgs[code] || 'desconhecido'})`);
       audioLoading.set(false);
       playing.set(false);
     };
 
-    audio.onstalled = () => log('⚠️ audio stalled (sem dados a chegar da rede)');
-    audio.onwaiting = () => log('⏳ audio waiting (buffering)');
-    audio.onplaying = () => log('▶️ audio playing de fato');
-    audio.onpause = () => log('⏸️ audio pausado');
-    audio.onabort = () => log('audio abort disparado');
-    audio.onsuspend = () => log('audio suspend disparado');
-
-    audio.src = url;
-    audio.load();
-
-    try {
-      await audio.play();
-      log('✅ audio.play() executado com sucesso');
-      playing.set(true);
-    } catch (playErr) {
-      log(`❌ audio.play() REJEITADO: ${playErr.name} — ${playErr.message}`);
-      audioLoading.set(false);
-      playing.set(false);
-      throw playErr;
-    }
+    await audio.play();
+    log('audio.play() executado com sucesso');
+    playing.set(true);
 
     progressTimer = setInterval(() => {
       if (audioInstance) progress.set(audioInstance.currentTime);
     }, 500);
 
   } catch (err) {
-    log(`ERRO CAPTURADO em playTrack: ${err.message}`);
+    log(`ERRO CAPTURADO: ${err.message}`);
     audioLoading.set(false);
     playing.set(false);
   }
@@ -203,7 +178,7 @@ export function togglePlay() {
   if (!audioInstance) return;
   playing.update(p => {
     if (p) audioInstance.pause();
-    else   audioInstance.play().catch((err) => log(`togglePlay erro: ${err.message}`));
+    else   audioInstance.play().catch(() => {});
     return !p;
   });
 }
@@ -217,7 +192,7 @@ export function seekTo(pct) {
 }
 
 export function stopAll() {
-  if (audioInstance) { audioInstance.pause(); audioInstance.src = ''; audioInstance.load(); }
+  if (audioInstance) { audioInstance.pause(); audioInstance.src = ''; }
   clearInterval(progressTimer);
   currentTrack.set(null);
   playing.set(false);

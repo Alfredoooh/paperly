@@ -16,6 +16,7 @@
       const user = await AuthApiService.register(name, email, password);
       if (user?.token) {
         localStorage.setItem('nexa_user', JSON.stringify(user));
+        try { sessionStorage.setItem('nexa_just_registered', '1'); } catch(e) {}
         dispatch('nav', { to: 'home', data: { user } });
       } else { errorMsg = 'Erro ao criar conta.'; }
     } catch (e) { errorMsg = e.message; }
@@ -26,7 +27,7 @@
 <div class="auth-page" style="background:{isDark ? '#0C0C0F' : '#FFFFFF'}">
   <div class="auth-inner">
     <div class="auth-logo-wrap">
-      <img src="/icons/png/logo.png" class="auth-logo" alt="Nexa" />
+      <img src="/icons/png/logo_1.png" class="auth-logo" alt="Nexa" />
       <div class="auth-title" class:dark={isDark}>Criar<br><span>conta</span> nova.</div>
       <div class="auth-subtitle" class:dark={isDark}>Junta-te à Nexa hoje</div>
     </div>
@@ -59,7 +60,7 @@
     display: flex; flex-direction: column; gap: 14px;
   }
   .auth-logo-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
-  .auth-logo { width: 52px; height: 52px; border-radius: 14px; }
+  .auth-logo { width: 56px; height: 56px; border-radius: 50%; display: block; }
   .auth-title { font-size: 26px; font-weight: 700; color: #10151c; line-height: 1.25; letter-spacing: -0.5px; }
   .auth-title.dark { color: #F2F2F2; }
   .auth-title span { color: #2F7BF6; }
@@ -67,7 +68,7 @@
   .auth-subtitle.dark { color: #666; }
   .auth-field { display: flex; flex-direction: column; }
   .auth-input {
-    padding: 14px 16px; border-radius: 12px; border: none; outline: none;
+    padding: 14px 16px; border-radius: 16px; border: none; outline: none;
     font-size: 15px; background: #F2F2F7; color: #10151c;
     -webkit-user-select: text; user-select: text;
     transition: background 0.2s;
@@ -76,7 +77,7 @@
   .auth-input::placeholder { color: #aaa; }
   .auth-error { font-size: 13px; color: #FF3B30; text-align: center; }
   .auth-btn-primary {
-    padding: 15px; border-radius: 14px; border: none; background: #2F7BF6;
+    padding: 15px; border-radius: 18px; border: none; background: #2F7BF6;
     color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
     transition: opacity 0.15s;
   }

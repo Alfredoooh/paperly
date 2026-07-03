@@ -132,6 +132,7 @@
   let lottieInstance;
   let lottieFinished = false;
   let togglesVisible = false;
+  let shouldPlayLottie = false;
 
   const SUGGESTION_TOGGLES = [
     {
@@ -486,10 +487,10 @@
   $: contentPaddingBottom = 28;
 
   let mountToggles = false;
-  $: if (lottieFinished && !mountToggles) mountToggles = true;
+  $: if ((lottieFinished || !shouldPlayLottie) && !mountToggles) mountToggles = true;
   let inputFocused = false;
-  $: togglesShouldShow = lottieFinished && !inputText.trim() && !inputFocused;
-  $: panelShouldShow = togglesVisible && togglesShouldShow;
+  $: togglesShouldShow = (lottieFinished || !shouldPlayLottie) && !inputText.trim() && !inputFocused;
+  $: panelShouldShow = mountToggles ? togglesShouldShow : false;
 
   function handleInputFocus() {
     inputFocused = true;
@@ -515,7 +516,21 @@
     window.addEventListener('storage', onStorage);
 
     requestAnimationFrame(() => { mounted = true; });
-    loadLottie();
+
+    let justRegistered = false;
+    try {
+      justRegistered = sessionStorage.getItem('nexa_just_registered') === '1';
+      sessionStorage.removeItem('nexa_just_registered');
+    } catch(e) {}
+
+    if (justRegistered) {
+      shouldPlayLottie = true;
+      loadLottie();
+    } else {
+      shouldPlayLottie = false;
+      lottieFinished = true;
+      togglesVisible = true;
+    }
 
     return () => {
       if (lottieInstance) lottieInstance.destroy();
@@ -535,6 +550,10 @@
       <div class="logo-wrap">
         <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
       </div>
+      <button class="upgrade-pill pulse-tap" on:click={goToPlans}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/star.svg');-webkit-mask-image:url('/icons/svg/star.svg');width:14px;height:14px;background:var(--upgrade-text)"></span>
+        <span class="upgrade-text">Upgrade</span>
+      </button>
       <div class="header-right">
         <button class="hdr-seg pulse-tap" on:click={openDrawer}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-on-accent)"></span>
@@ -567,13 +586,10 @@
     </div>
   </div>
 
-  <button class="upgrade-pill pulse-tap" class:in={mounted && panelShouldShow} on:click={goToPlans}>
-    <span class="icon-mask" style="mask-image:url('/icons/svg/star.svg');-webkit-mask-image:url('/icons/svg/star.svg');width:14px;height:14px;background:var(--upgrade-text)"></span>
-    <span class="upgrade-text">Upgrade</span>
-  </button>
-
   <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
-    <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
+    {#if shouldPlayLottie}
+      <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
+    {/if}
   </main>
 </div>
 
@@ -792,7 +808,7 @@
     <div style="flex:1"></div>
     <div class="drawer-sep"></div>
     <button class="drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:#fff"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:var(--logout-icon)"></span>
       <span class="drawer-logout-label">Terminar sessão</span>
     </button>
     <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
@@ -846,6 +862,9 @@
     --upgrade-bg:         rgba(64,132,255,0.16);
     --upgrade-border:     rgba(64,132,255,0.35);
     --upgrade-text:       #6ea8ff;
+    --logout-bg:          var(--btn-bg);
+    --logout-bg-active:   var(--btn-bg-active);
+    --logout-icon:        #FF453A;
   }
 
   /* ===== TEMA CLARO ===== */
@@ -885,6 +904,9 @@
     --upgrade-bg:         rgba(64,132,255,0.10);
     --upgrade-border:     rgba(64,132,255,0.28);
     --upgrade-text:       #2f6fe0;
+    --logout-bg:          var(--btn-bg);
+    --logout-bg-active:   var(--btn-bg-active);
+    --logout-icon:        #E0342A;
   }
 
   .root {
@@ -933,21 +955,18 @@
     align-items:center;
     justify-content:space-between;
     padding:calc(env(safe-area-inset-top,0px) + 6px) 14px 4px;
+    gap:10px;
   }
 
   .logo-wrap {
-    width:58px;
-    height:58px;
-    border-radius:16px;
-    background:var(--logo-bg);
-    border:1px solid var(--logo-border);
+    width:34px;
+    height:34px;
     display:flex;
     align-items:center;
     justify-content:center;
-    overflow:hidden;
     flex-shrink:0;
   }
-  .logo-img { width:40px; height:40px; object-fit:contain; }
+  .logo-img { width:34px; height:34px; object-fit:contain; }
 
   .header-right {
     display:flex;
@@ -956,6 +975,7 @@
     border-radius:17px;
     background:var(--hdr-seg-bg);
     overflow:hidden;
+    flex-shrink:0;
   }
   .hdr-seg {
     width:36px;
@@ -1034,30 +1054,21 @@
   }
 
   .upgrade-pill {
-    position:fixed;
-    top:calc(12px + 6px);
-    left:78px;
-    z-index:16;
+    flex:1;
+    max-width:150px;
+    height:34px;
     display:inline-flex;
     align-items:center;
+    justify-content:center;
     gap:5px;
-    padding:5px 11px 5px 9px;
-    border-radius:999px;
+    padding:0 14px;
+    border-radius:17px;
     background:var(--upgrade-bg);
     border:1px solid var(--upgrade-border);
     cursor:pointer;
-    opacity:0;
-    transform:translateY(-8px);
-    transition:opacity .35s ease, transform .35s ease;
-    pointer-events:none;
-  }
-  .upgrade-pill.in {
-    opacity:1;
-    transform:translateY(0);
-    pointer-events:auto;
   }
   .upgrade-text {
-    font-size:11.5px;
+    font-size:12.5px;
     font-weight:700;
     color:var(--upgrade-text);
   }
@@ -1497,18 +1508,18 @@
     margin:14px 14px 4px;
     padding:14px 16px;
     border-radius:999px;
-    border:none;
-    background:#E0342A;
-    box-shadow:0 6px 16px rgba(224,52,42,0.38);
+    border:0.5px solid var(--border-soft);
+    background:var(--logout-bg);
     cursor:pointer;
     font-family:inherit;
     flex-shrink:0;
+    transition:background .18s ease, transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .drawer-logout:active { background:#c62c23; }
+  .drawer-logout:active { background:var(--logout-bg-active); transform:scale(0.97); }
   .drawer-logout-label {
     font-size:15px;
     font-weight:700;
-    color:#fff;
+    color:var(--logout-icon);
   }
 
   .pulse-tap {

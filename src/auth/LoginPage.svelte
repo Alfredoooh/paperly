@@ -128,24 +128,43 @@
   .auth-subtitle.dark { color: #666; }
 
   .auth-field { display: flex; flex-direction: column; }
+
+  /* Estilo tipo Instagram/Facebook: fundo quase branco, borda fina, cantos suavemente arredondados */
   .auth-input {
-    padding: 15px 18px; border-radius: 22px; border: none; outline: none;
-    font-size: 15px; background: #F2F2F7; color: #10151c;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #DBDBDB;
+    outline: none;
+    font-size: 15px;
+    background: #FAFAFA;
+    color: #10151c;
     -webkit-user-select: text; user-select: text;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s, box-shadow 0.2s;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .auth-input:focus {
+    border-color: #B0B0B0;
+    background: #FFFFFF;
   }
   .auth-input.dark {
-    background: #1C1C1E; color: #F2F2F2;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    background: #121212;
+    border-color: #363636;
+    color: #F2F2F2;
   }
-  .auth-input::placeholder { color: #aaa; }
+  .auth-input.dark:focus {
+    border-color: #555;
+    background: #1A1A1A;
+  }
+  .auth-input::placeholder { color: #8e8e8e; }
+
   .auth-error { font-size: 13px; color: #FF3B30; text-align: center; }
 
   .auth-btn-primary {
     position: relative;
     overflow: hidden;
-    padding: 15px; border-radius: 20px; border: none; background: #2F7BF6;
+    padding: 15px;
+    border-radius: 999px;
+    border: none;
+    background: #2F7BF6;
     color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
     transition: opacity 0.15s;
     min-height: 50px;
@@ -183,15 +202,13 @@
 
   .auth-btn-google {
     display: flex; align-items: center; justify-content: center; gap: 10px;
-    padding: 14px; border-radius: 20px; border: 1px solid #E5E5EA;
+    padding: 14px;
+    border-radius: 999px;
+    border: 1px solid #DBDBDB;
     background: #fff; color: #10151c; font-size: 15px; font-weight: 500;
     cursor: pointer; transition: background 0.15s;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   }
-  .auth-btn-google.dark {
-    background: #1C1C1E; border-color: #2A2A2A; color: #F2F2F2;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  }
+  .auth-btn-google.dark { background: #121212; border-color: #363636; color: #F2F2F2; }
   .auth-btn-google img { width: 20px; height: 20px; display: block; }
   .auth-btn-google:active { opacity: 0.7; }
 

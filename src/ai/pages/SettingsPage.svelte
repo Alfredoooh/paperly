@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { fade, scale } from 'svelte/transition';
   import { getThemeColors } from '$shared/theme.js';
   import { AuthApiService } from '$shared/api.js';
@@ -35,15 +35,12 @@
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: avatarColor = getAvatarColor(userName);
 
-  let loading    = true;
-  let loadingMsg = '';
-  onMount(() => { setTimeout(() => { loading = false; }, 700); });
-
   let showThemePicker = false;
   let showLangPicker  = false;
   let showPlansModal  = false;
   let langSearch      = '';
   let currentLanguage = localStorage.getItem('nexa_language') || 'pt';
+  let loggingOut      = false;
 
   let popupPos = { top: 0, right: 0, maxHeight: 340 };
 
@@ -68,34 +65,18 @@
     currentLanguage = code;
     localStorage.setItem('nexa_language', code);
     showLangPicker = false;
-    showToast(`Idioma: ${AVAILABLE_LANGUAGES.find(l => l.code === code)?.name}`);
   }
 
   async function handleLogout() {
+    if (loggingOut) return;
     showThemePicker = false;
     showLangPicker  = false;
-    loadingMsg = 'A terminar sessão…';
-    loading    = true;
+    loggingOut = true;
     if (user) await AuthApiService.logout(user.token);
-    setTimeout(() => { loading = false; dispatch('logout'); }, 800);
+    dispatch('logout');
   }
 </script>
 
-{#if loading}
-  <div class="loader-overlay" class:dark={isDark} transition:fade={{ duration: 200 }}>
-    <div class="loader" class:dark={isDark}>
-      <div class="bar1"></div><div class="bar2"></div><div class="bar3"></div>
-      <div class="bar4"></div><div class="bar5"></div><div class="bar6"></div>
-      <div class="bar7"></div><div class="bar8"></div><div class="bar9"></div>
-      <div class="bar10"></div><div class="bar11"></div><div class="bar12"></div>
-    </div>
-    {#if loadingMsg}
-      <span class="loading-msg" class:dark={isDark}>{loadingMsg}</span>
-    {/if}
-  </div>
-{/if}
-
-{#if !loading}
 <div class="page" class:dark={isDark} transition:fade={{ duration: 180 }}>
 
   <div class="header">
@@ -103,7 +84,7 @@
       <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:20px;height:20px;background:{isDark?'#fff':'#000'};"></span>
     </button>
     <span class="header-title">Definições</span>
-    <button type="button" class="logout-btn" on:click={handleLogout}>
+    <button type="button" class="logout-btn" disabled={loggingOut} on:click={handleLogout}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:#FF3B30"></span>
     </button>
   </div>
@@ -173,15 +154,14 @@
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/web.svg');-webkit-mask-image:url('/icons/svg/web.svg');"></span>
         <span class="row-label">Web & links</span>
       </button>
-      <button type="button" class="row danger" on:click={handleLogout}>
+      <button type="button" class="row danger" disabled={loggingOut} on:click={handleLogout}>
         <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');background:#FF3B30;"></span>
-        <span class="row-label">Terminar sessão</span>
+        <span class="row-label">{loggingOut ? 'A terminar sessão…' : 'Terminar sessão'}</span>
       </button>
     </div>
 
   </div>
 </div>
-{/if}
 
 <PlansModal {isDark} {user} open={showPlansModal} on:close={() => showPlansModal=false} />
 
@@ -230,38 +210,8 @@
 {/if}
 
 <style>
-  .loader-overlay {
-    position:fixed; inset:0; z-index:200;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
-    background:#fff;
-  }
-  .loader-overlay.dark { background:#111; }
-  .loader { position:relative; width:32px; height:32px; border-radius:6px; }
-  .loader div {
-    width:8%; height:24%; background:rgba(0,0,0,0.55);
-    position:absolute; left:50%; top:30%; opacity:0;
-    border-radius:50px; box-shadow:0 0 3px rgba(0,0,0,0.2);
-    animation:fade458 1s linear infinite;
-  }
-  .loader.dark div { background:rgba(255,255,255,0.55); }
-  @keyframes fade458 { from{opacity:1} to{opacity:0.25} }
-  .loader .bar1  { transform:rotate(0deg)   translate(0,-130%); animation-delay:0s;    }
-  .loader .bar2  { transform:rotate(30deg)  translate(0,-130%); animation-delay:-1.1s; }
-  .loader .bar3  { transform:rotate(60deg)  translate(0,-130%); animation-delay:-1s;   }
-  .loader .bar4  { transform:rotate(90deg)  translate(0,-130%); animation-delay:-0.9s; }
-  .loader .bar5  { transform:rotate(120deg) translate(0,-130%); animation-delay:-0.8s; }
-  .loader .bar6  { transform:rotate(150deg) translate(0,-130%); animation-delay:-0.7s; }
-  .loader .bar7  { transform:rotate(180deg) translate(0,-130%); animation-delay:-0.6s; }
-  .loader .bar8  { transform:rotate(210deg) translate(0,-130%); animation-delay:-0.5s; }
-  .loader .bar9  { transform:rotate(240deg) translate(0,-130%); animation-delay:-0.4s; }
-  .loader .bar10 { transform:rotate(270deg) translate(0,-130%); animation-delay:-0.3s; }
-  .loader .bar11 { transform:rotate(300deg) translate(0,-130%); animation-delay:-0.2s; }
-  .loader .bar12 { transform:rotate(330deg) translate(0,-130%); animation-delay:-0.1s; }
-  .loading-msg { font-size:13px; font-weight:400; color:rgba(60,60,67,.5); font-family:-apple-system,sans-serif; letter-spacing:-.1px; }
-  .loading-msg.dark { color:rgba(235,235,245,.4); }
-
   .page { position:fixed; inset:0; z-index:150; display:flex; flex-direction:column; background:#fff; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif; }
-  .page.dark { background:#111; }
+  .page.dark { background:#0F0F0F; }
 
   .header { display:flex; align-items:center; gap:8px; padding:16px 16px 10px; padding-top:calc(16px + env(safe-area-inset-top)); flex-shrink:0; }
   .header-title { flex:1; font-size:17px; font-weight:600; color:#000; text-align:center; letter-spacing:-.3px; }
@@ -269,6 +219,7 @@
   .back-btn, .logout-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; border-radius:50%; transition:background .12s; }
   .back-btn:active { background:rgba(0,0,0,.06); }
   .logout-btn:active { background:rgba(255,59,48,.08); }
+  .logout-btn:disabled { opacity:.5; }
   .page.dark .back-btn:active { background:rgba(255,255,255,.08); }
 
   .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:8px 0 40px; display:flex; flex-direction:column; }
@@ -290,6 +241,7 @@
   .row:active { background:rgba(0,0,0,.05); }
   .page.dark .row:active { background:rgba(255,255,255,.06); }
   .row.danger { color:#FF3B30; }
+  .row:disabled { opacity:.55; cursor:default; }
   .row-icon { width:17px; height:17px; background:rgba(60,60,67,.55); flex-shrink:0; display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; }
   .page.dark .row-icon { background:rgba(235,235,245,.55); }
   .danger .row-icon { background:#FF3B30 !important; }

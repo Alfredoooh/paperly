@@ -89,22 +89,7 @@
       </div>
     </div>
 
-    {#if !artist}
-      <div class="skeleton-wrap">
-        <div class="skel-row" style="width:70%"></div>
-        <div class="skel-tracks">
-          {#each Array(5) as _}
-            <div class="skel-track">
-              <div class="skel-thumb"></div>
-              <div class="skel-lines">
-                <div class="skel-line" style="width:60%"></div>
-                <div class="skel-line" style="width:35%"></div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {:else}
+    {#if artist}
 
       <!-- Única barra de ações: Reproduzir + botão circular de Add (seguir). Sem duplicação, sem glow vermelho. -->
       <div class="actions-bar" style="background:{isDark ? '#121212' : '#fff'}">
@@ -311,21 +296,6 @@
   .rel-fallback { background:#333;display:flex;align-items:center;justify-content:center; }
   .rel-fallback span { font-size:22px;font-weight:700;color:#fff; }
   .rel-name { font-size:12px;font-weight:600;text-align:center; }
-
-  .skeleton-wrap { padding:16px; }
-  .skel-row, .skel-line, .skel-thumb {
-    background:linear-gradient(90deg, rgba(128,128,128,0.12) 25%, rgba(128,128,128,0.22) 37%, rgba(128,128,128,0.12) 63%);
-    background-size:400% 100%;
-    animation:shimmer 1.4s ease infinite;
-    border-radius:6px;
-  }
-  .skel-row { height:22px;margin-bottom:20px; }
-  .skel-tracks { display:flex;flex-direction:column;gap:14px; }
-  .skel-track { display:flex;align-items:center;gap:12px; }
-  .skel-thumb { width:48px;height:48px;border-radius:8px;flex-shrink:0; }
-  .skel-lines { flex:1;display:flex;flex-direction:column;gap:8px; }
-  .skel-line { height:14px; }
-  @keyframes shimmer { 0% { background-position:100% 0; } 100% { background-position:-100% 0; } }
 
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

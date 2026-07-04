@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { cpSync, mkdirSync, existsSync } from 'fs';
 
 // nome da pasta no disco -> nome da rota final em dist/
+// APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
   { dir: 'auth', route: 'auth' },
   { dir: 'home', route: 'home' },
@@ -15,6 +16,9 @@ const apps = [
   { dir: 'downloader', route: 'downloader' },
 ];
 
+// página de erro 404, tratada à parte por não ser uma app do site
+const notFound = { dir: 'notfound', route: '404' };
+
 export default defineConfig({
   plugins: [
     svelte(),
@@ -22,6 +26,7 @@ export default defineConfig({
       name: 'post-build-copy',
       closeBundle() {
         const dist = resolve(__dirname, 'dist');
+        
         for (const { dir, route } of apps) {
           const src = resolve(dist, 'src', dir, 'index.html');
           const dest = resolve(dist, route, 'index.html');
@@ -32,6 +37,26 @@ export default defineConfig({
           } else {
             console.warn(`⚠ não encontrado: dist/src/${dir}/index.html`);
           }
+        }
+        
+        const notFoundSrc = resolve(dist, 'src', notFound.dir, 'index.html');
+        const notFoundDest = resolve(dist, notFound.route, 'index.html');
+        if (existsSync(notFoundSrc)) {
+          mkdirSync(resolve(dist, notFound.route), { recursive: true });
+          cpSync(notFoundSrc, notFoundDest);
+          console.log(`✓ dist/${notFound.route}/index.html`);
+          
+          cpSync(notFoundSrc, resolve(dist, '404.html'));
+          console.log('✓ dist/404.html');
+        } else {
+          console.warn(`⚠ não encontrado: dist/src/${notFound.dir}/index.html`);
+        }
+        
+        const rootSrc = resolve(__dirname, 'index.html');
+        const rootDest = resolve(dist, 'index.html');
+        if (existsSync(rootSrc)) {
+          cpSync(rootSrc, rootDest);
+          console.log('✓ dist/index.html (redirect root)');
         }
       }
     }
@@ -54,6 +79,7 @@ export default defineConfig({
         media: resolve(__dirname, 'src/media/index.html'),
         profilelens: resolve(__dirname, 'src/profilelens/index.html'),
         downloader: resolve(__dirname, 'src/downloader/index.html'),
+        notfound: resolve(__dirname, 'src/notfound/index.html'),
       }
     }
   }

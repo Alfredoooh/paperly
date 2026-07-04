@@ -2,31 +2,48 @@
   import { onMount } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
+  import { createRouter } from '$shared/router.js';
   import ChatPage from './pages/ChatPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import WidgetsPage from './pages/WidgetsPage.svelte';
-  
+
+  const BASE = '/ai/';
+  const VALID_ROUTES = ['settings', 'widgets'];
+  const router = createRouter(BASE, VALID_ROUTES, 'chat');
+
   let route = 'chat';
   let user = null;
   let isDark = false;
   let chatMounted = false;
   let ready = false;
-  
+
   onMount(() => {
     user = requireAuth();
     if (!user) return;
-    
+
     const t = getTheme();
     isDark = t === 'dark';
     syncTheme(isDark);
-    
+
+    const { route: initialRoute, notFound } = router.parseCurrentRoute();
+    if (notFound) { window.location.replace('/404/'); return; }
+    route = initialRoute;
+    router.navigate(route, { replace: true });
+
     chatMounted = true;
     ready = true;
-    
+
+    const unbind = router.bindPopState((r, nf) => {
+      if (nf) { window.location.replace('/404/'); return; }
+      route = r;
+    });
+
     window.addEventListener('beforeunload', () =>
       localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light'));
+
+    return unbind;
   });
-  
+
   function handleNav(e) {
     const { to, data } = e.detail;
     if (data?.isDark !== undefined) {
@@ -40,10 +57,11 @@
       return;
     }
     if (to === 'home') { window.location.href = '/home/'; return; }
-    if (to === 'chat' || to === 'ai') { route = 'chat'; return; }
-    if (to === 'settings') { route = 'settings'; return; }
-    if (to === 'widgets') { route = 'widgets'; return; }
+    if (to === 'chat' || to === 'ai') { route = 'chat'; router.navigate('chat'); return; }
+    if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
+    if (to === 'widgets') { route = 'widgets'; router.navigate('widgets'); return; }
     route = to;
+    router.navigate(to);
   }
 </script>
 

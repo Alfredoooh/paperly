@@ -4,6 +4,7 @@
 /music/* /music/index.html 200
 /games/* /games/index.html 200
 /media/* /media/index.html 200
-/news/* /news/index.html 200
+/profilelens/* /profilelens/index.html 200
 /downloader/* /downloader/index.html 200
-/* /home/index.html 200
+/ /index.html 200
+/* /404/index.html 404

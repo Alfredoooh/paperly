@@ -8,6 +8,7 @@
   export let menuItems = [];
   export let conversations = [];
   export let currentConvId = '';
+  export let loadingConversations = false;
 
   const dispatch = createEventDispatcher();
 
@@ -53,6 +54,8 @@
     const l = (item.label || '').toLowerCase();
     return !['settings','definições','definicoes','perfil','profile','configurações','configuracoes'].some(k => l.includes(k));
   });
+
+  const SKELETON_ROWS = [92, 68, 84, 55, 76];
 </script>
 
 <div class="overlay" class:open on:click|self={closeDrawer}></div>
@@ -81,16 +84,24 @@
       </div>
     {/if}
 
-    {#if conversations.length}
-      <div class="section-label">Conversas</div>
-      <div class="section">
-        <button type="button" class="row" on:click={toggleConvSection}>
-          <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/meassage.svg');-webkit-mask-image:url('/icons/svg/meassage.svg');"></span>
-          <span class="row-label">Histórico</span>
-          <span class="icon-mask row-chevron" class:rotated={!conversationsCollapsed} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');"></span>
-        </button>
-        <div class="conv-outer" class:collapsed={conversationsCollapsed}>
-          <div class="conv-inner">
+    <div class="section-label">Conversas</div>
+    <div class="section">
+      <button type="button" class="row" on:click={toggleConvSection}>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/meassage.svg');-webkit-mask-image:url('/icons/svg/meassage.svg');"></span>
+        <span class="row-label">Histórico</span>
+        <span class="icon-mask row-chevron" class:rotated={!conversationsCollapsed} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');"></span>
+      </button>
+      <div class="conv-outer" class:collapsed={conversationsCollapsed}>
+        <div class="conv-inner">
+          {#if loadingConversations}
+            <div class="skeleton-list">
+              {#each SKELETON_ROWS as w}
+                <div class="skeleton-row">
+                  <div class="skeleton-bar" class:dark={isDark} style="width:{w}%"></div>
+                </div>
+              {/each}
+            </div>
+          {:else}
             {#each conversations as conv}
               {@const lp = makeLongPress(conv)}
               {@const active = conv.id === currentConvId}
@@ -107,10 +118,10 @@
             {#if conversations.length === 0}
               <div class="empty">Ainda não há conversas</div>
             {/if}
-          </div>
+          {/if}
         </div>
       </div>
-    {/if}
+    </div>
 
   </div>
 
@@ -133,7 +144,7 @@
   .overlay.open { opacity:1; pointer-events:auto; }
 
   .drawer { position:fixed; top:0; left:0; bottom:0; width:78vw; max-width:320px; z-index:101; display:flex; flex-direction:column; transform:translateX(-100%); transition:transform .3s cubic-bezier(0.4,0,0.2,1); background:#ffffff; border-right:0.5px solid rgba(0,0,0,0.09); }
-  .drawer.dark { background:#111111; border-right-color:rgba(255,255,255,0.07); }
+  .drawer.dark { background:#0F0F0F; border-right-color:rgba(255,255,255,0.07); }
   .drawer.open { transform:translateX(0); }
 
   .header { padding:20px 20px 10px; flex-shrink:0; }
@@ -179,9 +190,26 @@
   .empty { padding:16px 10px; font-size:14px; color:rgba(60,60,67,0.35); }
   .dark .empty { color:rgba(235,235,245,0.3); }
 
+  .skeleton-list { display:flex; flex-direction:column; gap:4px; padding:2px 10px; }
+  .skeleton-row { padding:9px 0; }
+  .skeleton-bar {
+    height:14px; border-radius:7px;
+    background:linear-gradient(90deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.12) 50%, rgba(0,0,0,0.06) 100%);
+    background-size:200% 100%;
+    animation:skeletonShimmer 1.3s ease-in-out infinite;
+  }
+  .skeleton-bar.dark {
+    background:linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.06) 100%);
+    background-size:200% 100%;
+  }
+  @keyframes skeletonShimmer {
+    0% { background-position:200% 0; }
+    100% { background-position:-200% 0; }
+  }
+
   .user-footer { position:relative; z-index:102; flex-shrink:0; display:flex; align-items:center; gap:10px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-top:0.5px solid rgba(0,0,0,0.07); border-left:none; border-right:none; border-bottom:none; background:#ffffff; width:100%; cursor:pointer; text-align:left; transition:background .12s ease; font-family:-apple-system,BlinkMacSystemFont,sans-serif; }
   .user-footer:active { background:rgba(0,0,0,0.04); }
-  .user-footer.dark { border-top-color:rgba(255,255,255,0.07); background:#111111; }
+  .user-footer.dark { border-top-color:rgba(255,255,255,0.07); background:#0F0F0F; }
   .user-footer.dark:active { background:rgba(255,255,255,0.05); }
 
   .avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; flex-shrink:0; letter-spacing:-0.3px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; }

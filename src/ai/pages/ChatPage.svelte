@@ -24,6 +24,7 @@
   let drawerOpen       = false;
   let activeApp        = localStorage.getItem('nexa_active_app') || 'ai';
   let conversations    = [];
+  let loadingConversations = false;
   let showSettings     = false;
 
   const drawerMenuItems = [
@@ -904,7 +905,7 @@
   if (typeof window !== 'undefined') {
     window._copyCodeBtn = (btn) => {
       const code = btn.closest('.code-block-wrapper')?.querySelector('code');
-      if (code) navigator.clipboard.writeText(code.textContent).then(()=>showToast('Código copiado!')).catch(()=>{});
+      if (code) navigator.clipboard.writeText(code.textContent).then(()=>{}).catch(()=>{});
     };
   }
 
@@ -989,16 +990,18 @@
   function handleDrawerOpen() {
     drawerOpen = true;
     if (effectiveUser && activeApp === 'ai') {
+      loadingConversations = true;
       AuthApiService.listConversations(effectiveUser.token).then(list => {
         conversations = list.map(cv => ({ id:cv.id, title:cv.title, messages:cv.messages||[], updatedAt:cv.updatedAt||Date.now(), pinned:cv.pinned||false }));
-      });
+        loadingConversations = false;
+      }).catch(() => { loadingConversations = false; });
     }
   }
 
   function openApp(id) {
     activeApp = id; localStorage.setItem('nexa_active_app', id);
     showAppsPopup = false;
-    if (id !== 'ai') { dispatch('nav', { to: id, data: { user: effectiveUser } }); } else { showToast('IA ativa'); }
+    if (id !== 'ai') { dispatch('nav', { to: id, data: { user: effectiveUser } }); }
   }
 
   function openAppsPopup(event) {
@@ -1011,8 +1014,9 @@
   }
 
   function handleOpenConv(e) {
-    if (isStreaming || isIncognito) { showToast(isIncognito ? 'Não é possível sair da conversa privada' : ''); return; }
+    if (isStreaming) return;
     const conv = e.detail.conv;
+    isIncognito = false;
     currentConvId = conv.id; currentConvTitle = conv.title; titleGenerated = true;
     chatHistory = [...conv.messages];
     displayMessages = conv.messages.map(m => ({ role:m.role, content:m.content }));
@@ -1021,14 +1025,17 @@
   function handleConvOptions(e) { sheetConv = e.detail.conv; sheetMode = 'convOptions'; showSheet = true; }
 
   function newChat() {
-    if (isIncognito) { showToast('Termina a conversa privada para criar uma nova'); return; }
-    displayMessages = []; chatHistory = []; currentConvId = ''; currentConvTitle = 'Nova conversa'; titleGenerated = false; pendingAttachments = [];
+    displayMessages = []; chatHistory = []; currentConvId = ''; currentConvTitle = 'Nova conversa'; titleGenerated = false; pendingAttachments = []; isIncognito = false;
   }
 
-  function startIncognito() {
-    displayMessages = []; chatHistory = []; currentConvId = ''; currentConvTitle = 'Conversa privada';
-    titleGenerated = true; pendingAttachments = []; isIncognito = true;
-    showToast('Conversa privada ativada');
+  function toggleIncognito() {
+    if (isIncognito) {
+      isIncognito = false;
+      displayMessages = []; chatHistory = []; currentConvId = ''; currentConvTitle = 'Nova conversa'; titleGenerated = false; pendingAttachments = [];
+    } else {
+      displayMessages = []; chatHistory = []; currentConvId = ''; currentConvTitle = 'Conversa privada';
+      titleGenerated = true; pendingAttachments = []; isIncognito = true;
+    }
   }
 
   function regenerate() {
@@ -1049,22 +1056,21 @@
     try {
       const dataUrl = await readFileAsDataUrl(file);
       pendingAttachments = [...pendingAttachments, { kind, name:file.name, size:file.size, mime:file.type, dataUrl:kind==='image'?dataUrl:null, rawDataUrl:dataUrl }];
-      showToast(kind==='image' ? `Imagem "${file.name}" anexada` : `Ficheiro "${file.name}" anexado`);
-    } catch (e) { showToast('Não foi possível ler o ficheiro'); }
+    } catch (e) {}
   }
 
   function copyText(text) {
-    navigator.clipboard.writeText(text).then(()=>showToast('Copiado!')).catch(()=>{const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);showToast('Copiado!');});
+    navigator.clipboard.writeText(text).catch(()=>{const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);});
   }
   function shareText(text) {
     if (navigator.share) navigator.share({text}).catch(()=>{});
-    else { copyText(text); showToast('Copiado para partilha!'); }
+    else { copyText(text); }
   }
 
   async function pinConv(conv) {
     const prev = conv.pinned; conv.pinned = !conv.pinned; conversations = [...conversations];
     try { await AuthApiService.pinConversation(effectiveUser?.token||'', conv.id, conv.pinned); }
-    catch (e) { conv.pinned = prev; conversations = [...conversations]; showToast('Não foi possível atualizar'); }
+    catch (e) { conv.pinned = prev; conversations = [...conversations]; }
     showSheet = false;
   }
   async function deleteConv(conv) {
@@ -1072,21 +1078,21 @@
     conversations = conversations.filter(c => c.id !== conv.id);
     if (currentConvId === conv.id) newChat();
     showSheet = false;
-    try { await AuthApiService.deleteConversation(effectiveUser?.token||'', conv.id); showToast('Conversa eliminada'); }
-    catch (e) { conversations = prev; showToast('Não foi possível eliminar'); }
+    try { await AuthApiService.deleteConversation(effectiveUser?.token||'', conv.id); }
+    catch (e) { conversations = prev; }
   }
   async function confirmRename() {
     const newTitle = renameValue.trim();
-    if (!newTitle) { showToast('O título não pode estar vazio'); return; }
+    if (!newTitle) { showCenterDialog = false; return; }
     const conv = sheetConv; const prev = conv.title;
     conv.title = newTitle; if (currentConvId === conv.id) currentConvTitle = newTitle;
     conversations = [...conversations]; showCenterDialog = false;
-    try { await AuthApiService.updateConversation(effectiveUser?.token||'', conv.id, newTitle, conv.messages||chatHistory); showToast('Conversa renomeada'); }
-    catch (e) { conv.title = prev; if (currentConvId === conv.id) currentConvTitle = prev; conversations=[...conversations]; showToast('Não foi possível renomear'); }
+    try { await AuthApiService.updateConversation(effectiveUser?.token||'', conv.id, newTitle, conv.messages||chatHistory); }
+    catch (e) { conv.title = prev; if (currentConvId === conv.id) currentConvTitle = prev; conversations=[...conversations]; }
   }
   function confirmEditMsg() {
     const newText = editMsgValue.trim();
-    if (!newText) { showToast('A mensagem não pode estar vazia'); return; }
+    if (!newText) { showCenterDialog = false; return; }
     showCenterDialog = false;
     if (isStreaming) return;
     const atts = displayMessages[sheetUserIdx]?.attachments || [];
@@ -1099,9 +1105,8 @@
     if (displayMessages[end]?.role === 'assistant') end++;
     displayMessages = [...displayMessages.slice(0, idx), ...displayMessages.slice(end)];
     chatHistory = [...chatHistory.slice(0, idx), ...chatHistory.slice(end)];
-    showSheet = false; showToast('Mensagem eliminada');
+    showSheet = false;
   }
-  function selectModel(id) { currentModelId = id; localStorage.setItem('nexa_model', id); showSheet = false; showToast(`Modelo: ${currentModelName}`); }
 
   async function startRecording() {
     if (isRecording) return;
@@ -1122,7 +1127,7 @@
       recSeconds = 0; showRecOverlay = true;
       recInterval = setInterval(() => recSeconds++, 1000);
       startWaveAnim();
-    } catch (err) { showToast('Sem acesso ao microfone'); }
+    } catch (err) {}
   }
   function stopRecording() {
     if (!isRecording || !mediaRecorder) return;
@@ -1140,7 +1145,6 @@
   async function handleRecStop() {
     if (!audioChunks.length) return;
     const blob = new Blob(audioChunks, { type:'audio/webm' }); audioChunks = [];
-    showToast('A transcrever…');
     try {
       const token = effectiveUser?.token || '';
       const form = new FormData(); form.append('file', blob, 'audio.webm'); form.append('language', currentLanguage||'pt');
@@ -1148,8 +1152,7 @@
       if (!res.ok) throw new Error('Erro na transcrição');
       const data = await res.json(); const text = (data.text||'').trim();
       if (text) { inputText = (inputText ? inputText + ' ' : '') + text; setTimeout(autoResize, 10); }
-      else showToast('Nenhum texto reconhecido');
-    } catch (err) { showToast('Erro ao transcrever áudio'); }
+    } catch (err) {}
   }
 
   function startWaveAnim() {
@@ -1207,19 +1210,15 @@
     <button class="pulse-tap circ w10" style="color:{c.iconTint}" on:click={handleDrawerOpen}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:18px;height:18px;background:{c.iconTint}"></span>
     </button>
-    <button class="model-btn pulse-tap" on:click={() => { sheetMode='modelPicker'; showSheet=true; }}>
-      <span class="model-name" style="color:{c.textSecondary}">{currentModelName}</span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={c.textSecondary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
     <div class="flex1"></div>
     {#if isIncognito}
-      <div class="incognito-pill" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'};color:{c.textPrimary};margin-right:4px">
+      <button class="incognito-pill pulse-tap" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'};color:{c.textPrimary};margin-right:4px" on:click={toggleIncognito}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/incognito.svg');-webkit-mask-image:url('/icons/svg/incognito.svg');width:14px;height:14px;background:{c.textPrimary}"></span>
         <span>Privada</span>
-      </div>
+      </button>
     {/if}
     {#if !hasMessages && !isIncognito}
-      <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={startIncognito}>
+      <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={toggleIncognito}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/incognito.svg');-webkit-mask-image:url('/icons/svg/incognito.svg');width:18px;height:18px;background:{c.iconTint}"></span>
       </button>
     {/if}
@@ -1228,7 +1227,7 @@
         <span class="icon-mask" style="mask-image:url('/icons/svg/new_chat.svg');-webkit-mask-image:url('/icons/svg/new_chat.svg');width:17px;height:17px;background:{c.iconTint}"></span>
       </button>
       <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={() => {
-        if (!currentConvId) { showToast('Esta conversa ainda não foi guardada'); return; }
+        if (!currentConvId) return;
         const conv = conversations.find(cv=>cv.id===currentConvId) || { id:currentConvId, title:currentConvTitle, messages:chatHistory, updatedAt:Date.now(), pinned:false };
         sheetConv = conv; sheetMode='convOptions'; showSheet=true;
       }}>
@@ -1242,6 +1241,7 @@
     title="AI" subtitle="Conversas e ferramentas"
     menuItems={drawerMenuItems}
     {conversations} currentConvId={currentConvId}
+    {loadingConversations}
     on:close={() => drawerOpen=false}
     on:openConv={handleOpenConv}
     on:convOptions={handleConvOptions}
@@ -1251,7 +1251,7 @@
   <div class="messages-wrap" bind:this={messagesEl}>
     {#if !hasMessages}
       <div class="empty-state">
-        <img src="/icons/png/logo.png" class="empty-logo" alt="Nexa" />
+        <img src="/icons/png/logo_1.png" class="empty-logo" alt="Nexa" />
         <h1 class="greeting" style="color:{c.textPrimary};font-family:'TimesNewRoman',serif">{greeting}</h1>
         <p class="greeting-sub" style="color:{c.textSecondary}">Em que estás a pensar?</p>
       </div>
@@ -1380,7 +1380,7 @@
     </div>
   </div>
 
-  <!-- Apps popup — mesmo estilo do popup de tema do SettingsPage -->
+  <!-- Apps popup — mesmo estilo do popup de tema do SettingsPage, com animação mais expressiva -->
   {#if showAppsPopup}
     <div class="apps-popup-overlay" on:click={() => showAppsPopup=false}></div>
     <div
@@ -1390,7 +1390,7 @@
     >
       {#each DRAWER_APPS as app, i}
         {#if i > 0}<div class="apps-popup-sep" class:dark={isDark}></div>{/if}
-        <button type="button" class="apps-popup-row pulse-tap" class:dark={isDark} on:click={() => openApp(app.id)}>
+        <button type="button" class="apps-popup-row pulse-tap" class:dark={isDark} style="animation-delay:{i*35}ms" on:click={() => openApp(app.id)}>
           <img src={app.icon} alt={app.label} class="apps-popup-icon" />
           <span class="apps-popup-label" class:dark={isDark}>{app.label}</span>
           {#if app.id === activeApp}
@@ -1406,14 +1406,14 @@
       {#each [['image','Enviar Imagem','image'],['upload','Enviar Ficheiro','file']] as [icon,label,kind], i}
         {#if i > 0}<div class="sheet-sep" style="background:{c.divider}"></div>{/if}
         <label class="sheet-row pulse-tap" style="cursor:pointer">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:22px;height:22px;background:{c.iconTint}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:17px;height:17px;background:{c.iconTint}"></span>
           <span style="margin-left:14px;font-size:15px;font-weight:500;color:{c.textPrimary}">{label}</span>
           <input type="file" accept={kind==='image'?'image/*':'*/*'} style="display:none" on:change={async e=>{const f=e.target.files?.[0];if(f){showSheet=false;await addAttachment(f,kind);}}} />
         </label>
       {/each}
       <div class="sheet-sep" style="background:{c.divider}"></div>
       <div class="sheet-row pulse-tap" on:click={() => { showSheet=false; setTimeout(()=>{ sheetMode='extras'; showSheet=true; },180); }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:22px;height:22px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:{c.iconTint}"></span>
         <span style="margin-left:14px;font-size:15px;font-weight:500;color:{c.textPrimary}">Extras</span>
       </div>
       <div style="height:16px"></div>
@@ -1430,22 +1430,6 @@
       {/each}
       <div style="height:16px"></div>
 
-    {:else if sheetMode === 'modelPicker'}
-      <div class="sheet-title" style="color:{c.textPrimary}">Modelo de IA</div>
-      {#each AVAILABLE_MODELS as model, i}
-        {#if i > 0}<div class="sheet-sep" style="background:{isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}"></div>{/if}
-        <div class="sheet-row pulse-tap" on:click={() => selectModel(model.id)}>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:15px;font-weight:600;color:{model.id===currentModelId?c.primary:c.textPrimary}">{model.name}</div>
-            <div style="font-size:12.5px;color:{c.textSecondary};margin-top:1px">{model.description}</div>
-          </div>
-          {#if model.id === currentModelId}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c.primary} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          {/if}
-        </div>
-      {/each}
-      <div style="height:12px"></div>
-
     {:else if sheetMode === 'convOptions' && sheetConv}
       <div class="conv-opts-header">
         <div class="conv-opts-avatar" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'}">
@@ -1458,7 +1442,7 @@
       </div>
       <div class="conv-opts-card" style="background:{isDark?'#1C1C1E':'#F2F2F7'}">
         {#each [
-          ['external','Abrir conversa',false,()=>{showSheet=false;setTimeout(()=>{currentConvId=sheetConv.id;currentConvTitle=sheetConv.title;titleGenerated=true;chatHistory=[...sheetConv.messages];displayMessages=sheetConv.messages.map(m=>({role:m.role,content:m.content}));},200);}],
+          ['external','Abrir conversa',false,()=>{showSheet=false;setTimeout(()=>{isIncognito=false;currentConvId=sheetConv.id;currentConvTitle=sheetConv.title;titleGenerated=true;chatHistory=[...sheetConv.messages];displayMessages=sheetConv.messages.map(m=>({role:m.role,content:m.content}));},200);}],
           [sheetConv.pinned?'pin_filled':'pin',sheetConv.pinned?'Desafixar':'Fixar',false,()=>pinConv(sheetConv)],
           ['customise','Renomear',false,()=>{renameValue=sheetConv.title;showSheet=false;showCenterDialog=true;centerDialogMode='rename';}],
           ['share','Partilhar',false,()=>{showSheet=false;shareText(sheetConv.title);}],
@@ -1560,13 +1544,11 @@
   .chat-root.dark { background:var(--bg-dark); }
 
   .appbar-gradient { position:absolute; top:0; left:0; right:0; height:90px; pointer-events:none; z-index:39; }
-  .appbar-gradient:not(.dark) { background:linear-gradient(to bottom,rgba(249,250,251,1) 0%,rgba(249,250,251,.95) 45%,rgba(249,250,251,0) 100%); }
+  .appbar-gradient:not(.dark) { background:linear-gradient(to bottom,rgba(255,255,255,1) 0%,rgba(255,255,255,.97) 50%,rgba(255,255,255,0) 100%); }
   .appbar-gradient.dark { background:linear-gradient(to bottom,rgba(15,15,15,1) 0%,rgba(15,15,15,.95) 45%,rgba(15,15,15,0) 100%); }
 
   .appbar { position:absolute; top:0; left:0; right:0; z-index:40; height:60px; display:flex; align-items:center; padding:0 8px; background:transparent; }
-  .model-btn { display:flex; align-items:center; gap:4px; background:none; border:none; cursor:pointer; padding:6px 10px; border-radius:14px; margin-left:6px; }
-  .model-name { font-size:14px; font-weight:600; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.01em; }
-  .incognito-pill { display:flex; align-items:center; gap:6px; padding:5px 12px 5px 10px; border-radius:16px; font-size:12px; font-weight:600; }
+  .incognito-pill { display:flex; align-items:center; gap:6px; padding:5px 12px 5px 10px; border-radius:16px; font-size:12px; font-weight:600; border:none; cursor:pointer; font-family:inherit; }
   .flex1 { flex:1; }
   .w10 { width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:none; border:none; }
   .px2 { padding:0 8px; }
@@ -1655,7 +1637,7 @@
   .edit-label { font-size:14px; font-weight:700; }
   .send-btn { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; }
 
-  /* Apps popup — mesmo estilo do popup de tema do SettingsPage */
+  /* Apps popup — mesmo estilo do popup de tema do SettingsPage, com animação mais expressiva */
   .apps-popup-overlay { position:fixed; inset:0; z-index:160; }
   .apps-popup-box {
     position:fixed; z-index:161;
@@ -1664,6 +1646,11 @@
     background:#fff;
     box-shadow:0 8px 30px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
     transform-origin:bottom right;
+    animation:appsPopupIn .26s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes appsPopupIn {
+    from { opacity:0; transform:scale(0.82) translateY(14px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
   }
   .apps-popup-box.dark { background:#2c2c2e; }
   .apps-popup-sep { height:.5px; background:rgba(0,0,0,.08); margin:0 14px; }
@@ -1673,8 +1660,14 @@
     padding:13px 16px; background:none; border:none;
     cursor:pointer; font-family:inherit;
     transition:background .1s;
+    opacity:0; transform:translateY(6px) scale(0.98);
+    animation:appsRowIn .28s cubic-bezier(0.16,1,0.3,1) both;
   }
-  .apps-popup-row:active { background:rgba(0,0,0,.04); }
+  @keyframes appsRowIn {
+    from { opacity:0; transform:translateY(6px) scale(0.98); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  .apps-popup-row:active { background:rgba(0,0,0,.04); transform:scale(0.97); }
   .apps-popup-row.dark:active { background:rgba(255,255,255,.05); }
   .apps-popup-icon { width:22px; height:22px; border-radius:6px; object-fit:cover; flex-shrink:0; }
   .apps-popup-label { flex:1; font-size:15px; font-weight:400; color:#000; text-align:left; }

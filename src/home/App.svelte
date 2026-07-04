@@ -27,7 +27,6 @@
     { id: 'deepseek-v4-pro', label: 'DS Pro',   sublabel: 'deepseek-v4-pro' },
   ];
   let currentModelId = MODELS[0].id;
-  $: currentModel = MODELS.find(m => m.id === currentModelId) ?? MODELS[0];
 
   let themeValue = 'dark';
   let isDark = true;
@@ -135,47 +134,18 @@
   let shouldPlayLottie = false;
 
   const SUGGESTION_TOGGLES = [
-    {
-      id: 'image',
-      label: 'Cria uma imagem',
-      prompt: 'Cria uma imagem de ',
-      icon: '/icons/svg/bw/image.svg',
-    },
-    {
-      id: 'story',
-      label: 'Conta uma história',
-      prompt: 'Conta-me uma história sobre ',
-      icon: '/icons/svg/bw/open_book.svg',
-    },
-    {
-      id: 'math',
-      label: 'Resolve um problema',
-      prompt: 'Resolve este problema matemático: ',
-      icon: '/icons/svg/bw/math.svg',
-    },
-    {
-      id: 'search',
-      label: 'Procure na web',
-      prompt: 'Procura por ',
-      icon: '/icons/svg/bw/browser.svg',
-    },
-    {
-      id: 'slides',
-      label: 'Cria slides',
-      prompt: 'Cria uma apresentação de slides sobre ',
-      icon: '/icons/svg/bw/slides.svg',
-    },
-    {
-      id: 'pdf',
-      label: 'Analisa um PDF',
-      prompt: 'Analisa este PDF: ',
-      icon: '/icons/svg/bw/pdf.svg',
-    },
+    { id: 'image', label: 'Cria uma imagem', prompt: 'Cria uma imagem de ', icon: '/icons/svg/bw/image.svg' },
+    { id: 'story', label: 'Conta uma história', prompt: 'Conta-me uma história sobre ', icon: '/icons/svg/bw/open_book.svg' },
+    { id: 'math', label: 'Resolve um problema', prompt: 'Resolve este problema matemático: ', icon: '/icons/svg/bw/math.svg' },
+    { id: 'search', label: 'Procure na web', prompt: 'Procura por ', icon: '/icons/svg/bw/browser.svg' },
+    { id: 'slides', label: 'Cria slides', prompt: 'Cria uma apresentação de slides sobre ', icon: '/icons/svg/bw/slides.svg' },
+    { id: 'pdf', label: 'Analisa um PDF', prompt: 'Analisa este PDF: ', icon: '/icons/svg/bw/pdf.svg' },
   ];
 
   let activeToggle = null;
 
   function selectToggle(t) {
+    if (!togglesShouldShow) return;
     activeToggle = activeToggle?.id === t.id ? null : t;
     if (activeToggle) {
       inputText = activeToggle.prompt;
@@ -491,6 +461,7 @@
   let inputFocused = false;
   $: togglesShouldShow = (lottieFinished || !shouldPlayLottie) && !inputText.trim() && !inputFocused;
   $: panelShouldShow = mountToggles ? togglesShouldShow : false;
+  $: if (!togglesShouldShow && activeToggle) activeToggle = null;
 
   function handleInputFocus() {
     inputFocused = true;
@@ -547,13 +518,11 @@
 
   <div class="top-panel" class:in={mounted && panelShouldShow}>
     <header class="header">
-      <div class="logo-wrap">
-        <img src="/icons/png/logo.png" alt="Nexa" class="logo-img" />
-      </div>
       <button class="upgrade-pill pulse-tap" on:click={goToPlans}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/star.svg');-webkit-mask-image:url('/icons/svg/star.svg');width:14px;height:14px;background:var(--upgrade-text)"></span>
         <span class="upgrade-text">Upgrade</span>
       </button>
+      <div class="flex1"></div>
       <div class="header-right">
         <button class="hdr-seg pulse-tap" on:click={openDrawer}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-strong)"></span>
@@ -563,8 +532,8 @@
 
     <div class="apps-grid-fixed">
       <div class="apps-row-fixed">
-        {#each topApps as app}
-          <button class="home-app-btn pulse-tap" on:click={() => openApp(app)}>
+        {#each topApps as app, i}
+          <button class="home-app-btn pulse-tap app-anim" style="transition-delay:{i*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
             <div class="home-app-icon">
               <img src={app.icon} alt={app.label} class="home-app-img" />
             </div>
@@ -574,8 +543,8 @@
       </div>
 
       <div class="apps-row-fixed">
-        {#each bottomApps as app}
-          <button class="home-app-btn pulse-tap" on:click={() => openApp(app)}>
+        {#each bottomApps as app, i}
+          <button class="home-app-btn pulse-tap app-anim" style="transition-delay:{(i+3)*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
             <div class="home-app-icon">
               <img src={app.icon} alt={app.label} class="home-app-img" />
             </div>
@@ -595,7 +564,7 @@
 
 <div class="bottom" class:in={mounted}>
   {#if mountToggles}
-    <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow}>
+    <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow} style="pointer-events:{togglesShouldShow?'auto':'none'}">
       {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
         <div class="toggles-row">
           {#each row as t, i}
@@ -603,6 +572,7 @@
               class="suggestion-toggle pulse-tap"
               class:toggle-active={activeToggle?.id === t.id}
               style="transition-delay:{panelShouldShow ? (ri*2+i)*45 : 0}ms;"
+              tabindex={togglesShouldShow ? 0 : -1}
               on:click={() => selectToggle(t)}
             >
               <img src={t.icon} alt={t.label} class="toggle-img" />
@@ -686,11 +656,6 @@
           <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
         </button>
         <div class="flex1"></div>
-        <button class="model-pill pulse-tap" on:click={(e) => openPopup('models', e)}>
-          <span class="model-pill-label">{currentModel.label}</span>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_down.svg');-webkit-mask-image:url('/icons/svg/arrow_down.svg');width:11px;height:11px;background:var(--icon-soft)"></span>
-        </button>
-        <div style="width:8px"></div>
         {#if inputText.trim()}
           <button class="bb-btn pulse-tap" on:click={navigateToAI}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
@@ -704,12 +669,10 @@
     </div>
   {/if}
 
-  <div class="legal-card">
-    <div class="legal-row">
-      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
-      <span class="legal-dot">·</span>
-      <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
-    </div>
+  <div class="legal-row-plain">
+    <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
+    <span class="legal-dot">·</span>
+    <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
   </div>
 </div>
 
@@ -751,20 +714,6 @@
             <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
             <span class="popup-label" style="flex:1">{title}</span>
             {#if active}<div class="popup-active-dot"></div>{/if}
-          </button>
-        {/each}
-      {:else if popupMode === 'models'}
-        <div class="popup-title">Modelo</div>
-        {#each MODELS as model, i}
-          {#if i > 0}<div class="popup-sep"></div>{/if}
-          <button class="popup-row pulse-tap" style={currentModelId === model.id ? 'background:var(--row-active)' : ''} on:click={() => { currentModelId = model.id; closePopup(); }}>
-            <div class="model-info">
-              <span class="popup-label">{model.label}</span>
-              <span class="model-sub">{model.sublabel}</span>
-            </div>
-            {#if currentModelId === model.id}
-              <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
-            {/if}
           </button>
         {/each}
       {/if}
@@ -825,11 +774,10 @@
     width: 100%;
   }
 
-  /* ===== TEMA ESCURO ===== */
   :global([data-theme="dark"]) {
-    --app-bg:             #0b0b0d;
-    --surface:            #18181b;
-    --surface-strong:     #1e1e21;
+    --app-bg:             #0F0F0F;
+    --surface:            #0F0F0F;
+    --surface-strong:     #0F0F0F;
     --surface-popover:    #202023;
     --border-soft:        rgba(255,255,255,0.12);
     --border-faint:       rgba(255,255,255,0.09);
@@ -844,7 +792,7 @@
     --hdr-seg-bg:         rgba(255,255,255,0.08);
     --hdr-seg-active:     rgba(255,255,255,0.16);
     --overlay-soft:       rgba(0,0,0,0.22);
-    --drawer-bg:          #1c1c1e;
+    --drawer-bg:          #0F0F0F;
     --drawer-border:      rgba(255,255,255,0.08);
     --drawer-shadow:      rgba(0,0,0,0.45);
     --drawer-text:        rgba(255,255,255,0.82);
@@ -852,13 +800,11 @@
     --drawer-sep:         rgba(255,255,255,0.10);
     --drawer-overlay-in:  rgba(0,0,0,0.35);
     --drawer-row-active:  rgba(255,255,255,0.06);
-    --toggle-bg:          #232326;
-    --toggle-bg-act:      #2c2c30;
+    --toggle-bg:          #1a1a1a;
+    --toggle-bg-act:      #232323;
     --toggle-border:      rgba(255,255,255,0.14);
     --toggle-border-act:  rgba(255,255,255,0.32);
     --toggle-label:       rgba(255,255,255,0.90);
-    --logo-border:        rgba(255,255,255,0.22);
-    --logo-bg:            #202023;
     --upgrade-bg:         rgba(64,132,255,0.16);
     --upgrade-border:     rgba(64,132,255,0.35);
     --upgrade-text:       #6ea8ff;
@@ -867,7 +813,6 @@
     --logout-icon:        #FF453A;
   }
 
-  /* ===== TEMA CLARO ===== */
   :global([data-theme="light"]) {
     --app-bg:             #f2f2f4;
     --surface:            #ffffff;
@@ -899,8 +844,6 @@
     --toggle-border:      rgba(0,0,0,0.10);
     --toggle-border-act:  rgba(0,0,0,0.24);
     --toggle-label:       rgba(20,20,20,0.85);
-    --logo-border:        rgba(0,0,0,0.14);
-    --logo-bg:            #f5f5f7;
     --upgrade-bg:         rgba(64,132,255,0.10);
     --upgrade-border:     rgba(64,132,255,0.28);
     --upgrade-text:       #2f6fe0;
@@ -927,16 +870,15 @@
 
   .top-panel {
     position:fixed;
-    top:12px;
-    left:12px;
-    right:12px;
+    top:0;
+    left:0;
+    right:0;
     z-index:15;
     display:flex;
     flex-direction:column;
     background:var(--surface);
-    border:0.5px solid var(--border-soft);
-    border-radius:26px;
-    box-shadow:0 10px 28px rgba(0,0,0,0.16);
+    border-bottom-left-radius:26px;
+    border-bottom-right-radius:26px;
     padding-bottom:10px;
     opacity:0;
     transform:translateY(-16px) translateZ(0);
@@ -954,19 +896,9 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:calc(env(safe-area-inset-top,0px) + 6px) 14px 4px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 4px;
     gap:10px;
   }
-
-  .logo-wrap {
-    width:46px;
-    height:46px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-shrink:0;
-  }
-  .logo-img { width:46px; height:46px; object-fit:contain; }
 
   .header-right {
     display:flex;
@@ -996,7 +928,7 @@
     gap:8px;
     align-items:center;
     width:100%;
-    padding-top:2px;
+    padding-top:6px;
   }
 
   .apps-row-fixed {
@@ -1021,9 +953,20 @@
     flex-shrink:0;
     transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .app-anim {
+    opacity:0;
+    transform:scale(0.7) translateY(14px);
+    transition-property:opacity, transform, background;
+    transition-duration:.48s, .48s, .14s;
+    transition-timing-function:cubic-bezier(0.16,1,0.3,1), cubic-bezier(0.16,1,0.3,1), ease;
+  }
+  .app-anim.app-in {
+    opacity:1;
+    transform:scale(1) translateY(0);
+  }
   .home-app-btn:active {
     background:var(--row-active);
-    transform:scale(0.96);
+    transform:scale(0.94);
   }
   .home-app-icon {
     width:44px;
@@ -1054,8 +997,6 @@
   }
 
   .upgrade-pill {
-    flex:1;
-    max-width:150px;
     height:34px;
     display:inline-flex;
     align-items:center;
@@ -1066,6 +1007,7 @@
     background:var(--upgrade-bg);
     border:1px solid var(--upgrade-border);
     cursor:pointer;
+    margin-left:2px;
   }
   .upgrade-text {
     font-size:12.5px;
@@ -1199,21 +1141,6 @@
     transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-btn:active { background:var(--btn-bg-active); transform:scale(0.88); }
-  .model-pill {
-    height:40px;
-    padding:0 14px;
-    display:flex;
-    align-items:center;
-    gap:5px;
-    border-radius:20px;
-    border:0.5px solid var(--border-soft);
-    cursor:pointer;
-    background:var(--btn-bg);
-    flex-shrink:0;
-    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .model-pill:active { background:var(--btn-bg-active); transform:scale(0.94); }
-  .model-pill-label { font-size:13px; font-weight:600; color:var(--icon-strong); }
 
   .rec-card {
     position:relative;
@@ -1305,15 +1232,13 @@
   }
   .suggest-fill:active { background:var(--btn-bg-active); transform:scale(0.86); }
 
-  .legal-card {
-    margin-top: 10px;
-    border-radius: 22px;
-    background: var(--surface-strong);
-    border: 0.5px solid var(--border-soft);
-    box-shadow: 0 6px 24px rgba(0,0,0,0.16);
-    padding: 10px 16px;
+  .legal-row-plain {
+    margin-top: 12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
   }
-  .legal-row { display:flex; align-items:center; justify-content:center; gap:6px; }
   .legal-link {
     background:none;
     border:none;
@@ -1345,14 +1270,6 @@
   .popup-box.popup-in { opacity:1; transform:scale(1) translateY(0); pointer-events:auto; }
   .popup-content { transition:opacity .13s ease, transform .13s ease; }
   .popup-content.fading { opacity:0; transform:translateY(4px); pointer-events:none; }
-  .popup-title {
-    padding:12px 16px 8px;
-    font-size:11px;
-    font-weight:700;
-    letter-spacing:.07em;
-    text-transform:uppercase;
-    color:var(--text-faint);
-  }
   .popup-row {
     display:flex;
     align-items:center;
@@ -1381,15 +1298,6 @@
   .popup-label { font-size:15px; font-weight:500; color:var(--icon-strong); flex:1; }
   .popup-sep { height:0.5px; background:var(--border-faint); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:var(--icon-strong); flex-shrink:0; }
-  .model-info { display:flex; flex-direction:column; flex:1; min-width:0; }
-  .model-sub {
-    font-size:11px;
-    color:var(--icon-faint);
-    margin-top:1px;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
 
   .drawer-overlay {
     position:fixed;

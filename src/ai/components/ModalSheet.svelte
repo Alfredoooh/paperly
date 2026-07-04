@@ -8,7 +8,7 @@
 {#if open}
   <div class="sheet-overlay" on:click={() => dispatch('close')}></div>
 {/if}
-<div class="sheet" class:open class:dark={isDark}>
+<div class="sheet" class:open class:dark={isDark} style="pointer-events:{open ? 'auto' : 'none'}">
   <div class="sheet-handle"></div>
   <div class="sheet-content">
     <slot />

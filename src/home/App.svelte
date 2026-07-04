@@ -17,7 +17,6 @@
   }
   $: avatarColor = getAvatarColor(userName);
 
-  // Apps ocultas por agora (jogos, media, profilelens). Código intacto, apenas filtradas da UI.
   const HIDDEN_APP_IDS = new Set(['games', 'media', 'profilelens']);
 
   let appsHidden = false;
@@ -139,7 +138,6 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // Popup de Apps ancorado à pill do input (mesmo padrão do chat AI)
   const APPS_POPUP_W = 220;
   let showAppsPopup = false;
   let appsPopupVisible = false;
@@ -502,7 +500,6 @@
     inputFocused = false;
   }
 
-  // ---- Efeito de digitação (typewriter) que alterna entre duas frases ----
   const HERO_PHRASES = [
     'Selecione qualquer app para o trabalho de hoje!',
     'Use a IA para estudos, projetos escolares e muito muito mais...'
@@ -538,10 +535,11 @@
     typeStep();
   }
 
-  // ---- Scroll vertical: appbar fixo, secção "Modelos & Apps" revelada por baixo ----
   let scrollRootEl;
-  let scrollProgress = 0; // 0 = topo (home), 1 = totalmente na secção de baixo
-  let modelsTab = 'docs'; // 'docs' | 'images' | 'apps'
+  let scrollProgress = 0;
+  let uiLift = 0;
+  const MAX_UI_LIFT = 320;
+  let modelsTab = 'docs';
 
   const MODELS_TABS = [
     { id: 'docs',   label: 'Documentos' },
@@ -552,7 +550,10 @@
   function handleScroll() {
     if (!scrollRootEl) return;
     const max = scrollRootEl.scrollHeight - scrollRootEl.clientHeight;
-    scrollProgress = max > 0 ? Math.min(1, scrollRootEl.scrollTop / max) : 0;
+    const st = scrollRootEl.scrollTop;
+
+    scrollProgress = max > 0 ? Math.min(1, st / max) : 0;
+    uiLift = Math.min(MAX_UI_LIFT, st);
   }
 
   let mounted = false;
@@ -614,10 +615,9 @@
   }
 </script>
 
-<div class="root">
+<div class="root" style="--ui-lift:{uiLift}px;">
   <div class="bg-layer"></div>
 
-  <!-- Appbar fixo: nunca se move, independentemente do scroll -->
   <div class="top-panel" class:in={mounted && panelShouldShow}>
     <header class="header">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
@@ -658,7 +658,6 @@
     {/if}
   </div>
 
-  <!-- Área com scroll vertical: home + secção Modelos & Apps por baixo -->
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
     <div class="scroll-page">
       <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
@@ -887,7 +886,6 @@
   </div>
 {/if}
 
-<!-- Popup de Apps ancorado à pill do input — mesmo padrão visual/animação do popup add/extras -->
 {#if showAppsPopup}
   <div class="popup-overlay" on:click={closeAppsPopup}></div>
   <div class="popup-box" class:popup-in={appsPopupVisible} style="bottom:{appsPopupPos.bottom}px;right:{appsPopupPos.right}px;width:{APPS_POPUP_W}px;" >
@@ -1104,14 +1102,15 @@
     border-bottom-right-radius:26px;
     padding-bottom:10px;
     opacity:0;
-    transform:translateY(-16px) translateZ(0);
-    transition:opacity .4s ease, transform .4s ease;
+    --panel-y: -16px;
+    transform:translate3d(0, calc(var(--panel-y) - var(--ui-lift, 0px)), 0);
+    transition:opacity .4s ease, transform .08s linear;
     pointer-events:none;
     contain: layout style paint;
   }
   .top-panel.in {
     opacity:1;
-    transform:translateY(0) translateZ(0);
+    --panel-y: 0px;
     pointer-events:auto;
   }
 
@@ -1236,7 +1235,6 @@
     white-space:nowrap;
   }
 
-  /* --- Scroll vertical: página home (100%) + página modelos&apps por baixo --- */
   .scroll-root {
     position:absolute;
     inset:0;
@@ -1246,6 +1244,7 @@
     scroll-snap-type:y proximity;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior-y:contain;
+    will-change: scroll-position;
   }
   .scroll-page {
     min-height:100%;
@@ -1404,7 +1403,9 @@
     padding-right:16px;
     padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     opacity:0;
-    transition:opacity .6s .3s ease;
+    transform:translate3d(0, calc(var(--ui-lift, 0px) * -1), 0);
+    transition:opacity .6s .3s ease, transform .08s linear;
+    will-change: transform;
   }
   .bottom.in { opacity:1; }
 

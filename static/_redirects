@@ -6,5 +6,4 @@
 /media/* /media/index.html 200
 /profilelens/* /profilelens/index.html 200
 /downloader/* /downloader/index.html 200
-/ /index.html 200
 /* /404/index.html 404

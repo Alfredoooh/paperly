@@ -3,33 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Nexa — Entrar</title>
+  <title>Nexa</title>
   <link rel="icon" href="/icons/png/logo.png" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-    #app { width: 100vw; height: 100dvh; display: flex; flex-direction: column; }
-  </style>
-  <script src="https://www.gstatic.com/firebasejs/11.9.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.9.0/firebase-auth-compat.js"></script>
+  <meta http-equiv="refresh" content="0; url=/home/" />
   <script>
-    firebase.initializeApp({
-      apiKey:            "AIzaSyD5vbUGQFTkcJ5_oH9BgU-_M4yFKBiHpuA",
-      authDomain:        "nexa-app-e4bb3.firebaseapp.com",
-      projectId:         "nexa-app-e4bb3",
-      storageBucket:     "nexa-app-e4bb3.firebasestorage.app",
-      messagingSenderId: "534344296518",
-      appId:             "1:534344296518:web:1575ac66d6d65fb42b8247"
-    });
-    window._firebaseAuth    = firebase.auth();
-    window._googleProvider  = new firebase.auth.GoogleAuthProvider();
-    window._signInWithPopup = (auth, provider) => auth.signInWithPopup(provider);
+    window.location.replace('/home/');
   </script>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { background: #0b0b0d; }
+  </style>
 </head>
-<body>
-  <div id="app"></div>
-  <div id="toast" style="position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:#323232;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;opacity:0;transition:all 0.3s ease;z-index:99999;pointer-events:none;white-space:nowrap;"></div>
-  <script type="module" src="./main.js"></script>
-</body>
+<body></body>
 </html>

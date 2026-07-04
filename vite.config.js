@@ -6,14 +6,14 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // nome da pasta no disco -> nome da rota final em dist/
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
-  { dir: 'auth', route: 'auth' },
-  { dir: 'home', route: 'home' },
-  { dir: 'ai', route: 'ai' },
-  { dir: 'music', route: 'music' },
-  { dir: 'games', route: 'games' },
-  { dir: 'media', route: 'media' },
-  { dir: 'profilelens', route: 'profilelens' },
-  { dir: 'downloader', route: 'downloader' },
+  { dir: 'auth', route: 'auth', nested: ['login', 'register'] },
+  { dir: 'home', route: 'home', nested: [] },
+  { dir: 'ai', route: 'ai', nested: ['settings', 'widgets'] },
+  { dir: 'music', route: 'music', nested: ['settings'] },
+  { dir: 'games', route: 'games', nested: ['settings'] },
+  { dir: 'media', route: 'media', nested: ['settings'] },
+  { dir: 'profilelens', route: 'profilelens', nested: ['settings'] },
+  { dir: 'downloader', route: 'downloader', nested: ['settings'] },
 ];
 
 // página de erro 404, tratada à parte por não ser uma app do site
@@ -27,13 +27,21 @@ export default defineConfig({
       closeBundle() {
         const dist = resolve(__dirname, 'dist');
         
-        for (const { dir, route } of apps) {
+        for (const { dir, route, nested } of apps) {
           const src = resolve(dist, 'src', dir, 'index.html');
           const dest = resolve(dist, route, 'index.html');
           if (existsSync(src)) {
             mkdirSync(resolve(dist, route), { recursive: true });
             cpSync(src, dest);
             console.log(`✓ dist/${route}/index.html`);
+
+            for (const sub of nested || []) {
+              const subDir = resolve(dist, route, sub);
+              const subDest = resolve(subDir, 'index.html');
+              mkdirSync(subDir, { recursive: true });
+              cpSync(src, subDest);
+              console.log(`✓ dist/${route}/${sub}/index.html`);
+            }
           } else {
             console.warn(`⚠ não encontrado: dist/src/${dir}/index.html`);
           }

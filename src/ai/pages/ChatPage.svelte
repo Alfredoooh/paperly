@@ -6,7 +6,6 @@
   import { AVAILABLE_MODELS, AVAILABLE_LANGUAGES, ALL_APPS } from '$shared/plans.js';
   import Drawer       from '../components/Drawer.svelte';
   import ModalSheet   from '../components/ModalSheet.svelte';
-  import SettingsPage from './SettingsPage.svelte';
 
   export let isDark = false;
   export let user   = null;
@@ -25,7 +24,6 @@
   let activeApp        = localStorage.getItem('nexa_active_app') || 'ai';
   let conversations    = [];
   let loadingConversations = false;
-  let showSettings     = false;
 
   const drawerMenuItems = [
     { icon: 'new_chat', label: 'Nova conversa', action: () => newChat() },
@@ -1245,7 +1243,7 @@
     on:close={() => drawerOpen=false}
     on:openConv={handleOpenConv}
     on:convOptions={handleConvOptions}
-    on:openSettings={() => { drawerOpen=false; showSettings=true; }}
+    on:openSettings={() => dispatch('nav', { to: 'settings' })}
   />
 
   <div class="messages-wrap" bind:this={messagesEl}>
@@ -1527,14 +1525,6 @@
         </button>
       </div>
     </div>
-  {/if}
-
-  {#if showSettings}
-    <SettingsPage {isDark} user={effectiveUser}
-      on:close={() => showSettings=false}
-      on:themeChange={(e) => dispatch('nav', { to:'chat', data:{ isDark: e.detail.isDark } })}
-      on:logout={() => dispatch('nav', { to:'login', data:{ logout:true } })}
-    />
   {/if}
 
 </div>

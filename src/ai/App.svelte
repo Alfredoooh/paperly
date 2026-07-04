@@ -44,20 +44,27 @@
     return unbind;
   });
 
+  function persistTheme(nextIsDark) {
+    isDark = !!nextIsDark;
+    localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light');
+    syncTheme(isDark);
+  }
+
+  function goChat() {
+    route = 'chat';
+    router.navigate('chat');
+  }
+
   function handleNav(e) {
-    const { to, data } = e.detail;
-    if (data?.isDark !== undefined) {
-      isDark = data.isDark;
-      localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light');
-      syncTheme(isDark);
-    }
+    const { to, data } = e.detail || {};
+    if (data?.isDark !== undefined) persistTheme(data.isDark);
     if (data?.logout) {
       localStorage.removeItem('nexa_user');
       window.location.href = '/auth/';
       return;
     }
     if (to === 'home') { window.location.href = '/home/'; return; }
-    if (to === 'chat' || to === 'ai') { route = 'chat'; router.navigate('chat'); return; }
+    if (to === 'chat' || to === 'ai') { goChat(); return; }
     if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
     if (to === 'widgets') { route = 'widgets'; router.navigate('widgets'); return; }
     route = to;
@@ -72,9 +79,18 @@
     </div>
   {/if}
   {#if route === 'settings'}
-    <SettingsPage {isDark} {user} on:nav={handleNav} />
+    <SettingsPage
+      {isDark}
+      {user}
+      on:close={goChat}
+      on:themeChange={(e) => persistTheme(e.detail.isDark)}
+      on:logout={() => {
+        localStorage.removeItem('nexa_user');
+        window.location.href = '/auth/';
+      }}
+    />
   {:else if route === 'widgets'}
-    <WidgetsPage  {isDark} {user} on:nav={handleNav} />
+    <WidgetsPage {isDark} {user} on:nav={handleNav} />
   {/if}
 {/if}
 

@@ -139,6 +139,26 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
+  // Popup de Apps ancorado à pill do input (mesmo padrão do chat AI)
+  const APPS_POPUP_W = 220;
+  let showAppsPopup = false;
+  let appsPopupVisible = false;
+  let appsPopupPos = { bottom: 0, right: 0 };
+
+  function openAppsPopup(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    appsPopupPos = {
+      bottom: window.innerHeight - rect.top + 8,
+      right: window.innerWidth - rect.right + 10,
+    };
+    showAppsPopup = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { appsPopupVisible = true; }));
+  }
+  function closeAppsPopup() {
+    appsPopupVisible = false;
+    setTimeout(() => { showAppsPopup = false; }, 220);
+  }
+
   let lottieEl;
   let lottieInstance;
   let lottieFinished = false;
@@ -482,6 +502,59 @@
     inputFocused = false;
   }
 
+  // ---- Efeito de digitação (typewriter) que alterna entre duas frases ----
+  const HERO_PHRASES = [
+    'Selecione qualquer app para o trabalho de hoje!',
+    'Use a IA para estudos, projetos escolares e muito muito mais...'
+  ];
+  let heroDisplayText = '';
+  let heroPhraseIdx = 0;
+  let heroTimer = null;
+
+  function runTypewriter() {
+    clearTimeout(heroTimer);
+    const full = HERO_PHRASES[heroPhraseIdx];
+    let charIdx = 0;
+    heroDisplayText = '';
+
+    function typeStep() {
+      if (charIdx <= full.length) {
+        heroDisplayText = full.slice(0, charIdx);
+        charIdx++;
+        heroTimer = setTimeout(typeStep, 38);
+      } else {
+        heroTimer = setTimeout(eraseStep, 1800);
+      }
+    }
+    function eraseStep() {
+      if (heroDisplayText.length > 0) {
+        heroDisplayText = heroDisplayText.slice(0, -1);
+        heroTimer = setTimeout(eraseStep, 18);
+      } else {
+        heroPhraseIdx = (heroPhraseIdx + 1) % HERO_PHRASES.length;
+        heroTimer = setTimeout(typeStep, 300);
+      }
+    }
+    typeStep();
+  }
+
+  // ---- Scroll vertical: appbar fixo, secção "Modelos & Apps" revelada por baixo ----
+  let scrollRootEl;
+  let scrollProgress = 0; // 0 = topo (home), 1 = totalmente na secção de baixo
+  let modelsTab = 'docs'; // 'docs' | 'images' | 'apps'
+
+  const MODELS_TABS = [
+    { id: 'docs',   label: 'Documentos' },
+    { id: 'images', label: 'Imagens' },
+    { id: 'apps',   label: 'Apps' },
+  ];
+
+  function handleScroll() {
+    if (!scrollRootEl) return;
+    const max = scrollRootEl.scrollHeight - scrollRootEl.clientHeight;
+    scrollProgress = max > 0 ? Math.min(1, scrollRootEl.scrollTop / max) : 0;
+  }
+
   let mounted = false;
   onMount(() => {
     user = requireAuth();
@@ -518,6 +591,7 @@
       shouldPlayLottie = false;
       lottieFinished = true;
       togglesVisible = true;
+      runTypewriter();
     }
 
     return () => {
@@ -525,9 +599,14 @@
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
       clearTimeout(suggestDebounce);
+      clearTimeout(heroTimer);
       abortSuggest?.abort();
     };
   });
+
+  $: if (lottieFinished && shouldPlayLottie && heroDisplayText === '' && !heroTimer) {
+    runTypewriter();
+  }
 
   function toggleAppsHidden() {
     appsHidden = !appsHidden;
@@ -538,6 +617,7 @@
 <div class="root">
   <div class="bg-layer"></div>
 
+  <!-- Appbar fixo: nunca se move, independentemente do scroll -->
   <div class="top-panel" class:in={mounted && panelShouldShow}>
     <header class="header">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
@@ -578,15 +658,69 @@
     {/if}
   </div>
 
-  <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
-    {#if shouldPlayLottie}
-      <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
-    {:else}
-      <div class="hero-text-wrap">
-        <p class="hero-text">Selecione qualquer app para o trabalho de hoje!</p>
+  <!-- Área com scroll vertical: home + secção Modelos & Apps por baixo -->
+  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
+    <div class="scroll-page">
+      <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
+        {#if shouldPlayLottie}
+          <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
+        {:else}
+          <div class="hero-text-wrap">
+            <p class="hero-text">{heroDisplayText}<span class="hero-caret">|</span></p>
+          </div>
+        {/if}
+      </main>
+    </div>
+
+    <div class="scroll-page scroll-page-models">
+      <div class="models-divider"></div>
+      <div class="models-header">
+        <span class="models-title">Modelos &amp; Apps</span>
       </div>
-    {/if}
-  </main>
+      <div class="models-tabs">
+        {#each MODELS_TABS as t}
+          <button
+            class="models-tab pulse-tap"
+            class:models-tab-active={modelsTab === t.id}
+            on:click={() => modelsTab = t.id}
+          >
+            {t.label}
+          </button>
+        {/each}
+      </div>
+
+      <div class="models-tab-content">
+        {#if modelsTab === 'docs'}
+          <div class="models-empty">
+            <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+            <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
+          </div>
+        {:else if modelsTab === 'images'}
+          <div class="models-empty">
+            <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+            <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
+          </div>
+        {:else if modelsTab === 'apps'}
+          <div class="models-apps-list">
+            {#if appsHidden}
+              <div class="models-empty">
+                <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+                <p class="models-empty-text">Apps ocultas. Ativa-as no menu para as veres aqui.</p>
+              </div>
+            {:else}
+              {#each platformApps as app}
+                <button class="models-app-row pulse-tap" on:click={() => openApp(app)}>
+                  <img src={app.icon} alt={app.label} class="models-app-icon" />
+                  <span class="models-app-label">{app.label}</span>
+                  <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
+                </button>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="bottom" class:in={mounted}>
@@ -683,6 +817,11 @@
           <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
         </button>
         <div class="flex1"></div>
+        <button class="bb-pill pulse-tap" on:click={openAppsPopup}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+          <span class="bb-pill-label">Apps</span>
+        </button>
+        <div style="width:8px"></div>
         {#if inputText.trim()}
           <button class="bb-btn pulse-tap" on:click={navigateToAI}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
@@ -741,6 +880,28 @@
             <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/{active?icoOn:ico}.svg');-webkit-mask-image:url('/icons/svg/{active?icoOn:ico}.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
             <span class="popup-label" style="flex:1">{title}</span>
             {#if active}<div class="popup-active-dot"></div>{/if}
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </div>
+{/if}
+
+<!-- Popup de Apps ancorado à pill do input — mesmo padrão visual/animação do popup add/extras -->
+{#if showAppsPopup}
+  <div class="popup-overlay" on:click={closeAppsPopup}></div>
+  <div class="popup-box" class:popup-in={appsPopupVisible} style="bottom:{appsPopupPos.bottom}px;right:{appsPopupPos.right}px;width:{APPS_POPUP_W}px;" >
+    <div class="popup-content">
+      {#if appsHidden}
+        <div class="popup-row" style="cursor:default">
+          <span class="popup-label" style="color:var(--text-faint);font-size:13px">Apps ocultas. Ativa-as no menu.</span>
+        </div>
+      {:else}
+        {#each platformApps as app, i}
+          {#if i > 0}<div class="popup-sep"></div>{/if}
+          <button class="popup-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
+            <img src={app.icon} alt={app.label} class="popup-app-icon" />
+            <span class="popup-label">{app.label}</span>
           </button>
         {/each}
       {/if}
@@ -866,6 +1027,7 @@
     --switch-off-bg:      rgba(255,255,255,0.16);
     --switch-on-bg:       #34C759;
     --switch-thumb-bg:    #ffffff;
+    --divider-color:      rgba(255,255,255,0.10);
   }
 
   :global([data-theme="light"]) {
@@ -910,6 +1072,7 @@
     --switch-off-bg:      rgba(0,0,0,0.14);
     --switch-on-bg:       #34C759;
     --switch-thumb-bg:    #ffffff;
+    --divider-color:      rgba(0,0,0,0.08);
   }
 
   .root {
@@ -1073,14 +1236,36 @@
     white-space:nowrap;
   }
 
-  .content {
+  /* --- Scroll vertical: página home (100%) + página modelos&apps por baixo --- */
+  .scroll-root {
     position:absolute;
     inset:0;
     z-index:10;
+    overflow-y:auto;
+    overflow-x:hidden;
+    scroll-snap-type:y proximity;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:contain;
+  }
+  .scroll-page {
+    min-height:100%;
+    width:100%;
+    scroll-snap-align:start;
+    display:flex;
+    flex-direction:column;
+  }
+  .scroll-page-models {
+    min-height:60vh;
+    padding:0 18px calc(env(safe-area-inset-bottom,0px) + 200px);
+  }
+
+  .content {
+    flex:1;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:flex-end;
+    position:relative;
   }
   .lottie-wrap {
     position:absolute;
@@ -1113,12 +1298,101 @@
     font-family:Georgia, 'Times New Roman', serif;
     font-style:italic;
     font-weight:500;
-    font-size:22px;
-    line-height:1.4;
+    font-size:21px;
+    line-height:1.45;
     color:var(--icon-strong);
     letter-spacing:0.1px;
     opacity:0.92;
+    min-height:1.45em;
   }
+  .hero-caret {
+    display:inline-block;
+    font-style:normal;
+    margin-left:1px;
+    animation:heroBlink 0.9s step-end infinite;
+    color:var(--upgrade-text);
+    font-weight:300;
+  }
+  @keyframes heroBlink { 50% { opacity:0; } }
+
+  .models-divider {
+    height:1px;
+    background:var(--divider-color);
+    margin:0 0 18px;
+    flex-shrink:0;
+  }
+  .models-header {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding-bottom:14px;
+  }
+  .models-title {
+    font-family:Georgia, 'Times New Roman', serif;
+    font-style:italic;
+    font-size:19px;
+    font-weight:600;
+    color:var(--icon-strong);
+  }
+  .models-tabs {
+    display:flex;
+    gap:6px;
+    background:var(--btn-bg);
+    padding:4px;
+    border-radius:14px;
+    margin-bottom:18px;
+  }
+  .models-tab {
+    flex:1;
+    border:none;
+    background:transparent;
+    padding:9px 6px;
+    border-radius:10px;
+    font-family:inherit;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-faint);
+    cursor:pointer;
+    transition:background .18s ease, color .18s ease;
+  }
+  .models-tab-active {
+    background:var(--surface-strong);
+    color:var(--icon-strong);
+    box-shadow:0 2px 8px rgba(0,0,0,0.10);
+  }
+  .models-tab-content { flex:1; }
+  .models-empty {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    padding:40px 20px;
+    text-align:center;
+  }
+  .models-empty-text {
+    font-size:13.5px;
+    color:var(--text-faint);
+    line-height:1.5;
+  }
+  .models-apps-list { display:flex; flex-direction:column; gap:8px; }
+  .models-app-row {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    padding:12px 14px;
+    border-radius:14px;
+    background:var(--app-pill-bg);
+    border:1px solid var(--app-pill-border);
+    cursor:pointer;
+    font-family:inherit;
+    text-align:left;
+    transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .models-app-row:active { transform:scale(0.98); }
+  .models-app-icon { width:28px; height:28px; border-radius:8px; object-fit:contain; flex-shrink:0; }
+  .models-app-label { flex:1; font-size:14.5px; font-weight:600; color:var(--icon-strong); }
 
   .bottom {
     position:fixed;
@@ -1222,6 +1496,21 @@
     transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-btn:active { background:var(--btn-bg-active); transform:scale(0.88); }
+  .bb-pill {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    height:40px;
+    padding:0 14px;
+    border-radius:20px;
+    border:0.5px solid var(--border-faint);
+    background:var(--btn-bg);
+    cursor:pointer;
+    flex-shrink:0;
+    transition:background .20s ease, transform .20s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .bb-pill:active { background:var(--btn-bg-active); transform:scale(0.94); }
+  .bb-pill-label { font-size:14px; font-weight:700; color:var(--icon-strong); }
 
   .rec-card {
     position:relative;
@@ -1376,6 +1665,7 @@
     justify-content:center;
     flex-shrink:0;
   }
+  .popup-app-icon { width:26px; height:26px; border-radius:7px; object-fit:contain; flex-shrink:0; }
   .popup-label { font-size:15px; font-weight:500; color:var(--icon-strong); flex:1; }
   .popup-sep { height:0.5px; background:var(--border-faint); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:var(--icon-strong); flex-shrink:0; }

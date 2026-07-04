@@ -518,10 +518,9 @@
 
   <div class="top-panel" class:in={mounted && panelShouldShow}>
     <header class="header">
-      <button class="upgrade-pill pulse-tap" on:click={goToPlans}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/star.svg');-webkit-mask-image:url('/icons/svg/star.svg');width:14px;height:14px;background:var(--upgrade-text)"></span>
-        <span class="upgrade-text">Upgrade</span>
-      </button>
+      <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
+      <div class="flex1"></div>
+      <button class="upgrade-link pulse-tap" on:click={goToPlans}>Upgrade</button>
       <div class="flex1"></div>
       <div class="header-right">
         <button class="hdr-seg pulse-tap" on:click={openDrawer}>
@@ -533,7 +532,7 @@
     <div class="apps-grid-fixed">
       <div class="apps-row-fixed">
         {#each topApps as app, i}
-          <button class="home-app-btn pulse-tap app-anim" style="transition-delay:{i*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
+          <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{i*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
             <div class="home-app-icon">
               <img src={app.icon} alt={app.label} class="home-app-img" />
             </div>
@@ -544,7 +543,7 @@
 
       <div class="apps-row-fixed">
         {#each bottomApps as app, i}
-          <button class="home-app-btn pulse-tap app-anim" style="transition-delay:{(i+3)*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
+          <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{(i+3)*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
             <div class="home-app-icon">
               <img src={app.icon} alt={app.label} class="home-app-img" />
             </div>
@@ -811,45 +810,49 @@
     --logout-bg:          var(--btn-bg);
     --logout-bg-active:   var(--btn-bg-active);
     --logout-icon:        #FF453A;
+    --app-pill-bg:        #1a1a1a;
+    --app-pill-border:    rgba(255,255,255,0.12);
   }
 
-  ':global([data-theme="light"]) {
+  :global([data-theme="light"]) {
     --app-bg:             #FFFFFF;
     --surface:            #FFFFFF;
     --surface-strong:     #FFFFFF;
-    --surface-popover:    #FFFFFF;
-    --border-soft:        rgba(0,0,0,0.00);
-    --border-faint:       rgba(0,0,0,0.00);
-    --icon-strong:        rgba(18,18,18,0.92);
-    --icon-soft:          rgba(18,18,18,0.52);
-    --icon-faint:         rgba(18,18,18,0.28);
+    --surface-popover:    #ffffff;
+    --border-soft:        rgba(0,0,0,0.09);
+    --border-faint:       rgba(0,0,0,0.07);
+    --icon-strong:        rgba(20,20,20,0.85);
+    --icon-soft:          rgba(20,20,20,0.48);
+    --icon-faint:         rgba(20,20,20,0.28);
     --icon-on-accent:     #fff;
-    --text-faint:         rgba(18,18,18,0.38);
-    --row-active:         rgba(0,0,0,0.04);
-    --btn-bg:             rgba(0,0,0,0.05);
-    --btn-bg-active:      rgba(0,0,0,0.10);
-    --hdr-seg-bg:         rgba(0,0,0,0.05);
-    --hdr-seg-active:     rgba(0,0,0,0.10);
-    --overlay-soft:       rgba(0,0,0,0.10);
-    --drawer-bg:          #FFFFFF;
-    --drawer-border:      rgba(0,0,0,0.00);
-    --drawer-shadow:      rgba(0,0,0,0.10);
+    --text-faint:         rgba(20,20,20,0.40);
+    --row-active:         rgba(0,0,0,0.05);
+    --btn-bg:             rgba(0,0,0,0.06);
+    --btn-bg-active:      rgba(0,0,0,0.11);
+    --hdr-seg-bg:         rgba(0,0,0,0.06);
+    --hdr-seg-active:     rgba(0,0,0,0.11);
+    --overlay-soft:       rgba(0,0,0,0.14);
+    --drawer-bg:          #ffffff;
+    --drawer-border:      rgba(0,0,0,0.07);
+    --drawer-shadow:      rgba(0,0,0,0.13);
     --drawer-text:        #111111;
     --drawer-text-faint:  rgba(0,0,0,0.30);
-    --drawer-sep:         rgba(0,0,0,0.05);
-    --drawer-overlay-in:  rgba(0,0,0,0.14);
-    --drawer-row-active:  rgba(0,0,0,0.04);
-    --toggle-bg:          #FFFFFF;
-    --toggle-bg-act:      #F4F4F6;
-    --toggle-border:      rgba(0,0,0,0.06);
-    --toggle-border-act:  rgba(0,0,0,0.12);
-    --toggle-label:       rgba(18,18,18,0.86);
-    --upgrade-bg:         rgba(64,132,255,0.12);
-    --upgrade-border:     rgba(64,132,255,0.22);
-    --upgrade-text:       #2F6FE0;
+    --drawer-sep:         rgba(0,0,0,0.09);
+    --drawer-overlay-in:  rgba(0,0,0,0.20);
+    --drawer-row-active:  rgba(0,0,0,0.05);
+    --toggle-bg:          #ffffff;
+    --toggle-bg-act:      #f0f0f2;
+    --toggle-border:      rgba(0,0,0,0.10);
+    --toggle-border-act:  rgba(0,0,0,0.24);
+    --toggle-label:       rgba(20,20,20,0.85);
+    --upgrade-bg:         rgba(64,132,255,0.10);
+    --upgrade-border:     rgba(64,132,255,0.28);
+    --upgrade-text:       #2f6fe0;
     --logout-bg:          var(--btn-bg);
     --logout-bg-active:   var(--btn-bg-active);
     --logout-icon:        #E0342A;
+    --app-pill-bg:        #FFFFFF;
+    --app-pill-border:    rgba(0,0,0,0.09);
   }
 
   .root {
@@ -900,6 +903,27 @@
     gap:10px;
   }
 
+  .logo-mark {
+    height:19px;
+    width:auto;
+    display:block;
+    flex-shrink:0;
+  }
+
+  .upgrade-link {
+    background:none;
+    border:none;
+    font-family:inherit;
+    font-size:13px;
+    font-weight:700;
+    color:var(--upgrade-text);
+    text-decoration:underline;
+    cursor:pointer;
+    padding:8px 4px;
+    flex-shrink:0;
+    white-space:nowrap;
+  }
+
   .header-right {
     display:flex;
     align-items:center;
@@ -936,42 +960,42 @@
     justify-content:center;
     align-items:flex-start;
     width:100%;
-    gap:10px;
+    gap:8px;
+    flex-wrap:wrap;
+    padding:0 10px;
   }
 
-  .home-app-btn {
-    width:66px;
-    display:flex;
-    flex-direction:column;
+  .home-app-pill {
+    display:inline-flex;
     align-items:center;
-    gap:4px;
-    background:transparent;
-    border:none;
-    padding:0;
-    border-radius:14px;
+    gap:8px;
+    padding:5px 14px 5px 5px;
+    background:var(--app-pill-bg);
+    border:1px solid var(--app-pill-border);
+    border-radius:9999px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
     cursor:pointer;
     flex-shrink:0;
-    transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1);
+    transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1), border-color .14s ease;
   }
   .app-anim {
     opacity:0;
     transform:scale(0.7) translateY(14px);
-    transition-property:opacity, transform, background;
-    transition-duration:.48s, .48s, .14s;
-    transition-timing-function:cubic-bezier(0.16,1,0.3,1), cubic-bezier(0.16,1,0.3,1), ease;
+    transition-property:opacity, transform, background, border-color;
+    transition-duration:.48s, .48s, .14s, .14s;
+    transition-timing-function:cubic-bezier(0.16,1,0.3,1), cubic-bezier(0.16,1,0.3,1), ease, ease;
   }
   .app-anim.app-in {
     opacity:1;
     transform:scale(1) translateY(0);
   }
-  .home-app-btn:active {
-    background:var(--row-active);
+  .home-app-pill:active {
     transform:scale(0.94);
   }
   .home-app-icon {
-    width:44px;
-    height:44px;
-    border-radius:13px;
+    width:32px;
+    height:32px;
+    border-radius:50%;
     overflow:hidden;
     display:flex;
     align-items:center;
@@ -983,36 +1007,13 @@
     height:32px;
     object-fit:contain;
     display:block;
+    border-radius:50%;
   }
   .home-app-name {
-    font-size:9.5px;
-    font-weight:500;
-    color:var(--icon-soft);
+    font-size:14px;
+    font-weight:600;
+    color:var(--icon-strong);
     white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    max-width:66px;
-    text-align:center;
-    line-height:1.2;
-  }
-
-  .upgrade-pill {
-    height:34px;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:5px;
-    padding:0 14px;
-    border-radius:17px;
-    background:var(--upgrade-bg);
-    border:1px solid var(--upgrade-border);
-    cursor:pointer;
-    margin-left:2px;
-  }
-  .upgrade-text {
-    font-size:12.5px;
-    font-weight:700;
-    color:var(--upgrade-text);
   }
 
   .content {
@@ -1103,8 +1104,8 @@
   .bottom-bar {
     border-radius:22px;
     background:var(--surface);
-    border:0;
-    box-shadow:0 8px 26px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04);
+    border:0.5px solid var(--border-soft);
+    box-shadow:0 6px 24px rgba(0,0,0,0.16);
     display:flex;
     flex-direction:column;
   }
@@ -1112,20 +1113,17 @@
     resize:none;
     outline:none;
     border:none;
-    background:#FFFFFF;
+    background:transparent;
     font-size:15px;
     line-height:1.5;
-    padding:13px 18px 13px;
-    margin:12px 12px 0;
-    width:calc(100% - 24px);
+    padding:13px 18px 0;
+    width:100%;
     font-family:inherit;
     color:var(--icon-strong);
     max-height:150px;
     overflow-y:auto;
     -webkit-user-select:text;
     user-select:text;
-    border-radius:18px;
-    box-shadow:0 10px 24px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.04);
   }
   .chat-input::placeholder { color:var(--text-faint); }
   .bb-row { display:flex; align-items:center; height:52px; padding:0 6px; }

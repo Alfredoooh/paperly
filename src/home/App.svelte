@@ -17,7 +17,11 @@
   }
   $: avatarColor = getAvatarColor(userName);
 
-  const platformApps = ALL_APPS.filter(a => a.id !== 'home');
+  // Apps ocultas por agora (jogos, media, profilelens). Código intacto, apenas filtradas da UI.
+  const HIDDEN_APP_IDS = new Set(['games', 'media', 'profilelens']);
+
+  let appsHidden = false;
+  const platformApps = ALL_APPS.filter(a => a.id !== 'home' && !HIDDEN_APP_IDS.has(a.id));
   $: topApps = platformApps.slice(0, 3);
   $: bottomApps = platformApps.slice(3, 6);
 
@@ -50,12 +54,14 @@
   let drawerOpen = false;
   let drawerVisible = false;
   let themeExpanded = false;
+  let appsExpanded = false;
 
   async function openDrawer() {
     if (drawerOpen) return;
     drawerOpen = true;
     drawerVisible = false;
     themeExpanded = false;
+    appsExpanded = false;
     await tick();
     requestAnimationFrame(() => {
       drawerVisible = true;
@@ -64,12 +70,18 @@
   function closeDrawer() {
     drawerVisible = false;
     themeExpanded = false;
+    appsExpanded = false;
     setTimeout(() => {
       drawerOpen = false;
     }, 280);
   }
   function toggleThemeExpanded() {
     themeExpanded = !themeExpanded;
+    if (themeExpanded) appsExpanded = false;
+  }
+  function toggleAppsExpanded() {
+    appsExpanded = !appsExpanded;
+    if (appsExpanded) themeExpanded = false;
   }
 
   const THEME_OPTIONS = [
@@ -475,6 +487,11 @@
     user = requireAuth();
     if (!user) return;
 
+    try {
+      const savedHidden = localStorage.getItem('nexa_apps_hidden');
+      appsHidden = savedHidden === '1';
+    } catch(e) {}
+
     const saved = getTheme();
     applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
 
@@ -511,6 +528,11 @@
       abortSuggest?.abort();
     };
   });
+
+  function toggleAppsHidden() {
+    appsHidden = !appsHidden;
+    try { localStorage.setItem('nexa_apps_hidden', appsHidden ? '1' : '0'); } catch(e) {}
+  }
 </script>
 
 <div class="root">
@@ -529,34 +551,40 @@
       </div>
     </header>
 
-    <div class="apps-grid-fixed">
-      <div class="apps-row-fixed">
-        {#each topApps as app, i}
-          <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{i*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
-            <div class="home-app-icon">
-              <img src={app.icon} alt={app.label} class="home-app-img" />
-            </div>
-            <span class="home-app-name">{app.label}</span>
-          </button>
-        {/each}
-      </div>
+    {#if !appsHidden}
+      <div class="apps-grid-fixed">
+        <div class="apps-row-fixed">
+          {#each topApps as app, i}
+            <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{i*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
+              <div class="home-app-icon">
+                <img src={app.icon} alt={app.label} class="home-app-img" />
+              </div>
+              <span class="home-app-name">{app.label}</span>
+            </button>
+          {/each}
+        </div>
 
-      <div class="apps-row-fixed">
-        {#each bottomApps as app, i}
-          <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{(i+3)*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
-            <div class="home-app-icon">
-              <img src={app.icon} alt={app.label} class="home-app-img" />
-            </div>
-            <span class="home-app-name">{app.label}</span>
-          </button>
-        {/each}
+        <div class="apps-row-fixed">
+          {#each bottomApps as app, i}
+            <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{(i+3)*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
+              <div class="home-app-icon">
+                <img src={app.icon} alt={app.label} class="home-app-img" />
+              </div>
+              <span class="home-app-name">{app.label}</span>
+            </button>
+          {/each}
+        </div>
       </div>
-    </div>
+    {/if}
   </div>
 
   <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
     {#if shouldPlayLottie}
       <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
+    {:else}
+      <div class="hero-text-wrap">
+        <p class="hero-text">Selecione qualquer app para o trabalho de hoje!</p>
+      </div>
     {/if}
   </main>
 </div>
@@ -746,6 +774,29 @@
           {/each}
         </div>
       </div>
+
+      <button class="drawer-item pulse-tap" on:click={toggleAppsExpanded}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+        <span class="drawer-item-label" style="flex:1">Apps</span>
+        <span class="icon-mask drawer-chevron" class:drawer-chevron-open={appsExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
+      </button>
+      <div class="theme-accordion" class:theme-accordion-open={appsExpanded}>
+        <div class="theme-accordion-inner">
+          <div class="apps-switch-row">
+            <span class="apps-switch-label">Ocultar apps</span>
+            <button
+              class="switch-track pulse-tap"
+              class:switch-on={appsHidden}
+              role="switch"
+              aria-checked={appsHidden}
+              on:click={toggleAppsHidden}
+            >
+              <span class="switch-thumb" class:switch-thumb-on={appsHidden}></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
@@ -812,6 +863,9 @@
     --logout-icon:        #FF453A;
     --app-pill-bg:        #1a1a1a;
     --app-pill-border:    rgba(255,255,255,0.12);
+    --switch-off-bg:      rgba(255,255,255,0.16);
+    --switch-on-bg:       #34C759;
+    --switch-thumb-bg:    #ffffff;
   }
 
   :global([data-theme="light"]) {
@@ -853,6 +907,9 @@
     --logout-icon:        #E0342A;
     --app-pill-bg:        #FFFFFF;
     --app-pill-border:    rgba(0,0,0,0.09);
+    --switch-off-bg:      rgba(0,0,0,0.14);
+    --switch-on-bg:       #34C759;
+    --switch-thumb-bg:    #ffffff;
   }
 
   .root {
@@ -1038,6 +1095,29 @@
     opacity:0;
     transform:translate(-50%,-50%) scale(0.85);
     pointer-events:none;
+  }
+
+  .hero-text-wrap {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    width:min(78vw, 340px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    pointer-events:none;
+  }
+  .hero-text {
+    text-align:center;
+    font-family:Georgia, 'Times New Roman', serif;
+    font-style:italic;
+    font-weight:500;
+    font-size:22px;
+    line-height:1.4;
+    color:var(--icon-strong);
+    letter-spacing:0.1px;
+    opacity:0.92;
   }
 
   .bottom {
@@ -1413,6 +1493,40 @@
   }
   .theme-opt:active { background:var(--drawer-row-active); }
   .theme-opt-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
+
+  .apps-switch-row {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    padding:11px 14px 11px 52px;
+  }
+  .apps-switch-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
+  .switch-track {
+    position:relative;
+    width:46px;
+    height:27px;
+    border-radius:999px;
+    border:none;
+    background:var(--switch-off-bg);
+    cursor:pointer;
+    padding:0;
+    flex-shrink:0;
+    transition:background .2s ease;
+  }
+  .switch-track.switch-on { background:var(--switch-on-bg); }
+  .switch-thumb {
+    position:absolute;
+    top:2px;
+    left:2px;
+    width:23px;
+    height:23px;
+    border-radius:50%;
+    background:var(--switch-thumb-bg);
+    box-shadow:0 1px 3px rgba(0,0,0,0.3);
+    transition:transform .2s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .switch-thumb.switch-thumb-on { transform:translateX(19px); }
 
   .drawer-logout {
     display:flex;

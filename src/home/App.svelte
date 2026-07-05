@@ -5,6 +5,8 @@
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
+  import { DOC_MODELS } from '$shared/doc-models.js';
+  import { IMG_MODELS } from '$shared/img-models.js';
 
   let user = null;
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
@@ -210,6 +212,25 @@
     { id: 'images', label: 'Imagens' },
     { id: 'apps', label: 'Apps' },
   ];
+  const TAB_ORDER = ['docs', 'images', 'apps'];
+  let prevTabIndex = 0;
+  let tabSlideDir = 1;
+  function selectModelsTab(id) {
+    const newIdx = TAB_ORDER.indexOf(id);
+    tabSlideDir = newIdx >= prevTabIndex ? 1 : -1;
+    prevTabIndex = newIdx;
+    modelsTab = id;
+  }
+  function slideH(node, { dir = 1, duration = 420 }) {
+    return {
+      duration,
+      easing: (t) => 1 - Math.pow(1 - t, 5),
+      css: (t, u) => `
+        transform: translate3d(${u * dir * 36}px, 0, 0);
+        opacity: ${t};
+      `
+    };
+  }
 
   let appbarHeight = 0;
   let topPanelEl;
@@ -220,30 +241,30 @@
     }
   }
 
-  const BOTTOM_HIDE_DISTANCE = 180;
-  let bottomHideProgress = 0;
-  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  let bottomBarEl;
+  let bottomBarHeight = 0;
+  function measureBottomBar() {
+    if (bottomBarEl) {
+      bottomBarHeight = bottomBarEl.getBoundingClientRect().height;
+      if (scrollRootEl) scrollRootEl.style.setProperty('--bottombar-h', bottomBarHeight + 'px');
+    }
+  }
 
-  // Snap assistido: quando o scroll está perto do limite do appbar, força o snap exato nesse ponto,
-  // impedindo que a segunda secção "ultrapasse" a linha divisória para cima.
+  // Snap assistido: a segunda secção só sobe o suficiente para a linha divisória
+  // encostar no topo da bottom bar — nunca continua a subir até ao appbar.
   let snapSettleTimer;
   function handleScroll() {
     if (!scrollRootEl) return;
     const max = scrollRootEl.scrollHeight - scrollRootEl.clientHeight;
     const st = scrollRootEl.scrollTop;
     scrollProgress = max > 0 ? Math.min(1, st / max) : 0;
-    const raw = Math.min(1, Math.max(0, st / BOTTOM_HIDE_DISTANCE));
-    bottomHideProgress = easeOutCubic(raw);
 
     clearTimeout(snapSettleTimer);
     snapSettleTimer = setTimeout(() => {
       if (!scrollRootEl) return;
-      const pageH = scrollRootEl.clientHeight;
+      const snapDistance = Math.max(0, scrollRootEl.clientHeight - bottomBarHeight);
       const cur = scrollRootEl.scrollTop;
-      // Se estiver a menos de metade da página do topo, prende no topo (0),
-      // senão prende exatamente no início da segunda secção (pageH),
-      // que corresponde ao limite do appbar.
-      const target = cur < pageH / 2 ? 0 : pageH;
+      const target = cur < snapDistance / 2 ? 0 : snapDistance;
       if (Math.abs(cur - target) > 1) {
         scrollRootEl.scrollTo({ top: target, behavior: 'smooth' });
       }
@@ -256,6 +277,7 @@
     if (!textInputEl) return;
     textInputEl.style.height = 'auto';
     textInputEl.style.height = Math.min(textInputEl.scrollHeight, 150) + 'px';
+    measureBottomBar();
   }
 
   let pendingAttachments = [];
@@ -278,10 +300,13 @@
         dataUrl: kind === 'image' ? dataUrl : null,
         rawDataUrl: dataUrl,
       }];
+      await tick();
+      measureBottomBar();
     } catch (e) {}
   }
   function removeAttachment(i) {
     pendingAttachments = pendingAttachments.filter((_, idx) => idx !== i);
+    tick().then(measureBottomBar);
   }
   async function handleAddFile(e, kind) {
     const f = e.target.files?.[0];
@@ -436,6 +461,7 @@
       recSeconds = 0;
       recInterval = setInterval(() => recSeconds++, 1000);
       startWaveAnim();
+      tick().then(measureBottomBar);
     } catch(err) {
       console.error('Mic:', err);
     }
@@ -447,6 +473,7 @@
     mediaRecorder.stop();
     waveStream?.getTracks().forEach(t => t.stop());
     stopWaveAnim();
+    tick().then(measureBottomBar);
   }
   function cancelRecording() {
     if (!isRecording || !mediaRecorder) return;
@@ -457,6 +484,7 @@
     waveStream?.getTracks().forEach(t => t.stop());
     audioChunks = [];
     stopWaveAnim();
+    tick().then(measureBottomBar);
   }
   async function handleRecStop() {
     if (!audioChunks.length) return;
@@ -570,8 +598,13 @@
     }
     window.addEventListener('storage', onStorage);
 
-    requestAnimationFrame(() => { mounted = true; measureAppbar(); });
+    requestAnimationFrame(() => {
+      mounted = true;
+      measureAppbar();
+      measureBottomBar();
+    });
     window.addEventListener('resize', measureAppbar);
+    window.addEventListener('resize', measureBottomBar);
 
     try {
       justRegistered = sessionStorage.getItem('nexa_just_registered') === '1';
@@ -594,6 +627,7 @@
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('resize', measureAppbar);
+      window.removeEventListener('resize', measureBottomBar);
       clearTimeout(suggestDebounce);
       clearTimeout(heroTimer);
       clearTimeout(snapSettleTimer);
@@ -603,6 +637,7 @@
 
   let mounted = false;
   $: if (mounted && topPanelEl) measureAppbar();
+  $: if (mounted && bottomBarEl) measureBottomBar();
   $: if (lottieFinished && shouldPlayLottie && heroDisplayText === '' && !heroTimer) runTypewriter();
 </script>
 
@@ -639,14 +674,14 @@
     <div class="scroll-page scroll-page-models" style="padding-top:{appbarHeight}px;">
       <div class="models-divider"></div>
       <div class="models-header">
-        <span class="models-title">Modelos</span>
+        <span class="models-title">Modelos &amp; Apps</span>
       </div>
       <div class="models-tabs">
         {#each MODELS_TABS as t}
           <button
             class="models-tab pulse-tap"
             class:models-tab-active={modelsTab === t.id}
-            on:click={() => modelsTab = t.id}
+            on:click={() => selectModelsTab(t.id)}
           >
             {t.label}
           </button>
@@ -656,17 +691,25 @@
       <div class="models-tab-content">
         {#key modelsTab}
           {#if modelsTab === 'docs'}
-            <div class="models-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-              <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
+            <div class="models-grid" in:slideH={{ dir: tabSlideDir }}>
+              {#each DOC_MODELS as m (m.id)}
+                <button class="model-card model-card-a4 pulse-tap">
+                  <img src={m.thumb} alt={m.name} class="model-card-img" loading="lazy" />
+                  <span class="model-card-label">{m.name}</span>
+                </button>
+              {/each}
             </div>
           {:else if modelsTab === 'images'}
-            <div class="models-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-              <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
+            <div class="models-grid" in:slideH={{ dir: tabSlideDir }}>
+              {#each IMG_MODELS as m (m.id)}
+                <button class="model-card model-card-img-ratio pulse-tap">
+                  <img src={m.thumb} alt={m.name} class="model-card-img" loading="lazy" />
+                  <span class="model-card-label">{m.name}</span>
+                </button>
+              {/each}
             </div>
           {:else}
-            <div class="models-apps-list" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+            <div class="models-apps-list" in:slideH={{ dir: tabSlideDir }}>
               {#each platformApps as app}
                 <button class="models-app-row pulse-tap" on:click={() => openApp(app)}>
                   <img src={app.icon} alt={app.label} class="models-app-icon" />
@@ -679,147 +722,147 @@
         {/key}
       </div>
     </div>
-  </div>
-</div>
 
-<div
-  class="bottom"
-  class:in={mounted}
-  style="transform:translate3d(0,{bottomHideProgress * 140}px,0); opacity:{Math.max(0,1 - bottomHideProgress * 1.2)}; pointer-events:{bottomHideProgress > 0.92 ? 'none' : 'auto'};"
->
-  {#if mountToggles}
-    <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow} style="pointer-events:{togglesShouldShow?'auto':'none'}">
-      {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
-        <div class="toggles-row">
-          {#each row as t, i}
-            <button
-              class="suggestion-toggle pulse-tap"
-              class:toggle-active={activeToggle?.id === t.id}
-              style="transition-delay:{panelShouldShow ? (ri*2+i)*45 : 0}ms;"
-              tabindex={togglesShouldShow ? 0 : -1}
-              on:click={() => selectToggle(t)}
-            >
-              <img src={t.icon} alt={t.label} class="toggle-img" />
-              <span class="toggle-label">{t.label}</span>
-            </button>
-          {/each}
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
-    <div class="suggest-box">
-      {#if suggestLoading && !searchSuggestions.length}
-        <div class="suggest-row suggest-loading">
-          <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="7"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
-        </div>
-      {:else}
-        {#each searchSuggestions as s (s)}
-          <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
-            <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span class="suggest-text">{s}</span>
-            <span
-              class="suggest-fill pulse-tap"
-              role="button"
-              tabindex="0"
-              on:click|stopPropagation={() => fillSuggestion(s)}
-              on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="17" y1="7" x2="7" y2="17"/>
-                <polyline points="7 9 7 17 15 17"/>
-              </svg>
-            </span>
-          </button>
-        {/each}
-      {/if}
-    </div>
-  {/if}
-
-  {#if isRecording}
-    <div class="rec-card">
-      <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
-      <div class="rec-inner">
-        <button class="rec-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-        </button>
-        <div class="rec-center">
-          <div class="rec-dot"></div>
-          <span class="rec-timer">{recTimerStr}</span>
-        </div>
-        <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  {:else}
-    <div class="bottom-bar">
-      {#if pendingAttachments.length}
-        <div class="att-preview">
-          {#each pendingAttachments as att, i}
-            <div class="att-preview-item">
-              {#if att.kind === 'image' && att.dataUrl}
-                <img src={att.dataUrl} class="att-preview-img" alt="" />
-              {:else}
-                <div class="att-preview-file">
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span>
-                </div>
-              {/if}
-              <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+    <div
+      class="bottom"
+      class:in={mounted}
+      bind:this={bottomBarEl}
+    >
+      {#if mountToggles}
+        <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow} style="pointer-events:{togglesShouldShow?'auto':'none'}">
+          {#each [SUGGESTION_TOGGLES.slice(0,2), SUGGESTION_TOGGLES.slice(2,4), SUGGESTION_TOGGLES.slice(4,6)] as row, ri}
+            <div class="toggles-row">
+              {#each row as t, i}
+                <button
+                  class="suggestion-toggle pulse-tap"
+                  class:toggle-active={activeToggle?.id === t.id}
+                  style="transition-delay:{panelShouldShow ? (ri*2+i)*45 : 0}ms;"
+                  tabindex={togglesShouldShow ? 0 : -1}
+                  on:click={() => selectToggle(t)}
+                >
+                  <img src={t.icon} alt={t.label} class="toggle-img" />
+                  <span class="toggle-label">{t.label}</span>
+                </button>
+              {/each}
             </div>
           {/each}
         </div>
       {/if}
-      <textarea
-        class="chat-input"
-        placeholder="Escreve aqui..."
-        rows="1"
-        bind:value={inputText}
-        bind:this={textInputEl}
-        on:input={autoResize}
-        on:keydown={handleKeyDown}
-        on:focus={handleInputFocus}
-        on:blur={handleInputBlur}
-      ></textarea>
-      <div class="bb-row">
-        <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-        </button>
-        <div class="flex1"></div>
-        <button class="bb-pill pulse-tap" on:click={openAppsPopup}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          <span class="bb-pill-label">Apps</span>
-        </button>
-        <div style="width:8px"></div>
-        {#if inputText.trim() || pendingAttachments.length}
-          <button class="bb-btn pulse-tap" on:click={navigateToAI}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
-          </button>
-        {:else}
-          <button class="bb-btn pulse-tap" on:click={startRecording}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          </button>
-        {/if}
+
+      {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
+        <div class="suggest-box">
+          {#if suggestLoading && !searchSuggestions.length}
+            <div class="suggest-row suggest-loading">
+              <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
+            </div>
+          {:else}
+            {#each searchSuggestions as s (s)}
+              <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
+                <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <span class="suggest-text">{s}</span>
+                <span
+                  class="suggest-fill pulse-tap"
+                  role="button"
+                  tabindex="0"
+                  on:click|stopPropagation={() => fillSuggestion(s)}
+                  on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="17" y1="7" x2="7" y2="17"/>
+                    <polyline points="7 9 7 17 15 17"/>
+                  </svg>
+                </span>
+              </button>
+            {/each}
+          {/if}
+        </div>
+      {/if}
+
+      {#if isRecording}
+        <div class="rec-card">
+          <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
+          <div class="rec-inner">
+            <button class="rec-btn pulse-tap" on:click={cancelRecording}>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+            </button>
+            <div class="rec-center">
+              <div class="rec-dot"></div>
+              <span class="rec-timer">{recTimerStr}</span>
+            </div>
+            <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      {:else}
+        <div class="bottom-bar">
+          {#if pendingAttachments.length}
+            <div class="att-preview">
+              {#each pendingAttachments as att, i}
+                <div class="att-preview-item">
+                  {#if att.kind === 'image' && att.dataUrl}
+                    <img src={att.dataUrl} class="att-preview-img" alt="" />
+                  {:else}
+                    <div class="att-preview-file">
+                      <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span>
+                    </div>
+                  {/if}
+                  <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+          <textarea
+            class="chat-input"
+            placeholder="Escreve aqui..."
+            rows="1"
+            bind:value={inputText}
+            bind:this={textInputEl}
+            on:input={autoResize}
+            on:keydown={handleKeyDown}
+            on:focus={handleInputFocus}
+            on:blur={handleInputBlur}
+          ></textarea>
+          <div class="bb-row">
+            <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+            </button>
+            <div class="flex1"></div>
+            <button class="bb-pill pulse-tap" on:click={openAppsPopup}>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+              <span class="bb-pill-label">Apps</span>
+            </button>
+            <div style="width:8px"></div>
+            {#if inputText.trim() || pendingAttachments.length}
+              <button class="bb-btn pulse-tap" on:click={navigateToAI}>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
+              </button>
+            {:else}
+              <button class="bb-btn pulse-tap" on:click={startRecording}>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <div class="legal-row-plain">
+        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
+        <span class="legal-dot">·</span>
+        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
       </div>
     </div>
-  {/if}
-
-  <div class="legal-row-plain">
-    <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
-    <span class="legal-dot">·</span>
-    <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
   </div>
 </div>
 
@@ -1090,8 +1133,7 @@
     min-height:100vh;
     padding-left:18px;
     padding-right:18px;
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 200px);
-    padding-top:0;
+    padding-bottom:0;
     scroll-margin-top: var(--appbar-h, 0px);
   }
 
@@ -1152,13 +1194,29 @@
   .models-tab-active {
     background:var(--surface-strong); color:var(--icon-strong); box-shadow:0 2px 8px rgba(0,0,0,0.10);
   }
-  .models-tab-content { flex:1; }
-  .models-empty {
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; text-align:center;
-  }
-  .models-empty-text { font-size:13.5px; color:var(--text-faint); line-height:1.5; }
+  .models-tab-content { flex:1; overflow:hidden; }
 
-  .models-apps-list { display:flex; flex-direction:column; gap:8px; padding-bottom:20px; }
+  .models-grid {
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:14px;
+    padding-bottom:calc(var(--bottombar-h, 260px) + 24px);
+  }
+  .model-card {
+    display:flex; flex-direction:column; gap:8px; border:none; background:transparent;
+    cursor:pointer; font-family:inherit; padding:0; text-align:left;
+    transition:transform .18s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .model-card:active { transform:scale(0.97); }
+  .model-card-img {
+    width:100%; display:block; object-fit:cover; border-radius:12px;
+    background:var(--btn-bg); border:1px solid var(--border-soft);
+  }
+  .model-card-a4 .model-card-img { aspect-ratio:210 / 297; }
+  .model-card-img-ratio .model-card-img { aspect-ratio:1 / 1; }
+  .model-card-label { font-size:12.5px; font-weight:600; color:var(--icon-strong); padding:0 2px; }
+
+  .models-apps-list { display:flex; flex-direction:column; gap:8px; padding-bottom:calc(var(--bottombar-h, 260px) + 24px); }
   .models-app-row {
     display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px;
     border-radius:14px; background:var(--surface); border:1px solid var(--border-soft);
@@ -1170,12 +1228,15 @@
   .models-app-label { flex:1; font-size:14.5px; font-weight:600; color:var(--icon-strong); }
 
   .bottom {
-    position:fixed; bottom:0; left:0; right:0; z-index:20;
+    position:relative;
+    width:100%;
+    flex-shrink:0;
     padding-left:16px; padding-right:16px;
     padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
+    padding-top:10px;
     opacity:0;
-    transition:opacity .22s cubic-bezier(0.16,1,0.3,1), transform .12s cubic-bezier(0.16,1,0.3,1);
-    will-change: transform, opacity;
+    background:var(--app-bg);
+    transition:opacity .22s cubic-bezier(0.16,1,0.3,1);
   }
   .bottom.in { opacity:1; }
 

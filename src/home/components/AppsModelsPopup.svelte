@@ -22,7 +22,7 @@
   <div class="popup-box apps-popup" class:popup-in={appsPopupVisible} style={appsPopupStyle}>
     <div class="apps-popup-shell">
       <div class="apps-popup-header">
-        <span class="apps-popup-title">Apps &amp; Utilitários</span>
+        <span class="apps-popup-title">Modelos &amp; Apps</span>
         <button class="apps-popup-close pulse-tap" on:click={onClose} aria-label="Fechar">
           <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:var(--icon-strong)"></span>
         </button>

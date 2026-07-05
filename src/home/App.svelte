@@ -19,8 +19,6 @@
 
   // Apps ocultas por agora (jogos, media, profilelens). Código intacto, apenas filtradas da UI.
   const HIDDEN_APP_IDS = new Set(['games', 'media', 'profilelens']);
-
-  let appsHidden = false;
   const platformApps = ALL_APPS.filter(a => a.id !== 'home' && !HIDDEN_APP_IDS.has(a.id));
 
   const MODELS = [
@@ -137,7 +135,7 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // Popup de Apps ancorado à pill do input (mesmo padrão do chat AI) — ÚNICO lugar onde as apps aparecem
+  // Popup de Apps ancorado à pill do input — ÚNICO local onde as apps aparecem
   const APPS_POPUP_W = 220;
   let showAppsPopup = false;
   let appsPopupVisible = false;
@@ -549,7 +547,7 @@
     'Torne tudo mais fácil na tua vida...',
     'Cria, aprende e resolve tudo num só lugar...',
     'A tua produtividade começa aqui...',
-    'Em que está pensando?'
+    'Em que estás a pensar hoje?'
   ];
   let heroDisplayText = '';
   let heroPhraseIdx = 0;
@@ -588,23 +586,22 @@
     typeStep();
   }
 
-  // ---- Scroll vertical: appbar fixo, secção "Modelos & Apps" revelada por baixo ----
+  // ---- Scroll vertical: appbar fixo, secção "Modelos" por baixo, bottom bar acompanha o dedo ----
   let scrollRootEl;
   let scrollProgress = 0; // 0 = topo (home), 1 = totalmente na secção de baixo
-  let modelsTab = 'docs'; // 'docs' | 'images' | 'apps'
+  let modelsTab = 'docs'; // 'docs' | 'images'
 
   const MODELS_TABS = [
     { id: 'docs',   label: 'Documentos' },
     { id: 'images', label: 'Imagens' },
-    { id: 'apps',   label: 'Apps' },
   ];
 
   // Altura real do appbar fixo (medida em runtime) — usada para a secção de baixo subir até ao nível certo
   let appbarHeight = 0;
   let topPanelEl;
 
-  // bottomHideProgress segue o dedo 1:1 (sem debounce), suavizado só na exibição visual via easing CSS-friendly
-  const BOTTOM_HIDE_DISTANCE = 130;
+  // bottomHideProgress segue o dedo 1:1 (sem debounce), com easing visual suave
+  const BOTTOM_HIDE_DISTANCE = 180;
   let bottomHideProgress = 0; // 0 = bottom no lugar, 1 = totalmente escondido/subido
 
   function easeOutCubic(t) {
@@ -631,7 +628,8 @@
 
     try {
       const savedHidden = localStorage.getItem('nexa_apps_hidden');
-      appsHidden = savedHidden === '1';
+      // Mantido apenas para o drawer/popup; não mostra apps na secção principal.
+      // Se quiseres forçar sempre visível no popup, deixa isto como está.
     } catch(e) {}
 
     const saved = getTheme();
@@ -681,17 +679,16 @@
 
   $: if (mounted && topPanelEl) measureAppbar();
 
+  // Apps não aparecem na área superior; continuam apenas disponíveis no popup do botão Apps.
   function toggleAppsHidden() {
-    appsHidden = !appsHidden;
-    try { localStorage.setItem('nexa_apps_hidden', appsHidden ? '1' : '0'); } catch(e) {}
+    // Mantemos a função para compatibilidade com o drawer, mas ela já não controla lista na tela principal.
+    try {
+      const current = localStorage.getItem('nexa_apps_hidden') === '1';
+      localStorage.setItem('nexa_apps_hidden', current ? '0' : '1');
+    } catch(e) {}
   }
-</script>
-
-<div class="root">
-  <div class="bg-layer"></div>
-
-  <!-- Appbar fixo: NUNCA se move, independentemente do scroll. Apps removidas daqui. -->
-  <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
+</script><div class="root">
+  <div class="bg-layer"></div>  <!-- Appbar fixo: NUNCA se move, independentemente do scroll. Apps removidas daqui. -->  <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
     <header class="header">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
       <div class="flex1"></div>
@@ -703,77 +700,57 @@
         </button>
       </div>
     </header>
-  </div>
-
-  <!-- Área com scroll vertical: home + secção Modelos & Apps por baixo -->
-  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
+  </div>  <!-- Área com scroll vertical: home + secção Modelos por baixo -->  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
     <div class="scroll-page">
       <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
         {#if shouldPlayLottie}
           <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
         {:else}
           <div class="hero-text-wrap">
-            <p class="hero-text">{heroDisplayText}<span class="hero-caret" class:hero-caret-dark={isDark}>|</span></p>
+            <p class="hero-text">
+              {heroDisplayText}
+              <span class="hero-caret" class:hero-caret-dark={isDark}>|</span>
+            </p>
           </div>
         {/if}
       </main>
-    </div>
+    </div><div class="scroll-page scroll-page-models" style="padding-top:{appbarHeight}px;">
+  <div class="models-divider"></div>
+  <div class="models-header">
+    <span class="models-title">Modelos</span>
+  </div>
+  <div class="models-tabs">
+    {#each MODELS_TABS as t}
+      <button
+        class="models-tab pulse-tap"
+        class:models-tab-active={modelsTab === t.id}
+        on:click={() => modelsTab = t.id}
+      >
+        {t.label}
+      </button>
+    {/each}
+  </div>
 
-    <div class="scroll-page scroll-page-models" style="padding-top:{appbarHeight}px;">
-      <div class="models-divider"></div>
-      <div class="models-header">
-        <span class="models-title">Modelos &amp; Apps</span>
+  <div class="models-tab-content">
+    {#if modelsTab === 'docs'}
+      <div class="models-empty">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+        <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
       </div>
-      <div class="models-tabs">
-        {#each MODELS_TABS as t}
-          <button
-            class="models-tab pulse-tap"
-            class:models-tab-active={modelsTab === t.id}
-            on:click={() => modelsTab = t.id}
-          >
-            {t.label}
-          </button>
-        {/each}
+    {:else if modelsTab === 'images'}
+      <div class="models-empty">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+        <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
       </div>
-
-      <div class="models-tab-content">
-        {#if modelsTab === 'docs'}
-          <div class="models-empty">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-            <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
-          </div>
-        {:else if modelsTab === 'images'}
-          <div class="models-empty">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-            <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
-          </div>
-        {:else if modelsTab === 'apps'}
-          <div class="models-apps-list">
-            {#if appsHidden}
-              <div class="models-empty">
-                <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-                <p class="models-empty-text">Apps ocultas. Ativa-as no menu para as veres aqui.</p>
-              </div>
-            {:else}
-              {#each platformApps as app}
-                <button class="models-app-row pulse-tap" on:click={() => openApp(app)}>
-                  <img src={app.icon} alt={app.label} class="models-app-icon" />
-                  <span class="models-app-label">{app.label}</span>
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
-                </button>
-              {/each}
-            {/if}
-          </div>
-        {/if}
-      </div>
-    </div>
+    {/if}
   </div>
 </div>
 
-<div
+  </div>
+</div><div
   class="bottom"
   class:in={mounted}
-  style="transform:translate3d(0,-{bottomHideProgress * 46}px,0); opacity:{1 - bottomHideProgress}; pointer-events:{bottomHideProgress > 0.85 ? 'none' : 'auto'};"
+  style="transform:translate3d(0,-{bottomHideProgress * 120}px,0); opacity:{1 - bottomHideProgress * 0.98}; pointer-events:{bottomHideProgress > 0.92 ? 'none' : 'auto'};"
 >
   {#if mountToggles}
     <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow} style="pointer-events:{togglesShouldShow?'auto':'none'}">
@@ -794,124 +771,27 @@
         </div>
       {/each}
     </div>
-  {/if}
+  {/if}{#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)} <div class="suggest-box"> {#if suggestLoading && !searchSuggestions.length} <div class="suggest-row suggest-loading"> <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="11" cy="11" r="7"/> <line x1="21" y1="21" x2="16.65" y2="16.65"/> </svg> <span class="suggest-text suggest-text-faint">A procurar sugestões...</span> </div> {:else} {#each searchSuggestions as s (s)} <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}> <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="11" cy="11" r="7"/> <line x1="21" y1="21" x2="16.65" y2="16.65"/> </svg> <span class="suggest-text">{s}</span> <span class="suggest-fill pulse-tap" role="button" tabindex="0" on:click|stopPropagation={() => fillSuggestion(s)} on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }} > <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <line x1="17" y1="7" x2="7" y2="17"/> <polyline points="7 9 7 17 15 17"/> </svg> </span> </button> {/each} {/if} </div> {/if}
 
-  {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
-    <div class="suggest-box">
-      {#if suggestLoading && !searchSuggestions.length}
-        <div class="suggest-row suggest-loading">
-          <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="7"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
-        </div>
-      {:else}
-        {#each searchSuggestions as s (s)}
-          <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
-            <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span class="suggest-text">{s}</span>
-            <span
-              class="suggest-fill pulse-tap"
-              role="button"
-              tabindex="0"
-              on:click|stopPropagation={() => fillSuggestion(s)}
-              on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="17" y1="7" x2="7" y2="17"/>
-                <polyline points="7 9 7 17 15 17"/>
-              </svg>
-            </span>
-          </button>
-        {/each}
-      {/if}
-    </div>
-  {/if}
-
-  {#if isRecording}
-    <div class="rec-card">
-      <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
-      <div class="rec-inner">
-        <button class="rec-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-        </button>
-        <div class="rec-center">
-          <div class="rec-dot"></div>
-          <span class="rec-timer">{recTimerStr}</span>
-        </div>
-        <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  {:else}
-    <div class="bottom-bar">
-      {#if pendingAttachments.length}
-        <div class="att-preview">
-          {#each pendingAttachments as att, i}
-            <div class="att-preview-item">
-              {#if att.kind === 'image' && att.dataUrl}
-                <img src={att.dataUrl} class="att-preview-img" alt="" />
-              {:else}
-                <div class="att-preview-file">
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span>
-                </div>
-              {/if}
-              <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-          {/each}
-        </div>
-      {/if}
-      <textarea
-        class="chat-input"
-        placeholder="Escreve aqui..."
-        rows="1"
-        bind:value={inputText}
-        bind:this={textInputEl}
-        on:input={autoResize}
-        on:keydown={handleKeyDown}
-        on:focus={handleInputFocus}
-        on:blur={handleInputBlur}
-      ></textarea>
-      <div class="bb-row">
-        <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-        </button>
-        <div class="flex1"></div>
-        <button class="bb-pill pulse-tap" on:click={openAppsPopup}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          <span class="bb-pill-label">Apps</span>
-        </button>
-        <div style="width:8px"></div>
-        {#if inputText.trim() || pendingAttachments.length}
-          <button class="bb-btn pulse-tap" on:click={navigateToAI}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
-          </button>
-        {:else}
-          <button class="bb-btn pulse-tap" on:click={startRecording}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          </button>
-        {/if}
-      </div>
-    </div>
-  {/if}
+{#if isRecording} <div class="rec-card"> <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas> <div class="rec-inner"> <button class="rec-btn pulse-tap" on:click={cancelRecording}> <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span> </button> <div class="rec-center"> <div class="rec-dot"></div> <span class="rec-timer">{recTimerStr}</span> </div> <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"> <polyline points="20 6 9 17 4 12"/> </svg> </button> </div> </div> {:else} <div class="bottom-bar"> {#if pendingAttachments.length} <div class="att-preview"> {#each pendingAttachments as att, i} <div class="att-preview-item"> {#if att.kind === 'image' && att.dataUrl} <img src={att.dataUrl} class="att-preview-img" alt="" /> {:else} <div class="att-preview-file"> <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span> </div> {/if} <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}> <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> </button> </div> {/each} </div> {/if} <textarea
+class="chat-input"
+placeholder="Escreve aqui..."
+rows="1"
+bind:value={inputText}
+bind:this={textInputEl}
+on:input={autoResize}
+on:keydown={handleKeyDown}
+on:focus={handleInputFocus}
+on:blur={handleInputBlur}
+></textarea> <div class="bb-row"> <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}> <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span> </button> <div class="flex1"></div> <button class="bb-pill pulse-tap" on:click={openAppsPopup}> <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span> <span class="bb-pill-label">Apps</span> </button> <div style="width:8px"></div> {#if inputText.trim() || pendingAttachments.length} <button class="bb-btn pulse-tap" on:click={navigateToAI}> <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span> </button> {:else} <button class="bb-btn pulse-tap" on:click={startRecording}> <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span> </button> {/if} </div> </div> {/if}
 
   <div class="legal-row-plain">
     <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
     <span class="legal-dot">·</span>
     <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
   </div>
-</div>
+</div>{#if showPopup}
 
-{#if showPopup}
   <div class="popup-overlay" on:click={closePopup}></div>
   <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
     <div class="popup-content" class:fading={popupFading}>
@@ -954,31 +834,22 @@
       {/if}
     </div>
   </div>
-{/if}
+{/if}<!-- Popup de Apps ancorado à pill do input — ÚNICO local onde as apps aparecem -->{#if showAppsPopup}
 
-<!-- Popup de Apps ancorado à pill do input — ÚNICO local onde as apps aparecem -->
-{#if showAppsPopup}
   <div class="popup-overlay" on:click={closeAppsPopup}></div>
   <div class="popup-box" class:popup-in={appsPopupVisible} style="bottom:{appsPopupPos.bottom}px;right:{appsPopupPos.right}px;width:{APPS_POPUP_W}px;" >
     <div class="popup-content">
-      {#if appsHidden}
-        <div class="popup-row" style="cursor:default">
-          <span class="popup-label" style="color:var(--text-faint);font-size:13px">Apps ocultas. Ativa-as no menu.</span>
-        </div>
-      {:else}
-        {#each platformApps as app, i}
-          {#if i > 0}<div class="popup-sep"></div>{/if}
-          <button class="popup-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
-            <img src={app.icon} alt={app.label} class="popup-app-icon" />
-            <span class="popup-label">{app.label}</span>
-          </button>
-        {/each}
-      {/if}
+      {#each platformApps as app, i}
+        {#if i > 0}<div class="popup-sep"></div>{/if}
+        <button class="popup-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
+          <img src={app.icon} alt={app.label} class="popup-app-icon" />
+          <span class="popup-label">{app.label}</span>
+        </button>
+      {/each}
     </div>
   </div>
-{/if}
+{/if}{#if drawerOpen}
 
-{#if drawerOpen}
   <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
   <div class="drawer" class:drawer-in={drawerVisible}>
     <div class="drawer-avatar-block">
@@ -1003,48 +874,45 @@
             </button>
           {/each}
         </div>
-      </div>
-
-      <button class="drawer-item pulse-tap" on:click={toggleAppsExpanded}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Apps</span>
-        <span class="icon-mask drawer-chevron" class:drawer-chevron-open={appsExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
-      </button>
-      <div class="theme-accordion" class:theme-accordion-open={appsExpanded}>
-        <div class="theme-accordion-inner">
-          <div class="apps-switch-row">
-            <span class="apps-switch-label">Ocultar apps</span>
-            <button
-              class="switch-track pulse-tap"
-              class:switch-on={appsHidden}
-              role="switch"
-              aria-checked={appsHidden}
-              on:click={toggleAppsHidden}
-            >
-              <span class="switch-thumb" class:switch-thumb-on={appsHidden}></span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {#each DRAWER_ITEMS as item}
-        <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label">{item.label}</span>
+      </div><button class="drawer-item pulse-tap" on:click={toggleAppsExpanded}>
+    <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+    <span class="drawer-item-label" style="flex:1">Apps</span>
+    <span class="icon-mask drawer-chevron" class:drawer-chevron-open={appsExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
+  </button>
+  <div class="theme-accordion" class:theme-accordion-open={appsExpanded}>
+    <div class="theme-accordion-inner">
+      <div class="apps-switch-row">
+        <span class="apps-switch-label">Ocultar apps</span>
+        <button
+          class="switch-track pulse-tap"
+          class:switch-on={false}
+          role="switch"
+          aria-checked={false}
+          on:click={toggleAppsHidden}
+        >
+          <span class="switch-thumb"></span>
         </button>
-      {/each}
-    </nav>
-    <div style="flex:1"></div>
-    <div class="drawer-sep"></div>
-    <button class="drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:var(--logout-icon)"></span>
-      <span class="drawer-logout-label">Terminar sessão</span>
-    </button>
-    <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
+      </div>
+    </div>
   </div>
-{/if}
 
-<style>
+  {#each DRAWER_ITEMS as item}
+    <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+      <span class="drawer-item-label">{item.label}</span>
+    </button>
+  {/each}
+</nav>
+<div style="flex:1"></div>
+<div class="drawer-sep"></div>
+<button class="drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
+  <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:var(--logout-icon)"></span>
+  <span class="drawer-logout-label">Terminar sessão</span>
+</button>
+<div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
+
+  </div>
+{/if}<style>
   * { box-sizing:border-box; margin:0; padding:0; }
 
   :global(html), :global(body) {
@@ -1235,7 +1103,7 @@
   }
   .hdr-seg:active { background:var(--hdr-seg-active); }
 
-  /* --- Scroll vertical: página home (100%) + página modelos&apps por baixo --- */
+  /* --- Scroll vertical: página home (100%) + página modelos por baixo --- */
   .scroll-root {
     position:absolute;
     inset:0;
@@ -1254,10 +1122,11 @@
     flex-direction:column;
   }
   .scroll-page-models {
-    min-height:60vh;
+    min-height:100vh;
     padding-left:18px;
     padding-right:18px;
     padding-bottom:calc(env(safe-area-inset-bottom,0px) + 200px);
+    padding-top:0;
     transition:padding-top .2s ease;
   }
 
@@ -1312,11 +1181,11 @@
     font-style:normal;
     margin-left:1px;
     animation:heroBlink 0.9s step-end infinite;
-    color:#111111;
+    color:var(--icon-strong);
     font-weight:300;
   }
   .hero-caret-dark {
-    color:#ffffff;
+    color:var(--icon-strong);
   }
   @keyframes heroBlink { 50% { opacity:0; } }
 
@@ -1380,24 +1249,6 @@
     color:var(--text-faint);
     line-height:1.5;
   }
-  .models-apps-list { display:flex; flex-direction:column; gap:8px; }
-  .models-app-row {
-    display:flex;
-    align-items:center;
-    gap:12px;
-    width:100%;
-    padding:12px 14px;
-    border-radius:14px;
-    background:var(--app-pill-bg);
-    border:1px solid var(--app-pill-border);
-    cursor:pointer;
-    font-family:inherit;
-    text-align:left;
-    transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .models-app-row:active { transform:scale(0.98); }
-  .models-app-icon { width:28px; height:28px; border-radius:8px; object-fit:contain; flex-shrink:0; }
-  .models-app-label { flex:1; font-size:14.5px; font-weight:600; color:var(--icon-strong); }
 
   .bottom {
     position:fixed;
@@ -1409,7 +1260,7 @@
     padding-right:16px;
     padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     opacity:0;
-    transition:opacity .6s .3s ease, transform .05s linear;
+    transition:opacity .18s linear, transform .08s linear;
     will-change: transform, opacity;
   }
   .bottom.in { opacity:1; }

@@ -62,7 +62,7 @@
     <div class="flex1"></div>
     <button class="bb-pill pulse-tap" on:click={onOpenAppsPopup}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-      <span class="bb-pill-label">Apps &amp; Utilitários</span>
+      <span class="bb-pill-label">Modelos &amp; Apps</span>
     </button>
     <div style="width:8px"></div>
     {#if inputText.trim() || pendingAttachments.length}

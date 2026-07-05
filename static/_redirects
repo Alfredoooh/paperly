@@ -1,9 +1,0 @@
-/auth/* /auth/index.html 200
-/home/* /home/index.html 200
-/ai/* /ai/index.html 200
-/music/* /music/index.html 200
-/games/* /games/index.html 200
-/media/* /media/index.html 200
-/profilelens/* /profilelens/index.html 200
-/downloader/* /downloader/index.html 200
-/* /404/index.html 404

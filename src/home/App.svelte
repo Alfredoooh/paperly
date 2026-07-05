@@ -119,16 +119,17 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  const APPS_POPUP_W = 220;
+  const APPS_POPUP_MARGIN_X = 10;
+  const APPS_POPUP_MARGIN_BOTTOM = 10;
   let showAppsPopup = false;
   let appsPopupVisible = false;
-  let appsPopupPos = { bottom: 0, right: 0 };
-  function openAppsPopup(event) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    appsPopupPos = {
-      bottom: window.innerHeight - rect.top + 8,
-      right: window.innerWidth - rect.right + 10,
-    };
+  let appsPopupStyle = '';
+  function updateAppsPopupStyle() {
+    const top = Math.max((appbarHeight || 0) + 8, 8);
+    appsPopupStyle = `top:${top}px;left:${APPS_POPUP_MARGIN_X}px;right:${APPS_POPUP_MARGIN_X}px;bottom:${APPS_POPUP_MARGIN_BOTTOM}px;`;
+  }
+  function openAppsPopup() {
+    updateAppsPopupStyle();
     showAppsPopup = true;
     requestAnimationFrame(() => requestAnimationFrame(() => appsPopupVisible = true));
   }
@@ -217,6 +218,7 @@
     if (topPanelEl) {
       appbarHeight = topPanelEl.getBoundingClientRect().height;
       if (scrollRootEl) scrollRootEl.style.setProperty('--appbar-h', appbarHeight + 'px');
+      updateAppsPopupStyle();
     }
   }
 
@@ -224,8 +226,6 @@
   let bottomHideProgress = 0;
   function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
-  // Snap assistido: quando o scroll está perto do limite do appbar, força o snap exato nesse ponto,
-  // impedindo que a segunda secção "ultrapasse" a linha divisória para cima.
   let snapSettleTimer;
   function handleScroll() {
     if (!scrollRootEl) return;
@@ -240,9 +240,6 @@
       if (!scrollRootEl) return;
       const pageH = scrollRootEl.clientHeight;
       const cur = scrollRootEl.scrollTop;
-      // Se estiver a menos de metade da página do topo, prende no topo (0),
-      // senão prende exatamente no início da segunda secção (pageH),
-      // que corresponde ao limite do appbar.
       const target = cur < pageH / 2 ? 0 : pageH;
       if (Math.abs(cur - target) > 1) {
         scrollRootEl.scrollTo({ top: target, behavior: 'smooth' });
@@ -635,50 +632,6 @@
         {/if}
       </main>
     </div>
-
-    <div class="scroll-page scroll-page-models" style="padding-top:{appbarHeight}px;">
-      <div class="models-divider"></div>
-      <div class="models-header">
-        <span class="models-title">Modelos</span>
-      </div>
-      <div class="models-tabs">
-        {#each MODELS_TABS as t}
-          <button
-            class="models-tab pulse-tap"
-            class:models-tab-active={modelsTab === t.id}
-            on:click={() => modelsTab = t.id}
-          >
-            {t.label}
-          </button>
-        {/each}
-      </div>
-
-      <div class="models-tab-content">
-        {#key modelsTab}
-          {#if modelsTab === 'docs'}
-            <div class="models-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-              <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
-            </div>
-          {:else if modelsTab === 'images'}
-            <div class="models-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-              <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
-            </div>
-          {:else}
-            <div class="models-apps-list" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              {#each platformApps as app}
-                <button class="models-app-row pulse-tap" on:click={() => openApp(app)}>
-                  <img src={app.icon} alt={app.label} class="models-app-icon" />
-                  <span class="models-app-label">{app.label}</span>
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        {/key}
-      </div>
-    </div>
   </div>
 </div>
 
@@ -800,7 +753,7 @@
         <div class="flex1"></div>
         <button class="bb-pill pulse-tap" on:click={openAppsPopup}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          <span class="bb-pill-label">Apps</span>
+          <span class="bb-pill-label">Apps &amp; Modelos</span>
         </button>
         <div style="width:8px"></div>
         {#if inputText.trim() || pendingAttachments.length}
@@ -870,15 +823,52 @@
 
 {#if showAppsPopup}
   <div class="popup-overlay" on:click={closeAppsPopup}></div>
-  <div class="popup-box" class:popup-in={appsPopupVisible} style="bottom:{appsPopupPos.bottom}px;right:{appsPopupPos.right}px;width:{APPS_POPUP_W}px;">
-    <div class="popup-content">
-      {#each platformApps as app, i}
-        {#if i > 0}<div class="popup-sep"></div>{/if}
-        <button class="popup-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
-          <img src={app.icon} alt={app.label} class="popup-app-icon" />
-          <span class="popup-label">{app.label}</span>
+  <div class="popup-box apps-popup" class:popup-in={appsPopupVisible} style={appsPopupStyle}>
+    <div class="apps-popup-shell" class:fading={popupFading}>
+      <div class="apps-popup-header">
+        <span class="apps-popup-title">Apps &amp; Modelos</span>
+        <button class="apps-popup-close pulse-tap" on:click={closeAppsPopup} aria-label="Fechar">
+          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:var(--icon-strong)"></span>
         </button>
-      {/each}
+      </div>
+
+      <div class="models-tabs apps-popup-tabs">
+        {#each MODELS_TABS as t}
+          <button
+            class="models-tab pulse-tap"
+            class:models-tab-active={modelsTab === t.id}
+            on:click={() => modelsTab = t.id}
+          >
+            {t.label}
+          </button>
+        {/each}
+      </div>
+
+      <div class="apps-popup-body">
+        {#key modelsTab}
+          {#if modelsTab === 'docs'}
+            <div class="models-empty popup-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+              <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
+            </div>
+          {:else if modelsTab === 'images'}
+            <div class="models-empty popup-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+              <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
+            </div>
+          {:else}
+            <div class="models-apps-list popup-apps-list" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+              {#each platformApps as app}
+                <button class="models-app-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
+                  <img src={app.icon} alt={app.label} class="models-app-icon" />
+                  <span class="models-app-label">{app.label}</span>
+                  <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        {/key}
+      </div>
     </div>
   </div>
 {/if}
@@ -1086,14 +1076,6 @@
     display:flex;
     flex-direction:column;
   }
-  .scroll-page-models {
-    min-height:100vh;
-    padding-left:18px;
-    padding-right:18px;
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 200px);
-    padding-top:0;
-    scroll-margin-top: var(--appbar-h, 0px);
-  }
 
   .content {
     flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; position:relative;
@@ -1124,50 +1106,6 @@
     color:var(--icon-strong); font-weight:300;
   }
   @keyframes heroBlink { 50% { opacity:0; } }
-
-  .models-divider {
-    position:sticky;
-    top:calc(var(--appbar-h, 0px) - 1px);
-    z-index:14;
-    height:1px;
-    background:var(--divider-color);
-    margin:0 0 18px;
-    flex-shrink:0;
-  }
-  .models-header {
-    display:flex; align-items:center; justify-content:center; padding-bottom:14px;
-  }
-  .models-title {
-    font-family:Georgia, 'Times New Roman', serif; font-style:italic; font-size:19px; font-weight:600; color:var(--icon-strong);
-  }
-  .models-tabs {
-    display:flex; gap:6px; background:var(--btn-bg); padding:4px; border-radius:14px; margin-bottom:18px;
-  }
-  .models-tab {
-    flex:1; border:none; background:transparent; padding:9px 6px; border-radius:10px;
-    font:inherit; font-size:13px; font-weight:600; color:var(--text-faint); cursor:pointer;
-    transition:background .22s cubic-bezier(0.16,1,0.3,1), color .22s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .models-tab:active { transform:scale(0.96); }
-  .models-tab-active {
-    background:var(--surface-strong); color:var(--icon-strong); box-shadow:0 2px 8px rgba(0,0,0,0.10);
-  }
-  .models-tab-content { flex:1; }
-  .models-empty {
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; text-align:center;
-  }
-  .models-empty-text { font-size:13.5px; color:var(--text-faint); line-height:1.5; }
-
-  .models-apps-list { display:flex; flex-direction:column; gap:8px; padding-bottom:20px; }
-  .models-app-row {
-    display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px;
-    border-radius:14px; background:var(--surface); border:1px solid var(--border-soft);
-    cursor:pointer; font:inherit; text-align:left;
-    transition:background .16s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .models-app-row:active { transform:scale(0.98); background:var(--row-active); }
-  .models-app-icon { width:28px; height:28px; border-radius:8px; object-fit:contain; flex-shrink:0; }
-  .models-app-label { flex:1; font-size:14.5px; font-weight:600; color:var(--icon-strong); }
 
   .bottom {
     position:fixed; bottom:0; left:0; right:0; z-index:20;
@@ -1323,9 +1261,9 @@
 
   .popup-overlay { position:fixed; inset:0; z-index:50; }
   .popup-box {
-    position:fixed; z-index:51; border-radius:18px; background:var(--surface-strong);
-    border:0.5px solid var(--border-soft); box-shadow:0 12px 36px rgba(0,0,0,0.24);
-    overflow:hidden; transform-origin:bottom left; opacity:0; transform:scale(0.85) translateY(10px);
+    position:fixed; z-index:51; border-radius:24px; background:var(--surface-strong);
+    border:0.5px solid var(--border-soft); box-shadow:0 18px 48px rgba(0,0,0,0.28);
+    overflow:hidden; transform-origin:center; opacity:0; transform:scale(0.96) translateY(10px);
     transition:opacity .26s cubic-bezier(0.16,1,0.3,1), transform .26s cubic-bezier(0.16,1,0.3,1);
     pointer-events:none;
   }
@@ -1347,6 +1285,65 @@
   .popup-label { font-size:15px; font-weight:500; color:var(--icon-strong); flex:1; }
   .popup-sep { height:0.5px; background:var(--border-faint); margin:0 14px; }
   .popup-active-dot { width:7px; height:7px; border-radius:50%; background:var(--icon-strong); flex-shrink:0; }
+
+  .apps-popup { display:flex; flex-direction:column; }
+  .apps-popup-shell { display:flex; flex-direction:column; height:100%; min-height:0; }
+  .apps-popup-header {
+    display:flex; align-items:center; justify-content:space-between; padding:14px 14px 10px 16px;
+  }
+  .apps-popup-title { font-size:16px; font-weight:700; color:var(--icon-strong); }
+  .apps-popup-close {
+    width:34px; height:34px; border:none; border-radius:50%; background:var(--btn-bg);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .apps-popup-tabs { margin:0 14px 12px; }
+  .apps-popup-body { flex:1; min-height:0; overflow-y:auto; padding:0 14px 16px; }
+  .popup-empty { min-height:calc(100% - 20px); }
+  .popup-apps-list { padding-bottom:0; }
+
+  .models-divider {
+    position:sticky;
+    top:calc(var(--appbar-h, 0px) - 1px);
+    z-index:14;
+    height:1px;
+    background:var(--divider-color);
+    margin:0 0 18px;
+    flex-shrink:0;
+  }
+  .models-header {
+    display:flex; align-items:center; justify-content:center; padding-bottom:14px;
+  }
+  .models-title {
+    font-family:Georgia, 'Times New Roman', serif; font-style:italic; font-size:19px; font-weight:600; color:var(--icon-strong);
+  }
+  .models-tabs {
+    display:flex; gap:6px; background:var(--btn-bg); padding:4px; border-radius:14px; margin-bottom:18px;
+  }
+  .models-tab {
+    flex:1; border:none; background:transparent; padding:9px 6px; border-radius:10px;
+    font:inherit; font-size:13px; font-weight:600; color:var(--text-faint); cursor:pointer;
+    transition:background .22s cubic-bezier(0.16,1,0.3,1), color .22s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .models-tab:active { transform:scale(0.96); }
+  .models-tab-active {
+    background:var(--surface-strong); color:var(--icon-strong); box-shadow:0 2px 8px rgba(0,0,0,0.10);
+  }
+  .models-tab-content { flex:1; }
+  .models-empty {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; text-align:center;
+  }
+  .models-empty-text { font-size:13.5px; color:var(--text-faint); line-height:1.5; }
+
+  .models-apps-list { display:flex; flex-direction:column; gap:8px; padding-bottom:20px; }
+  .models-app-row {
+    display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px;
+    border-radius:14px; background:var(--surface); border:1px solid var(--border-soft);
+    cursor:pointer; font:inherit; text-align:left;
+    transition:background .16s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .models-app-row:active { transform:scale(0.98); background:var(--row-active); }
+  .models-app-icon { width:28px; height:28px; border-radius:8px; object-fit:contain; flex-shrink:0; }
+  .models-app-label { flex:1; font-size:14.5px; font-weight:600; color:var(--icon-strong); }
 
   .drawer-overlay {
     position:fixed; inset:0; z-index:70; background:transparent; transition:background .32s cubic-bezier(0.16,1,0.3,1); will-change: background;

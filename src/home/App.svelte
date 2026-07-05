@@ -22,8 +22,6 @@
 
   let appsHidden = false;
   const platformApps = ALL_APPS.filter(a => a.id !== 'home' && !HIDDEN_APP_IDS.has(a.id));
-  $: topApps = platformApps.slice(0, 3);
-  $: bottomApps = platformApps.slice(3, 6);
 
   const MODELS = [
     { id: 'mistral-nemo',    label: 'Nemo',     sublabel: 'mistral-nemo'    },
@@ -139,7 +137,7 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  // Popup de Apps ancorado à pill do input (mesmo padrão do chat AI)
+  // Popup de Apps ancorado à pill do input (mesmo padrão do chat AI) — ÚNICO lugar onde as apps aparecem
   const APPS_POPUP_W = 220;
   let showAppsPopup = false;
   let appsPopupVisible = false;
@@ -233,19 +231,24 @@
       const mob = window.matchMedia('(hover:none) and (pointer:coarse)').matches;
       if (!mob && !e.shiftKey) {
         e.preventDefault();
-        if (inputText.trim()) navigateToAI();
+        if (inputText.trim() || pendingAttachments.length) navigateToAI();
       }
     }
   }
 
   function navigateToAI() {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text && pendingAttachments.length === 0) return;
     const ai = ALL_APPS.find(x => x.id === 'ai');
     if (!ai) return;
     try {
       sessionStorage.setItem('nexa_pending_message', text);
       sessionStorage.setItem('nexa_model', currentModelId);
+      if (pendingAttachments.length) {
+        sessionStorage.setItem('nexa_pending_attachments', JSON.stringify(pendingAttachments));
+      } else {
+        sessionStorage.removeItem('nexa_pending_attachments');
+      }
     } catch(e) {}
     window.location.href = ai.path;
   }
@@ -327,6 +330,44 @@
   function useSuggestion(s) {
     inputText = s;
     setTimeout(navigateToAI, 10);
+  }
+
+  // ---- Anexos (upload de imagem/ficheiro) — mesmo padrão do ChatPage ----
+  let pendingAttachments = [];
+
+  function readFileAsDataUrl(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function addAttachment(file, kind) {
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      pendingAttachments = [...pendingAttachments, {
+        kind,
+        name: file.name,
+        size: file.size,
+        mime: file.type,
+        dataUrl: kind === 'image' ? dataUrl : null,
+        rawDataUrl: dataUrl,
+      }];
+    } catch (e) {}
+  }
+
+  function removeAttachment(i) {
+    pendingAttachments = pendingAttachments.filter((_, idx) => idx !== i);
+  }
+
+  async function handleAddFile(e, kind) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    closePopup();
+    await addAttachment(f, kind);
   }
 
   let mediaRecorder = null, audioChunks = [], isRecording = false;
@@ -502,14 +543,18 @@
     inputFocused = false;
   }
 
-  // ---- Efeito de digitação (typewriter) que alterna entre duas frases ----
+  // ---- Efeito de digitação (typewriter): percorre várias frases, a ÚLTIMA fica fixa ----
   const HERO_PHRASES = [
-    'Selecione qualquer app para o trabalho de hoje!',
-    'Use a IA para estudos, projetos escolares e muito muito mais...'
+    'Faça pesquisas mais profundas com o Nexa...',
+    'Torne tudo mais fácil na tua vida...',
+    'Cria, aprende e resolve tudo num só lugar...',
+    'A tua produtividade começa aqui...',
+    'Em que está pensando?'
   ];
   let heroDisplayText = '';
   let heroPhraseIdx = 0;
   let heroTimer = null;
+  $: isLastHeroPhrase = heroPhraseIdx === HERO_PHRASES.length - 1;
 
   function runTypewriter() {
     clearTimeout(heroTimer);
@@ -523,6 +568,11 @@
         charIdx++;
         heroTimer = setTimeout(typeStep, 38);
       } else {
+        // Última frase: fica visível para sempre, sem apagar.
+        if (heroPhraseIdx === HERO_PHRASES.length - 1) {
+          heroTimer = null;
+          return;
+        }
         heroTimer = setTimeout(eraseStep, 1800);
       }
     }
@@ -531,7 +581,7 @@
         heroDisplayText = heroDisplayText.slice(0, -1);
         heroTimer = setTimeout(eraseStep, 18);
       } else {
-        heroPhraseIdx = (heroPhraseIdx + 1) % HERO_PHRASES.length;
+        heroPhraseIdx = Math.min(heroPhraseIdx + 1, HERO_PHRASES.length - 1);
         heroTimer = setTimeout(typeStep, 300);
       }
     }
@@ -549,15 +599,29 @@
     { id: 'apps',   label: 'Apps' },
   ];
 
-  // Distância (px) de scroll necessária para o bottom subir e desaparecer por completo
-  const BOTTOM_HIDE_DISTANCE = 120;
-  let bottomHideProgress = 0; // 0 = bottom visível no lugar, 1 = totalmente escondido/subido
+  // Altura real do appbar fixo (medida em runtime) — usada para a secção de baixo subir até ao nível certo
+  let appbarHeight = 0;
+  let topPanelEl;
+
+  // bottomHideProgress segue o dedo 1:1 (sem debounce), suavizado só na exibição visual via easing CSS-friendly
+  const BOTTOM_HIDE_DISTANCE = 130;
+  let bottomHideProgress = 0; // 0 = bottom no lugar, 1 = totalmente escondido/subido
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
 
   function handleScroll() {
     if (!scrollRootEl) return;
     const max = scrollRootEl.scrollHeight - scrollRootEl.clientHeight;
-    scrollProgress = max > 0 ? Math.min(1, scrollRootEl.scrollTop / max) : 0;
-    bottomHideProgress = Math.min(1, scrollRootEl.scrollTop / BOTTOM_HIDE_DISTANCE);
+    const st = scrollRootEl.scrollTop;
+    scrollProgress = max > 0 ? Math.min(1, st / max) : 0;
+    const raw = Math.min(1, Math.max(0, st / BOTTOM_HIDE_DISTANCE));
+    bottomHideProgress = easeOutCubic(raw);
+  }
+
+  function measureAppbar() {
+    if (topPanelEl) appbarHeight = topPanelEl.getBoundingClientRect().height;
   }
 
   let mounted = false;
@@ -581,7 +645,8 @@
     }
     window.addEventListener('storage', onStorage);
 
-    requestAnimationFrame(() => { mounted = true; });
+    requestAnimationFrame(() => { mounted = true; measureAppbar(); });
+    window.addEventListener('resize', measureAppbar);
 
     let justRegistered = false;
     try {
@@ -603,6 +668,7 @@
       if (lottieInstance) lottieInstance.destroy();
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('resize', measureAppbar);
       clearTimeout(suggestDebounce);
       clearTimeout(heroTimer);
       abortSuggest?.abort();
@@ -613,6 +679,8 @@
     runTypewriter();
   }
 
+  $: if (mounted && topPanelEl) measureAppbar();
+
   function toggleAppsHidden() {
     appsHidden = !appsHidden;
     try { localStorage.setItem('nexa_apps_hidden', appsHidden ? '1' : '0'); } catch(e) {}
@@ -622,8 +690,8 @@
 <div class="root">
   <div class="bg-layer"></div>
 
-  <!-- Appbar fixo: NUNCA se move, independentemente do scroll -->
-  <div class="top-panel" class:in={mounted && panelShouldShow}>
+  <!-- Appbar fixo: NUNCA se move, independentemente do scroll. Apps removidas daqui. -->
+  <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
     <header class="header">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
       <div class="flex1"></div>
@@ -635,32 +703,6 @@
         </button>
       </div>
     </header>
-
-    {#if !appsHidden}
-      <div class="apps-grid-fixed">
-        <div class="apps-row-fixed">
-          {#each topApps as app, i}
-            <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{i*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
-              <div class="home-app-icon">
-                <img src={app.icon} alt={app.label} class="home-app-img" />
-              </div>
-              <span class="home-app-name">{app.label}</span>
-            </button>
-          {/each}
-        </div>
-
-        <div class="apps-row-fixed">
-          {#each bottomApps as app, i}
-            <button class="home-app-pill pulse-tap app-anim" style="transition-delay:{(i+3)*55}ms" class:app-in={mounted && panelShouldShow} on:click={() => openApp(app)}>
-              <div class="home-app-icon">
-                <img src={app.icon} alt={app.label} class="home-app-img" />
-              </div>
-              <span class="home-app-name">{app.label}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
   </div>
 
   <!-- Área com scroll vertical: home + secção Modelos & Apps por baixo -->
@@ -671,13 +713,13 @@
           <div class="lottie-wrap" class:lottie-hidden={lottieFinished} bind:this={lottieEl}></div>
         {:else}
           <div class="hero-text-wrap">
-            <p class="hero-text">{heroDisplayText}<span class="hero-caret">|</span></p>
+            <p class="hero-text">{heroDisplayText}<span class="hero-caret" class:hero-caret-dark={isDark}>|</span></p>
           </div>
         {/if}
       </main>
     </div>
 
-    <div class="scroll-page scroll-page-models">
+    <div class="scroll-page scroll-page-models" style="padding-top:{appbarHeight}px;">
       <div class="models-divider"></div>
       <div class="models-header">
         <span class="models-title">Modelos &amp; Apps</span>
@@ -731,7 +773,7 @@
 <div
   class="bottom"
   class:in={mounted}
-  style="transform:translateY(-{bottomHideProgress * 46}px) translateY({(1-bottomHideProgress) * 0}px); opacity:{1 - bottomHideProgress}; pointer-events:{bottomHideProgress > 0.6 ? 'none' : 'auto'};"
+  style="transform:translate3d(0,-{bottomHideProgress * 46}px,0); opacity:{1 - bottomHideProgress}; pointer-events:{bottomHideProgress > 0.85 ? 'none' : 'auto'};"
 >
   {#if mountToggles}
     <div class="toggles-wrap" class:toggles-in={panelShouldShow} class:toggles-hidden={!togglesShouldShow} style="pointer-events:{togglesShouldShow?'auto':'none'}">
@@ -810,6 +852,24 @@
     </div>
   {:else}
     <div class="bottom-bar">
+      {#if pendingAttachments.length}
+        <div class="att-preview">
+          {#each pendingAttachments as att, i}
+            <div class="att-preview-item">
+              {#if att.kind === 'image' && att.dataUrl}
+                <img src={att.dataUrl} class="att-preview-img" alt="" />
+              {:else}
+                <div class="att-preview-file">
+                  <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span>
+                </div>
+              {/if}
+              <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
       <textarea
         class="chat-input"
         placeholder="Escreve aqui..."
@@ -831,7 +891,7 @@
           <span class="bb-pill-label">Apps</span>
         </button>
         <div style="width:8px"></div>
-        {#if inputText.trim()}
+        {#if inputText.trim() || pendingAttachments.length}
           <button class="bb-btn pulse-tap" on:click={navigateToAI}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
           </button>
@@ -859,13 +919,13 @@
         <label class="popup-row pulse-tap" style="cursor:pointer">
           <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
           <span class="popup-label">Enviar Imagem</span>
-          <input type="file" accept="image/*" style="display:none" on:change={closePopup} />
+          <input type="file" accept="image/*" style="display:none" on:change={(e) => handleAddFile(e, 'image')} />
         </label>
         <div class="popup-sep"></div>
         <label class="popup-row pulse-tap" style="cursor:pointer">
           <div class="popup-icon-wrap"><span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:17px;height:17px;background:var(--icon-strong)"></span></div>
           <span class="popup-label">Enviar Ficheiro</span>
-          <input type="file" accept="*/*" style="display:none" on:change={closePopup} />
+          <input type="file" accept="*/*" style="display:none" on:change={(e) => handleAddFile(e, 'file')} />
         </label>
         <div class="popup-sep"></div>
         <button class="popup-row pulse-tap" on:click={() => switchPopup('extras')}>
@@ -896,7 +956,7 @@
   </div>
 {/if}
 
-<!-- Popup de Apps ancorado à pill do input — mesmo padrão visual/animação do popup add/extras -->
+<!-- Popup de Apps ancorado à pill do input — ÚNICO local onde as apps aparecem -->
 {#if showAppsPopup}
   <div class="popup-overlay" on:click={closeAppsPopup}></div>
   <div class="popup-box" class:popup-in={appsPopupVisible} style="bottom:{appsPopupPos.bottom}px;right:{appsPopupPos.right}px;width:{APPS_POPUP_W}px;" >
@@ -1128,7 +1188,7 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 4px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-top,0px) + 4px);
     gap:10px;
   }
 
@@ -1175,76 +1235,6 @@
   }
   .hdr-seg:active { background:var(--hdr-seg-active); }
 
-  .apps-grid-fixed {
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    align-items:center;
-    width:100%;
-    padding-top:6px;
-  }
-
-  .apps-row-fixed {
-    display:flex;
-    justify-content:center;
-    align-items:flex-start;
-    width:100%;
-    gap:8px;
-    flex-wrap:wrap;
-    padding:0 10px;
-  }
-
-  .home-app-pill {
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:5px 14px 5px 5px;
-    background:var(--app-pill-bg);
-    border:1px solid var(--app-pill-border);
-    border-radius:9999px;
-    box-shadow:0 2px 10px rgba(0,0,0,.08);
-    cursor:pointer;
-    flex-shrink:0;
-    transition:background .14s ease, transform .14s cubic-bezier(0.34,1.56,0.64,1), border-color .14s ease;
-  }
-  .app-anim {
-    opacity:0;
-    transform:scale(0.7) translateY(14px);
-    transition-property:opacity, transform, background, border-color;
-    transition-duration:.48s, .48s, .14s, .14s;
-    transition-timing-function:cubic-bezier(0.16,1,0.3,1), cubic-bezier(0.16,1,0.3,1), ease, ease;
-  }
-  .app-anim.app-in {
-    opacity:1;
-    transform:scale(1) translateY(0);
-  }
-  .home-app-pill:active {
-    transform:scale(0.94);
-  }
-  .home-app-icon {
-    width:32px;
-    height:32px;
-    border-radius:50%;
-    overflow:hidden;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-shrink:0;
-  }
-  .home-app-img {
-    width:32px;
-    height:32px;
-    object-fit:contain;
-    display:block;
-    border-radius:50%;
-  }
-  .home-app-name {
-    font-size:14px;
-    font-weight:600;
-    color:var(--icon-strong);
-    white-space:nowrap;
-  }
-
   /* --- Scroll vertical: página home (100%) + página modelos&apps por baixo --- */
   .scroll-root {
     position:absolute;
@@ -1265,7 +1255,10 @@
   }
   .scroll-page-models {
     min-height:60vh;
-    padding:0 18px calc(env(safe-area-inset-bottom,0px) + 200px);
+    padding-left:18px;
+    padding-right:18px;
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 200px);
+    transition:padding-top .2s ease;
   }
 
   .content {
@@ -1319,8 +1312,11 @@
     font-style:normal;
     margin-left:1px;
     animation:heroBlink 0.9s step-end infinite;
-    color:var(--upgrade-text);
+    color:#111111;
     font-weight:300;
+  }
+  .hero-caret-dark {
+    color:#ffffff;
   }
   @keyframes heroBlink { 50% { opacity:0; } }
 
@@ -1413,7 +1409,7 @@
     padding-right:16px;
     padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
     opacity:0;
-    transition:opacity .6s .3s ease;
+    transition:opacity .6s .3s ease, transform .05s linear;
     will-change: transform, opacity;
   }
   .bottom.in { opacity:1; }
@@ -1473,6 +1469,11 @@
     display:flex;
     flex-direction:column;
   }
+  .att-preview { display:flex; gap:8px; padding:10px 14px 0; flex-wrap:wrap; }
+  .att-preview-item { position:relative; flex-shrink:0; }
+  .att-preview-img { width:56px; height:56px; object-fit:cover; border-radius:10px; }
+  .att-preview-file { width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--btn-bg); }
+  .att-remove { position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#000; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
   .chat-input {
     resize:none;
     outline:none;

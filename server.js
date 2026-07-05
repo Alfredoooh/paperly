@@ -10,6 +10,16 @@ const upload = multer({ dest: os.tmpdir() });
 
 const PORT = process.env.PORT || 10000;
 
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { maxBuffer: 1024 * 1024 * 50 }, (err, stdout, stderr) => {

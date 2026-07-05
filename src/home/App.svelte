@@ -1,5 +1,4 @@
-<!-- src/routes/home/+page.svelte -->
-<script>
+<!-- src/routes/home/+page.svelte --><script>
   import { onMount, tick } from 'svelte';
   import { slide, fade } from 'svelte/transition';
   import { requireAuth, logout } from '$shared/auth-guard.js';
@@ -601,12 +600,8 @@
   let mounted = false;
   $: if (mounted && topPanelEl) measureAppbar();
   $: if (lottieFinished && shouldPlayLottie && heroDisplayText === '' && !heroTimer) runTypewriter();
-</script>
-
-<div class="root">
-  <div class="bg-layer"></div>
-
-  <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
+</script><div class="root">
+  <div class="bg-layer"></div>  <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
     <header class="header">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
       <div class="flex1"></div>
@@ -618,9 +613,7 @@
         </button>
       </div>
     </header>
-  </div>
-
-  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
+  </div>  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
     <div class="scroll-page">
       <main class="content" style="padding-bottom:{contentPaddingBottom}px;">
         {#if shouldPlayLottie}
@@ -633,9 +626,7 @@
       </main>
     </div>
   </div>
-</div>
-
-<div
+</div><div
   class="bottom"
   class:in={mounted}
   style="transform:translate3d(0,{bottomHideProgress * 140}px,0); opacity:{Math.max(0,1 - bottomHideProgress * 1.2)}; pointer-events:{bottomHideProgress > 0.92 ? 'none' : 'auto'};"
@@ -659,124 +650,27 @@
         </div>
       {/each}
     </div>
-  {/if}
+  {/if}{#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)} <div class="suggest-box"> {#if suggestLoading && !searchSuggestions.length} <div class="suggest-row suggest-loading"> <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="11" cy="11" r="7"/> <line x1="21" y1="21" x2="16.65" y2="16.65"/> </svg> <span class="suggest-text suggest-text-faint">A procurar sugestões...</span> </div> {:else} {#each searchSuggestions as s (s)} <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}> <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="11" cy="11" r="7"/> <line x1="21" y1="21" x2="16.65" y2="16.65"/> </svg> <span class="suggest-text">{s}</span> <span class="suggest-fill pulse-tap" role="button" tabindex="0" on:click|stopPropagation={() => fillSuggestion(s)} on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }} > <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <line x1="17" y1="7" x2="7" y2="17"/> <polyline points="7 9 7 17 15 17"/> </svg> </span> </button> {/each} {/if} </div> {/if}
 
-  {#if showSuggestBox && (searchSuggestions.length > 0 || suggestLoading)}
-    <div class="suggest-box">
-      {#if suggestLoading && !searchSuggestions.length}
-        <div class="suggest-row suggest-loading">
-          <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="7"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <span class="suggest-text suggest-text-faint">A procurar sugestões...</span>
-        </div>
-      {:else}
-        {#each searchSuggestions as s (s)}
-          <button class="suggest-row pulse-tap" on:click={() => useSuggestion(s)}>
-            <svg class="suggest-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span class="suggest-text">{s}</span>
-            <span
-              class="suggest-fill pulse-tap"
-              role="button"
-              tabindex="0"
-              on:click|stopPropagation={() => fillSuggestion(s)}
-              on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') fillSuggestion(s); }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="17" y1="7" x2="7" y2="17"/>
-                <polyline points="7 9 7 17 15 17"/>
-              </svg>
-            </span>
-          </button>
-        {/each}
-      {/if}
-    </div>
-  {/if}
-
-  {#if isRecording}
-    <div class="rec-card">
-      <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas>
-      <div class="rec-inner">
-        <button class="rec-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-        </button>
-        <div class="rec-center">
-          <div class="rec-dot"></div>
-          <span class="rec-timer">{recTimerStr}</span>
-        </div>
-        <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  {:else}
-    <div class="bottom-bar">
-      {#if pendingAttachments.length}
-        <div class="att-preview">
-          {#each pendingAttachments as att, i}
-            <div class="att-preview-item">
-              {#if att.kind === 'image' && att.dataUrl}
-                <img src={att.dataUrl} class="att-preview-img" alt="" />
-              {:else}
-                <div class="att-preview-file">
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span>
-                </div>
-              {/if}
-              <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-          {/each}
-        </div>
-      {/if}
-      <textarea
-        class="chat-input"
-        placeholder="Escreve aqui..."
-        rows="1"
-        bind:value={inputText}
-        bind:this={textInputEl}
-        on:input={autoResize}
-        on:keydown={handleKeyDown}
-        on:focus={handleInputFocus}
-        on:blur={handleInputBlur}
-      ></textarea>
-      <div class="bb-row">
-        <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-        </button>
-        <div class="flex1"></div>
-        <button class="bb-pill pulse-tap" on:click={openAppsPopup}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          <span class="bb-pill-label">Apps &amp; Modelos</span>
-        </button>
-        <div style="width:8px"></div>
-        {#if inputText.trim() || pendingAttachments.length}
-          <button class="bb-btn pulse-tap" on:click={navigateToAI}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
-          </button>
-        {:else}
-          <button class="bb-btn pulse-tap" on:click={startRecording}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-          </button>
-        {/if}
-      </div>
-    </div>
-  {/if}
+{#if isRecording} <div class="rec-card"> <canvas bind:this={recCanvasEl} class="rec-canvas"></canvas> <div class="rec-inner"> <button class="rec-btn pulse-tap" on:click={cancelRecording}> <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:18px;height:18px;background:var(--icon-strong)"></span> </button> <div class="rec-center"> <div class="rec-dot"></div> <span class="rec-timer">{recTimerStr}</span> </div> <button class="rec-btn rec-send pulse-tap" on:click={stopRecording}> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon-strong)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"> <polyline points="20 6 9 17 4 12"/> </svg> </button> </div> </div> {:else} <div class="bottom-bar"> {#if pendingAttachments.length} <div class="att-preview"> {#each pendingAttachments as att, i} <div class="att-preview-item"> {#if att.kind === 'image' && att.dataUrl} <img src={att.dataUrl} class="att-preview-img" alt="" /> {:else} <div class="att-preview-file"> <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span> </div> {/if} <button class="att-remove pulse-tap" on:click={() => removeAttachment(i)}> <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> </button> </div> {/each} </div> {/if} <textarea
+class="chat-input"
+placeholder="Escreve aqui..."
+rows="1"
+bind:value={inputText}
+bind:this={textInputEl}
+on:input={autoResize}
+on:keydown={handleKeyDown}
+on:focus={handleInputFocus}
+on:blur={handleInputBlur}
+></textarea> <div class="bb-row"> <button class="bb-btn pulse-tap" on:click={(e) => openPopup('add', e)}> <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span> </button> <div class="flex1"></div> <button class="bb-pill pulse-tap" on:click={openAppsPopup}> <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span> <span class="bb-pill-label">Apps & Modelos</span> </button> <div style="width:8px"></div> {#if inputText.trim() || pendingAttachments.length} <button class="bb-btn pulse-tap" on:click={navigateToAI}> <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span> </button> {:else} <button class="bb-btn pulse-tap" on:click={startRecording}> <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span> </button> {/if} </div> </div> {/if}
 
   <div class="legal-row-plain">
     <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
     <span class="legal-dot">·</span>
     <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
   </div>
-</div>
+</div>{#if showPopup}
 
-{#if showPopup}
   <div class="popup-overlay" on:click={closePopup}></div>
   <div class="popup-box" class:popup-in={popupVisible} style="bottom:{popupPos.bottom}px;left:{popupPos.left}px;width:{POPUP_W}px;">
     <div class="popup-content" class:fading={popupFading}>
@@ -819,9 +713,8 @@
       {/if}
     </div>
   </div>
-{/if}
+{/if}{#if showAppsPopup}
 
-{#if showAppsPopup}
   <div class="popup-overlay" on:click={closeAppsPopup}></div>
   <div class="popup-box apps-popup" class:popup-in={appsPopupVisible} style={appsPopupStyle}>
     <div class="apps-popup-shell" class:fading={popupFading}>
@@ -830,50 +723,48 @@
         <button class="apps-popup-close pulse-tap" on:click={closeAppsPopup} aria-label="Fechar">
           <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;background:var(--icon-strong)"></span>
         </button>
-      </div>
-
-      <div class="models-tabs apps-popup-tabs">
-        {#each MODELS_TABS as t}
-          <button
-            class="models-tab pulse-tap"
-            class:models-tab-active={modelsTab === t.id}
-            on:click={() => modelsTab = t.id}
-          >
-            {t.label}
-          </button>
-        {/each}
-      </div>
-
-      <div class="apps-popup-body">
-        {#key modelsTab}
-          {#if modelsTab === 'docs'}
-            <div class="models-empty popup-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-              <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
-            </div>
-          {:else if modelsTab === 'images'}
-            <div class="models-empty popup-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
-              <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
-            </div>
-          {:else}
-            <div class="models-apps-list popup-apps-list" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
-              {#each platformApps as app}
-                <button class="models-app-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
-                  <img src={app.icon} alt={app.label} class="models-app-icon" />
-                  <span class="models-app-label">{app.label}</span>
-                  <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        {/key}
-      </div>
-    </div>
+      </div><div class="models-tabs apps-popup-tabs">
+    {#each MODELS_TABS as t}
+      <button
+        class="models-tab pulse-tap"
+        class:models-tab-active={modelsTab === t.id}
+        on:click={() => modelsTab = t.id}
+      >
+        {t.label}
+      </button>
+    {/each}
   </div>
-{/if}
 
-{#if drawerOpen}
+  <div class="apps-popup-body">
+    {#key modelsTab}
+      {#if modelsTab === 'docs'}
+        <div class="models-empty popup-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/bw/pdf.svg');-webkit-mask-image:url('/icons/svg/bw/pdf.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+          <p class="models-empty-text">Os teus documentos vão aparecer aqui.</p>
+        </div>
+      {:else if modelsTab === 'images'}
+        <div class="models-empty popup-empty" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/bw/image.svg');-webkit-mask-image:url('/icons/svg/bw/image.svg');width:30px;height:30px;background:var(--text-faint)"></span>
+          <p class="models-empty-text">As tuas imagens vão aparecer aqui.</p>
+        </div>
+      {:else}
+        <div class="models-apps-list popup-apps-list" transition:slide={{ duration: 220, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+          {#each platformApps as app}
+            <button class="models-app-row pulse-tap" on:click={() => { closeAppsPopup(); openApp(app); }}>
+              <img src={app.icon} alt={app.label} class="models-app-icon" />
+              <span class="models-app-label">{app.label}</span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_right.svg');-webkit-mask-image:url('/icons/svg/arrow_right.svg');width:13px;height:13px;background:var(--icon-faint)"></span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    {/key}
+  </div>
+</div>
+
+  </div>
+{/if}{#if drawerOpen}
+
   <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={closeDrawer}></div>
   <div class="drawer" class:drawer-in={drawerVisible}>
     <div class="drawer-avatar-block">
@@ -898,42 +789,39 @@
             </button>
           {/each}
         </div>
-      </div>
-
-      <button class="drawer-item pulse-tap" on:click={toggleAppsExpanded}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Apps</span>
-        <span class="icon-mask drawer-chevron" class:drawer-chevron-open={appsExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
-      </button>
-      <div class="theme-accordion" class:theme-accordion-open={appsExpanded}>
-        <div class="theme-accordion-inner">
-          <div class="apps-switch-row">
-            <span class="apps-switch-label">Ocultar apps</span>
-            <button class="switch-track pulse-tap" class:switch-on={false} role="switch" aria-checked={false} on:click={toggleAppsHidden}>
-              <span class="switch-thumb"></span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {#each DRAWER_ITEMS as item}
-        <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label">{item.label}</span>
+      </div><button class="drawer-item pulse-tap" on:click={toggleAppsExpanded}>
+    <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+    <span class="drawer-item-label" style="flex:1">Apps</span>
+    <span class="icon-mask drawer-chevron" class:drawer-chevron-open={appsExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
+  </button>
+  <div class="theme-accordion" class:theme-accordion-open={appsExpanded}>
+    <div class="theme-accordion-inner">
+      <div class="apps-switch-row">
+        <span class="apps-switch-label">Ocultar apps</span>
+        <button class="switch-track pulse-tap" class:switch-on={false} role="switch" aria-checked={false} on:click={toggleAppsHidden}>
+          <span class="switch-thumb"></span>
         </button>
-      {/each}
-    </nav>
-    <div style="flex:1"></div>
-    <div class="drawer-sep"></div>
-    <button class="drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:var(--logout-icon)"></span>
-      <span class="drawer-logout-label">Terminar sessão</span>
-    </button>
-    <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
+      </div>
+    </div>
   </div>
-{/if}
 
-<style>
+  {#each DRAWER_ITEMS as item}
+    <button class="drawer-item pulse-tap" on:click={() => { item.action(); closeDrawer(); }}>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+      <span class="drawer-item-label">{item.label}</span>
+    </button>
+  {/each}
+</nav>
+<div style="flex:1"></div>
+<div class="drawer-sep"></div>
+<button class="drawer-logout pulse-tap" on:click={() => { closeDrawer(); logout(); }}>
+  <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:var(--logout-icon)"></span>
+  <span class="drawer-logout-label">Terminar sessão</span>
+</button>
+<div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
+
+  </div>
+{/if}<style>
   * { box-sizing:border-box; margin:0; padding:0; }
   :global(html), :global(body) {
     overflow: hidden;

@@ -1,4 +1,3 @@
-<!-- src/routes/home/components/FloatingPixels.svelte -->
 <script>
   import { onMount, onDestroy } from 'svelte';
 
@@ -7,80 +6,39 @@
   let raf;
   let dpr = 1;
   let W = 0, H = 0;
-  let particles = [];
-  let resizeObs;
 
-  const COLORS = [
-    'rgba(120,170,255,',
-    'rgba(255,140,170,',
-    'rgba(150,230,180,',
-    'rgba(255,200,120,',
-    'rgba(200,160,255,',
-  ];
+  // Configuração da pixelização
+  const CELL_SIZE = 6;            // quanto menor, mais detalhes (pontos mais finos)
+  const DOT_RADIUS = 1.8;        // raio de cada ponto
+  const IMAGE_SRC = 'icons/png/logo_2.png';   // caminho da imagem
 
-  const PIXEL_R = 1.4;
-  const PIXEL_GAP = 5.5;
-  const BASE_ALPHA = 0.16;
+  let imgData = null;            // pixel data da imagem redimensionada
+  let imgWidth = 0;
+  let imgHeight = 0;
+  let imageLoaded = false;
 
-  function squareTemplate() {
-    const pts = [];
-    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) pts.push([x, y]);
-    return pts;
-  }
-  function triangleTemplate() {
-    const pts = [];
-    const rows = 4;
-    for (let y = 0; y < rows; y++) {
-      const count = y + 1;
-      const offset = (rows - 1 - y) / 2;
-      for (let x = 0; x < count; x++) pts.push([offset + x, y]);
-    }
-    return pts;
-  }
-  function crossTemplate() {
-    const pts = [];
-    for (let i = 0; i < 5; i++) { pts.push([2, i]); pts.push([i, 2]); }
-    return pts;
-  }
-  function diamondTemplate() {
-    const pts = [];
-    const rows = [1, 3, 5, 3, 1];
-    rows.forEach((count, y) => {
-      const offset = (5 - count) / 2;
-      for (let x = 0; x < count; x++) pts.push([offset + x, y]);
-    });
-    return pts;
-  }
+  // Carrega e redimensiona a imagem
+  function loadAndResizeImage() {
+    const img = new Image();
+    img.src = IMAGE_SRC;
+    img.onload = () => {
+      // Redimensiona para ocupar 70% da menor dimensão da tela (ajustável)
+      const maxSize = Math.min(W, H) * 0.7;
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      imgWidth = Math.floor(img.width * scale);
+      imgHeight = Math.floor(img.height * scale);
 
-  const TEMPLATES = [squareTemplate, triangleTemplate, crossTemplate, diamondTemplate];
-
-  function makeShape(seedX, seedY) {
-    const template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]();
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const scale = 0.7 + Math.random() * 0.6;
-    return {
-      x: seedX,
-      y: seedY,
-      vx: (Math.random() - 0.5) * 0.06,
-      vy: (Math.random() - 0.5) * 0.06,
-      driftPhase: Math.random() * Math.PI * 2,
-      driftSpeed: 0.0006 + Math.random() * 0.0006,
-      rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.0004,
-      scale,
-      color,
-      alpha: BASE_ALPHA * (0.6 + Math.random() * 0.5),
-      pixels: template,
+      // Canvas off‑screen para obter os pixels
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = imgWidth;
+      offCanvas.height = imgHeight;
+      const offCtx = offCanvas.getContext('2d');
+      offCtx.drawImage(img, 0, 0, imgWidth, imgHeight);
+      imgData = offCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+      imageLoaded = true;
+      draw();   // desenha imediatamente após carregar
     };
-  }
-
-  function initParticles() {
-    particles = [];
-    const area = W * H;
-    const count = Math.max(6, Math.min(16, Math.round(area / 90000)));
-    for (let i = 0; i < count; i++) {
-      particles.push(makeShape(Math.random() * W, Math.random() * H));
-    }
+    img.onerror = () => console.error('Falha ao carregar', IMAGE_SRC);
   }
 
   function resize() {
@@ -92,61 +50,55 @@
     canvasEl.height = H * dpr;
     ctx = canvasEl.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    initParticles();
+
+    // Recarrega a imagem para se adaptar ao novo tamanho
+    loadAndResizeImage();
   }
 
-  function drawShape(s, t) {
-    const drift = Math.sin(s.driftPhase + t * s.driftSpeed) * 10;
-    const driftY = Math.cos(s.driftPhase + t * s.driftSpeed * 0.8) * 8;
-    const cos = Math.cos(s.rotation);
-    const sin = Math.sin(s.rotation);
-
-    for (const [px, py] of s.pixels) {
-      const lx = (px - 1.5) * PIXEL_GAP * s.scale;
-      const ly = (py - 1.5) * PIXEL_GAP * s.scale;
-      const rx = lx * cos - ly * sin;
-      const ry = lx * sin + ly * cos;
-      const finalX = s.x + rx + drift;
-      const finalY = s.y + ry + driftY;
-
-      ctx.beginPath();
-      ctx.arc(finalX, finalY, PIXEL_R * s.scale, 0, Math.PI * 2);
-      ctx.fillStyle = s.color + s.alpha + ')';
-      ctx.fill();
-    }
-  }
-
-  function step(t) {
-    if (!ctx) { raf = requestAnimationFrame(step); return; }
+  function draw() {
+    if (!ctx || !imageLoaded) return;
     ctx.clearRect(0, 0, W, H);
 
-    for (const s of particles) {
-      s.x += s.vx;
-      s.y += s.vy;
-      s.rotation += s.rotationSpeed;
+    // Centraliza a imagem pixelizada
+    const offsetX = Math.floor((W - imgWidth) / 2);
+    const offsetY = Math.floor((H - imgHeight) / 2);
 
-      if (s.x < -20) s.x = W + 20;
-      if (s.x > W + 20) s.x = -20;
-      if (s.y < -20) s.y = H + 20;
-      if (s.y > H + 20) s.y = -20;
+    // Percorre a grade de pontos
+    for (let y = 0; y < imgHeight; y += CELL_SIZE) {
+      for (let x = 0; x < imgWidth; x += CELL_SIZE) {
+        const idx = (Math.floor(y) * imgWidth + Math.floor(x)) * 4;
+        const r = imgData[idx];
+        const g = imgData[idx + 1];
+        const b = imgData[idx + 2];
+        const a = imgData[idx + 3] / 255;
 
-      drawShape(s, t);
+        // Só desenha se houver alguma opacidade (fundo transparente)
+        if (a > 0.02) {
+          ctx.beginPath();
+          ctx.arc(offsetX + x, offsetY + y, DOT_RADIUS, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+          ctx.fill();
+        }
+      }
     }
+  }
+
+  // Animação (apenas redesenha se necessário, mas podemos deixar um loop leve)
+  function step() {
+    // Como a imagem é estática, só desenhamos uma vez, mas mantemos o loop para futuras animações
+    draw();
     raf = requestAnimationFrame(step);
   }
 
   onMount(() => {
     resize();
     raf = requestAnimationFrame(step);
-    resizeObs = new ResizeObserver(() => resize());
-    if (canvasEl?.parentElement) resizeObs.observe(canvasEl.parentElement);
     window.addEventListener('resize', resize);
   });
 
   onDestroy(() => {
     if (raf) cancelAnimationFrame(raf);
-    resizeObs?.disconnect();
-    if (typeof window !== 'undefined') window.removeEventListener('resize', resize);
+    window.removeEventListener('resize', resize);
   });
 </script>
 
@@ -159,6 +111,7 @@
     width: 100%;
     height: 100%;
     display: block;
-    pointer-events: none;
+    pointer-events: none;   /* permite interagir com o que está por baixo */
+    z-index: 15;            /* garante que fique sobre o texto (ajuste conforme necessário) */
   }
 </style>

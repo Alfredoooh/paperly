@@ -108,7 +108,6 @@ async function converterComFallback(inputPath, pbmPath, svgPath, opts) {
       await run("potrace", [
         pbmPath,
         "-s",
-        "-x",
         "-o", svgPath,
         "--flat",
         "--opttolerance", String(tentativa.opttolerance),

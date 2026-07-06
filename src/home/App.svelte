@@ -127,38 +127,18 @@
   let appsPopupVisible = false;
   let appsPopupStyle = '';
   let modelsTab = 'docs';
-
-  const APP_ROUTES = { HOME: '/', APPS: '/apps-models' };
-  let currentRoute = typeof window !== 'undefined' && (window.location.pathname.replace(/\/$/, '') || '/') === APP_ROUTES.APPS ? 'apps-models' : 'home';
-
-  function syncRouteFromLocation() {
-    const path = window.location.pathname.replace(/\/$/, '') || '/';
-    currentRoute = path === APP_ROUTES.APPS ? 'apps-models' : 'home';
-    showAppsPopup = currentRoute === 'apps-models';
-    appsPopupVisible = showAppsPopup;
-  }
-  function navigate(path) {
-    drawerOpen = false;
-    drawerVisible = false;
-    themeExpanded = false;
-    appsExpanded = false;
-    popupVisible = false;
-    showPopup = false;
-    popupMode = '';
-    showAppsPopup = false;
-    appsPopupVisible = false;
-    if (window.location.pathname === path) {
-      syncRouteFromLocation();
-      return;
-    }
-    history.pushState({}, '', path);
-    syncRouteFromLocation();
+  function updateAppsPopupStyle() {
+    const top = Math.max((appbarHeight || 0) + 8, 8);
+    appsPopupStyle = `top:${top}px;left:${APPS_POPUP_MARGIN_X}px;right:${APPS_POPUP_MARGIN_X}px;bottom:${APPS_POPUP_MARGIN_BOTTOM}px;`;
   }
   function openAppsPopup() {
-    navigate(APP_ROUTES.APPS);
+    updateAppsPopupStyle();
+    showAppsPopup = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => appsPopupVisible = true));
   }
   function closeAppsPopup() {
-    navigate(APP_ROUTES.HOME);
+    appsPopupVisible = false;
+    setTimeout(() => { showAppsPopup = false; }, 240);
   }
 
   function openApp(app) {
@@ -247,44 +227,13 @@
     if (topPanelEl) {
       appbarHeight = topPanelEl.getBoundingClientRect().height;
       if (scrollRootEl) scrollRootEl.style.setProperty('--appbar-h', appbarHeight + 'px');
+      updateAppsPopupStyle();
     }
   }
 
   const BOTTOM_HIDE_DISTANCE = 180;
   let bottomHideProgress = 0;
   function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-
-  const HOME_SHAPES = Array.from({ length: 42 }, (_, i) => {
-    const shapeTypes = ['dot', 'circle', 'square', 'triangle', 'diamond'];
-    const palette = [
-      'rgba(255, 92, 92, 0.26)',
-      'rgba(255, 173, 51, 0.24)',
-      'rgba(255, 228, 99, 0.20)',
-      'rgba(86, 204, 242, 0.22)',
-      'rgba(111, 207, 151, 0.24)',
-      'rgba(167, 139, 250, 0.22)',
-      'rgba(244, 114, 182, 0.20)',
-      'rgba(148, 163, 184, 0.18)',
-    ];
-    const seed = i + 1;
-    const rand = (n) => {
-      const x = Math.sin(seed * (n + 1) * 12.9898) * 43758.5453;
-      return x - Math.floor(x);
-    };
-    return {
-      left: Math.round(rand(1) * 1000) / 10,
-      top: Math.round(rand(2) * 1000) / 10,
-      size: 3 + Math.round(rand(3) * 11),
-      driftX: Math.round((rand(4) - 0.5) * 80),
-      driftY: Math.round((rand(5) - 0.5) * 120),
-      duration: 14 + Math.round(rand(6) * 18),
-      delay: -Math.round(rand(7) * 1200) / 100,
-      opacity: 0.08 + rand(8) * 0.18,
-      shape: shapeTypes[i % shapeTypes.length],
-      color: palette[i % palette.length],
-      blur: rand(9) > 0.82 ? 1 : 0,
-    };
-  });
 
   let snapSettleTimer;
   function handleScroll() {
@@ -623,8 +572,6 @@
     }
     window.addEventListener('storage', onStorage);
 
-    syncRouteFromLocation();
-    window.addEventListener('popstate', syncRouteFromLocation);
     requestAnimationFrame(() => { mounted = true; measureAppbar(); });
     window.addEventListener('resize', measureAppbar);
 
@@ -653,7 +600,6 @@
       clearTimeout(heroTimer);
       clearTimeout(snapSettleTimer);
       abortSuggest?.abort();
-      window.removeEventListener('popstate', syncRouteFromLocation);
     };
   });
 
@@ -663,128 +609,126 @@
 </script>
 
 <div class="root">
-  <div class="bg-layer" aria-hidden="true">
-    <div class="bg-orb bg-orb-a"></div>
-    <div class="bg-orb bg-orb-b"></div>
-    <div class="bg-orb bg-orb-c"></div>
-    <div class="bg-particles">
-      {#each HOME_SHAPES as particle}
-        <span
-          class={`bg-particle ${particle.shape}`}
-          style={`left:${particle.left}%; top:${particle.top}%; width:${particle.size}px; height:${particle.size}px; --size:${particle.size}; --dx:${particle.driftX}px; --dy:${particle.driftY}px; --dur:${particle.duration}s; --delay:${particle.delay}s; --tone:${particle.color}; --opacity:${particle.opacity}; --blur:${particle.blur};`}
-        ></span>
-      {/each}
+  <div class="bg-layer"></div>
+
+  <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
+
+  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
+    <div class="scroll-page">
+      <div style="padding-bottom:{contentPaddingBottom}px; display:flex; flex-direction:column; flex:1;">
+        <HeroSection
+          {shouldPlayLottie}
+          {lottieFinished}
+          bind:lottieEl
+          {heroDisplayText}
+          {heroLocked}
+        />
+      </div>
     </div>
   </div>
+</div>
 
-  {#if currentRoute === 'apps-models'}
-    <AppsModelsPopup
-      {modelsTab}
-      {platformApps}
-      onClose={closeAppsPopup}
-      onSelectDocModel={selectDocModel}
-      onSelectImageModel={selectImageModel}
-      onOpenApp={openApp}
+<div
+  class="bottom"
+  class:in={mounted}
+  style="transform:translate3d(0,{bottomHideProgress * 140}px,0); opacity:{Math.max(0,1 - bottomHideProgress * 1.2)}; pointer-events:{bottomHideProgress > 0.92 ? 'none' : 'auto'};"
+>
+  <SuggestionToggles
+    {mountToggles}
+    {panelShouldShow}
+    {togglesShouldShow}
+    {activeToggle}
+    onSelect={selectToggle}
+  />
+
+  <SearchSuggestBox
+    {showSuggestBox}
+    {suggestLoading}
+    {searchSuggestions}
+    onUse={useSuggestion}
+    onFill={fillSuggestion}
+  />
+
+  {#if isRecording}
+    <RecordingCard
+      bind:recCanvasEl
+      {recTimerStr}
+      onCancel={cancelRecording}
+      onStop={stopRecording}
     />
   {:else}
-    <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
-
-    <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
-      <div class="scroll-page">
-        <div style="padding-bottom:{contentPaddingBottom}px; display:flex; flex-direction:column; flex:1;">
-          <HeroSection
-            {shouldPlayLottie}
-            {lottieFinished}
-            bind:lottieEl
-            {heroDisplayText}
-            {heroLocked}
-          />
-        </div>
-      </div>
-    </div>
-
-    <SuggestionToggles
-      {togglesVisible}
-      {mountToggles}
-      {avatarColor}
-      {userInitial}
-      {userName}
-      onSelect={selectToggle}
-    />
-
-    <SearchSuggestBox
-      {showSuggestBox}
-      {suggestLoading}
-      {searchSuggestions}
-      onUse={useSuggestion}
-      onFill={fillSuggestion}
-    />
-
-    {#if isRecording}
-      <RecordingCard
-        bind:recCanvasEl
-        {recTimerStr}
-        onCancel={cancelRecording}
-        onStop={stopRecording}
-      />
-    {:else}
-      <BottomBar
-        {pendingAttachments}
-        bind:inputText
-        bind:textInputEl
-        onAutoResize={autoResize}
-        onKeyDown={handleKeyDown}
-        onFocus={handleInputFocus}
-        onBlur={handleInputBlur}
-        onRemoveAttachment={removeAttachment}
-        onOpenAddPopup={(e) => openPopup('add', e)}
-        onOpenAppsPopup={openAppsPopup}
-        onSend={sendMessage}
-      />
-    {/if}
-
-    <div class="bottom {mounted ? 'in' : ''}" style="transform: translateY({bottomHideProgress * 18}px); pointer-events:{bottomHideProgress > 0.96 ? 'none' : 'auto'};">
-      <div class="legal-row-plain">
-        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Serviço</button>
-        <span class="legal-dot">•</span>
-        <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
-      </div>
-    </div>
-
-    <ExtrasPopup
-      {showPopup}
-      {popupVisible}
-      {popupMode}
-      {popupPos}
-      {popupFading}
-      {POPUP_W}
-      {flashMode}
+    <BottomBar
+      {pendingAttachments}
+      bind:inputText
+      bind:textInputEl
+      onAutoResize={autoResize}
+      onKeyDown={handleKeyDown}
+      onFocus={handleInputFocus}
+      onBlur={handleInputBlur}
+      onRemoveAttachment={removeAttachment}
+      onOpenAddPopup={(e) => openPopup('add', e)}
+      onOpenAppsPopup={openAppsPopup}
+      onSend={navigateToAI}
+      onStartRecording={startRecording}
       {thinkMoreMode}
       {sheetsEnabled}
-      onClose={closePopup}
-      onSwitchPopup={switchPopup}
-      onAddFile={handleAddFile}
-      onToggleFlash={toggleFlash}
-      onToggleThink={toggleThink}
-      onToggleSheets={toggleSheets}
-    />
-
-    <AppDrawer
-      {drawerOpen}
-      {drawerVisible}
-      bind:topPanelEl
-      {avatarColor}
-      {userInitial}
-      {userName}
-      onClose={closeDrawer}
-      onToggleThemeExpanded={toggleThemeExpanded}
-      onToggleAppsExpanded={toggleAppsExpanded}
-      onApplyTheme={applyThemeFromDrawer}
-      onToggleAppsHidden={toggleAppsHidden}
-      onLogout={logout}
     />
   {/if}
+
+  <div class="legal-row-plain">
+    <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/terms'}>Termos de Utilização</button>
+    <span class="legal-dot">·</span>
+    <button class="legal-link pulse-tap" on:click={() => window.location.href = '/legal/privacy'}>Política de Privacidade</button>
+  </div>
 </div>
+
+<ExtrasPopup
+  {showPopup}
+  {popupVisible}
+  {popupMode}
+  {popupPos}
+  {popupFading}
+  {POPUP_W}
+  {flashMode}
+  {thinkMoreMode}
+  {sheetsEnabled}
+  onClose={closePopup}
+  onSwitchPopup={switchPopup}
+  onAddFile={handleAddFile}
+  onToggleFlash={toggleFlash}
+  onToggleThink={toggleThink}
+  onToggleSheets={toggleSheets}
+/>
+
+<AppsModelsPopup
+  {showAppsPopup}
+  {appsPopupVisible}
+  {appsPopupStyle}
+  bind:modelsTab
+  {platformApps}
+  onClose={closeAppsPopup}
+  onSelectDocModel={selectDocModel}
+  onSelectImageModel={selectImageModel}
+  onOpenApp={(app) => { closeAppsPopup(); openApp(app); }}
+/>
+
+<AppDrawer
+  {drawerOpen}
+  {drawerVisible}
+  {themeExpanded}
+  {appsExpanded}
+  {themeValue}
+  {avatarColor}
+  {userInitial}
+  {userName}
+  onClose={closeDrawer}
+  onToggleThemeExpanded={toggleThemeExpanded}
+  onToggleAppsExpanded={toggleAppsExpanded}
+  onApplyTheme={applyThemeFromDrawer}
+  onToggleAppsHidden={toggleAppsHidden}
+  onLogout={logout}
+/>
+
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   :global(html), :global(body) {
@@ -871,64 +815,7 @@
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
     touch-action: pan-y;
   }
-  .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); overflow:hidden; }
-  .bg-orb {
-    position:absolute;
-    border-radius:50%;
-    filter: blur(18px);
-    opacity:0.18;
-    pointer-events:none;
-    animation: orbFloat 16s ease-in-out infinite;
-  }
-  .bg-orb-a { width:180px; height:180px; left:-36px; top:12%; background:radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0)); }
-  .bg-orb-b { width:220px; height:220px; right:-72px; top:28%; background:radial-gradient(circle at 30% 30%, rgba(90,150,255,0.11), rgba(90,150,255,0)); animation-delay:-4s; }
-  .bg-orb-c { width:160px; height:160px; left:18%; bottom:-44px; background:radial-gradient(circle at 30% 30%, rgba(255,145,120,0.10), rgba(255,145,120,0)); animation-delay:-8s; }
-  .bg-particles {
-    position:absolute;
-    inset:0;
-    pointer-events:none;
-    opacity:0.95;
-  }
-  .bg-particle {
-    position:absolute;
-    display:block;
-    background:var(--tone);
-    opacity:var(--opacity);
-    filter: blur(calc(var(--blur) * 1px));
-    animation: particleFloat var(--dur) linear infinite;
-    animation-delay:var(--delay);
-    will-change:transform, opacity;
-  }
-  .bg-particle.dot,
-  .bg-particle.circle {
-    border-radius:999px;
-  }
-  .bg-particle.square {
-    border-radius:2px;
-  }
-  .bg-particle.diamond {
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-    border-radius: 0;
-  }
-  .bg-particle.triangle {
-    width:0 !important;
-    height:0 !important;
-    background:transparent;
-    border-left:calc(var(--size, 8) * 0.5px) solid transparent;
-    border-right:calc(var(--size, 8) * 0.5px) solid transparent;
-    border-bottom:calc(var(--size, 8) * 0.9px) solid var(--tone);
-    opacity:calc(var(--opacity) * 0.95);
-    filter: blur(calc(var(--blur) * 1px));
-  }
-  @keyframes particleFloat {
-    0%   { transform: translate3d(0,0,0) scale(0.96); }
-    50%  { transform: translate3d(calc(var(--dx) * 0.5), calc(var(--dy) * -0.5), 0) scale(1.05); }
-    100% { transform: translate3d(var(--dx), var(--dy), 0) scale(0.96); }
-  }
-  @keyframes orbFloat {
-    0%, 100% { transform: translate3d(0,0,0) scale(1); }
-    50% { transform: translate3d(0,-12px,0) scale(1.06); }
-  }
+  .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); }
 
   .scroll-root {
     position:absolute; inset:0; z-index:10;

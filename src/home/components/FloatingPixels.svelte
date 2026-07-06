@@ -10,7 +10,7 @@
   // Configuração da pixelização
   const CELL_SIZE = 6;            // quanto menor, mais detalhes (pontos mais finos)
   const DOT_RADIUS = 1.8;        // raio de cada ponto
-  const IMAGE_SRC = 'icons/png/logo_2.png';   // caminho da imagem
+  const IMAGE_SRC = '/icons/png/logo_2.png';   // caminho da imagem
 
   let imgData = null;            // pixel data da imagem redimensionada
   let imgWidth = 0;

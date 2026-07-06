@@ -1,585 +1,1157 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-PT">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PNG → SVG</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Utils Tester</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0f0f11; --surface: #1a1a1f; --border: #2a2a32;
-    --accent: #7c6ef7; --accent2: #a78bfa; --text: #e8e6f0;
-    --muted: #6b6880; --success: #34d399; --danger: #f87171;
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg); color: var(--text);
-    min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; padding: 32px 16px; gap: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0d0f13;
+    color: #e0e0e0;
+    min-height: 100vh;
   }
-  header { text-align: center; }
-  header h1 {
-    font-size: 1.7rem; font-weight: 700;
-    background: linear-gradient(135deg, var(--accent2), var(--accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
+
+  header {
+    background: #13161c;
+    border-bottom: 1px solid #1f2330;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
   }
-  header p { color: var(--muted); font-size: 0.82rem; margin-top: 5px; }
+
+  header h1 { font-size: 16px; font-weight: 700; color: #fff; }
+  header span { font-size: 12px; color: #6b7280; }
+
+  .layout {
+    display: flex;
+    height: calc(100vh - 57px);
+  }
+
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: #13161c;
+    border-right: 1px solid #1f2330;
+    overflow-y: auto;
+    padding: 10px 0;
+  }
+
+  .sidebar-group {
+    padding: 6px 14px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #4b5563;
+  }
+
+  .sidebar-item {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+    border-left: 2px solid transparent;
+  }
+
+  .sidebar-item:hover { background: #1a1e27; color: #e0e0e0; }
+  .sidebar-item.ativo { background: #1a1e27; color: #60a5fa; border-left-color: #60a5fa; }
+
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  .painel { display: none; }
+  .painel.ativo { display: block; }
+
+  .painel h2 {
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .painel p.desc {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 20px;
+  }
+
   .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 22px; width: 100%; max-width: 660px;
+    background: #13161c;
+    border: 1px solid #1f2330;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 14px;
   }
-  .dropzone {
-    border: 2px dashed var(--border); border-radius: 10px;
-    padding: 40px 20px; text-align: center; cursor: pointer;
-    transition: border-color .2s, background .2s; position: relative;
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 5px;
   }
-  .dropzone:hover, .dropzone.over { border-color: var(--accent); background: rgba(124,110,247,.05); }
-  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .dropzone p { color: var(--muted); font-size: .88rem; }
-  .dropzone strong { color: var(--text); }
-  .lbl {
-    font-size: .72rem; text-transform: uppercase; letter-spacing: .07em;
-    color: var(--muted); display: block; margin-bottom: 5px;
+
+  input[type="text"],
+  input[type="url"],
+  input[type="number"],
+  input[type="file"],
+  select,
+  textarea {
+    width: 100%;
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    color: #e0e0e0;
+    padding: 9px 11px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-bottom: 12px;
   }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
-  @media(max-width:480px){ .grid2 { grid-template-columns: 1fr; } }
-  .row { display: flex; align-items: center; gap: 9px; }
-  input[type=range] {
-    -webkit-appearance: none; appearance: none; flex: 1;
-    height: 4px; border-radius: 2px; background: var(--border); cursor: pointer;
+
+  input[type="file"] { padding: 7px; }
+
+  textarea {
+    height: 90px;
+    resize: vertical;
+    font-family: monospace;
+    font-size: 11px;
   }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 15px; height: 15px;
-    border-radius: 50%; background: var(--accent); cursor: pointer;
+
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+
+  button.btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
   }
-  .val { font-size: .78rem; color: var(--accent2); min-width: 34px; text-align: right; font-family: monospace; }
-  .color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 4px; }
-  .cpick {
-    display: flex; align-items: center; gap: 7px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 7px; padding: 5px 9px;
+
+  button.btn-primary:hover { background: #1d4ed8; }
+  button.btn-primary:disabled { background: #1f2330; cursor: not-allowed; color: #4b5563; }
+
+  .status {
+    margin-top: 10px;
+    font-size: 12px;
+    min-height: 16px;
   }
-  .cpick input[type=color] { width: 26px; height: 26px; border: none; background: none; cursor: pointer; padding: 0; }
-  .cpick span { font-size: .82rem; font-family: monospace; color: var(--text); }
-  .toggle-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding-top: 12px; margin-top: 4px;
+
+  .status.ok { color: #34d399; }
+  .status.erro { color: #f87171; }
+  .status.loading { color: #facc15; }
+
+  .resultado {
+    margin-top: 14px;
+    display: none;
   }
-  .toggle-row > label { font-size: .86rem; color: var(--text); cursor: pointer; }
-  .tog { position: relative; width: 38px; height: 21px; }
-  .tog input { opacity: 0; width: 0; height: 0; }
-  .tog-sl {
-    position: absolute; inset: 0; background: var(--border);
-    border-radius: 21px; transition: background .2s; cursor: pointer;
+
+  .resultado.visivel { display: block; }
+
+  .resultado img,
+  .resultado svg {
+    max-width: 100%;
+    max-height: 260px;
+    border-radius: 6px;
+    background: #fff;
+    padding: 6px;
   }
-  .tog-sl::before {
-    content: ''; position: absolute; width: 15px; height: 15px;
-    border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform .2s;
+
+  .resultado pre {
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 11px;
+    overflow-x: auto;
+    max-height: 200px;
+    color: #a3e635;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
-  .tog input:checked + .tog-sl { background: var(--accent); }
-  .tog input:checked + .tog-sl::before { transform: translateX(17px); }
-  .section-sep { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 12px; }
-  .btn-main {
-    width: 100%; margin-top: 20px; padding: 12px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none; border-radius: 9px; color: #fff;
-    font-size: .93rem; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 7px;
-    transition: opacity .2s;
+
+  .meta {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 6px;
+    margin-bottom: 8px;
   }
-  .btn-main:disabled { opacity: .38; cursor: not-allowed; }
-  .btn-main:not(:disabled):hover { opacity: .88; }
-  .prog { margin-top: 12px; display: none; }
-  .prog.on { display: block; }
-  .prog-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; width: 0; transition: width .3s; }
-  .prog-lbl { font-size: .75rem; color: var(--muted); margin-top: 5px; }
-  .err {
-    background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3);
-    border-radius: 8px; padding: 10px 14px; font-size: .83rem; color: var(--danger);
-    margin-top: 12px; display: none;
+
+  .acoes { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+  button.btn-sec {
+    background: #1f2330;
+    color: #9ca3af;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s;
   }
-  .err.on { display: block; }
-  .result { display: none; flex-direction: column; gap: 14px; }
-  .result.on { display: flex; }
-  .res-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-  .res-head h2 { font-size: .97rem; font-weight: 600; }
-  .badge { font-size: .73rem; padding: 3px 9px; border-radius: 20px; font-weight: 600; }
-  .badge.g { background: rgba(52,211,153,.14); color: var(--success); }
-  .badge.b { background: rgba(248,113,113,.14); color: var(--danger); }
-  .prev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  @media(max-width:480px){ .prev-grid { grid-template-columns: 1fr; } }
-  .prev-box { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
-  .prev-lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 7px 11px; border-bottom: 1px solid var(--border); }
-  .prev-inner {
-    padding: 14px; display: flex; align-items: center; justify-content: center; min-height: 130px;
-    background: repeating-conic-gradient(#2a2a32 0% 25%, #1a1a1f 0% 50%) 0 0 / 14px 14px;
+
+  button.btn-sec:hover { background: #2a2f3d; color: #e0e0e0; }
+
+  .api-bar {
+    background: #13161c;
+    border-bottom: 1px solid #1f2330;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
-  .prev-inner img, .prev-inner svg { max-width: 100%; max-height: 150px; object-fit: contain; }
-  .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
-  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; text-align: center; }
-  .stat-v { font-size: 1.05rem; font-weight: 700; color: var(--accent2); }
-  .stat-k { font-size: .67rem; color: var(--muted); margin-top: 1px; text-transform: uppercase; letter-spacing: .05em; }
-  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .btn-sec {
-    padding: 11px; background: var(--bg); border: 1px solid var(--accent);
-    border-radius: 9px; color: var(--accent2); font-size: .87rem; font-weight: 600;
-    cursor: pointer; transition: background .2s;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    text-decoration: none;
+
+  .api-bar label { margin: 0; white-space: nowrap; font-size: 12px; }
+  .api-bar input { margin: 0; flex: 1; }
+
+  .badge {
+    display: inline-block;
+    background: #1e3a5f;
+    color: #60a5fa;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 6px;
+    vertical-align: middle;
   }
-  .btn-sec:hover { background: rgba(124,110,247,.1); }
-  .copied { border-color: var(--success) !important; color: var(--success) !important; }
-  canvas { display: none; }
+
+  .cores-preview {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .cor-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    border: 1px solid #2a2f3d;
+  }
+
+  .paginas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .pagina-item {
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    border-radius: 6px;
+    padding: 4px;
+    text-align: center;
+  }
+
+  .pagina-item img { width: 100%; border-radius: 4px; }
+  .pagina-item span { font-size: 10px; color: #6b7280; display: block; margin-top: 3px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>PNG → SVG</h1>
-  <p>Traçado vetorial real · sem base64</p>
+  <h1>🛠 Utils Tester</h1>
+  <span>tools-2pjc.onrender.com</span>
 </header>
 
-<div class="card">
-  <div class="dropzone" id="dz">
-    <input type="file" id="fi" accept="image/*" />
-    <p style="margin-bottom:8px">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent2);display:block;margin:0 auto 10px">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="17 8 12 3 7 8"/>
-        <line x1="12" y1="3" x2="12" y2="15"/>
-      </svg>
-      <strong>Clica ou arrasta</strong> uma imagem
-    </p>
-    <p style="font-size:.76rem">PNG · JPG · WebP</p>
-  </div>
-
-  <div class="section-sep">Traçado</div>
-  <div class="grid2">
-    <div>
-      <label class="lbl">Threshold</label>
-      <div class="row"><input type="range" id="thr" min="1" max="254" value="128"><span class="val" id="thrV">128</span></div>
-    </div>
-    <div>
-      <label class="lbl">Simplificação</label>
-      <div class="row"><input type="range" id="simp" min="0" max="40" value="6"><span class="val" id="simpV">0.6</span></div>
-    </div>
-    <div>
-      <label class="lbl">Área mínima (px²)</label>
-      <div class="row"><input type="range" id="mina" min="1" max="2000" value="30"><span class="val" id="minaV">30</span></div>
-    </div>
-    <div>
-      <label class="lbl">Limite de tamanho</label>
-      <div class="row"><input type="range" id="maxs" min="128" max="1024" value="512" step="64"><span class="val" id="maxsV">512</span></div>
-    </div>
-  </div>
-
-  <div class="section-sep">Cores</div>
-  <div class="color-row">
-    <div>
-      <label class="lbl">Traço</label>
-      <div class="cpick"><input type="color" id="cFill" value="#000000"><span id="cFillT">#000000</span></div>
-    </div>
-    <div id="bgWrap">
-      <label class="lbl">Fundo</label>
-      <div class="cpick"><input type="color" id="cBg" value="#ffffff"><span id="cBgT">#ffffff</span></div>
-    </div>
-  </div>
-
-  <div class="toggle-row">
-    <label for="transp">Fundo transparente</label>
-    <label class="tog">
-      <input type="checkbox" id="transp">
-      <span class="tog-sl"></span>
-    </label>
-  </div>
-
-  <div class="err" id="errMsg"></div>
-
-  <button class="btn-main" id="convBtn" disabled>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    Converter para SVG
-  </button>
-
-  <div class="prog" id="prog">
-    <div class="prog-bg"><div class="prog-fill" id="progFill"></div></div>
-    <div class="prog-lbl" id="progLbl">…</div>
-  </div>
+<div class="api-bar">
+  <label for="apiBase">API Base:</label>
+  <input type="url" id="apiBase" value="https://tools-2pjc.onrender.com">
 </div>
 
-<div class="card result" id="result">
-  <div class="res-head">
-    <h2>Resultado</h2>
-    <span class="badge" id="badge"></span>
-  </div>
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-group">Imagem</div>
+    <button class="sidebar-item ativo" data-painel="png-svg">PNG → SVG</button>
+    <button class="sidebar-item" data-painel="webp">→ WebP</button>
+    <button class="sidebar-item" data-painel="avif">→ AVIF</button>
+    <button class="sidebar-item" data-painel="compress-png">Comprimir PNG</button>
+    <button class="sidebar-item" data-painel="resize">Redimensionar</button>
+    <button class="sidebar-item" data-painel="auto-orient">Corrigir EXIF</button>
+    <button class="sidebar-item" data-painel="trim">Recortar bordas</button>
+    <button class="sidebar-item" data-painel="watermark">Marca d'água</button>
+    <button class="sidebar-item" data-painel="exif">Metadados EXIF</button>
+    <button class="sidebar-item" data-painel="favicon">Favicon .ico</button>
+    <button class="sidebar-item" data-painel="sprite">Sprite Sheet</button>
+    <button class="sidebar-item" data-painel="colorspace">Colorspace</button>
+    <button class="sidebar-item" data-painel="palette">Paleta de Cores</button>
+    <div class="sidebar-group">Geração</div>
+    <button class="sidebar-item" data-painel="qrcode">QR Code</button>
+    <div class="sidebar-group">PDF</div>
+    <button class="sidebar-item" data-painel="pdf-to-png">PDF → PNG</button>
+    <button class="sidebar-item" data-painel="images-to-pdf">Imagens → PDF</button>
+    <button class="sidebar-item" data-painel="pdf-to-text">PDF → Texto</button>
+    <button class="sidebar-item" data-painel="pdf-merge">Juntar PDFs</button>
+    <button class="sidebar-item" data-painel="pdf-split">Separar PDF</button>
+    <button class="sidebar-item" data-painel="pdf-compress">Comprimir PDF</button>
+    <div class="sidebar-group">Conversão</div>
+    <button class="sidebar-item" data-painel="heic-to-jpg">HEIC → JPG</button>
+  </nav>
 
-  <div class="prev-grid">
-    <div class="prev-box">
-      <div class="prev-lbl">Original</div>
-      <div class="prev-inner"><img id="prevOrig" alt="" /></div>
+  <div class="main">
+
+    <!-- PNG → SVG -->
+    <div class="painel ativo" id="painel-png-svg">
+      <h2>PNG → SVG <span class="badge">POST /convert</span></h2>
+      <p class="desc">Vetoriza um PNG usando potrace com fallback automático.</p>
+      <div class="card">
+        <label>Ficheiro PNG</label>
+        <input type="file" id="svg-file" accept="image/png">
+        <div class="row">
+          <div><label>Cores</label><input type="number" id="svg-cores" value="4" min="1" max="32"></div>
+          <div><label>Opttolerance</label><input type="number" id="svg-opt" value="0.5" step="0.1" min="0.1" max="2"></div>
+          <div><label>Turdsize</label><input type="number" id="svg-turd" value="5" min="0" max="100"></div>
+        </div>
+        <button class="btn-primary" onclick="runConvert()">Converter</button>
+        <div class="status" id="svg-status"></div>
+      </div>
+      <div class="resultado" id="svg-resultado">
+        <div class="card">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:120px;">
+              <div class="meta">Original (PNG)</div>
+              <img id="svg-preview-original" alt="">
+            </div>
+            <div style="flex:1;min-width:120px;">
+              <div class="meta">Resultado (SVG)</div>
+              <div id="svg-preview-resultado"></div>
+            </div>
+          </div>
+          <div class="meta" id="svg-meta"></div>
+          <div class="acoes">
+            <button class="btn-sec" onclick="downloadSvg()">Descarregar SVG</button>
+            <button class="btn-sec" onclick="toggleCodigo('svg-codigo')">Ver código</button>
+          </div>
+          <textarea id="svg-codigo" style="display:none;" readonly></textarea>
+        </div>
+      </div>
     </div>
-    <div class="prev-box">
-      <div class="prev-lbl">SVG gerado</div>
-      <div class="prev-inner" id="prevSvg"></div>
+
+    <!-- WebP -->
+    <div class="painel" id="painel-webp">
+      <h2>Imagem → WebP <span class="badge">POST /webp</span></h2>
+      <p class="desc">Converte qualquer imagem para WebP com controlo de qualidade.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="webp-file" accept="image/*">
+        <label>Qualidade (0-100)</label>
+        <input type="number" id="webp-q" value="80" min="0" max="100">
+        <button class="btn-primary" onclick="runSimples('webp', 'webp-file', 'image/webp', 'convertido.webp', {qualidade: document.getElementById('webp-q').value})">Converter</button>
+        <div class="status" id="webp-status"></div>
+      </div>
+      <div class="resultado" id="webp-resultado">
+        <div class="card">
+          <div class="meta" id="webp-meta"></div>
+          <img id="webp-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('webp')">Descarregar</button></div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="stats">
-    <div class="stat"><div class="stat-v" id="sPng">—</div><div class="stat-k">PNG</div></div>
-    <div class="stat"><div class="stat-v" id="sSvg">—</div><div class="stat-k">SVG</div></div>
-    <div class="stat"><div class="stat-v" id="sPaths">—</div><div class="stat-k">Contours</div></div>
-  </div>
+    <!-- AVIF -->
+    <div class="painel" id="painel-avif">
+      <h2>Imagem → AVIF <span class="badge">POST /avif</span></h2>
+      <p class="desc">Converte para o formato AVIF (alta compressão).</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="avif-file" accept="image/*">
+        <button class="btn-primary" onclick="runSimples('avif', 'avif-file', 'image/avif', 'convertido.avif', {})">Converter</button>
+        <div class="status" id="avif-status"></div>
+      </div>
+      <div class="resultado" id="avif-resultado">
+        <div class="card">
+          <div class="meta" id="avif-meta"></div>
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('avif')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
 
-  <div class="btn-row">
-    <button class="btn-sec" id="copyBtn">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copiar SVG
-    </button>
-    <a class="btn-sec" id="dlBtn" href="#" download="output.svg">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Baixar SVG
-    </a>
+    <!-- Comprimir PNG -->
+    <div class="painel" id="painel-compress-png">
+      <h2>Comprimir PNG <span class="badge">POST /compress-png</span></h2>
+      <p class="desc">Otimiza o PNG sem perda visível (strip + compressão nível 9).</p>
+      <div class="card">
+        <label>Ficheiro PNG</label>
+        <input type="file" id="cpng-file" accept="image/png">
+        <button class="btn-primary" onclick="runSimples('compress-png', 'cpng-file', 'image/png', 'comprimido.png', {})">Comprimir</button>
+        <div class="status" id="compress-png-status"></div>
+      </div>
+      <div class="resultado" id="compress-png-resultado">
+        <div class="card">
+          <div class="meta" id="compress-png-meta"></div>
+          <img id="compress-png-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('compress-png')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Redimensionar -->
+    <div class="painel" id="painel-resize">
+      <h2>Redimensionar <span class="badge">POST /resize</span></h2>
+      <p class="desc">Redimensiona mantendo proporção pela largura máxima.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="resize-file" accept="image/*">
+        <label>Largura (px)</label>
+        <input type="number" id="resize-l" value="300" min="10" max="4000">
+        <button class="btn-primary" onclick="runSimples('resize', 'resize-file', null, 'redimensionado.png', {largura: document.getElementById('resize-l').value})">Redimensionar</button>
+        <div class="status" id="resize-status"></div>
+      </div>
+      <div class="resultado" id="resize-resultado">
+        <div class="card">
+          <div class="meta" id="resize-meta"></div>
+          <img id="resize-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('resize')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-orient -->
+    <div class="painel" id="painel-auto-orient">
+      <h2>Corrigir Rotação EXIF <span class="badge">POST /auto-orient</span></h2>
+      <p class="desc">Corrige a orientação da imagem com base nos dados EXIF.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="orient-file" accept="image/*">
+        <button class="btn-primary" onclick="runSimples('auto-orient', 'orient-file', null, 'corrigido.jpg', {})">Corrigir</button>
+        <div class="status" id="auto-orient-status"></div>
+      </div>
+      <div class="resultado" id="auto-orient-resultado">
+        <div class="card">
+          <div class="meta" id="auto-orient-meta"></div>
+          <img id="auto-orient-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('auto-orient')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trim -->
+    <div class="painel" id="painel-trim">
+      <h2>Recortar Bordas Brancas <span class="badge">POST /trim</span></h2>
+      <p class="desc">Remove bordas brancas/transparentes em volta da imagem.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="trim-file" accept="image/*">
+        <button class="btn-primary" onclick="runSimples('trim', 'trim-file', null, 'recortado.png', {})">Recortar</button>
+        <div class="status" id="trim-status"></div>
+      </div>
+      <div class="resultado" id="trim-resultado">
+        <div class="card">
+          <div class="meta" id="trim-meta"></div>
+          <img id="trim-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('trim')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Watermark -->
+    <div class="painel" id="painel-watermark">
+      <h2>Marca d'Água <span class="badge">POST /watermark-text</span></h2>
+      <p class="desc">Adiciona texto como marca d'água no canto inferior direito.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="wm-file" accept="image/*">
+        <label>Texto</label>
+        <input type="text" id="wm-texto" value="© 2026">
+        <button class="btn-primary" onclick="runSimples('watermark-text', 'wm-file', null, 'marcado.png', {texto: document.getElementById('wm-texto').value})">Aplicar</button>
+        <div class="status" id="watermark-status"></div>
+      </div>
+      <div class="resultado" id="watermark-resultado">
+        <div class="card">
+          <div class="meta" id="watermark-meta"></div>
+          <img id="watermark-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('watermark')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXIF -->
+    <div class="painel" id="painel-exif">
+      <h2>Metadados EXIF <span class="badge">POST /exif</span></h2>
+      <p class="desc">Extrai todos os metadados EXIF de uma imagem.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="exif-file" accept="image/*">
+        <button class="btn-primary" onclick="runExif()">Extrair</button>
+        <div class="status" id="exif-status"></div>
+      </div>
+      <div class="resultado" id="exif-resultado">
+        <div class="card">
+          <pre id="exif-pre"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Favicon -->
+    <div class="painel" id="painel-favicon">
+      <h2>Favicon .ico <span class="badge">POST /favicon</span></h2>
+      <p class="desc">Gera um favicon.ico com 16, 32, 48 e 64px a partir de qualquer imagem.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="favicon-file" accept="image/*">
+        <button class="btn-primary" onclick="runSimples('favicon', 'favicon-file', 'image/x-icon', 'favicon.ico', {})">Gerar</button>
+        <div class="status" id="favicon-status"></div>
+      </div>
+      <div class="resultado" id="favicon-resultado">
+        <div class="card">
+          <div class="meta" id="favicon-meta"></div>
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('favicon')">Descarregar favicon.ico</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sprite -->
+    <div class="painel" id="painel-sprite">
+      <h2>Sprite Sheet <span class="badge">POST /sprite</span></h2>
+      <p class="desc">Junta várias imagens lado a lado numa só (sprite horizontal).</p>
+      <div class="card">
+        <label>Ficheiros (mínimo 2)</label>
+        <input type="file" id="sprite-files" accept="image/*" multiple>
+        <button class="btn-primary" onclick="runMulti('sprite', 'sprite-files', 'image/png', 'sprite.png')">Gerar</button>
+        <div class="status" id="sprite-status"></div>
+      </div>
+      <div class="resultado" id="sprite-resultado">
+        <div class="card">
+          <div class="meta" id="sprite-meta"></div>
+          <img id="sprite-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('sprite')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Colorspace -->
+    <div class="painel" id="painel-colorspace">
+      <h2>Converter Colorspace <span class="badge">POST /colorspace</span></h2>
+      <p class="desc">Converte o espaço de cor da imagem (Gray, CMYK, HSL, etc).</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="cs-file" accept="image/*">
+        <label>Espaço de cor</label>
+        <select id="cs-espaco">
+          <option value="Gray">Gray (escala de cinza)</option>
+          <option value="CMYK">CMYK</option>
+          <option value="HSL">HSL</option>
+          <option value="Lab">Lab</option>
+          <option value="sRGB">sRGB</option>
+        </select>
+        <button class="btn-primary" onclick="runSimples('colorspace', 'cs-file', null, 'colorspace.png', {espaco: document.getElementById('cs-espaco').value})">Converter</button>
+        <div class="status" id="colorspace-status"></div>
+      </div>
+      <div class="resultado" id="colorspace-resultado">
+        <div class="card">
+          <div class="meta" id="colorspace-meta"></div>
+          <img id="colorspace-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('colorspace')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paleta -->
+    <div class="painel" id="painel-palette">
+      <h2>Paleta de Cores <span class="badge">POST /palette</span></h2>
+      <p class="desc">Extrai as cores dominantes de uma imagem.</p>
+      <div class="card">
+        <label>Ficheiro</label>
+        <input type="file" id="pal-file" accept="image/*">
+        <label>Número de cores</label>
+        <input type="number" id="pal-cores" value="6" min="1" max="32">
+        <button class="btn-primary" onclick="runPalette()">Extrair</button>
+        <div class="status" id="palette-status"></div>
+      </div>
+      <div class="resultado" id="palette-resultado">
+        <div class="card">
+          <div class="cores-preview" id="palette-preview"></div>
+          <pre id="palette-pre" style="margin-top:10px;"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Code -->
+    <div class="painel" id="painel-qrcode">
+      <h2>Gerar QR Code <span class="badge">POST /qrcode</span></h2>
+      <p class="desc">Gera um QR Code PNG a partir de texto ou URL.</p>
+      <div class="card">
+        <label>Texto ou URL</label>
+        <input type="text" id="qr-texto" placeholder="https://exemplo.com">
+        <button class="btn-primary" onclick="runQr()">Gerar</button>
+        <div class="status" id="qrcode-status"></div>
+      </div>
+      <div class="resultado" id="qrcode-resultado">
+        <div class="card">
+          <img id="qrcode-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('qrcode')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF → PNG -->
+    <div class="painel" id="painel-pdf-to-png">
+      <h2>PDF → PNG <span class="badge">POST /pdf-to-png</span></h2>
+      <p class="desc">Converte cada página do PDF numa imagem PNG.</p>
+      <div class="card">
+        <label>Ficheiro PDF</label>
+        <input type="file" id="p2p-file" accept="application/pdf">
+        <label>DPI (qualidade)</label>
+        <input type="number" id="p2p-dpi" value="150" min="72" max="300">
+        <button class="btn-primary" onclick="runPdfToPng()">Converter</button>
+        <div class="status" id="pdf-to-png-status"></div>
+      </div>
+      <div class="resultado" id="pdf-to-png-resultado">
+        <div class="card">
+          <div class="meta" id="pdf-to-png-meta"></div>
+          <div class="paginas-grid" id="pdf-to-png-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Imagens → PDF -->
+    <div class="painel" id="painel-images-to-pdf">
+      <h2>Imagens → PDF <span class="badge">POST /images-to-pdf</span></h2>
+      <p class="desc">Junta várias imagens num único ficheiro PDF.</p>
+      <div class="card">
+        <label>Ficheiros de imagem</label>
+        <input type="file" id="i2p-files" accept="image/*" multiple>
+        <button class="btn-primary" onclick="runMultiPdf('images-to-pdf', 'i2p-files')">Gerar PDF</button>
+        <div class="status" id="images-to-pdf-status"></div>
+      </div>
+      <div class="resultado" id="images-to-pdf-resultado">
+        <div class="card">
+          <div class="meta" id="images-to-pdf-meta"></div>
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('images-to-pdf')">Descarregar PDF</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF → Texto -->
+    <div class="painel" id="painel-pdf-to-text">
+      <h2>PDF → Texto <span class="badge">POST /pdf-to-text</span></h2>
+      <p class="desc">Extrai o texto de um PDF.</p>
+      <div class="card">
+        <label>Ficheiro PDF</label>
+        <input type="file" id="p2t-file" accept="application/pdf">
+        <button class="btn-primary" onclick="runPdfText()">Extrair</button>
+        <div class="status" id="pdf-to-text-status"></div>
+      </div>
+      <div class="resultado" id="pdf-to-text-resultado">
+        <div class="card">
+          <pre id="pdf-to-text-pre"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Juntar PDFs -->
+    <div class="painel" id="painel-pdf-merge">
+      <h2>Juntar PDFs <span class="badge">POST /pdf-merge</span></h2>
+      <p class="desc">Combina múltiplos PDFs num único ficheiro.</p>
+      <div class="card">
+        <label>Ficheiros PDF (mínimo 2)</label>
+        <input type="file" id="pm-files" accept="application/pdf" multiple>
+        <button class="btn-primary" onclick="runMultiPdf('pdf-merge', 'pm-files')">Juntar</button>
+        <div class="status" id="pdf-merge-status"></div>
+      </div>
+      <div class="resultado" id="pdf-merge-resultado">
+        <div class="card">
+          <div class="meta" id="pdf-merge-meta"></div>
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('pdf-merge')">Descarregar PDF</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Separar PDF -->
+    <div class="painel" id="painel-pdf-split">
+      <h2>Separar PDF <span class="badge">POST /pdf-split</span></h2>
+      <p class="desc">Divide um PDF numa página por ficheiro (base64).</p>
+      <div class="card">
+        <label>Ficheiro PDF</label>
+        <input type="file" id="ps-file" accept="application/pdf">
+        <button class="btn-primary" onclick="runPdfSplit()">Separar</button>
+        <div class="status" id="pdf-split-status"></div>
+      </div>
+      <div class="resultado" id="pdf-split-resultado">
+        <div class="card">
+          <div class="meta" id="pdf-split-meta"></div>
+          <div id="pdf-split-lista"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comprimir PDF -->
+    <div class="painel" id="painel-pdf-compress">
+      <h2>Comprimir PDF <span class="badge">POST /pdf-compress</span></h2>
+      <p class="desc">Reduz o tamanho do PDF via Ghostscript.</p>
+      <div class="card">
+        <label>Ficheiro PDF</label>
+        <input type="file" id="pc-file" accept="application/pdf">
+        <label>Nível de compressão</label>
+        <select id="pc-nivel">
+          <option value="screen">screen (menor tamanho, 72dpi)</option>
+          <option value="ebook" selected>ebook (equilibrado, 150dpi)</option>
+          <option value="printer">printer (alta qualidade, 300dpi)</option>
+          <option value="prepress">prepress (máxima qualidade)</option>
+        </select>
+        <button class="btn-primary" onclick="runSimplesPdf('pdf-compress', 'pc-file', {nivel: document.getElementById('pc-nivel').value})">Comprimir</button>
+        <div class="status" id="pdf-compress-status"></div>
+      </div>
+      <div class="resultado" id="pdf-compress-resultado">
+        <div class="card">
+          <div class="meta" id="pdf-compress-meta"></div>
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('pdf-compress')">Descarregar PDF</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEIC → JPG -->
+    <div class="painel" id="painel-heic-to-jpg">
+      <h2>HEIC → JPG <span class="badge">POST /heic-to-jpg</span></h2>
+      <p class="desc">Converte fotos HEIC (iPhone) para JPG.</p>
+      <div class="card">
+        <label>Ficheiro HEIC</label>
+        <input type="file" id="heic-file">
+        <button class="btn-primary" onclick="runSimples('heic-to-jpg', 'heic-file', 'image/jpeg', 'convertido.jpg', {})">Converter</button>
+        <div class="status" id="heic-to-jpg-status"></div>
+      </div>
+      <div class="resultado" id="heic-to-jpg-resultado">
+        <div class="card">
+          <div class="meta" id="heic-to-jpg-meta"></div>
+          <img id="heic-to-jpg-img" alt="">
+          <div class="acoes"><button class="btn-sec" onclick="downloadBlob('heic-to-jpg')">Descarregar</button></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
-
-<canvas id="cv"></canvas>
 
 <script>
-const $ = id => document.getElementById(id);
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const fmt = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(2) + ' MB';
+  const blobStore = {};
 
-[
-  ['thr','thrV', v => v],
-  ['simp','simpV', v => (v / 10).toFixed(1)],
-  ['mina','minaV', v => v],
-  ['maxs','maxsV', v => v],
-].forEach(([id, oid, fn]) => {
-  const el = $(id), out = $(oid);
-  out.textContent = fn(el.value);
-  el.addEventListener('input', () => out.textContent = fn(el.value));
-});
-
-$('cFill').addEventListener('input', function() { $('cFillT').textContent = this.value; });
-$('cBg').addEventListener('input', function() { $('cBgT').textContent = this.value; });
-$('transp').addEventListener('change', function() {
-  $('bgWrap').style.opacity = this.checked ? 0.4 : 1;
-});
-
-let file = null;
-const dz = $('dz');
-
-dz.addEventListener('dragover', e => {
-  e.preventDefault();
-  dz.classList.add('over');
-});
-dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-dz.addEventListener('drop', e => {
-  e.preventDefault();
-  dz.classList.remove('over');
-  const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('image/')) setFile(f);
-});
-$('fi').addEventListener('change', () => {
-  if ($('fi').files[0]) setFile($('fi').files[0]);
-});
-
-function setFile(f) {
-  file = f;
-  $('convBtn').disabled = false;
-  $('errMsg').classList.remove('on');
-  const r = new FileReader();
-  r.onload = e => $('prevOrig').src = e.target.result;
-  r.readAsDataURL(f);
-  dz.querySelector('p').innerHTML = `<strong>${f.name}</strong>`;
-}
-
-function setP(pct, lbl) {
-  $('prog').classList.add('on');
-  $('progFill').style.width = pct + '%';
-  $('progLbl').textContent = lbl;
-}
-
-function binarize(data, w, h, thr) {
-  const bin = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    const p = i * 4;
-    const a = data[p + 3];
-    if (a < 16) {
-      bin[i] = 0;
-      continue;
-    }
-    const L = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
-    bin[i] = L < thr ? 1 : 0;
+  function apiBase() {
+    return document.getElementById("apiBase").value.replace(/\/$/, "");
   }
-  return bin;
-}
 
-function edgesFromBinary(bin, w, h) {
-  const edges = [];
-  const add = (x1, y1, x2, y2) => edges.push([x1, y1, x2, y2]);
+  function setStatus(id, msg, tipo) {
+    const el = document.getElementById(id + "-status");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "status " + (tipo || "");
+  }
 
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (!bin[y * w + x]) continue;
+  function mostrarResultado(id) {
+    const el = document.getElementById(id + "-resultado");
+    if (el) el.classList.add("visivel");
+  }
 
-      if (y === 0 || !bin[(y - 1) * w + x]) add(x, y, x + 1, y);
-      if (x === w - 1 || !bin[y * w + x + 1]) add(x + 1, y, x + 1, y + 1);
-      if (y === h - 1 || !bin[(y + 1) * w + x]) add(x + 1, y + 1, x, y + 1);
-      if (x === 0 || !bin[y * w + x - 1]) add(x, y + 1, x, y);
+  function toggleCodigo(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = el.style.display === "none" ? "block" : "none";
+  }
+
+  function formatBytes(b) {
+    if (b < 1024) return b + " B";
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+    return (b / 1024 / 1024).toFixed(2) + " MB";
+  }
+
+  document.getElementById("sidebar").addEventListener("click", (e) => {
+    const btn = e.target.closest(".sidebar-item");
+    if (!btn) return;
+    const painel = btn.dataset.painel;
+    document.querySelectorAll(".sidebar-item").forEach((b) => b.classList.remove("ativo"));
+    document.querySelectorAll(".painel").forEach((p) => p.classList.remove("ativo"));
+    btn.classList.add("ativo");
+    document.getElementById("painel-" + painel).classList.add("ativo");
+  });
+
+  // PNG → SVG
+  let svgAtual = null;
+
+  async function runConvert() {
+    const file = document.getElementById("svg-file").files[0];
+    if (!file) return setStatus("svg", "Escolhe um ficheiro PNG.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("cores", document.getElementById("svg-cores").value);
+    fd.append("opttolerance", document.getElementById("svg-opt").value);
+    fd.append("turdsize", document.getElementById("svg-turd").value);
+
+    setStatus("svg", "A converter...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/convert", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+
+      svgAtual = d.svg;
+      document.getElementById("svg-preview-original").src = URL.createObjectURL(file);
+      document.getElementById("svg-preview-resultado").innerHTML = svgAtual;
+      document.getElementById("svg-codigo").value = svgAtual;
+      document.getElementById("svg-meta").textContent = "Tamanho: " + formatBytes(d.tamanho_bytes);
+      mostrarResultado("svg");
+      setStatus("svg", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("svg", "Erro: " + err.message, "erro");
     }
   }
 
-  return edges;
-}
-
-function vkey(x, y) {
-  return `${x},${y}`;
-}
-
-function ekey(a, b) {
-  const A = vkey(a[0], a[1]);
-  const B = vkey(b[0], b[1]);
-  return A < B ? `${A}|${B}` : `${B}|${A}`;
-}
-
-function traceLoops(edges) {
-  if (!edges.length) return [];
-
-  const adj = new Map();
-  const used = new Set();
-
-  const addAdj = (a, b) => {
-    const k = vkey(a[0], a[1]);
-    if (!adj.has(k)) adj.set(k, []);
-    adj.get(k).push(b);
-  };
-
-  for (const [x1, y1, x2, y2] of edges) {
-    const a = [x1, y1], b = [x2, y2];
-    addAdj(a, b);
-    addAdj(b, a);
+  function downloadSvg() {
+    if (!svgAtual) return;
+    const blob = new Blob([svgAtual], { type: "image/svg+xml" });
+    triggerDownload(blob, "convertido.svg");
   }
 
-  const contours = [];
+  function triggerDownload(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
-  for (const [x1, y1, x2, y2] of edges) {
-    const start = [x1, y1];
-    const next = [x2, y2];
-    const k0 = ekey(start, next);
-    if (used.has(k0)) continue;
-    used.add(k0);
+  function downloadBlob(id) {
+    const entry = blobStore[id];
+    if (!entry) return;
+    triggerDownload(entry.blob, entry.nome);
+  }
 
-    const loop = [start, next];
-    let prev = start;
-    let curr = next;
+  // Utilitário genérico (single file → blob binário)
+  async function runSimples(endpoint, fileInputId, mimeType, nomeDownload, extraParams) {
+    const file = document.getElementById(fileInputId).files[0];
+    const statusId = endpoint;
+    if (!file) return setStatus(statusId, "Escolhe um ficheiro.", "erro");
 
-    for (let guard = 0; guard < edges.length + 8; guard++) {
-      const list = adj.get(vkey(curr[0], curr[1])) || [];
-      let found = null;
+    const fd = new FormData();
+    fd.append("file", file);
+    for (const [k, v] of Object.entries(extraParams)) fd.append(k, v);
 
-      for (const nb of list) {
-        if (nb[0] === prev[0] && nb[1] === prev[1]) continue;
-        const ek = ekey(curr, nb);
-        if (!used.has(ek)) {
-          found = nb;
-          used.add(ek);
-          break;
-        }
+    setStatus(statusId, "A processar...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/" + endpoint, { method: "POST", body: fd });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.erro || r.statusText);
       }
+      const blob = await r.blob();
+      blobStore[endpoint] = { blob, nome: nomeDownload };
 
-      if (!found) break;
+      const meta = document.getElementById(endpoint + "-meta");
+      if (meta) meta.textContent = "Tamanho: " + formatBytes(blob.size);
 
-      prev = curr;
-      curr = found;
-      loop.push(curr);
+      const img = document.getElementById(endpoint + "-img");
+      if (img) img.src = URL.createObjectURL(blob);
 
-      if (curr[0] === start[0] && curr[1] === start[1]) break;
+      mostrarResultado(endpoint);
+      setStatus(statusId, "Concluído.", "ok");
+    } catch (err) {
+      setStatus(statusId, "Erro: " + err.message, "erro");
     }
-
-    if (loop.length >= 4) contours.push(loop);
   }
 
-  return contours;
-}
+  // Multi-file → imagem
+  async function runMulti(endpoint, fileInputId, mimeType, nomeDownload) {
+    const files = document.getElementById(fileInputId).files;
+    const statusId = endpoint;
+    if (!files || files.length < 2) return setStatus(statusId, "Escolhe pelo menos 2 ficheiros.", "erro");
 
-function removeDuplicateEnd(pts) {
-  if (pts.length > 1) {
-    const a = pts[0], b = pts[pts.length - 1];
-    if (a[0] === b[0] && a[1] === b[1]) return pts.slice(0, -1);
-  }
-  return pts;
-}
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
 
-function removeCollinear(pts) {
-  pts = removeDuplicateEnd(pts);
-  if (pts.length < 4) return pts;
+    setStatus(statusId, "A processar...", "loading");
 
-  const out = [];
-  const n = pts.length;
+    try {
+      const r = await fetch(apiBase() + "/" + endpoint, { method: "POST", body: fd });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.erro || r.statusText);
+      }
+      const blob = await r.blob();
+      blobStore[endpoint] = { blob, nome: nomeDownload };
 
-  for (let i = 0; i < n; i++) {
-    const a = pts[(i - 1 + n) % n];
-    const b = pts[i];
-    const c = pts[(i + 1) % n];
-    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
-    if (Math.abs(cross) > 1e-9) out.push(b);
-  }
+      const meta = document.getElementById(endpoint + "-meta");
+      if (meta) meta.textContent = "Tamanho: " + formatBytes(blob.size);
 
-  return out.length >= 3 ? out : pts;
-}
+      const img = document.getElementById(endpoint + "-img");
+      if (img) img.src = URL.createObjectURL(blob);
 
-function area(pts) {
-  pts = removeDuplicateEnd(pts);
-  let a = 0;
-  for (let i = 0, n = pts.length; i < n; i++) {
-    const j = (i + 1) % n;
-    a += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1];
-  }
-  return Math.abs(a) / 2;
-}
-
-function toPath(pts) {
-  pts = removeDuplicateEnd(pts);
-  if (pts.length < 3) return '';
-  const first = pts[0];
-  const parts = [`M${Math.round(first[0])} ${Math.round(first[1])}`];
-  for (let i = 1; i < pts.length; i++) {
-    parts.push(`L${Math.round(pts[i][0])} ${Math.round(pts[i][1])}`);
-  }
-  parts.push('Z');
-  return parts.join('');
-}
-
-function buildSVG(contours, w, h, fill, bg, transp) {
-  const bgRect = transp ? '' : `<rect width="${w}" height="${h}" fill="${bg}"/>`;
-  const d = contours.map(toPath).filter(Boolean).join(' ');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet">${bgRect}<path d="${d}" fill="${fill}" fill-rule="evenodd"/></svg>`;
-}
-
-let svgOut = '';
-let dlURL = null;
-
-$('convBtn').addEventListener('click', async () => {
-  if (!file) return;
-  $('convBtn').disabled = true;
-  $('result').classList.remove('on');
-  $('errMsg').classList.remove('on');
-
-  try {
-    setP(5, 'Carregando…');
-    await sleep(20);
-
-    const img = new Image();
-    const ou = URL.createObjectURL(file);
-    await new Promise((res, rej) => {
-      img.onload = res;
-      img.onerror = rej;
-      img.src = ou;
-    });
-    URL.revokeObjectURL(ou);
-
-    const MAX = +$('maxs').value;
-    let w = img.naturalWidth;
-    let h = img.naturalHeight;
-    if (w > MAX || h > MAX) {
-      const s = Math.min(MAX / w, MAX / h);
-      w = Math.round(w * s);
-      h = Math.round(h * s);
+      mostrarResultado(endpoint);
+      setStatus(statusId, "Concluído.", "ok");
+    } catch (err) {
+      setStatus(statusId, "Erro: " + err.message, "erro");
     }
+  }
 
-    const cv = $('cv');
-    cv.width = w;
-    cv.height = h;
-    const ctx = cv.getContext('2d', { willReadFrequently: true });
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
+  // Multi-file → PDF
+  async function runMultiPdf(endpoint, fileInputId) {
+    const files = document.getElementById(fileInputId).files;
+    const statusId = endpoint;
+    const min = endpoint === "pdf-merge" ? 2 : 1;
+    if (!files || files.length < min) return setStatus(statusId, `Escolhe pelo menos ${min} ficheiro(s).`, "erro");
 
-    const imgData = ctx.getImageData(0, 0, w, h);
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
 
-    setP(20, 'Binarizando…');
-    await sleep(15);
-    const thr = +$('thr').value;
-    const bin = binarize(imgData.data, w, h, thr);
+    setStatus(statusId, "A processar...", "loading");
 
-    setP(40, 'Extraindo bordas…');
-    await sleep(15);
-    const edges = edgesFromBinary(bin, w, h);
+    try {
+      const r = await fetch(apiBase() + "/" + endpoint, { method: "POST", body: fd });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.erro || r.statusText);
+      }
+      const blob = await r.blob();
+      blobStore[endpoint] = { blob, nome: "resultado.pdf" };
 
-    setP(60, 'Conectando contornos…');
-    await sleep(15);
-    const raw = traceLoops(edges);
+      const meta = document.getElementById(endpoint + "-meta");
+      if (meta) meta.textContent = "Tamanho: " + formatBytes(blob.size);
 
-    setP(75, 'Filtrando…');
-    await sleep(15);
-    const minA = +$('mina').value;
-    const contours = raw
-      .map(c => removeCollinear(c))
-      .filter(c => c.length >= 3 && area(c) >= minA);
-
-    if (!contours.length) {
-      throw new Error('Nenhum contorno encontrado. Baixa o threshold ou usa uma imagem com mais contraste.');
+      mostrarResultado(endpoint);
+      setStatus(statusId, "Concluído.", "ok");
+    } catch (err) {
+      setStatus(statusId, "Erro: " + err.message, "erro");
     }
-
-    setP(88, 'Gerando SVG…');
-    await sleep(15);
-
-    const fill = $('cFill').value;
-    const bg = $('cBg').value;
-    const transp = $('transp').checked;
-
-    svgOut = buildSVG(contours, w, h, fill, bg, transp);
-
-    setP(100, 'Pronto!');
-    await sleep(50);
-
-    const svgB = new TextEncoder().encode(svgOut).length;
-    $('sPng').textContent = fmt(file.size);
-    $('sSvg').textContent = fmt(svgB);
-    $('sPaths').textContent = contours.length;
-
-    const ratio = Math.round(svgB / file.size * 100);
-    const badge = $('badge');
-    badge.textContent = ratio + '% do PNG';
-    badge.className = 'badge ' + (ratio < 100 ? 'g' : 'b');
-
-    $('prevSvg').innerHTML = '';
-    const parser = new DOMParser();
-    const svgEl = parser.parseFromString(svgOut, 'image/svg+xml').documentElement;
-    svgEl.style.cssText = 'max-width:100%;max-height:150px;';
-    $('prevSvg').appendChild(svgEl);
-
-    if (dlURL) URL.revokeObjectURL(dlURL);
-    dlURL = URL.createObjectURL(new Blob([svgOut], { type: 'image/svg+xml' }));
-    $('dlBtn').href = dlURL;
-    $('dlBtn').download = (file.name.replace(/\.[^.]+$/, '') || 'output') + '.svg';
-
-    $('result').classList.add('on');
-  } catch (e) {
-    $('errMsg').textContent = 'Erro: ' + e.message;
-    $('errMsg').classList.add('on');
-    console.error(e);
-  } finally {
-    $('convBtn').disabled = false;
   }
-});
 
-$('copyBtn').addEventListener('click', async () => {
-  if (!svgOut) return;
-  try {
-    await navigator.clipboard.writeText(svgOut);
-    const btn = $('copyBtn');
-    btn.classList.add('copied');
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar SVG`;
-    }, 2500);
-  } catch {
-    alert('Não foi possível copiar. Tente baixar o SVG.');
+  // PDF simples → PDF
+  async function runSimplesPdf(endpoint, fileInputId, extraParams) {
+    const file = document.getElementById(fileInputId).files[0];
+    const statusId = endpoint;
+    if (!file) return setStatus(statusId, "Escolhe um ficheiro PDF.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+    for (const [k, v] of Object.entries(extraParams)) fd.append(k, v);
+
+    setStatus(statusId, "A processar...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/" + endpoint, { method: "POST", body: fd });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.erro || r.statusText);
+      }
+      const blob = await r.blob();
+      blobStore[endpoint] = { blob, nome: "resultado.pdf" };
+
+      const meta = document.getElementById(endpoint + "-meta");
+      if (meta) meta.textContent = "Tamanho: " + formatBytes(blob.size);
+
+      mostrarResultado(endpoint);
+      setStatus(statusId, "Concluído.", "ok");
+    } catch (err) {
+      setStatus(statusId, "Erro: " + err.message, "erro");
+    }
   }
-});
+
+  // EXIF
+  async function runExif() {
+    const file = document.getElementById("exif-file").files[0];
+    if (!file) return setStatus("exif", "Escolhe um ficheiro.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    setStatus("exif", "A extrair...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/exif", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+      document.getElementById("exif-pre").textContent = d.metadados;
+      mostrarResultado("exif");
+      setStatus("exif", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("exif", "Erro: " + err.message, "erro");
+    }
+  }
+
+  // Paleta
+  async function runPalette() {
+    const file = document.getElementById("pal-file").files[0];
+    if (!file) return setStatus("palette", "Escolhe um ficheiro.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("cores", document.getElementById("pal-cores").value);
+
+    setStatus("palette", "A extrair...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/palette", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+
+      const preview = document.getElementById("palette-preview");
+      preview.innerHTML = "";
+      d.cores.forEach((hex) => {
+        const div = document.createElement("div");
+        div.className = "cor-box";
+        div.style.background = hex;
+        div.title = hex;
+        preview.appendChild(div);
+      });
+
+      document.getElementById("palette-pre").textContent = d.cores.join("\n");
+      mostrarResultado("palette");
+      setStatus("palette", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("palette", "Erro: " + err.message, "erro");
+    }
+  }
+
+  // QR Code
+  async function runQr() {
+    const texto = document.getElementById("qr-texto").value.trim();
+    if (!texto) return setStatus("qrcode", "Introduz um texto ou URL.", "erro");
+
+    setStatus("qrcode", "A gerar...", "loading");
+
+    try {
+      const fd = new FormData();
+      fd.append("texto", texto);
+
+      const r = await fetch(apiBase() + "/qrcode", { method: "POST", body: fd });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.erro || r.statusText);
+      }
+      const blob = await r.blob();
+      blobStore["qrcode"] = { blob, nome: "qrcode.png" };
+      document.getElementById("qrcode-img").src = URL.createObjectURL(blob);
+      mostrarResultado("qrcode");
+      setStatus("qrcode", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("qrcode", "Erro: " + err.message, "erro");
+    }
+  }
+
+  // PDF → PNG
+  async function runPdfToPng() {
+    const file = document.getElementById("p2p-file").files[0];
+    if (!file) return setStatus("pdf-to-png", "Escolhe um PDF.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("dpi", document.getElementById("p2p-dpi").value);
+
+    setStatus("pdf-to-png", "A converter... pode demorar.", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/pdf-to-png", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+
+      document.getElementById("pdf-to-png-meta").textContent = `Total: ${d.total} página(s)`;
+
+      const grid = document.getElementById("pdf-to-png-grid");
+      grid.innerHTML = "";
+      d.paginas.forEach((p, i) => {
+        const div = document.createElement("div");
+        div.className = "pagina-item";
+        div.innerHTML = `<img src="data:image/png;base64,${p.base64}"><span>Pág. ${i + 1}</span>`;
+        div.querySelector("img").addEventListener("click", () => {
+          const blob = base64ToBlob(p.base64, "image/png");
+          triggerDownload(blob, `pagina-${i + 1}.png`);
+        });
+        grid.appendChild(div);
+      });
+
+      mostrarResultado("pdf-to-png");
+      setStatus("pdf-to-png", "Concluído. Clica nas imagens para descarregar.", "ok");
+    } catch (err) {
+      setStatus("pdf-to-png", "Erro: " + err.message, "erro");
+    }
+  }
+
+  // PDF → Texto
+  async function runPdfText() {
+    const file = document.getElementById("p2t-file").files[0];
+    if (!file) return setStatus("pdf-to-text", "Escolhe um PDF.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    setStatus("pdf-to-text", "A extrair...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/pdf-to-text", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+      document.getElementById("pdf-to-text-pre").textContent = d.texto;
+      mostrarResultado("pdf-to-text");
+      setStatus("pdf-to-text", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("pdf-to-text", "Erro: " + err.message, "erro");
+    }
+  }
+
+  // PDF Split
+  async function runPdfSplit() {
+    const file = document.getElementById("ps-file").files[0];
+    if (!file) return setStatus("pdf-split", "Escolhe um PDF.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    setStatus("pdf-split", "A separar...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/pdf-split", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+
+      document.getElementById("pdf-split-meta").textContent = `Total: ${d.total} página(s)`;
+
+      const lista = document.getElementById("pdf-split-lista");
+      lista.innerHTML = "";
+      d.paginas.forEach((p, i) => {
+        const btn = document.createElement("button");
+        btn.className = "btn-sec";
+        btn.style.marginBottom = "6px";
+        btn.style.display = "block";
+        btn.textContent = `Descarregar ${p.nome}`;
+        btn.onclick = () => {
+          const blob = base64ToBlob(p.base64, "application/pdf");
+          triggerDownload(blob, p.nome);
+        };
+        lista.appendChild(btn);
+      });
+
+      mostrarResultado("pdf-split");
+      setStatus("pdf-split", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("pdf-split", "Erro: " + err.message, "erro");
+    }
+  }
+
+  function base64ToBlob(b64, mime) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
 </script>
 </body>
 </html>

@@ -13,8 +13,8 @@
   import RecordingCard from './components/RecordingCard.svelte';
   import BottomBar from './components/BottomBar.svelte';
   import ExtrasPopup from './components/ExtrasPopup.svelte';
-  import AppsModelsPopup from './components/AppsModelsPopup.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
+  import FloatingPixels from './components/FloatingPixels.svelte';
 
   let user = null;
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
@@ -83,8 +83,6 @@
   let popupPos = { bottom: 0, left: 0 };
   let popupFading = false;
 
-  // Flash vem sempre ativo por padrão. Ao ativar Think More, Flash desativa-se
-  // automaticamente (e vice-versa) — são mutuamente exclusivos.
   let flashMode = true;
   let thinkMoreMode = false;
   let sheetsEnabled = false;
@@ -121,24 +119,8 @@
     setTimeout(() => { popupMode = mode; popupFading = false; }, 130);
   }
 
-  const APPS_POPUP_MARGIN_X = 10;
-  const APPS_POPUP_MARGIN_BOTTOM = 10;
-  let showAppsPopup = false;
-  let appsPopupVisible = false;
-  let appsPopupStyle = '';
-  let modelsTab = 'docs';
-  function updateAppsPopupStyle() {
-    const top = Math.max((appbarHeight || 0) + 8, 8);
-    appsPopupStyle = `top:${top}px;left:${APPS_POPUP_MARGIN_X}px;right:${APPS_POPUP_MARGIN_X}px;bottom:${APPS_POPUP_MARGIN_BOTTOM}px;`;
-  }
-  function openAppsPopup() {
-    updateAppsPopupStyle();
-    showAppsPopup = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => appsPopupVisible = true));
-  }
-  function closeAppsPopup() {
-    appsPopupVisible = false;
-    setTimeout(() => { showAppsPopup = false; }, 240);
+  function openAppsPage() {
+    window.location.href = '/home/apps-modelos';
   }
 
   function openApp(app) {
@@ -148,18 +130,6 @@
     window.location.href = app.path;
   }
   function goToPlans() { window.location.href = '/plans'; }
-
-  // Modelos de documentos e imagens: pré-preenchem o prompt e navegam para o chat AI.
-  function selectDocModel(doc) {
-    closeAppsPopup();
-    inputText = doc.prompt;
-    setTimeout(() => { navigateToAI(); }, 10);
-  }
-  function selectImageModel(img) {
-    closeAppsPopup();
-    inputText = img.prompt;
-    setTimeout(() => { navigateToAI(); }, 10);
-  }
 
   let lottieEl;
   let lottieInstance;
@@ -227,7 +197,6 @@
     if (topPanelEl) {
       appbarHeight = topPanelEl.getBoundingClientRect().height;
       if (scrollRootEl) scrollRootEl.style.setProperty('--appbar-h', appbarHeight + 'px');
-      updateAppsPopupStyle();
     }
   }
 
@@ -610,6 +579,7 @@
 
 <div class="root">
   <div class="bg-layer"></div>
+  <FloatingPixels />
 
   <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
 
@@ -667,7 +637,7 @@
       onBlur={handleInputBlur}
       onRemoveAttachment={removeAttachment}
       onOpenAddPopup={(e) => openPopup('add', e)}
-      onOpenAppsPopup={openAppsPopup}
+      onOpenAppsPopup={openAppsPage}
       onSend={navigateToAI}
       onStartRecording={startRecording}
       {thinkMoreMode}
@@ -700,18 +670,6 @@
   onToggleSheets={toggleSheets}
 />
 
-<AppsModelsPopup
-  {showAppsPopup}
-  {appsPopupVisible}
-  {appsPopupStyle}
-  bind:modelsTab
-  {platformApps}
-  onClose={closeAppsPopup}
-  onSelectDocModel={selectDocModel}
-  onSelectImageModel={selectImageModel}
-  onOpenApp={(app) => { closeAppsPopup(); openApp(app); }}
-/>
-
 <AppDrawer
   {drawerOpen}
   {drawerVisible}
@@ -741,7 +699,6 @@
     --app-bg: #0F0F0F;
     --surface: #0F0F0F;
     --surface-strong: #0F0F0F;
-    /* Tab "Apps & Utilitários": 5% menos escuro que o fundo base no modo escuro */
     --surface-apps-tab: #171717;
     --border-soft: rgba(255,255,255,0.12);
     --border-faint: rgba(255,255,255,0.09);

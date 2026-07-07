@@ -1,3 +1,4 @@
+<!-- src/home/apps-modelos/AppsModelos.svelte -->
 <script>
   import { onMount } from 'svelte';
   import { MODELS_TABS, DOC_MODELS, IMAGE_MODELS } from './lib/constants.js';

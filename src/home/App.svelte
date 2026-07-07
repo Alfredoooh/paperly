@@ -1,9 +1,10 @@
-<!-- src/routes/home/+page.svelte -->
+<!-- src/home/App.svelte -->
 <script>
   import { onMount, tick } from 'svelte';
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
+  import { createRouter } from '$shared/router.js';
 
   import { HERO_PHRASE, getAvatarColor } from './lib/constants.js';
   import AppHeader from './components/AppHeader.svelte';
@@ -14,8 +15,13 @@
   import BottomBar from './components/BottomBar.svelte';
   import ExtrasPopup from './components/ExtrasPopup.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
-  import FloatingPixels from './components/FloatingPixels.svelte';
   import AppsModelos from './apps-modelos/AppsModelos.svelte';
+
+  const BASE = '/home/';
+  const VALID_ROUTES = ['apps-modelos'];
+  const router = createRouter(BASE, VALID_ROUTES, 'home');
+
+  let route = 'home';
 
   let user = null;
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
@@ -23,15 +29,6 @@
   $: avatarColor = getAvatarColor(userName);
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
-
-  let currentView = 'home'; // 'home' | 'apps-modelos'
-
-  function goToAppsModelos() {
-    currentView = 'apps-modelos';
-  }
-  function backToHome() {
-    currentView = 'home';
-  }
 
   let themeValue = 'dark';
   let isDark = true;
@@ -130,7 +127,13 @@
   }
 
   function openAppsPage() {
-    goToAppsModelos();
+    route = 'apps-modelos';
+    router.navigate('apps-modelos');
+  }
+
+  function closeAppsPage() {
+    route = 'home';
+    router.navigate('home');
   }
 
   function openApp(app) {
@@ -554,6 +557,16 @@
     requestAnimationFrame(() => { mounted = true; measureAppbar(); });
     window.addEventListener('resize', measureAppbar);
 
+    const { route: initialRoute, notFound } = router.parseCurrentRoute();
+    if (notFound) { window.location.replace('/404/'); return; }
+    route = initialRoute;
+    router.navigate(route, { replace: true });
+
+    const unbindRouter = router.bindPopState((r, nf) => {
+      if (nf) { window.location.replace('/404/'); return; }
+      route = r;
+    });
+
     try {
       justRegistered = sessionStorage.getItem('nexa_just_registered') === '1';
       sessionStorage.removeItem('nexa_just_registered');
@@ -575,6 +588,7 @@
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('resize', measureAppbar);
+      unbindRouter?.();
       clearTimeout(suggestDebounce);
       clearTimeout(heroTimer);
       clearTimeout(snapSettleTimer);
@@ -587,12 +601,11 @@
   $: if (lottieFinished && shouldPlayLottie && heroDisplayText === '' && !heroTimer) runTypewriter();
 </script>
 
-{#if currentView === 'apps-modelos'}
-  <AppsModelos onBack={backToHome} {platformApps} />
+{#if route === 'apps-modelos'}
+  <AppsModelos {platformApps} onBack={closeAppsPage} />
 {:else}
 <div class="root">
   <div class="bg-layer"></div>
-  <FloatingPixels />
 
   <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
 

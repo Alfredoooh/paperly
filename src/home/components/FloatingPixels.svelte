@@ -6,7 +6,7 @@
 
   const CELL_SIZE = 6;
   const DOT_RADIUS = 1.8;
-  const IMAGE_SRC = '/icons/png/logo_2.png'; // caminho absoluto da imagem
+  const IMAGE_SRC = '/icons/png/logo_2.png'; // verifique se o ficheiro está em static/icons/png/logo_2.png
 
   let imageData = null;
   let imgWidth = 0;
@@ -22,12 +22,11 @@
       redraw();
     };
     img.onerror = () => {
-      console.error('Imagem não encontrada: ' + IMAGE_SRC);
+      console.error('❌ Imagem não encontrada:', IMAGE_SRC);
     };
   }
 
   function resizeImage(img) {
-    // 90% da menor dimensão da janela (altura ou largura)
     const maxSize = Math.min(window.innerWidth, window.innerHeight) * 0.9;
     const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
     imgWidth = Math.floor(img.width * scale);
@@ -42,7 +41,7 @@
   }
 
   function redraw() {
-    if (!canvasEl || !ctx) return;
+    if (!ctx || !canvasEl) return;
     canvasEl.width = window.innerWidth;
     canvasEl.height = window.innerHeight;
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
@@ -81,6 +80,8 @@
   }
 
   onMount(() => {
+    // garante que o canvas já está disponível
+    ctx = canvasEl.getContext('2d');
     loadImage();
     window.addEventListener('resize', handleResize);
   });
@@ -95,11 +96,12 @@
 <style>
   .pixel-logo-canvas {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     display: block;
     pointer-events: none;
-    z-index: 30; /* garante que fica sobre o texto e os outros elementos */
+    z-index: 30; /* acima do texto e da barra inferior */
   }
 </style>

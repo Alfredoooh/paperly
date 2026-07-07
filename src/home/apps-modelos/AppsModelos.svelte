@@ -1,6 +1,6 @@
 <!-- src/home/apps-modelos/AppsModelos.svelte -->
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { MODELS_TABS, DOC_MODELS, IMAGE_MODELS } from './lib/constants.js';
 
   export let onBack = () => {};
@@ -8,6 +8,12 @@
 
   let modelsTab = 'docs';
   let pageVisible = false;
+
+  let tabsWrapEl;
+  let tabRefs = {};
+  let indicatorX = 0;
+  let indicatorWidth = 0;
+  let indicatorReady = false;
 
   function goBack() {
     pageVisible = false;
@@ -36,30 +42,40 @@
     window.location.href = app.path;
   }
 
+  function updateIndicator() {
+    const btn = tabRefs[modelsTab];
+    if (!btn || !tabsWrapEl) return;
+    const wrapRect = tabsWrapEl.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    indicatorX = btnRect.left - wrapRect.left;
+    indicatorWidth = btnRect.width;
+    indicatorReady = true;
+  }
+
+  function selectTab(id) {
+    modelsTab = id;
+  }
+
   onMount(() => {
     requestAnimationFrame(() => { pageVisible = true; });
+    tick().then(updateIndicator);
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
   });
+
+  $: if (modelsTab) tick().then(updateIndicator);
 </script>
 
 <div class="am-root" class:am-in={pageVisible}>
   <div class="am-header">
     <button class="am-back" on:click={goBack} aria-label="Voltar">
-      <span class="am-back-icon"></span>
+      <svg class="am-back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/>
+        <path d="M12 19l-7-7 7-7"/>
+      </svg>
     </button>
     <span class="am-title">Modelos &amp; Apps</span>
     <span class="am-header-spacer"></span>
-  </div>
-
-  <div class="am-tabs">
-    {#each MODELS_TABS as t}
-      <button
-        class="am-tab"
-        class:am-tab-active={modelsTab === t.id}
-        on:click={() => modelsTab = t.id}
-      >
-        {t.label}
-      </button>
-    {/each}
   </div>
 
   <div class="am-body">
@@ -93,6 +109,23 @@
         {/each}
       </div>
     {/if}
+  </div>
+
+  <div class="am-tabs" bind:this={tabsWrapEl}>
+    <div
+      class="am-tab-indicator"
+      style="transform:translateX({indicatorX}px); width:{indicatorWidth}px; opacity:{indicatorReady ? 1 : 0};"
+    ></div>
+    {#each MODELS_TABS as t}
+      <button
+        bind:this={tabRefs[t.id]}
+        class="am-tab"
+        class:am-tab-active={modelsTab === t.id}
+        on:click={() => selectTab(t.id)}
+      >
+        {t.label}
+      </button>
+    {/each}
   </div>
 </div>
 
@@ -142,12 +175,10 @@
     background: var(--btn-bg-active);
   }
   .am-back-icon {
-    width: 11px;
-    height: 11px;
-    border-left: 2px solid var(--icon-strong);
-    border-bottom: 2px solid var(--icon-strong);
-    transform: rotate(45deg);
-    margin-left: 2px;
+    width: 19px;
+    height: 19px;
+    color: var(--icon-strong);
+    display: block;
   }
   .am-title {
     flex: 1;
@@ -159,42 +190,11 @@
     width: 36px;
   }
 
-  .am-tabs {
-    display: flex;
-    gap: 6px;
-    background: var(--hdr-seg-bg);
-    padding: 4px;
-    border-radius: 14px;
-    margin: 4px 14px 14px;
-    flex-shrink: 0;
-  }
-  .am-tab {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 10px 6px;
-    border-radius: 10px;
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-faint);
-    cursor: pointer;
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), color .22s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .am-tab:active {
-    transform: scale(0.96);
-  }
-  .am-tab-active {
-    background: var(--app-bg);
-    color: var(--drawer-text);
-    box-shadow: 0 2px 8px var(--drawer-shadow);
-  }
-
   .am-body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 14px calc(env(safe-area-inset-bottom, 0px) + 24px);
+    padding: 0 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
     -webkit-overflow-scrolling: touch;
   }
 
@@ -274,5 +274,54 @@
     border-radius: 7px;
     object-fit: contain;
     flex-shrink: 0;
+  }
+
+  .am-tabs {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+    z-index: 5;
+    display: flex;
+    gap: 6px;
+    background: var(--hdr-seg-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    padding: 4px;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px var(--drawer-shadow);
+  }
+  .am-tab-indicator {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 0;
+    border-radius: 999px;
+    background: var(--app-bg);
+    box-shadow: 0 2px 8px var(--drawer-shadow);
+    transition: transform .32s cubic-bezier(0.34,1.2,0.4,1), width .32s cubic-bezier(0.34,1.2,0.4,1), opacity .2s ease;
+    will-change: transform, width;
+    pointer-events: none;
+  }
+  .am-tab {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 11px 6px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: color .22s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .am-tab:active {
+    transform: scale(0.96);
+  }
+  .am-tab-active {
+    color: var(--drawer-text);
   }
 </style>

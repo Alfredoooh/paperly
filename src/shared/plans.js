@@ -28,7 +28,7 @@ export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/' },
   { id: 'ai', label: 'IA', icon: '/icons/png/ia.png', path: '/ai/' },
   { id: 'profilelens', label: 'ProfileLens', icon: '/icons/png/profilelens.png', path: '/profilelens/' },
-  { id: 'docs', label: 'Nexa Docs', icon: '/icons/svg/docs.svg', path: '/docs/' },
+  { id: 'docs', label: 'Nexa Docs', icon: '/icons/png/docs.png', path: '/docs/' },
   { id: 'sheets', label: 'Nexa Sheets', icon: '/icons/svg/sheets.svg', path: '/sheets/' },
   { id: 'slides', label: 'Nexa Slides', icon: '/icons/svg/slides.svg', path: '/slides/' },
   { id: 'drive', label: 'Nexa Drive', icon: '/icons/svg/drive.svg', path: '/drive/' },

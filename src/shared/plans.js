@@ -25,6 +25,7 @@ export const AVAILABLE_MODELS = [
 ];
 
 export const ALL_APPS = [
+  { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/' },
   { id: 'ai', label: 'IA', icon: '/icons/png/ia.png', path: '/ai/' },
   { id: 'profilelens', label: 'ProfileLens', icon: '/icons/png/profilelens.png', path: '/profilelens/' },
   { id: 'docs', label: 'Nexa Docs', icon: '/icons/svg/docs.svg', path: '/docs/' },

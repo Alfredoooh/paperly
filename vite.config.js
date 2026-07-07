@@ -6,6 +6,7 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // nome da pasta no disco -> nome da rota final em dist/
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
+  { dir: 'home', route: 'home', nested: ['apps-modelos'] },
   { dir: 'ai', route: 'ai', nested: ['settings'] },
   { dir: 'profilelens', route: 'profilelens', nested: ['settings'] },
   { dir: 'docs', route: 'docs', nested: ['settings'] },
@@ -85,7 +86,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     rollupOptions: {
-      input: {
+        input: {
+          home: resolve(__dirname, 'src/home/index.html'),
         ai: resolve(__dirname, 'src/ai/index.html'),
         profilelens: resolve(__dirname, 'src/profilelens/index.html'),
         docs: resolve(__dirname, 'src/docs/index.html'),

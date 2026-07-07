@@ -1,107 +1,123 @@
+<!-- src/routes/home/components/FloatingPixels.svelte -->
 <script>
   import { onMount, onDestroy } from 'svelte';
 
   let canvasEl;
   let ctx;
+  let raf;
+  let W = 0, H = 0;
 
+  const LOGO_SRC = '/icons/png/logo_2.png';
   const CELL_SIZE = 6;
-  const DOT_RADIUS = 1.8;
-  const IMAGE_SRC = '/icons/png/logo_2.png'; // verifique se o ficheiro está em static/icons/png/logo_2.png
+  const DOT_RADIUS = 1.6;
+  const BASE_ALPHA = 0.16; // opacidade máxima de cada pixel, bem sutil
 
   let imageData = null;
   let imgWidth = 0;
   let imgHeight = 0;
   let imageLoaded = false;
+  let sourceImg = null;
 
-  function loadImage() {
-    const img = new Image();
-    img.src = IMAGE_SRC;
-    img.onload = () => {
-      resizeImage(img);
-      imageLoaded = true;
-      redraw();
-    };
-    img.onerror = () => {
-      console.error('❌ Imagem não encontrada:', IMAGE_SRC);
-    };
-  }
+  let offsetX = 0;
+  let offsetY = 0;
+  let driftPhase = Math.random() * Math.PI * 2;
 
-  function resizeImage(img) {
-    const maxSize = Math.min(window.innerWidth, window.innerHeight) * 0.9;
-    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-    imgWidth = Math.floor(img.width * scale);
-    imgHeight = Math.floor(img.height * scale);
+  function resizeImageFromSource() {
+    if (!sourceImg) return;
+    const maxSize = Math.min(W, H) * 0.7;
+    const scale = Math.min(maxSize / sourceImg.width, maxSize / sourceImg.height, 1);
+    imgWidth = Math.floor(sourceImg.width * scale);
+    imgHeight = Math.floor(sourceImg.height * scale);
 
     const offCanvas = document.createElement('canvas');
     offCanvas.width = imgWidth;
     offCanvas.height = imgHeight;
     const offCtx = offCanvas.getContext('2d');
-    offCtx.drawImage(img, 0, 0, imgWidth, imgHeight);
+    offCtx.drawImage(sourceImg, 0, 0, imgWidth, imgHeight);
     imageData = offCtx.getImageData(0, 0, imgWidth, imgHeight).data;
   }
 
-  function redraw() {
-    if (!ctx || !canvasEl) return;
-    canvasEl.width = window.innerWidth;
-    canvasEl.height = window.innerHeight;
-    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-    if (!imageLoaded) return;
+  function loadImage() {
+    const img = new Image();
+    img.src = LOGO_SRC;
+    img.onload = function () {
+      sourceImg = img;
+      resizeImageFromSource();
+      imageLoaded = true;
+    };
+    img.onerror = function () {
+      console.error('FloatingPixels: imagem não encontrada em ' + LOGO_SRC);
+    };
+  }
 
-    const offsetX = Math.floor((canvasEl.width - imgWidth) / 2);
-    const offsetY = Math.floor((canvasEl.height - imgHeight) / 2);
+  function resize() {
+    if (!canvasEl) return;
+    W = canvasEl.clientWidth;
+    H = canvasEl.clientHeight;
+    canvasEl.width = W;
+    canvasEl.height = H;
+    ctx = canvasEl.getContext('2d');
+    if (sourceImg) resizeImageFromSource();
+  }
 
-    for (let y = 0; y < imgHeight; y += CELL_SIZE) {
-      for (let x = 0; x < imgWidth; x += CELL_SIZE) {
-        const idx = (Math.floor(y) * imgWidth + Math.floor(x)) * 4;
-        const r = imageData[idx];
-        const g = imageData[idx + 1];
-        const b = imageData[idx + 2];
-        const a = imageData[idx + 3] / 255;
+  function draw(t) {
+    if (!ctx) { raf = requestAnimationFrame(draw); return; }
+    ctx.clearRect(0, 0, W, H);
 
-        if (a > 0.02) {
-          ctx.beginPath();
-          ctx.arc(offsetX + x, offsetY + y, DOT_RADIUS, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-          ctx.fill();
+    if (imageLoaded && imageData) {
+      // leve flutuação, para não ficar estática — mantém sutileza do design
+      const dx = Math.sin(t * 0.00015 + driftPhase) * 6;
+      const dy = Math.cos(t * 0.00012 + driftPhase) * 5;
+      offsetX = Math.floor((W - imgWidth) / 2 + dx);
+      offsetY = Math.floor((H - imgHeight) / 2 + dy);
+
+      for (let y = 0; y < imgHeight; y += CELL_SIZE) {
+        for (let x = 0; x < imgWidth; x += CELL_SIZE) {
+          const idx = (Math.floor(y) * imgWidth + Math.floor(x)) * 4;
+          const r = imageData[idx];
+          const g = imageData[idx + 1];
+          const b = imageData[idx + 2];
+          const a = (imageData[idx + 3] / 255) * BASE_ALPHA;
+
+          if (a > 0.005) {
+            ctx.beginPath();
+            ctx.arc(offsetX + x, offsetY + y, DOT_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+            ctx.fill();
+          }
         }
       }
     }
+    raf = requestAnimationFrame(draw);
   }
 
-  function handleResize() {
-    if (imageLoaded) {
-      const img = new Image();
-      img.src = IMAGE_SRC;
-      img.onload = () => {
-        resizeImage(img);
-        redraw();
-      };
-    }
-  }
+  let resizeObs;
 
   onMount(() => {
-    // garante que o canvas já está disponível
-    ctx = canvasEl.getContext('2d');
+    resize();
     loadImage();
-    window.addEventListener('resize', handleResize);
+    raf = requestAnimationFrame(draw);
+    resizeObs = new ResizeObserver(() => resize());
+    if (canvasEl?.parentElement) resizeObs.observe(canvasEl.parentElement);
+    window.addEventListener('resize', resize);
   });
 
   onDestroy(() => {
-    window.removeEventListener('resize', handleResize);
+    if (raf) cancelAnimationFrame(raf);
+    resizeObs?.disconnect();
+    if (typeof window !== 'undefined') window.removeEventListener('resize', resize);
   });
 </script>
 
-<canvas bind:this={canvasEl} class="pixel-logo-canvas"></canvas>
+<canvas bind:this={canvasEl} class="floating-pixels-canvas"></canvas>
 
 <style>
-  .pixel-logo-canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
+  .floating-pixels-canvas {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     display: block;
     pointer-events: none;
-    z-index: 30; /* acima do texto e da barra inferior */
   }
 </style>

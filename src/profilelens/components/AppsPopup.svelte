@@ -5,7 +5,7 @@
   
   export let isDark = false;
   export let open = false;
-  export let currentAppId = 'ProfileLens';
+  export let currentAppId = 'profilelens';
   
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);

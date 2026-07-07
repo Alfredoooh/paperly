@@ -25,14 +25,23 @@ export const AVAILABLE_MODELS = [
 ];
 
 export const ALL_APPS = [
-  { id: 'home', label: 'Home', icon: '/icons/png/home.png', path: '/home/' },
   { id: 'ai', label: 'IA', icon: '/icons/png/ia.png', path: '/ai/' },
-  { id: 'music', label: 'Music', icon: '/icons/png/music.png', path: '/music/' },
-  { id: 'games', label: 'Games', icon: '/icons/png/games.png', path: '/games/' },
-  { id: 'media', label: 'Media', icon: '/icons/png/media.png', path: '/media/' },
   { id: 'profilelens', label: 'ProfileLens', icon: '/icons/png/profilelens.png', path: '/profilelens/' },
-  { id: 'downloader', label: 'Downloader', icon: '/icons/png/downloader.png', path: '/downloader/' },
+  { id: 'docs', label: 'Nexa Docs', icon: '/icons/svg/docs.svg', path: '/docs/' },
+  { id: 'sheets', label: 'Nexa Sheets', icon: '/icons/svg/sheets.svg', path: '/sheets/' },
+  { id: 'slides', label: 'Nexa Slides', icon: '/icons/svg/slides.svg', path: '/slides/' },
+  { id: 'drive', label: 'Nexa Drive', icon: '/icons/svg/drive.svg', path: '/drive/' },
+  { id: 'calendar', label: 'Nexa Calendar', icon: '/icons/svg/calendar.svg', path: '/calendar/' },
+  { id: 'chat', label: 'Nexa Chat', icon: '/icons/svg/chat-app.svg', path: '/chat/' },
+  { id: 'tasks', label: 'Nexa Tasks', icon: '/icons/svg/tasks.svg', path: '/tasks/' },
+  { id: 'notes', label: 'Nexa Notes', icon: '/icons/svg/notes.svg', path: '/notes/' },
+  { id: 'forms', label: 'Nexa Forms', icon: '/icons/svg/forms.svg', path: '/forms/' },
+  { id: 'projects', label: 'Nexa Projects', icon: '/icons/svg/projects.svg', path: '/projects/' },
+  { id: 'wiki', label: 'Nexa Wiki', icon: '/icons/svg/wiki.svg', path: '/wiki/' },
+  { id: 'whiteboard', label: 'Nexa Whiteboard', icon: '/icons/svg/whiteboard.svg', path: '/whiteboard/' },
+  { id: 'analytics', label: 'Nexa Analytics', icon: '/icons/svg/analytics.svg', path: '/analytics/' },
 ];
+
 
 export const PLANS_DATA = {
   basic: {

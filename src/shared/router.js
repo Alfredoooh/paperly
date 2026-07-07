@@ -1,5 +1,5 @@
 // Router leve baseado em History API.
-// Cada app (ai, music, games, media, downloader, profilelens) tem uma base
+// Cada app (ai, profilelens e as apps do workspace) tem uma base
 // fixa (ex: '/ai/'). As sub-rotas dentro do app (ex: 'settings', 'widgets')
 // mapeiam para URLs reais tipo /ai/settings/, /ai/widgets/.
 

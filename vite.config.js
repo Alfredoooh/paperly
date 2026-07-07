@@ -6,14 +6,21 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // nome da pasta no disco -> nome da rota final em dist/
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
-  { dir: 'auth', route: 'auth', nested: ['login', 'register'] },
-  { dir: 'home', route: 'home', nested: ['apps-modelos'] },
-  { dir: 'ai', route: 'ai', nested: ['settings', 'widgets'] },
-  { dir: 'music', route: 'music', nested: ['settings'] },
-  { dir: 'games', route: 'games', nested: ['settings'] },
-  { dir: 'media', route: 'media', nested: ['settings'] },
+  { dir: 'ai', route: 'ai', nested: ['settings'] },
   { dir: 'profilelens', route: 'profilelens', nested: ['settings'] },
-  { dir: 'downloader', route: 'downloader', nested: ['settings'] },
+  { dir: 'docs', route: 'docs', nested: ['settings'] },
+  { dir: 'sheets', route: 'sheets', nested: ['settings'] },
+  { dir: 'slides', route: 'slides', nested: ['settings'] },
+  { dir: 'drive', route: 'drive', nested: ['settings'] },
+  { dir: 'calendar', route: 'calendar', nested: ['settings'] },
+  { dir: 'chat', route: 'chat', nested: ['settings'] },
+  { dir: 'tasks', route: 'tasks', nested: ['settings'] },
+  { dir: 'notes', route: 'notes', nested: ['settings'] },
+  { dir: 'forms', route: 'forms', nested: ['settings'] },
+  { dir: 'projects', route: 'projects', nested: ['settings'] },
+  { dir: 'wiki', route: 'wiki', nested: ['settings'] },
+  { dir: 'whiteboard', route: 'whiteboard', nested: ['settings'] },
+  { dir: 'analytics', route: 'analytics', nested: ['settings'] },
 ];
 
 // página de erro 404, tratada à parte por não ser uma app do site
@@ -79,14 +86,21 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        auth: resolve(__dirname, 'src/auth/index.html'),
-        home: resolve(__dirname, 'src/home/index.html'),
         ai: resolve(__dirname, 'src/ai/index.html'),
-        music: resolve(__dirname, 'src/music/index.html'),
-        games: resolve(__dirname, 'src/games/index.html'),
-        media: resolve(__dirname, 'src/media/index.html'),
         profilelens: resolve(__dirname, 'src/profilelens/index.html'),
-        downloader: resolve(__dirname, 'src/downloader/index.html'),
+        docs: resolve(__dirname, 'src/docs/index.html'),
+        sheets: resolve(__dirname, 'src/sheets/index.html'),
+        slides: resolve(__dirname, 'src/slides/index.html'),
+        drive: resolve(__dirname, 'src/drive/index.html'),
+        calendar: resolve(__dirname, 'src/calendar/index.html'),
+        chat: resolve(__dirname, 'src/chat/index.html'),
+        tasks: resolve(__dirname, 'src/tasks/index.html'),
+        notes: resolve(__dirname, 'src/notes/index.html'),
+        forms: resolve(__dirname, 'src/forms/index.html'),
+        projects: resolve(__dirname, 'src/projects/index.html'),
+        wiki: resolve(__dirname, 'src/wiki/index.html'),
+        whiteboard: resolve(__dirname, 'src/whiteboard/index.html'),
+        analytics: resolve(__dirname, 'src/analytics/index.html'),
         notfound: resolve(__dirname, 'src/notfound/index.html'),
       }
     }

@@ -25,7 +25,7 @@
   function triggerItem(item) { if(!item||item.disabled)return; item.action?.(); if(!item.keepOpen)closeDrawer(); }
 </script>
 
-<AppsPopup {isDark} open={appsPopupOpen} currentAppId="ProfileLens" on:close={() => appsPopupOpen=false} />
+<AppsPopup {isDark} open={appsPopupOpen} currentAppId="profilelens" on:close={() => appsPopupOpen=false} />
 <div class="overlay" class:open on:click|self={closeDrawer}></div>
 <div class="drawer" class:open class:dark={isDark}>
   <div class="header">

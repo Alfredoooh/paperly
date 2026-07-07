@@ -32,7 +32,7 @@
   </div>
 
   <div class="placeholder">
-    <img src="/icons/png/ProfileLens.png" class="placeholder-icon" alt="ProfileLens" />
+    <img src="/icons/png/profilelens.png" class="placeholder-icon" alt="ProfileLens" />
     <div class="placeholder-title" style="color:{c.textPrimary}">ProfileLens</div>
     <div class="placeholder-sub" style="color:{c.textSecondary}">Em desenvolvimento</div>
   </div>

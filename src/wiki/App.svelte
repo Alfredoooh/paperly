@@ -3,21 +3,25 @@
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
-  import ProfileLensPage from './pages/ProfileLensPage.svelte';
-  import SettingsPage    from './pages/SettingsPage.svelte';
+  import MainPage from './pages/MainPage.svelte';
+  import SettingsPage from './pages/SettingsPage.svelte';
 
-  const BASE = '/profilelens/';
+  const APP_ID = 'wiki';
+  const APP_TITLE = 'Nexa Wiki';
+  const APP_ICON = '/icons/svg/wiki.svg';
+  const BASE = '/wiki/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 
-  let route  = 'main';
-  let user   = null;
+  let route = 'main';
+  let user = null;
   let isDark = false;
-  let ready  = false;
+  let ready = false;
 
   onMount(() => {
     user = requireAuth();
     if (!user) return;
+
     const t = getTheme();
     isDark = t === 'dark';
     syncTheme(isDark);
@@ -37,23 +41,35 @@
   });
 
   function handleNav(e) {
-    const { to, data } = e.detail;
+    const { to, data } = e.detail || {};
     if (data?.isDark !== undefined) {
-      isDark = data.isDark;
+      isDark = !!data.isDark;
       localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light');
       syncTheme(isDark);
     }
-    if (data?.logout) { localStorage.removeItem('nexa_user'); window.location.href = '/auth/'; return; }
+    if (data?.logout) {
+      localStorage.removeItem('nexa_user');
+      window.location.href = '/auth/';
+      return;
+    }
     if (to === 'home') { window.location.href = '/home/'; return; }
     if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
-    if (to === 'main' || to === 'profilelens') { route = 'main'; router.navigate('main'); return; }
+    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); return; }
   }
 </script>
 
 {#if ready}
   {#if route === 'main'}
-    <ProfileLensPage {isDark} {user} on:nav={handleNav} />
+    <MainPage {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
   {:else if route === 'settings'}
-    <SettingsPage {isDark} {user} on:nav={handleNav} />
+    <SettingsPage {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
   {/if}
 {/if}
+
+<style>
+  :global(:root) { --primary: #2F7BF6; }
+  :global(*, *::before, *::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :global(html, body) { height:100%; }
+  :global(body) { margin:0; padding:0; overflow:hidden; font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; transition:background-color .3s ease, color .3s ease; }
+  :global(#app) { width:100vw; height:100dvh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+</style>

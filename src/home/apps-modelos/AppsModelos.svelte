@@ -56,6 +56,19 @@
     modelsTab = id;
   }
 
+  // Divide os modelos de imagem em duas colunas para o layout staggered (masonry-like)
+  function splitColumns(items) {
+    const left = [];
+    const right = [];
+    items.forEach((item, i) => {
+      if (i % 2 === 0) left.push(item);
+      else right.push(item);
+    });
+    return [left, right];
+  }
+
+  $: imageColumns = splitColumns(IMAGE_MODELS);
+
   onMount(() => {
     requestAnimationFrame(() => { pageVisible = true; });
     tick().then(updateIndicator);
@@ -80,31 +93,42 @@
 
   <div class="am-body">
     {#if modelsTab === 'docs'}
-      <div class="am-grid">
+      <div class="am-doc-grid">
         {#each DOC_MODELS as doc}
-          <button class="am-pill" on:click={() => selectDocModel(doc)}>
-            <span class="am-pill-icon-wrap">
-              <span class="am-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
-            </span>
-            <span class="am-pill-label">{doc.label}</span>
+          <button class="am-doc-card" on:click={() => selectDocModel(doc)}>
+            <div class="am-doc-sheet">
+              <span class="am-doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
+              <span class="am-doc-line am-doc-line-1"></span>
+              <span class="am-doc-line am-doc-line-2"></span>
+              <span class="am-doc-line am-doc-line-3"></span>
+              <span class="am-doc-line am-doc-line-4"></span>
+            </div>
+            <span class="am-doc-label">{doc.label}</span>
           </button>
         {/each}
       </div>
     {:else if modelsTab === 'images'}
-      <div class="am-grid">
-        {#each IMAGE_MODELS as img}
-          <button class="am-pill am-pill-thumb" on:click={() => selectImageModel(img)}>
-            <img src={img.thumb} alt={img.label} class="am-pill-thumb-img" loading="lazy" />
-            <span class="am-pill-label">{img.label}</span>
-          </button>
+      <div class="am-masonry">
+        {#each imageColumns as column, colIndex}
+          <div class="am-masonry-col">
+            {#each column as img}
+              <button class="am-img-card" on:click={() => selectImageModel(img)}>
+                <img src={img.thumb} alt={img.label} class="am-img-card-photo" loading="lazy" />
+                <span class="am-img-card-overlay"></span>
+                <span class="am-img-card-label">{img.label}</span>
+              </button>
+            {/each}
+          </div>
         {/each}
       </div>
     {:else}
-      <div class="am-grid">
+      <div class="am-apps-grid">
         {#each platformApps as app}
-          <button class="am-pill" on:click={() => openApp(app)}>
-            <img src={app.icon} alt={app.label} class="am-pill-app-icon" />
-            <span class="am-pill-label">{app.label}</span>
+          <button class="am-app-item" on:click={() => openApp(app)}>
+            <span class="am-app-icon-wrap">
+              <img src={app.icon} alt={app.label} class="am-app-icon-img" />
+            </span>
+            <span class="am-app-label">{app.label}</span>
           </button>
         {/each}
       </div>
@@ -194,52 +218,170 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
+    padding: 4px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
     -webkit-overflow-scrolling: touch;
   }
 
-  .am-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 9px;
-    align-content: flex-start;
+  /* ===================== APPS: grid tipo home screen ===================== */
+  .am-apps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px 8px;
+    padding-top: 6px;
   }
-
-  .am-pill {
-    display: inline-flex;
+  .am-app-item {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    width: fit-content;
-    max-width: 100%;
-    padding: 9px 16px 9px 10px;
-    border-radius: 999px;
-    background: var(--surface-apps-tab);
-    border: 1px solid var(--border-soft);
+    gap: 7px;
+    border: none;
+    background: transparent;
+    padding: 0;
     cursor: pointer;
     font: inherit;
     color: var(--drawer-text);
-    white-space: nowrap;
-    transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .am-pill:active {
-    transform: scale(0.95);
-    background: var(--row-active);
-  }
-
-  .am-pill-icon-wrap {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: var(--btn-bg);
+  .am-app-icon-wrap {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    background: var(--surface-apps-tab);
+    border: 1px solid var(--border-soft);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    overflow: hidden;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
+    box-shadow: 0 1px 3px var(--drawer-shadow);
   }
-  .am-icon-mask {
-    width: 15px;
-    height: 15px;
+  .am-app-item:active .am-app-icon-wrap {
+    transform: scale(0.9);
+    background: var(--row-active);
+  }
+  .am-app-icon-img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
     display: block;
+  }
+  .am-app-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.25;
+    max-width: 68px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ===================== IMAGENS: staggered grid, 2 colunas ===================== */
+  .am-masonry {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .am-masonry-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .am-img-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--surface-apps-tab);
+    box-shadow: 0 2px 10px var(--drawer-shadow);
+    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .am-masonry-col:first-child .am-img-card:nth-child(3n+1) { aspect-ratio: 3 / 4; }
+  .am-masonry-col:first-child .am-img-card:nth-child(3n+2) { aspect-ratio: 1 / 1; }
+  .am-masonry-col:first-child .am-img-card:nth-child(3n+3) { aspect-ratio: 4 / 5; }
+  .am-masonry-col:last-child .am-img-card:nth-child(3n+1) { aspect-ratio: 1 / 1; }
+  .am-masonry-col:last-child .am-img-card:nth-child(3n+2) { aspect-ratio: 4 / 5; }
+  .am-masonry-col:last-child .am-img-card:nth-child(3n+3) { aspect-ratio: 3 / 4; }
+
+  .am-img-card:active {
+    transform: scale(0.96);
+  }
+  .am-img-card-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .am-img-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+  }
+  .am-img-card-label {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fff;
+    text-align: left;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ===================== DOCUMENTOS: folha A4, bordas retas ===================== */
+  .am-doc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px 10px;
+    padding-top: 6px;
+  }
+  .am-doc-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    color: var(--drawer-text);
+  }
+  .am-doc-sheet {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1.4142; /* proporção A4 */
+    background: var(--surface-apps-tab);
+    border: 1px solid var(--border-soft);
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14% 12%;
+    box-shadow: 0 1px 4px var(--drawer-shadow);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
+  }
+  .am-doc-card:active .am-doc-sheet {
+    transform: scale(0.94);
+    background: var(--row-active);
+  }
+  .am-doc-icon-mask {
+    width: 26%;
+    aspect-ratio: 1 / 1;
     background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
@@ -247,35 +389,33 @@
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
+    margin-bottom: 4%;
+    flex-shrink: 0;
   }
+  .am-doc-line {
+    display: block;
+    width: 74%;
+    height: 6%;
+    border-radius: 0;
+    background: var(--border-soft);
+    flex-shrink: 0;
+  }
+  .am-doc-line-2 { width: 60%; }
+  .am-doc-line-4 { width: 45%; }
 
-  .am-pill-label {
-    font-size: 13.5px;
+  .am-doc-label {
+    font-size: 11.5px;
     font-weight: 600;
+    text-align: center;
+    line-height: 1.25;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
-  .am-pill-thumb {
-    padding: 5px 16px 5px 5px;
-  }
-  .am-pill-thumb-img {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-    border: 1px solid var(--border-faint);
-  }
-
-  .am-pill-app-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 7px;
-    object-fit: contain;
-    flex-shrink: 0;
-  }
-
+  /* ===================== TAB BAR ===================== */
   .am-tabs {
     position: absolute;
     left: 14px;
@@ -285,6 +425,7 @@
     display: flex;
     gap: 6px;
     background: var(--hdr-seg-bg);
+    border: 1px solid var(--border-soft);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     padding: 4px;
@@ -298,6 +439,7 @@
     left: 0;
     border-radius: 999px;
     background: var(--app-bg);
+    border: 1px solid var(--border-soft);
     box-shadow: 0 2px 8px var(--drawer-shadow);
     transition: transform .32s cubic-bezier(0.34,1.2,0.4,1), width .32s cubic-bezier(0.34,1.2,0.4,1), opacity .2s ease;
     will-change: transform, width;

@@ -14,7 +14,6 @@
   import BottomBar from './components/BottomBar.svelte';
   import ExtrasPopup from './components/ExtrasPopup.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
-  import FloatingPixels from './components/FloatingPixels.svelte';
 
   let user = null;
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
@@ -579,7 +578,6 @@
 
 <div class="root">
   <div class="bg-layer"></div>
-  <FloatingPixels />
 
   <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
 

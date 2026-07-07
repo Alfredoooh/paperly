@@ -1,17 +1,16 @@
-<!-- src/home/apps-modelos/AppsModelos.svelte -->
 <script>
   import { onMount } from 'svelte';
-  import { ALL_APPS } from '$shared/plans.js';
   import { MODELS_TABS, DOC_MODELS, IMAGE_MODELS } from './lib/constants.js';
 
-  const platformApps = ALL_APPS.filter(a => a.id !== 'home');
+  export let onBack = () => {};
+  export let platformApps = [];
 
   let modelsTab = 'docs';
   let pageVisible = false;
 
   function goBack() {
     pageVisible = false;
-    setTimeout(() => { window.location.href = '/home'; }, 200);
+    setTimeout(() => { onBack(); }, 200);
   }
 
   function goToAIWithPrompt(promptText) {
@@ -19,7 +18,7 @@
       sessionStorage.setItem('nexa_pending_message', promptText);
       sessionStorage.removeItem('nexa_pending_attachments');
     } catch (e) {}
-    const ai = ALL_APPS.find(x => x.id === 'ai');
+    const ai = platformApps.find(x => x.id === 'ai');
     window.location.href = ai ? ai.path : '/ai';
   }
 

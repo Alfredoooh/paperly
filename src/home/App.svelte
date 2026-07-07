@@ -14,6 +14,8 @@
   import BottomBar from './components/BottomBar.svelte';
   import ExtrasPopup from './components/ExtrasPopup.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
+  import FloatingPixels from './components/FloatingPixels.svelte';
+  import AppsModelos from './apps-modelos/AppsModelos.svelte';
 
   let user = null;
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
@@ -21,6 +23,15 @@
   $: avatarColor = getAvatarColor(userName);
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
+
+  let currentView = 'home'; // 'home' | 'apps-modelos'
+
+  function goToAppsModelos() {
+    currentView = 'apps-modelos';
+  }
+  function backToHome() {
+    currentView = 'home';
+  }
 
   let themeValue = 'dark';
   let isDark = true;
@@ -119,7 +130,7 @@
   }
 
   function openAppsPage() {
-    window.location.href = '/home/apps-modelos';
+    goToAppsModelos();
   }
 
   function openApp(app) {
@@ -576,8 +587,12 @@
   $: if (lottieFinished && shouldPlayLottie && heroDisplayText === '' && !heroTimer) runTypewriter();
 </script>
 
+{#if currentView === 'apps-modelos'}
+  <AppsModelos onBack={backToHome} {platformApps} />
+{:else}
 <div class="root">
   <div class="bg-layer"></div>
+  <FloatingPixels />
 
   <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
 
@@ -684,6 +699,7 @@
   onToggleAppsHidden={toggleAppsHidden}
   onLogout={logout}
 />
+{/if}
 
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }

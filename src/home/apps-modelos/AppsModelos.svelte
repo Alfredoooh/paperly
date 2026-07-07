@@ -101,8 +101,8 @@
     position: fixed;
     inset: 0;
     z-index: 999;
-    background: #0F0F0F;
-    color: rgba(255,255,255,0.92);
+    background: var(--app-bg);
+    color: var(--drawer-text);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
     display: flex;
     flex-direction: column;
@@ -130,7 +130,7 @@
     height: 36px;
     border: none;
     border-radius: 50%;
-    background: rgba(255,255,255,0.08);
+    background: var(--btn-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -139,13 +139,13 @@
   }
   .am-back:active {
     transform: scale(0.92);
-    background: rgba(255,255,255,0.14);
+    background: var(--btn-bg-active);
   }
   .am-back-icon {
     width: 11px;
     height: 11px;
-    border-left: 2px solid rgba(255,255,255,0.85);
-    border-bottom: 2px solid rgba(255,255,255,0.85);
+    border-left: 2px solid var(--icon-strong);
+    border-bottom: 2px solid var(--icon-strong);
     transform: rotate(45deg);
     margin-left: 2px;
   }
@@ -162,7 +162,7 @@
   .am-tabs {
     display: flex;
     gap: 6px;
-    background: rgba(255,255,255,0.08);
+    background: var(--hdr-seg-bg);
     padding: 4px;
     border-radius: 14px;
     margin: 4px 14px 14px;
@@ -177,7 +177,7 @@
     font: inherit;
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255,255,255,0.38);
+    color: var(--text-faint);
     cursor: pointer;
     transition: background .22s cubic-bezier(0.16,1,0.3,1), color .22s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
@@ -185,9 +185,9 @@
     transform: scale(0.96);
   }
   .am-tab-active {
-    background: #0F0F0F;
-    color: rgba(255,255,255,0.92);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    background: var(--app-bg);
+    color: var(--drawer-text);
+    box-shadow: 0 2px 8px var(--drawer-shadow);
   }
 
   .am-body {
@@ -213,24 +213,24 @@
     max-width: 100%;
     padding: 9px 16px 9px 10px;
     border-radius: 999px;
-    background: #171717;
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--surface-apps-tab);
+    border: 1px solid var(--border-soft);
     cursor: pointer;
     font: inherit;
-    color: rgba(255,255,255,0.92);
+    color: var(--drawer-text);
     white-space: nowrap;
     transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
   .am-pill:active {
     transform: scale(0.95);
-    background: rgba(255,255,255,0.07);
+    background: var(--row-active);
   }
 
   .am-pill-icon-wrap {
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.10);
+    background: var(--btn-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -240,7 +240,7 @@
     width: 15px;
     height: 15px;
     display: block;
-    background: rgba(255,255,255,0.88);
+    background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
@@ -265,7 +265,7 @@
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.09);
+    border: 1px solid var(--border-faint);
   }
 
   .am-pill-app-icon {

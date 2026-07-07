@@ -1,4 +1,4 @@
-<!-- src/home/apps-modelos/ModelosApps.svelte -->
+<!-- src/home/apps-modelos/AppsModelos.svelte -->
 <script>
   import { onMount } from 'svelte';
   import { ALL_APPS } from '$shared/plans.js';
@@ -97,8 +97,6 @@
 </div>
 
 <style>
-  /* CSS 100% isolado desta rota — sem :global(), sem variáveis herdadas do tema pai. */
-
   .am-root {
     position: fixed;
     inset: 0;

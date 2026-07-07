@@ -1,4 +1,4 @@
-// src/routes/home/apps-modelos/lib/constants.js
+// src/home/apps-modelos/lib/constants.js
 
 export const MODELS_TABS = [
   { id: 'docs', label: 'Documentos' },

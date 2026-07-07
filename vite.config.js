@@ -7,7 +7,7 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
   { dir: 'auth', route: 'auth', nested: ['login', 'register'] },
-  { dir: 'home', route: 'home', nested: [] },
+  { dir: 'home', route: 'home', nested: ['apps-modelos'] },
   { dir: 'ai', route: 'ai', nested: ['settings', 'widgets'] },
   { dir: 'music', route: 'music', nested: ['settings'] },
   { dir: 'games', route: 'games', nested: ['settings'] },
@@ -34,7 +34,7 @@ export default defineConfig({
             mkdirSync(resolve(dist, route), { recursive: true });
             cpSync(src, dest);
             console.log(`✓ dist/${route}/index.html`);
-
+            
             for (const sub of nested || []) {
               const subDir = resolve(dist, route, sub);
               const subDest = resolve(subDir, 'index.html');

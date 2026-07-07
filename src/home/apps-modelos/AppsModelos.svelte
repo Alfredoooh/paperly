@@ -15,6 +15,66 @@
   let indicatorWidth = 0;
   let indicatorReady = false;
 
+  let bodyEl;
+  let bodyInnerEl;
+
+  // ---- Elastic / rubber-band scroll (efeito de overscroll nativo) ----
+  let touchStartY = 0;
+  let pullOriginY = null;
+  let isPulling = false;
+
+  function dampen(delta) {
+    const sign = delta < 0 ? -1 : 1;
+    const abs = Math.abs(delta);
+    return sign * (abs * 0.6) / (1 + abs / 110);
+  }
+
+  function resetPull(animate = true) {
+    isPulling = false;
+    pullOriginY = null;
+    if (bodyInnerEl) {
+      bodyInnerEl.style.transition = animate
+        ? 'transform .48s cubic-bezier(0.16,1.35,0.3,1)'
+        : 'none';
+      bodyInnerEl.style.transform = 'translateY(0px)';
+    }
+  }
+
+  function onTouchStart(e) {
+    touchStartY = e.touches[0].clientY;
+  }
+
+  function onTouchMove(e) {
+    if (!bodyEl || !bodyInnerEl) return;
+    const y = e.touches[0].clientY;
+    const scrollTop = bodyEl.scrollTop;
+    const maxScroll = bodyEl.scrollHeight - bodyEl.clientHeight;
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollTop >= maxScroll - 1;
+    const draggingDown = y - touchStartY > 0;
+    const draggingUp = y - touchStartY < 0;
+
+    if ((atTop && draggingDown) || (atBottom && draggingUp)) {
+      if (!isPulling) {
+        isPulling = true;
+        pullOriginY = y;
+        bodyInnerEl.style.transition = 'none';
+      }
+      const rawDelta = y - pullOriginY;
+      const validDelta = atTop ? Math.max(rawDelta, 0) : Math.min(rawDelta, 0);
+      const pull = dampen(validDelta);
+      bodyInnerEl.style.transform = `translateY(${pull}px)`;
+      if (Math.abs(pull) > 0.5) e.preventDefault();
+    } else if (isPulling) {
+      resetPull(false);
+    }
+  }
+
+  function onTouchEnd() {
+    if (isPulling) resetPull(true);
+  }
+  // ---- fim elastic scroll ----
+
   function goBack() {
     pageVisible = false;
     setTimeout(() => { onBack(); }, 200);
@@ -76,63 +136,73 @@
     return () => window.removeEventListener('resize', updateIndicator);
   });
 
-  $: if (modelsTab) tick().then(updateIndicator);
+  $: if (modelsTab) {
+    tick().then(updateIndicator);
+    resetPull(false);
+  }
 </script>
 
 <div class="am-root" class:am-in={pageVisible}>
   <div class="am-header">
     <button class="am-back" on:click={goBack} aria-label="Voltar">
-      <svg class="am-back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5"/>
-        <path d="M12 19l-7-7 7-7"/>
-      </svg>
+      <span
+        class="am-back-icon"
+        style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg')"
+      ></span>
     </button>
     <span class="am-title">Modelos &amp; Apps</span>
     <span class="am-header-spacer"></span>
   </div>
 
-  <div class="am-body">
-    {#if modelsTab === 'docs'}
-      <div class="am-doc-grid">
-        {#each DOC_MODELS as doc}
-          <button class="am-doc-card" on:click={() => selectDocModel(doc)}>
-            <div class="am-doc-sheet">
-              <span class="am-doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
-              <span class="am-doc-line am-doc-line-1"></span>
-              <span class="am-doc-line am-doc-line-2"></span>
-              <span class="am-doc-line am-doc-line-3"></span>
-              <span class="am-doc-line am-doc-line-4"></span>
+  <div
+    class="am-body"
+    bind:this={bodyEl}
+    on:touchstart={onTouchStart}
+    on:touchmove|nonpassive={onTouchMove}
+    on:touchend={onTouchEnd}
+    on:touchcancel={onTouchEnd}
+  >
+    <div class="am-body-inner" bind:this={bodyInnerEl}>
+      {#if modelsTab === 'docs'}
+        <div class="am-doc-grid">
+          {#each DOC_MODELS as doc}
+            <button class="am-doc-card" on:click={() => selectDocModel(doc)}>
+              <div class="am-doc-sheet">
+                <span class="am-doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
+                <span class="am-doc-line am-doc-line-1"></span>
+                <span class="am-doc-line am-doc-line-2"></span>
+                <span class="am-doc-line am-doc-line-3"></span>
+                <span class="am-doc-line am-doc-line-4"></span>
+              </div>
+              <span class="am-doc-label">{doc.label}</span>
+            </button>
+          {/each}
+        </div>
+      {:else if modelsTab === 'images'}
+        <div class="am-masonry">
+          {#each imageColumns as column, colIndex}
+            <div class="am-masonry-col">
+              {#each column as img}
+                <button class="am-img-card" on:click={() => selectImageModel(img)}>
+                  <img src={img.thumb} alt={img.label} class="am-img-card-photo" loading="lazy" />
+                  <span class="am-img-card-overlay"></span>
+                  <span class="am-img-card-label">{img.label}</span>
+                </button>
+              {/each}
             </div>
-            <span class="am-doc-label">{doc.label}</span>
-          </button>
-        {/each}
-      </div>
-    {:else if modelsTab === 'images'}
-      <div class="am-masonry">
-        {#each imageColumns as column, colIndex}
-          <div class="am-masonry-col">
-            {#each column as img}
-              <button class="am-img-card" on:click={() => selectImageModel(img)}>
-                <img src={img.thumb} alt={img.label} class="am-img-card-photo" loading="lazy" />
-                <span class="am-img-card-overlay"></span>
-                <span class="am-img-card-label">{img.label}</span>
-              </button>
-            {/each}
-          </div>
-        {/each}
-      </div>
-    {:else}
-      <div class="am-apps-grid">
-        {#each platformApps as app}
-          <button class="am-app-item" on:click={() => openApp(app)}>
-            <span class="am-app-icon-wrap">
+          {/each}
+        </div>
+      {:else}
+        <div class="am-apps-grid">
+          {#each platformApps as app}
+            <button class="am-app-item" on:click={() => openApp(app)}>
               <img src={app.icon} alt={app.label} class="am-app-icon-img" />
-            </span>
-            <span class="am-app-label">{app.label}</span>
-          </button>
-        {/each}
-      </div>
-    {/if}
+              <span class="am-app-label">{app.label}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
   </div>
 
   <div class="am-tabs" bind:this={tabsWrapEl}>
@@ -201,8 +271,14 @@
   .am-back-icon {
     width: 19px;
     height: 19px;
-    color: var(--icon-strong);
+    background: var(--icon-strong);
     display: block;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
   }
   .am-title {
     flex: 1;
@@ -220,9 +296,15 @@
     overflow-y: auto;
     padding: 4px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  .am-body-inner {
+    width: 100%;
+    will-change: transform;
   }
 
-  /* ===================== APPS: grid tipo home screen ===================== */
+  /* ===================== APPS: grid tipo home screen, sem container ===================== */
   .am-apps-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -241,28 +323,15 @@
     font: inherit;
     color: var(--drawer-text);
   }
-  .am-app-icon-wrap {
-    width: 58px;
-    height: 58px;
-    border-radius: 16px;
-    background: var(--surface-apps-tab);
-    border: 1px solid var(--border-soft);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
-    box-shadow: 0 1px 3px var(--drawer-shadow);
-  }
-  .am-app-item:active .am-app-icon-wrap {
-    transform: scale(0.9);
-    background: var(--row-active);
-  }
   .am-app-icon-img {
-    width: 34px;
-    height: 34px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
     display: block;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .am-app-item:active .am-app-icon-img {
+    transform: scale(0.88);
   }
   .am-app-label {
     font-size: 11.5px;

@@ -12,6 +12,7 @@
   const router = createRouter(BASE, VALID_ROUTES, 'chat');
 
   let route = 'chat';
+  let resourceId = null;
   let user = null;
   let isDark = false;
   let chatMounted = false;
@@ -25,17 +26,19 @@
     isDark = t === 'dark';
     syncTheme(isDark);
 
-    const { route: initialRoute, notFound } = router.parseCurrentRoute();
+    const { route: initialRoute, resourceId: initialResourceId, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
     route = initialRoute;
-    router.navigate(route, { replace: true });
+    resourceId = initialResourceId;
+    if (!resourceId) router.navigate(route, { replace: true });
 
     chatMounted = true;
     ready = true;
 
-    const unbind = router.bindPopState((r, nf) => {
+    const unbind = router.bindPopState((r, nf, rid) => {
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
+      resourceId = rid;
     });
 
     window.addEventListener('beforeunload', () =>
@@ -52,6 +55,7 @@
 
   function goChat() {
     route = 'chat';
+    resourceId = null;
     router.navigate('chat');
   }
 
@@ -65,8 +69,14 @@
     }
     if (to === 'home') { window.location.href = '/home/'; return; }
     if (to === 'chat' || to === 'ai') { goChat(); return; }
-    if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
-    if (to === 'widgets') { route = 'widgets'; router.navigate('widgets'); return; }
+    if (to === 'settings') { route = 'settings'; resourceId = null; router.navigate('settings'); return; }
+    if (to === 'widgets') { route = 'widgets'; resourceId = null; router.navigate('widgets'); return; }
+    if (to === 'resource' && data?.id) {
+      route = 'chat';
+      resourceId = data.id;
+      router.navigateToResource(data.id);
+      return;
+    }
     route = to;
     router.navigate(to);
   }
@@ -75,7 +85,7 @@
 {#if ready}
   {#if chatMounted}
     <div style="display:{route === 'chat' ? 'contents' : 'none'}">
-      <ChatPage {isDark} {user} on:nav={handleNav} />
+      <ChatPage {isDark} {user} {resourceId} on:nav={handleNav} />
     </div>
   {/if}
   {#if route === 'settings'}

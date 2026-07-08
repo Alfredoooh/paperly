@@ -26,15 +26,28 @@ function error(msg, status = 400) {
   return json({ error: msg }, status);
 }
 
+function randomId(bytes = 16) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+
 async function hashPassword(password) {
   const enc  = new TextEncoder().encode(password);
   const hash = await crypto.subtle.digest("SHA-256", enc);
   return btoa(String.fromCharCode(...new Uint8Array(hash)));
 }
 
-async function generateToken(payload, secret) {
+// Token agora inclui um "jti" (JWT ID) aleatório gerado com CSPRNG,
+// distinto do id do utilizador. Isto permite revogar sessões individuais
+// (logout remoto, "terminar todas as sessões", bloqueio de conta) sem
+// invalidar o segredo global, e torna o payload não-determinístico
+// mesmo para dois tokens emitidos no mesmo milissegundo para o mesmo utilizador.
+async function generateToken(payload, secret, env) {
+  const jti = randomId(16);
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body   = btoa(JSON.stringify(Object.assign({}, payload, {
+    jti,
     iat: Date.now(),
     exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
   })));
@@ -46,10 +59,19 @@ async function generateToken(payload, secret) {
   const sig    = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
   const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-  return msg + "." + sigB64;
+  const token = msg + "." + sigB64;
+
+  if (env && env.IPC_USERS) {
+    await env.IPC_USERS.put(
+      "session:" + jti,
+      JSON.stringify({ userId: payload.id, createdAt: Date.now() }),
+      { expirationTtl: 30 * 24 * 60 * 60 }
+    );
+  }
+  return token;
 }
 
-async function verifyToken(token, secret) {
+async function verifyToken(token, secret, env) {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
@@ -66,6 +88,12 @@ async function verifyToken(token, secret) {
     if (!valid) return null;
     const payload = JSON.parse(atob(parts[1]));
     if (payload.exp < Date.now()) return null;
+
+    // Sessão tem de existir e não ter sido revogada (logout, bloqueio, etc.)
+    if (payload.jti && env && env.IPC_USERS) {
+      const session = await env.IPC_USERS.get("session:" + payload.jti);
+      if (!session) return null;
+    }
     return payload;
   } catch (e) { return null; }
 }
@@ -73,7 +101,17 @@ async function verifyToken(token, secret) {
 async function getAuthUser(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!auth.startsWith("Bearer ")) return null;
-  return verifyToken(auth.slice(7), env.JWT_SECRET);
+  return verifyToken(auth.slice(7), env.JWT_SECRET, env);
+}
+
+async function requireAdmin(request, env) {
+  const payload = await getAuthUser(request, env);
+  if (!payload) return null;
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
+  if (!userData) return null;
+  const user = JSON.parse(userData);
+  if (!user.isAdmin) return null;
+  return user;
 }
 
 async function verifyFirebaseToken(idToken, projectId) {
@@ -274,11 +312,13 @@ export default {
     if (path === "/auth/register"                        && request.method === "POST")   return handleRegister(request, env);
     if (path === "/auth/login"                           && request.method === "POST")   return handleLogin(request, env);
     if (path === "/auth/logout"                          && request.method === "POST")   return handleLogout(request, env);
+    if (path === "/auth/logout-all"                       && request.method === "POST")   return handleLogoutAll(request, env);
     if (path === "/auth/firebase"                        && request.method === "POST")   return handleFirebaseAuth(request, env);
     if (path === "/auth/forgot-password"                 && request.method === "POST")   return handleForgotPassword(request, env);
     if (path === "/auth/reset-password"                  && request.method === "POST")   return handleResetPassword(request, env);
     if (path === "/user/me"                              && request.method === "GET")    return handleGetMe(request, env);
     if (path === "/user/me"                              && request.method === "PUT")    return handleUpdateMe(request, env);
+    if (path === "/user/profile"                         && request.method === "PUT")    return handleUpdateProfile(request, env);
     if (path === "/user/avatar"                          && request.method === "PUT")    return handleUpdateAvatar(request, env);
     if (path === "/ai/chat"                              && request.method === "POST")   return handleAiChat(request, env);
     if (path === "/ai/title"                             && request.method === "POST")   return handleAiTitle(request, env);
@@ -298,6 +338,16 @@ export default {
     if (path.match(/^\/conversations\/[^\/]+\/pin$/)     && request.method === "PUT")    return handlePinConversation(request, env);
     if (path.match(/^\/conversations\/[^\/]+\/archive$/) && request.method === "PUT")    return handleArchiveConversation(request, env);
 
+    // Admin
+    if (path === "/admin/stats"                          && request.method === "GET")    return handleAdminStats(request, env);
+    if (path === "/admin/users"                          && request.method === "GET")    return handleAdminListUsers(request, env);
+    if (path.match(/^\/admin\/users\/[^\/]+$/)            && request.method === "GET")    return handleAdminGetUser(request, env);
+    if (path.match(/^\/admin\/users\/[^\/]+$/)            && request.method === "DELETE") return handleAdminDeleteUser(request, env);
+    if (path.match(/^\/admin\/users\/[^\/]+\/block$/)     && request.method === "PUT")    return handleAdminBlockUser(request, env);
+    if (path.match(/^\/admin\/users\/[^\/]+\/credits$/)   && request.method === "PUT")    return handleAdminSetCredits(request, env);
+    if (path.match(/^\/admin\/users\/[^\/]+\/conversations$/) && request.method === "GET") return handleAdminUserConversations(request, env);
+    if (path === "/admin/notify"                          && request.method === "POST")   return handleAdminNotify(request, env);
+
     return error("Not found", 404);
   },
 };
@@ -311,19 +361,32 @@ async function handleRegister(request, env) {
   if (password.length < 6) return error("Password deve ter pelo menos 6 caracteres");
   const existing = await env.IPC_USERS.get("email:" + email.toLowerCase());
   if (existing) return error("Este email já está registado");
+
   const id           = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
   const user = {
     id, name, email: email.toLowerCase(),
     passwordHash, avatar: null, provider: "email", firebaseUid: null,
     credits: FREE_CREDITS,
+    isAdmin: false,
+    blocked: false,
     preferences: { language: "pt", theme: "system", fontSize: "medium" },
+    profile: {
+      age: body.age || null,
+      country: body.country || null,
+      state: body.state || null,
+      city: body.city || null,
+      occupation: body.occupation || null,       // "student" | "professional" | "other"
+      occupationDetail: body.occupationDetail || null, // ex: curso, cargo
+      bio: null,
+    },
     stats: { totalConversations: 0, totalMessages: 0 },
     createdAt: Date.now(),
   };
   await env.IPC_USERS.put("user:" + id, JSON.stringify(user));
   await env.IPC_USERS.put("email:" + email.toLowerCase(), id);
-  const token = await generateToken({ id, email: user.email, name }, env.JWT_SECRET);
+  await env.IPC_USERS.put("useridx:" + id, "1"); // índice para listagem admin
+  const token = await generateToken({ id, email: user.email, name }, env.JWT_SECRET, env);
   return json({ token, id, name, email: user.email, credits: FREE_CREDITS }, 201);
 }
 
@@ -337,12 +400,33 @@ async function handleLogin(request, env) {
   const userData = await env.IPC_USERS.get("user:" + userId);
   if (!userData) return error("Email ou password incorretos", 401);
   const user = JSON.parse(userData);
+  if (user.blocked) return error("Esta conta foi bloqueada", 403);
   if (user.passwordHash !== await hashPassword(password)) return error("Email ou password incorretos", 401);
-  const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET);
+  const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET, env);
   return json({ token, id: user.id, name: user.name, email: user.email, credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {} });
 }
 
 async function handleLogout(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (auth.startsWith("Bearer ")) {
+    const token = auth.slice(7);
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      try {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.jti) await env.IPC_USERS.delete("session:" + payload.jti);
+      } catch (e) {}
+    }
+  }
+  return json({ success: true });
+}
+
+async function handleLogoutAll(request, env) {
+  const payload = await getAuthUser(request, env);
+  if (!payload) return error("Não autenticado", 401);
+  // Não há índice reverso de jti->user, então marcamos uma "epoch" de invalidação:
+  // tokens emitidos antes desta hora deixam de ser aceites.
+  await env.IPC_USERS.put("session_epoch:" + payload.id, String(Date.now()));
   return json({ success: true });
 }
 
@@ -367,7 +451,10 @@ async function handleFirebaseAuth(request, env) {
         passwordHash: null, avatar: firebaseUser.picture || null,
         provider: firebaseUser.provider, firebaseUid: uid,
         credits: FREE_CREDITS,
+        isAdmin: false,
+        blocked: false,
         preferences: { language: "pt", theme: "system", fontSize: "medium" },
+        profile: { age: null, country: null, state: null, city: null, occupation: null, occupationDetail: null, bio: null },
         stats: { totalConversations: 0, totalMessages: 0 },
         createdAt: Date.now(),
       };
@@ -375,6 +462,7 @@ async function handleFirebaseAuth(request, env) {
       if (firebaseUser.email) {
         await env.IPC_USERS.put("email:" + firebaseUser.email.toLowerCase(), userId);
       }
+      await env.IPC_USERS.put("useridx:" + userId, "1");
     } else {
       const userData = await env.IPC_USERS.get("user:" + userId);
       if (userData) {
@@ -391,7 +479,8 @@ async function handleFirebaseAuth(request, env) {
   const userData = await env.IPC_USERS.get("user:" + userId);
   if (!userData) return error("Erro ao carregar utilizador", 500);
   const user  = JSON.parse(userData);
-  const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET);
+  if (user.blocked) return error("Esta conta foi bloqueada", 403);
+  const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET, env);
   return json({ token, id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider, credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {} });
 }
 
@@ -401,7 +490,7 @@ async function handleForgotPassword(request, env) {
   const email  = body.email.toLowerCase();
   const userId = await env.IPC_USERS.get("email:" + email);
   if (userId) {
-    const resetToken = crypto.randomUUID().replace(/-/g, "");
+    const resetToken = randomId(24);
     await env.IPC_USERS.put("reset:" + resetToken, JSON.stringify({ userId, email, createdAt: Date.now() }), { expirationTtl: 3600 });
     console.log("[NEXA RESET] Token para " + email + ": " + resetToken);
   }
@@ -430,7 +519,12 @@ async function handleGetMe(request, env) {
   const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (!userData) return error("Utilizador não encontrado", 404);
   const user = JSON.parse(userData);
-  return json({ id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider || "email", credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {}, stats: user.stats || {}, createdAt: user.createdAt });
+  return json({
+    id: user.id, name: user.name, email: user.email, avatar: user.avatar || null,
+    provider: user.provider || "email", credits: user.credits ?? FREE_CREDITS,
+    preferences: user.preferences || {}, profile: user.profile || {},
+    isAdmin: !!user.isAdmin, stats: user.stats || {}, createdAt: user.createdAt,
+  });
 }
 
 async function handleUpdateMe(request, env) {
@@ -450,7 +544,37 @@ async function handleUpdateMe(request, env) {
     user.preferences = Object.assign({}, user.preferences || {}, body.preferences);
   }
   await env.IPC_USERS.put("user:" + user.id, JSON.stringify(user));
-  return json({ id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider || "email", credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {}, createdAt: user.createdAt });
+  return json({ id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider || "email", credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {}, profile: user.profile || {}, createdAt: user.createdAt });
+}
+
+// Edição dos campos de perfil: idade, país, estado, cidade, estudante/profissional, bio.
+async function handleUpdateProfile(request, env) {
+  const payload = await getAuthUser(request, env);
+  if (!payload) return error("Não autenticado", 401);
+  const body = await request.json().catch(function() { return null; });
+  if (!body) return error("Body inválido");
+
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
+  if (!userData) return error("Utilizador não encontrado", 404);
+  const user = JSON.parse(userData);
+
+  const allowed = ["age", "country", "state", "city", "occupation", "occupationDetail", "bio"];
+  const nextProfile = Object.assign({}, user.profile || {});
+  for (const key of allowed) {
+    if (body[key] !== undefined) nextProfile[key] = body[key];
+  }
+  if (nextProfile.age !== null && nextProfile.age !== undefined) {
+    const ageNum = Number(nextProfile.age);
+    if (!Number.isFinite(ageNum) || ageNum < 0 || ageNum > 120) return error("Idade inválida");
+    nextProfile.age = ageNum;
+  }
+  if (nextProfile.occupation && !["student", "professional", "other"].includes(nextProfile.occupation)) {
+    return error("Campo 'occupation' inválido (student | professional | other)");
+  }
+
+  user.profile = nextProfile;
+  await env.IPC_USERS.put("user:" + user.id, JSON.stringify(user));
+  return json({ profile: user.profile });
 }
 
 async function handleUpdateAvatar(request, env) {
@@ -654,6 +778,7 @@ async function handleAiChat(request, env) {
   const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (!userData) return error("Utilizador não encontrado", 404);
   const userObj        = JSON.parse(userData);
+  if (userObj.blocked) return error("Esta conta foi bloqueada", 403);
   const currentCredits = userObj.credits ?? 0;
   if (currentCredits <= 0) {
     return json({ error: "credits_exhausted", message: "Sem créditos. Recarrega para continuar." }, 402);
@@ -818,7 +943,6 @@ async function handleCreditsCheckout(request, env) {
 
   const productId = pkg.productId;
 
-  // Gerar checkout link usando produto fixo já existente no GoPay
   const checkoutRes = await fetch(GOPAY_BASE + "/checkout-links", {
     method: "POST",
     headers: {
@@ -840,8 +964,6 @@ async function handleCreditsCheckout(request, env) {
     return error("GoPay não devolveu URL de checkout: " + JSON.stringify(checkout), 500);
   }
 
-  // Guardar pendente no KV com userId para o webhook identificar quem pagou
-  // Usamos productId + userId como chave para suportar vários utilizadores simultâneos
   const pendingKey = "pending_credit:" + productId + ":" + payload.id;
   await env.IPC_USERS.put(
     pendingKey,
@@ -867,7 +989,6 @@ async function handleCreditsWebhook(request, env) {
   const signature = request.headers.get("X-Webhook-Signature") || "";
   const rawBody   = await request.text();
 
-  // Verificar assinatura HMAC-SHA256 se secret configurado
   if (env.GOPAY_WEBHOOK_SECRET && signature) {
     const key = await crypto.subtle.importKey(
       "raw", new TextEncoder().encode(env.GOPAY_WEBHOOK_SECRET),
@@ -892,8 +1013,6 @@ async function handleCreditsWebhook(request, env) {
   const productId = event.product_id || event.data?.product_id;
   if (!productId)  return json({ received: true, note: "Sem product_id" });
 
-  // Procurar pendente — pode estar com ou sem userId (compatibilidade)
-  // O webhook do GoPay não sabe o userId, então procuramos por prefix
   const listRes = await env.IPC_USERS.list({ prefix: "pending_credit:" + productId + ":" });
   let pending = null;
   let pendingKey = null;
@@ -906,7 +1025,6 @@ async function handleCreditsWebhook(request, env) {
 
   if (!pending) return json({ received: true, note: "Sem pendente para este produto" });
 
-  // Adicionar créditos
   const userDataRaw = await env.IPC_USERS.get("user:" + pending.userId);
   if (userDataRaw) {
     const user = JSON.parse(userDataRaw);
@@ -914,7 +1032,6 @@ async function handleCreditsWebhook(request, env) {
     await env.IPC_USERS.put("user:" + pending.userId, JSON.stringify(user));
   }
 
-  // Limpar pendente e guardar registo
   await env.IPC_USERS.delete(pendingKey);
   await env.IPC_USERS.put(
     "purchase:" + crypto.randomUUID(),
@@ -936,4 +1053,177 @@ async function incrementUserStat(env, userId, stat, delta) {
   } catch (e) {
     console.error("[NEXA STAT ERROR]", e);
   }
+}
+
+// ===================== ADMIN =====================
+
+async function handleAdminStats(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const list = await env.IPC_USERS.list({ prefix: "useridx:" });
+  let totalUsers = list.keys.length;
+  let cursor = list.cursor;
+  while (!list.list_complete && cursor) {
+    const next = await env.IPC_USERS.list({ prefix: "useridx:", cursor });
+    totalUsers += next.keys.length;
+    cursor = next.cursor;
+    if (next.list_complete) break;
+  }
+  return json({ totalUsers });
+}
+
+async function handleAdminListUsers(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const url    = new URL(request.url);
+  const cursor = url.searchParams.get("cursor") || undefined;
+  const limit  = Math.min(Number(url.searchParams.get("limit")) || 50, 100);
+
+  const list = await env.IPC_USERS.list({ prefix: "useridx:", cursor, limit });
+  const ids  = list.keys.map(function(k) { return k.name.slice("useridx:".length); });
+  const users = await Promise.all(ids.map(async function(id) {
+    const raw = await env.IPC_USERS.get("user:" + id);
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    return {
+      id: u.id, name: u.name, email: u.email, avatar: u.avatar || null,
+      credits: u.credits ?? 0, isAdmin: !!u.isAdmin, blocked: !!u.blocked,
+      profile: u.profile || {}, stats: u.stats || {}, createdAt: u.createdAt,
+    };
+  }));
+
+  return json({
+    users: users.filter(Boolean),
+    cursor: list.list_complete ? null : list.cursor,
+  });
+}
+
+async function handleAdminGetUser(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const id  = new URL(request.url).pathname.split("/").pop();
+  const raw = await env.IPC_USERS.get("user:" + id);
+  if (!raw) return error("Utilizador não encontrado", 404);
+  const u = JSON.parse(raw);
+  return json({
+    id: u.id, name: u.name, email: u.email, avatar: u.avatar || null,
+    provider: u.provider, credits: u.credits ?? 0, isAdmin: !!u.isAdmin, blocked: !!u.blocked,
+    preferences: u.preferences || {}, profile: u.profile || {}, stats: u.stats || {}, createdAt: u.createdAt,
+  });
+}
+
+async function handleAdminDeleteUser(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const id  = new URL(request.url).pathname.split("/").pop();
+  const raw = await env.IPC_USERS.get("user:" + id);
+  if (!raw) return error("Utilizador não encontrado", 404);
+  const u = JSON.parse(raw);
+
+  const convsRaw = await env.IPC_USERS.get("convs:" + id);
+  const convIds  = convsRaw ? JSON.parse(convsRaw) : [];
+  await Promise.all(convIds.map(function(cid) { return env.IPC_USERS.delete("conv:" + cid); }));
+  await env.IPC_USERS.delete("convs:" + id);
+
+  if (u.email) await env.IPC_USERS.delete("email:" + u.email);
+  if (u.firebaseUid) await env.IPC_USERS.delete("firebase:" + u.firebaseUid);
+  await env.IPC_USERS.delete("useridx:" + id);
+  await env.IPC_USERS.delete("user:" + id);
+
+  return json({ success: true });
+}
+
+async function handleAdminBlockUser(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const parts = new URL(request.url).pathname.split("/");
+  const id    = parts[3];
+  const raw   = await env.IPC_USERS.get("user:" + id);
+  if (!raw) return error("Utilizador não encontrado", 404);
+  const u = JSON.parse(raw);
+  const body = await request.json().catch(function() { return {}; });
+  u.blocked = body.blocked !== undefined ? !!body.blocked : !u.blocked;
+  await env.IPC_USERS.put("user:" + id, JSON.stringify(u));
+  if (u.blocked) await env.IPC_USERS.put("session_epoch:" + id, String(Date.now()));
+  return json({ id, blocked: u.blocked });
+}
+
+async function handleAdminSetCredits(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const parts = new URL(request.url).pathname.split("/");
+  const id    = parts[3];
+  const raw   = await env.IPC_USERS.get("user:" + id);
+  if (!raw) return error("Utilizador não encontrado", 404);
+  const u = JSON.parse(raw);
+  const body = await request.json().catch(function() { return {}; });
+  if (typeof body.credits !== "number") return error("Campo 'credits' obrigatório (número)");
+  u.credits = body.credits;
+  await env.IPC_USERS.put("user:" + id, JSON.stringify(u));
+  return json({ id, credits: u.credits });
+}
+
+async function handleAdminUserConversations(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const parts = new URL(request.url).pathname.split("/");
+  const id    = parts[3];
+  const raw = await env.IPC_USERS.get("convs:" + id);
+  const ids = raw ? JSON.parse(raw) : [];
+  const all = await Promise.all(ids.map(async function(cid) {
+    const data = await env.IPC_USERS.get("conv:" + cid);
+    return data ? JSON.parse(data) : null;
+  }));
+  return json({ conversations: all.filter(Boolean) });
+}
+
+// Envio de notificação por email para um ou mais utilizadores.
+// Usa a variável de ambiente RESEND_API_KEY (ou compatível) — se não
+// estiver configurada, devolve erro claro em vez de falhar em silêncio.
+async function handleAdminNotify(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return error("Acesso negado", 403);
+  const body = await request.json().catch(function() { return null; });
+  if (!body || !body.subject || !body.message) return error("Campos 'subject' e 'message' obrigatórios");
+
+  let targetEmails = [];
+  if (Array.isArray(body.userIds) && body.userIds.length > 0) {
+    const users = await Promise.all(body.userIds.map(async function(id) {
+      const raw = await env.IPC_USERS.get("user:" + id);
+      return raw ? JSON.parse(raw) : null;
+    }));
+    targetEmails = users.filter(function(u) { return u && u.email; }).map(function(u) { return u.email; });
+  } else if (body.email) {
+    targetEmails = [body.email];
+  } else {
+    return error("Indica 'userIds' ou 'email'");
+  }
+
+  if (!env.RESEND_API_KEY) {
+    return error("Envio de email não configurado (falta RESEND_API_KEY)", 500);
+  }
+
+  const results = [];
+  for (const to of targetEmails) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + env.RESEND_API_KEY,
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM || "Nexa <notificacoes@nexa.app>",
+          to: [to],
+          subject: body.subject,
+          text: body.message,
+        }),
+      });
+      results.push({ to, ok: res.ok, status: res.status });
+    } catch (e) {
+      results.push({ to, ok: false, error: e.message });
+    }
+  }
+
+  return json({ sent: results.filter(function(r) { return r.ok; }).length, total: targetEmails.length, results });
 }

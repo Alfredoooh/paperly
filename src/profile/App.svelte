@@ -6,15 +6,14 @@
   import MainPage from './pages/MainPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
 
-  const APP_ID = 'forms';
-  const APP_TITLE = 'Nexa Forms';
-  const APP_ICON = '/icons/svg/forms.svg';
-  const BASE = '/forms/';
+  const APP_ID = 'profile';
+  const APP_TITLE = 'Perfil';
+  const APP_ICON = '/icons/svg/user.svg';
+  const BASE = '/profile/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 
   let route = 'main';
-  let resourceId = null;
   let user = null;
   let isDark = false;
   let ready = false;
@@ -27,17 +26,15 @@
     isDark = t === 'dark';
     syncTheme(isDark);
 
-    const { route: initialRoute, resourceId: initialResourceId, notFound } = router.parseCurrentRoute();
+    const { route: initialRoute, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
     route = initialRoute;
-    resourceId = initialResourceId;
-    if (!resourceId) router.navigate(route, { replace: true });
+    router.navigate(route, { replace: true });
     ready = true;
 
-    const unbind = router.bindPopState((r, nf, rid) => {
+    const unbind = router.bindPopState((r, nf) => {
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
-      resourceId = rid;
     });
 
     return unbind;
@@ -56,20 +53,22 @@
       return;
     }
     if (to === 'home') { window.location.href = '/home/'; return; }
-    if (to === 'settings') { route = 'settings'; resourceId = null; router.navigate('settings'); return; }
-    if (to === 'main' || to === APP_ID) { route = 'main'; resourceId = null; router.navigate('main'); return; }
-    if (to === 'resource' && data?.id) {
-      route = 'main';
-      resourceId = data.id;
-      router.navigateToResource(data.id);
-      return;
-    }
+    if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
+    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); return; }
+  }
+
+  function handleUserUpdate(e) {
+    const updated = e.detail || {};
+    const stored = JSON.parse(localStorage.getItem('nexa_user') || 'null') || {};
+    const merged = Object.assign({}, stored, updated);
+    localStorage.setItem('nexa_user', JSON.stringify(merged));
+    user = merged;
   }
 </script>
 
 {#if ready}
   {#if route === 'main'}
-    <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
+    <MainPage {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} on:userUpdate={handleUserUpdate} />
   {:else if route === 'settings'}
     <SettingsPage {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
   {/if}

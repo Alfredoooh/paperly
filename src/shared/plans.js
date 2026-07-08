@@ -24,8 +24,15 @@ export const AVAILABLE_MODELS = [
   { id: 'gemini-2.5-pro',   name: 'Gemini 2.5 Pro',   description: 'Mais capaz para tarefas complexas' },
 ];
 
+export const OCCUPATION_OPTIONS = [
+  { id: 'student',       label: 'Estudante' },
+  { id: 'professional',  label: 'Profissional' },
+  { id: 'other',         label: 'Outro' },
+];
+
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/' },
+  { id: 'profile', label: 'Perfil', icon: '/icons/svg/user.svg', path: '/profile/' },
   { id: 'ai', label: 'IA', icon: '/icons/png/ia.png', path: '/ai/' },
   { id: 'profilelens', label: 'ProfileLens', icon: '/icons/png/profilelens.png', path: '/profilelens/' },
   { id: 'docs', label: 'Nexa Docs', icon: '/icons/png/docs.png', path: '/docs/' },

@@ -10,10 +10,10 @@ export const AuthApiService = {
     if (!res.ok) throw new Error(data.error || 'Erro ao iniciar sessão');
     return data;
   },
-  async register(name, email, password) {
+  async register(name, email, password, extra) {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify(Object.assign({ name, email, password }, extra || {}))
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao criar conta');
@@ -30,6 +30,12 @@ export const AuthApiService = {
   },
   async logout(token) {
     try { await fetch(`${API_BASE}/auth/logout`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); } catch (e) {}
+  },
+  async logoutAll(token) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/logout-all`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+      return res.ok;
+    } catch (e) { return false; }
   },
   async listConversations(token) {
     try {
@@ -84,6 +90,110 @@ export const CreditsApiService = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro checkout');
+    return data;
+  },
+};
+
+export const ProfileApiService = {
+  async getMe(token) {
+    const res = await fetch(`${API_BASE}/user/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao carregar perfil');
+    return data;
+  },
+  async updateAccount(token, { name, password, preferences }) {
+    const body = {};
+    if (name !== undefined) body.name = name;
+    if (password !== undefined) body.password = password;
+    if (preferences !== undefined) body.preferences = preferences;
+    const res = await fetch(`${API_BASE}/user/me`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao atualizar conta');
+    return data;
+  },
+  async updateProfile(token, profileFields) {
+    const res = await fetch(`${API_BASE}/user/profile`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(profileFields)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao atualizar perfil');
+    return data;
+  },
+  async updateAvatar(token, avatarBase64) {
+    const res = await fetch(`${API_BASE}/user/avatar`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ avatar: avatarBase64 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao atualizar avatar');
+    return data;
+  },
+};
+
+export const AdminApiService = {
+  async getStats(token) {
+    const res = await fetch(`${API_BASE}/admin/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao carregar estatísticas');
+    return data;
+  },
+  async listUsers(token, cursor) {
+    const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    const res = await fetch(`${API_BASE}/admin/users${qs}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao listar utilizadores');
+    return data;
+  },
+  async getUser(token, id) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao carregar utilizador');
+    return data;
+  },
+  async deleteUser(token, id) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao eliminar utilizador');
+    return data;
+  },
+  async setBlocked(token, id, blocked) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}/block`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ blocked })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao bloquear/desbloquear');
+    return data;
+  },
+  async setCredits(token, id, credits) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}/credits`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ credits })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao atualizar créditos');
+    return data;
+  },
+  async getUserConversations(token, id) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}/conversations`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao carregar conversas');
+    return data;
+  },
+  async notify(token, { userIds, email, subject, message }) {
+    const body = { subject, message };
+    if (userIds) body.userIds = userIds;
+    if (email) body.email = email;
+    const res = await fetch(`${API_BASE}/admin/notify`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao enviar notificação');
     return data;
   },
 };

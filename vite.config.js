@@ -8,6 +8,7 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 const apps = [
   { dir: 'home', route: 'home', nested: ['apps-modelos'] },
   { dir: 'auth', route: 'auth', nested: [] },
+  { dir: 'profile', route: 'profile', nested: ['settings'] },
   { dir: 'ai', route: 'ai', nested: ['settings'] },
   { dir: 'profilelens', route: 'profilelens', nested: ['settings'] },
   { dir: 'docs', route: 'docs', nested: ['settings'] },
@@ -90,6 +91,7 @@ export default defineConfig({
       input: {
         home: resolve(__dirname, 'src/home/index.html'),
         auth: resolve(__dirname, 'src/auth/index.html'),
+        profile: resolve(__dirname, 'src/profile/index.html'),
         ai: resolve(__dirname, 'src/ai/index.html'),
         profilelens: resolve(__dirname, 'src/profilelens/index.html'),
         docs: resolve(__dirname, 'src/docs/index.html'),

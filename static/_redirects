@@ -1,4 +1,5 @@
 /auth/* /auth/index.html 200
+/profile/* /profile/index.html 200
 /ai/* /ai/index.html 200
 /profilelens/* /profilelens/index.html 200
 /docs/* /docs/index.html 200

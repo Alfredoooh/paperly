@@ -59,4 +59,23 @@ export function syncTheme(isDark) {
   root.style.setProperty('--primary', colors.primary);
   body.style.background = colors.background;
   body.style.color = colors.textPrimary;
+  syncStatusBar(isDark, colors.background);
+}
+
+function syncStatusBar(isDark, bgColor) {
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute('content', bgColor);
+
+  let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (!appleMeta) {
+    appleMeta = document.createElement('meta');
+    appleMeta.name = 'apple-mobile-web-app-status-bar-style';
+    document.head.appendChild(appleMeta);
+  }
+  appleMeta.setAttribute('content', isDark ? 'black-translucent' : 'default');
 }

@@ -10,6 +10,7 @@
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
   export let userName = 'Utilizador';
+  export let showInstall = false;
   
   export let onClose;
   export let onToggleThemeExpanded;
@@ -17,6 +18,7 @@
   export let onApplyTheme;
   export let onToggleAppsHidden;
   export let onLogout;
+  export let onInstall;
 </script>
 
 {#if drawerOpen}
@@ -28,6 +30,13 @@
     </div>
     <div class="drawer-sep"></div>
     <nav class="drawer-nav">
+      {#if showInstall}
+        <button class="drawer-item pulse-tap" on:click={onInstall}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/download.svg');-webkit-mask-image:url('/icons/svg/download.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="drawer-item-label" style="flex:1">Instalar app</span>
+        </button>
+      {/if}
+
       <button class="drawer-item pulse-tap" on:click={onToggleThemeExpanded}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
         <span class="drawer-item-label" style="flex:1">Tema</span>

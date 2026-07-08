@@ -7,6 +7,7 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
   { dir: 'home', route: 'home', nested: ['apps-modelos'] },
+  { dir: 'auth', route: 'auth', nested: [] },
   { dir: 'ai', route: 'ai', nested: ['settings'] },
   { dir: 'profilelens', route: 'profilelens', nested: ['settings'] },
   { dir: 'docs', route: 'docs', nested: ['settings'] },
@@ -86,8 +87,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     rollupOptions: {
-        input: {
-          home: resolve(__dirname, 'src/home/index.html'),
+      input: {
+        home: resolve(__dirname, 'src/home/index.html'),
+        auth: resolve(__dirname, 'src/auth/index.html'),
         ai: resolve(__dirname, 'src/ai/index.html'),
         profilelens: resolve(__dirname, 'src/profilelens/index.html'),
         docs: resolve(__dirname, 'src/docs/index.html'),

@@ -5,6 +5,7 @@
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
   import { createRouter } from '$shared/router.js';
+  import { initPwaInstall, onPwaInstallAvailable, promptPwaInstall } from '$shared/pwa-install.js';
 
   import { HERO_PHRASE, getAvatarColor } from './lib/constants.js';
   import AppHeader from './components/AppHeader.svelte';
@@ -51,6 +52,8 @@
   let drawerVisible = false;
   let themeExpanded = false;
   let appsExpanded = false;
+  let showInstall = false;
+  let unsubscribeInstall;
 
   async function openDrawer() {
     if (drawerOpen) return;
@@ -81,6 +84,26 @@
   }
   function toggleAppsHidden() {
     // Preservado para compatibilidade visual, mas o tab de apps mostra a lista completa.
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(100px)';
+    }, 2200);
+  }
+
+  async function handleInstall() {
+    const result = await promptPwaInstall();
+    closeDrawer();
+    if (result.outcome === 'accepted') {
+      showToast('Nexa instalado!');
+    }
   }
 
   const POPUP_W = 230;
@@ -557,6 +580,11 @@
     requestAnimationFrame(() => { mounted = true; measureAppbar(); });
     window.addEventListener('resize', measureAppbar);
 
+    initPwaInstall();
+    unsubscribeInstall = onPwaInstallAvailable((available) => {
+      showInstall = available;
+    });
+
     const { route: initialRoute, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
     route = initialRoute;
@@ -589,6 +617,7 @@
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('resize', measureAppbar);
       unbindRouter?.();
+      unsubscribeInstall?.();
       clearTimeout(suggestDebounce);
       clearTimeout(heroTimer);
       clearTimeout(snapSettleTimer);
@@ -705,12 +734,14 @@
   {avatarColor}
   {userInitial}
   {userName}
+  {showInstall}
   onClose={closeDrawer}
   onToggleThemeExpanded={toggleThemeExpanded}
   onToggleAppsExpanded={toggleAppsExpanded}
   onApplyTheme={applyThemeFromDrawer}
   onToggleAppsHidden={toggleAppsHidden}
   onLogout={logout}
+  onInstall={handleInstall}
 />
 {/if}
 

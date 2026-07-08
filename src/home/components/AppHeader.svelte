@@ -97,7 +97,7 @@
     pointer-events: auto;          /* garante clique mesmo sobre flex items */
   }
 
-  /* Botão Atualizar — monocromático, bordas menos curvas */
+  /* Botão Atualizar — cores escuras/claras e curvatura reduzida */
   .upgrade-btn {
     display: flex;
     align-items: center;
@@ -105,15 +105,15 @@
     height: 34px;
     padding: 0 16px;
     border: none;
-    border-radius: 10px;           /* antes 17px → menos curvo */
+    border-radius: 9px;           /* 10px → 9px (redução de 10%) */
     font: inherit;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.1px;
 
-    /* cores preto/branco conforme tema */
-    background: light-dark(#000, #fff);
-    color: light-dark(#fff, #000);
+    /* Tema claro: fundo #2a2a2a, texto branco. Tema escuro: fundo #f5f5f5, texto #1a1a1a */
+    background: light-dark(#2a2a2a, #f5f5f5);
+    color: light-dark(#ffffff, #1a1a1a);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
 
     cursor: pointer;
@@ -125,14 +125,14 @@
                 opacity .16s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* Estados ativo/hover mantêm a identidade monocromática */
   .upgrade-btn:active {
-    background: light-dark(#333, #e0e0e0);
+    background: light-dark(#1e1e1e, #e0e0e0);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
   }
+
   @media (hover: hover) and (pointer: fine) {
     .upgrade-btn:hover {
-      background: light-dark(#1a1a1a, #f0f0f0);
+      background: light-dark(#3a3a3a, #ebebeb);
     }
     .hdr-seg:hover {
       background: var(--hdr-seg-active);

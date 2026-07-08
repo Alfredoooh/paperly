@@ -142,7 +142,6 @@
     }
     window.location.href = app.path;
   }
-  function goToPlans() { window.location.href = '/plans'; }
 
   let lottieEl;
   let lottieInstance;
@@ -370,6 +369,11 @@
   }
   function useSuggestion(s) {
     inputText = s;
+    setTimeout(navigateToAI, 10);
+  }
+
+  function useNexaChoice(choice) {
+    inputText = choice.prompt;
     setTimeout(navigateToAI, 10);
   }
 
@@ -607,7 +611,7 @@
 <div class="root">
   <div class="bg-layer"></div>
 
-  <AppHeader {mounted} bind:topPanelEl scrolled={bottomHideProgress} onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
+  <AppHeader {mounted} bind:topPanelEl scrolled={bottomHideProgress} onOpenDrawer={openDrawer} onSelectChoice={useNexaChoice} />
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
     <div class="scroll-page">
@@ -754,6 +758,9 @@
     --upgrade-bg: rgba(110,168,255,0.14);
     --upgrade-bg-active: rgba(110,168,255,0.24);
     --upgrade-shadow: rgba(110,168,255,0.16);
+    --send-icon-color: #111111;
+    --send-btn-bg: #ffffff;
+    --send-btn-bg-active: rgba(255,255,255,0.85);
     --logout-icon: #FF453A;
     --switch-off-bg: rgba(255,255,255,0.16);
     --switch-on-bg: #34C759;
@@ -792,6 +799,9 @@
     --upgrade-bg: rgba(47,111,224,0.10);
     --upgrade-bg-active: rgba(47,111,224,0.18);
     --upgrade-shadow: rgba(47,111,224,0.14);
+    --send-icon-color: #ffffff;
+    --send-btn-bg: #111111;
+    --send-btn-bg-active: rgba(17,17,17,0.85);
     --logout-icon: #E0342A;
     --switch-off-bg: rgba(0,0,0,0.14);
     --switch-on-bg: #34C759;

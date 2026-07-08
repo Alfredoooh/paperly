@@ -607,7 +607,7 @@
 <div class="root">
   <div class="bg-layer"></div>
 
-  <AppHeader {mounted} bind:topPanelEl onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
+  <AppHeader {mounted} bind:topPanelEl scrolled={bottomHideProgress} onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
     <div class="scroll-page">
@@ -724,6 +724,7 @@
   }
   :global([data-theme="dark"]) {
     --app-bg: #0F0F0F;
+    --header-glass-rgb: 15,15,15;
     --surface: #0F0F0F;
     --surface-strong: #0F0F0F;
     --surface-apps-tab: #171717;
@@ -750,6 +751,9 @@
     --toggle-border-act: rgba(255,255,255,0.32);
     --toggle-label: rgba(255,255,255,0.90);
     --upgrade-text: #6ea8ff;
+    --upgrade-bg: rgba(110,168,255,0.14);
+    --upgrade-bg-active: rgba(110,168,255,0.24);
+    --upgrade-shadow: rgba(110,168,255,0.16);
     --logout-icon: #FF453A;
     --switch-off-bg: rgba(255,255,255,0.16);
     --switch-on-bg: #34C759;
@@ -758,6 +762,7 @@
   }
   :global([data-theme="light"]) {
     --app-bg: #FFFFFF;
+    --header-glass-rgb: 255,255,255;
     --surface: #FFFFFF;
     --surface-strong: #FFFFFF;
     --surface-apps-tab: #FFFFFF;
@@ -784,6 +789,9 @@
     --toggle-border-act: rgba(0,0,0,0.24);
     --toggle-label: rgba(20,20,20,0.85);
     --upgrade-text: #2f6fe0;
+    --upgrade-bg: rgba(47,111,224,0.10);
+    --upgrade-bg-active: rgba(47,111,224,0.18);
+    --upgrade-shadow: rgba(47,111,224,0.14);
     --logout-icon: #E0342A;
     --switch-off-bg: rgba(0,0,0,0.14);
     --switch-on-bg: #34C759;

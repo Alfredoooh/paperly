@@ -2,8 +2,15 @@
 <script>
   export let mounted = false;
   export let topPanelEl;
+  export let scrolled = 0;
   export let onUpgrade;
   export let onOpenDrawer;
+
+  function buzz() {
+    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+  }
+  function handleUpgrade() { buzz(); onUpgrade?.(); }
+  function handleMenu() { buzz(); onOpenDrawer?.(); }
 </script>
 
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
@@ -11,15 +18,16 @@
     <div class="header-inner">
       <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
       <div class="flex1"></div>
-      <button class="upgrade-btn pulse-tap" on:click={onUpgrade}>Atualizar</button>
+      <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
       <div class="flex1"></div>
       <div class="header-right">
-        <button class="hdr-seg pulse-tap" on:click={onOpenDrawer}>
+        <button class="hdr-seg pulse-tap" on:click={handleMenu}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-strong)"></span>
         </button>
       </div>
     </div>
   </header>
+  <div class="header-elevate" style="opacity:{scrolled}"></div>
 </div>
 
 <style>
@@ -29,7 +37,9 @@
     z-index:15;
     display:flex;
     flex-direction:column;
-    background:var(--surface);
+    background:rgba(var(--header-glass-rgb), 0.74);
+    backdrop-filter:blur(20px) saturate(180%);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);
     border-bottom-left-radius:26px;
     border-bottom-right-radius:26px;
     padding-bottom:10px;
@@ -40,6 +50,15 @@
     contain: layout style paint;
   }
   .top-panel.in { opacity:1; transform:translateY(0) translateZ(0); pointer-events:auto; }
+  .header-elevate {
+    position:absolute;
+    left:0; right:0; bottom:-1px;
+    height:1px;
+    background:var(--border-soft);
+    box-shadow:0 8px 20px var(--drawer-shadow);
+    pointer-events:none;
+    transition:opacity .18s linear;
+  }
   .header {
     display:flex;
     align-items:center;
@@ -83,6 +102,12 @@
     .upgrade-btn:hover { background:var(--upgrade-bg-active); }
     .hdr-seg:hover { background:var(--hdr-seg-active); }
     .logo-mark:hover { transform:scale(1.05); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .top-panel, .logo-mark, .upgrade-btn, .hdr-seg, .header-elevate {
+      transition:none !important;
+    }
+    .logo-mark:hover { transform:none; }
   }
   .header-right {
     display:flex; align-items:center; height:34px; border-radius:17px;

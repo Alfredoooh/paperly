@@ -66,8 +66,8 @@
     </button>
     <div style="width:8px"></div>
     {#if inputText.trim() || pendingAttachments.length}
-      <button class="bb-btn bb-btn-send pulse-tap" on:click={onSend}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--send-icon-color)"></span>
+      <button class="bb-btn pulse-tap" on:click={onSend}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
       </button>
     {:else}
       <button class="bb-btn pulse-tap" on:click={onStartRecording}>
@@ -119,8 +119,6 @@
     transition:background .22s cubic-bezier(0.16,1,0.3,1), transform .22s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-btn:active { background:var(--btn-bg-active); transform:scale(0.86); }
-  .bb-btn-send { background:var(--send-btn-bg); border-color:var(--send-btn-bg); }
-  .bb-btn-send:active { background:var(--send-btn-bg-active); border-color:var(--send-btn-bg-active); }
   .bb-btn-badge-holder { position:relative; overflow:visible; }
   .bb-badge {
     position:absolute; top:-3px; right:-3px; min-width:16px; height:16px; padding:0 4px;

@@ -22,15 +22,6 @@ export const SUGGESTION_TOGGLES = [
   { id: 'pdf', label: 'Analisa um PDF', prompt: 'Analisa este PDF: ', icon: '/icons/svg/bw/pdf.svg' },
 ];
 
-// Opções do toggle "Escolha do Nexa" — cada opção envia a mensagem imediatamente ao ser selecionada.
-export const NEXA_CHOICES = [
-  { id: 'econ', label: 'Considerar teorias económicas', prompt: 'Explica e compara diferentes teorias económicas relevantes hoje em dia.' },
-  { id: 'art', label: 'Discutir interpretação artística', prompt: 'Vamos discutir diferentes formas de interpretar uma obra de arte.' },
-  { id: 'space', label: 'Discutir questões sobre exploração espacial', prompt: 'Quais são os principais desafios e oportunidades da exploração espacial atual?' },
-  { id: 'env', label: 'Considerar soluções ambientais', prompt: 'Sugere soluções inovadoras para problemas ambientais atuais.' },
-  { id: 'fiction', label: 'Criar um cenário fictício', prompt: 'Cria um cenário fictício interessante e original.' },
-];
-
 // Tabs do popup "Apps & Utilitários"
 export const MODELS_TABS = [
   { id: 'docs', label: 'Documentos' },

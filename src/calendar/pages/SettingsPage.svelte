@@ -2,19 +2,19 @@
   import { createEventDispatcher } from 'svelte';
   import { getThemeColors, getTheme } from '$shared/theme.js';
   import { logout } from '$shared/auth-guard.js';
-
+  
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Nexa Calendar';
-
+  
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
-
+  
   let themeValue = getTheme();
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userEmail = user?.email || '';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
-
+  
   function setThemeValue(v) {
     themeValue = v;
     localStorage.setItem('nexa_theme', v);
@@ -25,7 +25,7 @@
 
 <div class="settings-root" style="background:{c.background}">
   <div class="topbar">
-    <button class="back-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
+    <button class="back-btn" style="background:{c.appbarBtnBg}" on:click={()=> dispatch('nav', { to: 'main' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
     <span class="topbar-title" style="color:{c.textPrimary}">{appTitle} • Definições</span>
@@ -45,7 +45,7 @@
       {#each [['light','Claro'],['dark','Escuro'],['system','Sistema']] as [v, label], i}
         <button class="row" on:click={() => setThemeValue(v)}>
           <span class="row-label" style="color:{c.textPrimary}">{label}</span>
-          {#if themeValue === v}<span class="check">✓</span>{/if}
+          {#if themeValue === v}<span class="check" style="color:{c.primary}">✓</span>{/if}
         </button>
         {#if i < 2}<div class="divider" style="background:{c.divider}"></div>{/if}
       {/each}
@@ -76,7 +76,7 @@
   .row { width:100%; background:transparent; border:none; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; font-size:15px; cursor:pointer; }
   .row:active { opacity:.7; }
   .row.danger { color:#FF3B30; justify-content:flex-start; }
-  .check { color:#2F7BF6; font-weight:700; }
+  .check { font-weight:700; }
   .divider { height:1px; margin:0 16px; }
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

@@ -19,15 +19,20 @@
   export let onToggleAppsHidden;
   export let onLogout;
   export let onInstall;
+  
+  function goProfile() {
+    onClose();
+    window.location.href = '/profile/';
+  }
 </script>
 
 {#if drawerOpen}
   <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={onClose}></div>
   <div class="drawer" class:drawer-in={drawerVisible}>
-    <div class="drawer-avatar-block">
+    <button class="drawer-avatar-block pulse-tap" on:click={goProfile}>
       <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
       <span class="drawer-user-name">{userName}</span>
-    </div>
+    </button>
     <div class="drawer-sep"></div>
     <nav class="drawer-nav">
       {#if showInstall}
@@ -78,19 +83,17 @@
         </button>
       {/each}
     </nav>
-    <div style="flex:1"></div>
-    <div class="drawer-sep"></div>
     <button class="drawer-logout pulse-tap" on:click={() => { onClose(); onLogout(); }}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:19px;height:19px;background:var(--logout-icon)"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:var(--drawer-text)"></span>
       <span class="drawer-logout-label">Terminar sessão</span>
     </button>
-    <div style="height:max(env(safe-area-inset-bottom,0px),12px)"></div>
   </div>
 {/if}
 
 <style>
   .drawer-overlay {
-    position:fixed; inset:0; z-index:70; background:transparent; transition:background .32s cubic-bezier(0.16,1,0.3,1); will-change: background;
+    position:fixed; inset:0; z-index:70; background:var(--drawer-overlay);
+    opacity:0; transition:background .28s ease; contain: strict;
   }
   .drawer-overlay.drawer-overlay-in { background:var(--drawer-overlay-in); }
   .drawer {
@@ -105,7 +108,9 @@
   .drawer.drawer-in { transform:translate3d(0,0,0); opacity:1; }
   .drawer-avatar-block {
     display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 20px; flex-shrink:0;
+    background:transparent; border:none; width:100%; cursor:pointer; font-family:inherit;
   }
+  .drawer-avatar-block:active { opacity:.7; }
   .drawer-avatar {
     width:84px; height:84px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;

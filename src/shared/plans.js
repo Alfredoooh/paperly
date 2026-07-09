@@ -32,7 +32,6 @@ export const OCCUPATION_OPTIONS = [
 
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/' },
-  { id: 'profile', label: 'Perfil', icon: '/icons/svg/user.svg', path: '/profile/' },
   { id: 'ai', label: 'IA', icon: '/icons/png/ia.png', path: '/ai/' },
   { id: 'profilelens', label: 'ProfileLens', icon: '/icons/png/profilelens.png', path: '/profilelens/' },
   { id: 'docs', label: 'Nexa Docs', icon: '/icons/png/docs.png', path: '/docs/' },

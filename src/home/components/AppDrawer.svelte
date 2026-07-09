@@ -30,17 +30,7 @@
   }
 
   function handleItemClick(item) {
-    // Identifica o item de configurações de forma flexível
-    const label = (item.label || '').toLowerCase().replace(/\s+/g, '');
-    const isSettings =
-      label.includes('configuraç') ||  // "configurações", "configuraçōes", etc.
-      label.includes('settings') ||
-      (item.id && item.id.toLowerCase() === 'settings');
-
-    if (isSettings) {
-      // Redirecionamento direto, sem depender de ação externa
-      window.location.href = 'https://nexabase.onrender.com/profile/settings/';
-    } else if (item.url) {
+    if (item.url) {
       window.location.href = item.url;
     } else if (typeof item.action === 'function') {
       item.action();

@@ -16,12 +16,10 @@
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
   <header class="header">
     <div class="header-inner">
-      <!-- Botão Atualizar no lugar do logo (esquerda) -->
       <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
 
-      <!-- Logo centralizado absolutamente -->
       <div class="header-center">
-        <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
+        <img src="/icons/svg/logo.svg" alt="Nexa" class="logo-mark" />
       </div>
 
       <div class="header-right">
@@ -74,16 +72,15 @@
     padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-top, 0px) + 4px);
   }
   .header-inner {
-    position: relative;            /* para o centro absoluto */
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: flex-start;  /* itens à esquerda */
+    justify-content: flex-start;
     width: 100%;
     max-width: 640px;
     gap: 10px;
   }
 
-  /* Logo centralizado absolutamente */
   .header-center {
     position: absolute;
     left: 50%;
@@ -96,9 +93,20 @@
     display: block;
     flex-shrink: 0;
     transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Cor padrão (tema claro): logotipo preto */
+    filter: invert(0);
   }
 
-  /* Botão Atualizar – totalmente curvo (pílula) */
+  /* Tema escuro: logotipo branco */
+  @media (prefers-color-scheme: dark) {
+    .logo-mark {
+      filter: invert(1);
+    }
+  }
+
+  /* Caso seu app use uma classe global para tema escuro, adicione: */
+  /* :global(html.dark) .logo-mark { filter: invert(1); } */
+
   .upgrade-btn {
     display: flex;
     align-items: center;
@@ -106,13 +114,12 @@
     height: 34px;
     padding: 0 16px;
     border: none;
-    border-radius: 999px;          /* curvatura total */
+    border-radius: 999px;
     font: inherit;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.1px;
 
-    /* Tema claro: fundo #2a2a2a, texto branco; tema escuro: fundo #f5f5f5, texto #1a1a1a */
     background: light-dark(#2a2a2a, #f5f5f5);
     color: light-dark(#ffffff, #1a1a1a);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -161,7 +168,7 @@
     overflow: hidden;
     flex-shrink: 0;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-    margin-left: auto;             /* joga o menu para a direita */
+    margin-left: auto;
   }
   .hdr-seg {
     width: 36px;

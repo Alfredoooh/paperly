@@ -6,6 +6,11 @@
   export let onUpgrade;
   export let onOpenDrawer;
 
+  // Props para o avatar minificado (vindas do utilizador logado)
+  export let avatarUrl = '';
+  export let avatarColor = '#FF3B30';
+  export let userInitial = 'U';
+
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
@@ -16,15 +21,19 @@
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
   <header class="header">
     <div class="header-inner">
-      <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
+      <!-- Logo à esquerda (substituiu o botão Atualizar) -->
+      <img src="/icons/svg/logo.svg" alt="Nexa" class="logo-mark" />
 
-      <div class="header-center">
-        <img src="/icons/svg/logo.svg" alt="Nexa" class="logo-mark" />
-      </div>
+      <!-- Grupo direito: botão Atualizar + avatar minificado -->
+      <div class="header-actions">
+        <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
 
-      <div class="header-right">
-        <button class="hdr-seg pulse-tap" on:click={handleMenu}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:19px;height:19px;background:var(--icon-strong)"></span>
+        <button class="profile-btn pulse-tap" on:click={handleMenu}>
+          {#if avatarUrl}
+            <img src={avatarUrl} alt="Perfil" class="profile-img" />
+          {:else}
+            <span class="profile-initial">{userInitial}</span>
+          {/if}
         </button>
       </div>
     </div>
@@ -72,39 +81,41 @@
     padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-top, 0px) + 4px);
   }
   .header-inner {
-    position: relative;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     width: 100%;
     max-width: 640px;
-    gap: 10px;
   }
 
-  .header-center {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    pointer-events: auto;
-  }
+  /* Logo */
   .logo-mark {
-    height: 30px;                /* aumentado de 24px para 30px */
+    height: 30px;
     width: auto;
     display: block;
     flex-shrink: 0;
     transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
     filter: invert(0);
   }
-
   @media (prefers-color-scheme: dark) {
     .logo-mark {
       filter: invert(1);
     }
   }
+  @media (min-width: 720px) {
+    .logo-mark {
+      height: 34px;
+    }
+  }
 
-  /* Caso seu app use uma classe global para tema escuro, adicione: */
-  /* :global(html.dark) .logo-mark { filter: invert(1); } */
+  /* Grupo de ações à direita */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;           /* espaço considerável entre os botões */
+  }
 
+  /* Botão Atualizar (mantido com estilo nativo) */
   .upgrade-btn {
     display: flex;
     align-items: center;
@@ -117,11 +128,9 @@
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.1px;
-
     background: light-dark(#2a2a2a, #f5f5f5);
     color: light-dark(#ffffff, #1a1a1a);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
-
     cursor: pointer;
     flex-shrink: 0;
     white-space: nowrap;
@@ -130,18 +139,51 @@
                 transform .16s cubic-bezier(0.34, 1.56, 0.64, 1),
                 opacity .16s cubic-bezier(0.16, 1, 0.3, 1);
   }
-
   .upgrade-btn:active {
     background: light-dark(#1e1e1e, #e0e0e0);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Botão de perfil minificado (avatar) */
+  .profile-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: light-dark(#2a2a2a, #f5f5f5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: background .22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform .16s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .profile-btn:active {
+    background: light-dark(#1e1e1e, #e0e0e0);
+    transform: scale(0.9);
+  }
+  .profile-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .profile-initial {
+    font-size: 15px;
+    font-weight: 700;
+    color: light-dark(#ffffff, #1a1a1a);
   }
 
   @media (hover: hover) and (pointer: fine) {
     .upgrade-btn:hover {
       background: light-dark(#3a3a3a, #ebebeb);
     }
-    .hdr-seg:hover {
-      background: var(--hdr-seg-active);
+    .profile-btn:hover {
+      background: light-dark(#3a3a3a, #ebebeb);
     }
     .logo-mark:hover {
       transform: scale(1.05);
@@ -149,7 +191,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .top-panel, .logo-mark, .upgrade-btn, .hdr-seg, .header-elevate {
+    .top-panel, .logo-mark, .upgrade-btn, .profile-btn, .header-elevate {
       transition: none !important;
     }
     .logo-mark:hover {
@@ -157,32 +199,7 @@
     }
   }
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    height: 34px;
-    border-radius: 17px;
-    background: var(--hdr-seg-bg);
-    overflow: hidden;
-    flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-    margin-left: auto;
-  }
-  .hdr-seg {
-    width: 36px;
-    height: 34px;
-    border: none;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background .22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .hdr-seg:active {
-    background: var(--hdr-seg-active);
-  }
-
+  /* A partir de 720px, ajusta o max-width */
   @media (min-width: 720px) {
     .top-panel {
       border-bottom-left-radius: 0;
@@ -190,9 +207,6 @@
     }
     .header-inner {
       max-width: 760px;
-    }
-    .logo-mark {
-      height: 34px;              /* aumentado de 26px para 34px em telas maiores */
     }
   }
 
@@ -204,16 +218,5 @@
   .pulse-tap:active {
     transform: scale(0.96);
     opacity: .80;
-  }
-
-  .icon-mask {
-    display: block;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
-    flex-shrink: 0;
   }
 </style>

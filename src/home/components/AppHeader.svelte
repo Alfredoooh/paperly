@@ -88,16 +88,14 @@
     pointer-events: auto;
   }
   .logo-mark {
-    height: 24px;
+    height: 30px;                /* aumentado de 24px para 30px */
     width: auto;
     display: block;
     flex-shrink: 0;
     transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
-    /* Cor padrão (tema claro): logotipo preto */
     filter: invert(0);
   }
 
-  /* Tema escuro: logotipo branco */
   @media (prefers-color-scheme: dark) {
     .logo-mark {
       filter: invert(1);
@@ -194,7 +192,7 @@
       max-width: 760px;
     }
     .logo-mark {
-      height: 26px;
+      height: 34px;              /* aumentado de 26px para 34px em telas maiores */
     }
   }
 

@@ -5,24 +5,47 @@
   export let drawerOpen = false;
   export let drawerVisible = false;
   export let themeExpanded = false;
-  export let appsExpanded = false;
   export let themeValue = 'dark';
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
   export let userName = 'Utilizador';
+  export let avatarUrl = ''; // nova prop: URL da imagem de perfil
   export let showInstall = false;
   
   export let onClose;
   export let onToggleThemeExpanded;
-  export let onToggleAppsExpanded;
   export let onApplyTheme;
-  export let onToggleAppsHidden;
   export let onLogout;
   export let onInstall;
+  
+  // Diálogo de logout
+  let showLogoutDialog = false;
   
   function goProfile() {
     onClose();
     window.location.href = '/profile/';
+  }
+  
+  function confirmLogout() {
+    showLogoutDialog = false;
+    onClose();
+    onLogout();
+  }
+  
+  function cancelLogout() {
+    showLogoutDialog = false;
+  }
+  
+  function handleItemClick(item) {
+    // Se for o item de configurações, redireciona para a URL fixa
+    if (item.label === 'Configurações' || item.label === 'Settings' || item.id === 'settings') {
+      window.location.href = 'https://nexabase.onrender.com/profile/settings/';
+    } else if (item.url) {
+      window.location.href = item.url;
+    } else {
+      item.action();
+    }
+    onClose();
   }
 </script>
 
@@ -30,7 +53,11 @@
   <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={onClose}></div>
   <div class="drawer" class:drawer-in={drawerVisible}>
     <button class="drawer-avatar-block pulse-tap" on:click={goProfile}>
-      <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
+      {#if avatarUrl}
+        <img src={avatarUrl} alt="Avatar" class="drawer-avatar-img" />
+      {:else}
+        <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
+      {/if}
       <span class="drawer-user-name">{userName}</span>
     </button>
     <div class="drawer-sep"></div>
@@ -42,6 +69,7 @@
         </button>
       {/if}
 
+      <!-- Tema (mantido) -->
       <button class="drawer-item pulse-tap" on:click={onToggleThemeExpanded}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
         <span class="drawer-item-label" style="flex:1">Tema</span>
@@ -60,37 +88,35 @@
         </div>
       </div>
 
-      <button class="drawer-item pulse-tap" on:click={onToggleAppsExpanded}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Apps</span>
-        <span class="icon-mask drawer-chevron" class:drawer-chevron-open={appsExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
-      </button>
-      <div class="theme-accordion" class:theme-accordion-open={appsExpanded}>
-        <div class="theme-accordion-inner">
-          <div class="apps-switch-row">
-            <span class="apps-switch-label">Ocultar apps</span>
-            <button class="switch-track pulse-tap" class:switch-on={false} role="switch" aria-checked={false} on:click={onToggleAppsHidden}>
-              <span class="switch-thumb"></span>
-            </button>
-          </div>
-        </div>
-      </div>
-
+      <!-- Itens do drawer (comportamento condicional para Settings) -->
       {#each DRAWER_ITEMS as item}
-        <button class="drawer-item pulse-tap" on:click={() => { item.action(); onClose(); }}>
+        <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label">{item.label}</span>
         </button>
       {/each}
     </nav>
-    <button class="drawer-logout pulse-tap" on:click={() => { onClose(); onLogout(); }}>
+    <button class="drawer-logout pulse-tap" on:click={() => showLogoutDialog = true}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:var(--drawer-text)"></span>
       <span class="drawer-logout-label">Terminar sessão</span>
     </button>
   </div>
 {/if}
 
+<!-- Diálogo de confirmação de logout -->
+{#if showLogoutDialog}
+  <div class="logout-overlay" on:click={cancelLogout}></div>
+  <div class="logout-dialog">
+    <p class="logout-dialog-text">Tem a certeza que deseja terminar sessão?</p>
+    <div class="logout-dialog-actions">
+      <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
+      <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Sair</button>
+    </div>
+  </div>
+{/if}
+
 <style>
+  /* Estilos originais mantidos */
   .drawer-overlay {
     position:fixed; inset:0; z-index:70; background:var(--drawer-overlay);
     opacity:0; transition:background .28s ease; contain: strict;
@@ -115,6 +141,9 @@
     width:84px; height:84px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     font-size:32px; font-weight:700; color:#fff;
+  }
+  .drawer-avatar-img {
+    width:84px; height:84px; border-radius:50%; object-fit:cover; flex-shrink:0;
   }
   .drawer-user-name {
     font-size:16px; font-weight:700; color:var(--drawer-text); text-align:center;
@@ -144,20 +173,7 @@
   }
   .theme-opt:active { background:var(--drawer-row-active); }
   .theme-opt-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
-  .apps-switch-row {
-    display:flex; align-items:center; justify-content:space-between; width:100%; padding:11px 14px 11px 52px;
-  }
-  .apps-switch-label { font-size:14px; color:var(--drawer-text-faint); flex:1; }
-  .switch-track {
-    position:relative; width:46px; height:27px; border-radius:999px; border:none; background:var(--switch-off-bg);
-    cursor:pointer; padding:0; flex-shrink:0; transition:background .24s cubic-bezier(0.16,1,0.3,1);
-  }
-  .switch-track.switch-on { background:var(--switch-on-bg); }
-  .switch-thumb {
-    position:absolute; top:2px; left:2px; width:23px; height:23px; border-radius:50%; background:var(--switch-thumb-bg);
-    box-shadow:0 1px 3px rgba(0,0,0,0.3); transition:transform .24s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .switch-thumb.switch-thumb-on { transform:translateX(19px); }
+
   .drawer-logout {
     display:flex; align-items:center; justify-content:center; gap:10px; margin:14px 14px 4px;
     padding:14px 16px; border-radius:999px; border:0.5px solid var(--border-soft); background:var(--btn-bg);
@@ -166,6 +182,37 @@
   }
   .drawer-logout:active { background:var(--btn-bg-active); transform:scale(0.96); }
   .drawer-logout-label { font-size:15px; font-weight:700; color:var(--logout-icon); }
+
+  /* Diálogo de logout */
+  .logout-overlay {
+    position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,0.5);
+  }
+  .logout-dialog {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--surface); border-radius: 14px; padding: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 81;
+    min-width: 280px; max-width: 90vw;
+  }
+  .logout-dialog-text {
+    font-size: 16px; color: var(--text-primary); margin: 0 0 20px;
+    text-align: center; font-family: inherit;
+  }
+  .logout-dialog-actions {
+    display: flex; gap: 12px; justify-content: center;
+  }
+  .logout-btn-cancel,
+  .logout-btn-confirm {
+    padding: 10px 20px; border-radius: 999px; border: none;
+    font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer;
+  }
+  .logout-btn-cancel {
+    background: var(--btn-bg); color: var(--text-primary);
+  }
+  .logout-btn-confirm {
+    background: #FF3B30; color: white;
+  }
+
   .icon-mask {
     display:block;
     mask-size:contain; -webkit-mask-size:contain;

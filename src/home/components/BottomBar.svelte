@@ -95,7 +95,7 @@
   .att-preview-file { width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--btn-bg); }
   .att-remove {
     position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%;
-    background: light-dark(#2a2a2a, #f5f5f5);
+    background: var(--btn-solid-bg);
     border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
@@ -115,16 +115,16 @@
     border-radius:50%;
     border: none;
     cursor:pointer;
-    background: light-dark(#2a2a2a, #f5f5f5);
+    background: var(--btn-solid-bg);
     flex-shrink:0;
     transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .22s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-btn:active {
-    background: light-dark(#1e1e1e, #e0e0e0);
+    background: var(--btn-solid-bg-active);
     transform:scale(0.9);
   }
   .bb-btn .icon-mask {
-    background: light-dark(#ffffff, #1a1a1a) !important;
+    background: var(--btn-solid-text) !important;
   }
 
   .bb-badge-holder { position:relative; overflow:visible; }
@@ -141,21 +141,21 @@
   .bb-pill {
     display:flex; align-items:center; gap:6px; height:40px; padding:0 14px; border-radius:999px;
     border: none;
-    background: light-dark(#2a2a2a, #f5f5f5);
+    background: var(--btn-solid-bg);
     cursor:pointer; flex-shrink:0;
     transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .22s cubic-bezier(0.34,1.56,0.64,1);
   }
   .bb-pill:active {
-    background: light-dark(#1e1e1e, #e0e0e0);
+    background: var(--btn-solid-bg-active);
     transform:scale(0.93);
   }
   .bb-pill-label {
     font-size:14px; font-weight:700;
-    color: light-dark(#ffffff, #1a1a1a);
+    color: var(--btn-solid-text);
     white-space:nowrap;
   }
   .bb-pill .icon-mask {
-    background: light-dark(#ffffff, #1a1a1a) !important;
+    background: var(--btn-solid-text) !important;
   }
 
   .icon-mask {

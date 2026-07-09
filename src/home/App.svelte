@@ -750,7 +750,7 @@
   :global(html), :global(body) {
     overflow: hidden;
     overscroll-behavior: none;
-    height: 100%;
+    height: 100%;""
     width: 100%;
   }
   :global([data-theme="dark"]) {
@@ -790,6 +790,9 @@
     --switch-on-bg: #34C759;
     --switch-thumb-bg: #ffffff;
     --divider-color: rgba(255,255,255,0.10);
+    --btn-solid-bg: #f5f5f5;
+    --btn-solid-bg-active: #e0e0e0;
+    --btn-solid-text: #1a1a1a;
   }
   :global([data-theme="light"]) {
     --app-bg: #FFFFFF;
@@ -828,6 +831,9 @@
     --switch-on-bg: #34C759;
     --switch-thumb-bg: #ffffff;
     --divider-color: rgba(0,0,0,0.08);
+    --btn-solid-bg: #2a2a2a;
+    --btn-solid-bg-active: #1e1e1e;
+    --btn-solid-text: #ffffff;
   }
 
   .root {

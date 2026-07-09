@@ -119,8 +119,8 @@
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.1px;
-    background: light-dark(#2a2a2a, #f5f5f5);
-    color: light-dark(#ffffff, #1a1a1a);
+    background: var(--btn-solid-bg);
+    color: var(--btn-solid-text);
     box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
     cursor: pointer;
     flex-shrink: 0;
@@ -128,7 +128,7 @@
     transition: background .22s cubic-bezier(0.16,1,0.3,1), box-shadow .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
   }
   .upgrade-btn:active {
-    background: light-dark(#1e1e1e, #e0e0e0);
+    background: var(--btn-solid-bg-active);
     box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
   }
 
@@ -138,7 +138,7 @@
     height: 34px;
     border-radius: 50%;
     border: none;
-    background: light-dark(#2a2a2a, #f5f5f5);
+    background: var(--btn-solid-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -150,7 +150,7 @@
     transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .profile-btn:active {
-    background: light-dark(#1e1e1e, #e0e0e0);
+    background: var(--btn-solid-bg-active);
     transform: scale(0.9);
   }
   .profile-img {
@@ -162,12 +162,12 @@
   .profile-initial {
     font-size: 15px;
     font-weight: 700;
-    color: light-dark(#ffffff, #1a1a1a);
+    color: var(--btn-solid-text);
   }
 
   @media (hover:hover) and (pointer:fine) {
-    .upgrade-btn:hover { background: light-dark(#3a3a3a, #ebebeb); }
-    .profile-btn:hover { background: light-dark(#3a3a3a, #ebebeb); }
+    .upgrade-btn:hover { background: var(--btn-solid-bg-active); }
+    .profile-btn:hover { background: var(--btn-solid-bg-active); }
     .logo-mark:hover { transform: scale(1.05); }
   }
 

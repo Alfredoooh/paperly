@@ -16,11 +16,12 @@
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
   <header class="header">
     <div class="header-inner">
-      <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
+      <!-- Botão Atualizar no lugar do logo (esquerda) -->
+      <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
 
-      <!-- Botão centralizado absolutamente -->
+      <!-- Logo centralizado absolutamente -->
       <div class="header-center">
-        <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
+        <img src="/icons/png/logo.png" alt="Nexa" class="logo-mark" />
       </div>
 
       <div class="header-right">
@@ -73,13 +74,21 @@
     padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-top, 0px) + 4px);
   }
   .header-inner {
-    position: relative;            /* âncora para o centro absoluto */
+    position: relative;            /* para o centro absoluto */
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;  /* itens à esquerda */
     width: 100%;
     max-width: 640px;
     gap: 10px;
+  }
+
+  /* Logo centralizado absolutamente */
+  .header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: auto;
   }
   .logo-mark {
     height: 24px;
@@ -89,15 +98,7 @@
     transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  /* Container central absoluto */
-  .header-center {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    pointer-events: auto;          /* garante clique mesmo sobre flex items */
-  }
-
-  /* Botão Atualizar — cores escuras/claras e curvatura reduzida */
+  /* Botão Atualizar – totalmente curvo (pílula) */
   .upgrade-btn {
     display: flex;
     align-items: center;
@@ -105,13 +106,13 @@
     height: 34px;
     padding: 0 16px;
     border: none;
-    border-radius: 9px;           /* 10px → 9px (redução de 10%) */
+    border-radius: 999px;          /* curvatura total */
     font: inherit;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.1px;
 
-    /* Tema claro: fundo #2a2a2a, texto branco. Tema escuro: fundo #f5f5f5, texto #1a1a1a */
+    /* Tema claro: fundo #2a2a2a, texto branco; tema escuro: fundo #f5f5f5, texto #1a1a1a */
     background: light-dark(#2a2a2a, #f5f5f5);
     color: light-dark(#ffffff, #1a1a1a);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -160,6 +161,7 @@
     overflow: hidden;
     flex-shrink: 0;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    margin-left: auto;             /* joga o menu para a direita */
   }
   .hdr-seg {
     width: 36px;
@@ -175,8 +177,6 @@
   .hdr-seg:active {
     background: var(--hdr-seg-active);
   }
-
-  /* removida a antiga .flex1 — não é mais necessária */
 
   @media (min-width: 720px) {
     .top-panel {

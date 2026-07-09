@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexa — Admin</title>
+  <link rel="icon" href="/icons/png/logo.png" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0b0b0d; color: #F2F2F2; }
+    a { color: inherit; }
+    button { font-family: inherit; cursor: pointer; }
+    input, select, textarea { font-family: inherit; }
+
+    #login-screen { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-card { width: 100%; max-width: 360px; background: #1a1a1c; border: 1px solid #2a2a2a; border-radius: 18px; padding: 28px 24px; }
+    .login-card h1 { font-size: 20px; margin-bottom: 4px; }
+    .login-card p { font-size: 13px; color: #939393; margin-bottom: 20px; }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field label { font-size: 12px; color: #939393; }
+    .field input { background: #232326; border: 1px solid #2f2f32; border-radius: 10px; padding: 11px 12px; color: #fff; font-size: 14px; }
+    .field input:focus { outline: 2px solid #2F7BF6; }
+    .btn-primary { width: 100%; background: #2F7BF6; border: none; border-radius: 12px; padding: 13px; color: #fff; font-size: 14px; font-weight: 700; margin-top: 6px; }
+    .btn-primary:disabled { opacity: .6; }
+    .error-msg { color: #FF6B6B; font-size: 13px; margin-top: 10px; min-height: 16px; }
+
+    #app-screen { display: none; min-height: 100dvh; }
+    .layout { display: flex; min-height: 100dvh; }
+    .sidebar { width: 220px; flex-shrink: 0; background: #131315; border-right: 1px solid #232326; padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; }
+    .sidebar h2 { font-size: 15px; padding: 0 10px 16px; }
+    .nav-btn { text-align: left; background: transparent; border: none; color: #c8c8c8; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+    .nav-btn.active { background: #232326; color: #fff; }
+    .nav-btn:hover { background: #1c1c1f; }
+    .sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid #232326; }
+    .logout-btn { width: 100%; text-align: left; background: transparent; border: none; color: #FF6B6B; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+
+    .main { flex: 1; padding: 28px 32px; overflow-y: auto; max-height: 100dvh; }
+    .main h1 { font-size: 22px; margin-bottom: 4px; }
+    .main .subtitle { font-size: 13px; color: #939393; margin-bottom: 24px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .stat-card { background: #1a1a1c; border: 1px solid #232326; border-radius: 16px; padding: 18px; }
+    .stat-card .label { font-size: 12px; color: #939393; margin-bottom: 6px; }
+    .stat-card .value { font-size: 26px; font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; background: #1a1a1c; border: 1px solid #232326; border-radius: 14px; overflow: hidden; }
+    thead { background: #1f1f22; }
+    th, td { text-align: left; padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #232326; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #1f1f22; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 700; }
+    .badge.blocked { background: #3a1414; color: #FF6B6B; }
+    .badge.active { background: #12331c; color: #4ADE80; }
+    .badge.admin { background: #1f2d4a; color: #A8C8FA; margin-left: 6px; }
+
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mini-btn { background: #232326; border: 1px solid #2f2f32; color: #fff; padding: 5px 10px; border-radius: 8px; font-size: 12px; }
+    .mini-btn:hover { background: #2b2b2f; }
+    .mini-btn.danger { color: #FF6B6B; }
+
+    .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .toolbar input[type="text"] { background: #1a1a1c; border: 1px solid #232326; border-radius: 10px; padding: 9px 12px; color: #fff; font-size: 13px; flex: 1; min-width: 200px; }
+    .toolbar .btn-secondary { background: #232326; border: 1px solid #2f2f32; color: #fff; padding: 9px 16px; border-radius: 10px; font-size: 13px; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; z-index: 999; padding: 20px; }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: 100%; max-width: 420px; background: #1a1a1c; border: 1px solid #2a2a2a; border-radius: 16px; padding: 22px; max-height: 85vh; overflow-y: auto; }
+    .modal h3 { font-size: 16px; margin-bottom: 16px; }
+    .modal .field textarea { background: #232326; border: 1px solid #2f2f32; border-radius: 10px; padding: 10px 12px; color: #fff; font-size: 14px; width: 100%; resize: vertical; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .modal-actions button { flex: 1; padding: 11px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; }
+    .modal-actions .btn-cancel { background: #232326; color: #fff; }
+    .modal-actions .btn-confirm { background: #2F7BF6; color: #fff; }
+    .modal-actions .btn-confirm.danger { background: #E5484D; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: #939393; font-size: 14px; }
+    .loading-state { text-align: center; padding: 60px 20px; color: #939393; font-size: 14px; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: #232326; color: #fff; padding: 11px 20px; border-radius: 100px; font-size: 13px; opacity: 0; transition: all .25s ease; z-index: 9999; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 720px) {
+      .sidebar { width: 76px; padding: 16px 8px; }
+      .sidebar h2, .nav-btn span.label { display: none; }
+      .main { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>Nexa Admin</h1>
+      <p>Painel de administração — acesso restrito</p>
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" autocomplete="username" placeholder="admin@nexa.app" />
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" id="login-btn">Entrar</button>
+      <div class="error-msg" id="login-error"></div>
+    </div>
+  </div>
+
+  <div id="app-screen">
+    <div class="layout">
+      <div class="sidebar">
+        <h2>Nexa Admin</h2>
+        <button class="nav-btn active" data-view="dashboard"><span class="label">Dashboard</span></button>
+        <button class="nav-btn" data-view="users"><span class="label">Utilizadores</span></button>
+        <button class="nav-btn" data-view="notify"><span class="label">Notificações</span></button>
+        <div class="sidebar-footer">
+          <button class="logout-btn" id="logout-btn">Terminar sessão</button>
+        </div>
+      </div>
+
+      <div class="main">
+        <div id="view-dashboard">
+          <h1>Dashboard</h1>
+          <p class="subtitle">Visão geral da plataforma</p>
+          <div class="stats-grid" id="stats-grid">
+            <div class="stat-card"><div class="label">Total de utilizadores</div><div class="value" id="stat-total-users">—</div></div>
+          </div>
+        </div>
+
+        <div id="view-users" style="display:none">
+          <h1>Utilizadores</h1>
+          <p class="subtitle">Gerir contas, créditos e acessos</p>
+          <div class="toolbar">
+            <input type="text" id="users-filter" placeholder="Filtrar por nome ou email…" />
+            <button class="btn-secondary" id="users-reload">Recarregar</button>
+          </div>
+          <div id="users-table-wrap">
+            <div class="loading-state">A carregar utilizadores…</div>
+          </div>
+        </div>
+
+        <div id="view-notify" style="display:none">
+          <h1>Notificações</h1>
+          <p class="subtitle">Enviar email para um utilizador específico ou para todos os selecionados na tabela de utilizadores</p>
+          <div class="field" style="max-width:480px">
+            <label for="notify-email">Email do destinatário (opcional se usares seleção)</label>
+            <input id="notify-email" type="text" placeholder="utilizador@exemplo.com" style="background:#1a1a1c;border:1px solid #232326;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;" />
+          </div>
+          <div class="field" style="max-width:480px">
+            <label for="notify-subject">Assunto</label>
+            <input id="notify-subject" type="text" style="background:#1a1a1c;border:1px solid #232326;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;" />
+          </div>
+          <div class="field" style="max-width:480px">
+            <label for="notify-message">Mensagem</label>
+            <textarea id="notify-message" rows="6" style="background:#1a1a1c;border:1px solid #232326;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;width:100%;resize:vertical;"></textarea>
+          </div>
+          <button class="btn-primary" style="max-width:200px" id="notify-send">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="credits-modal">
+    <div class="modal">
+      <h3>Ajustar créditos</h3>
+      <div class="field">
+        <label for="credits-input">Novo valor de créditos</label>
+        <input id="credits-input" type="number" min="0" style="background:#232326;border:1px solid #2f2f32;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;width:100%;" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="credits-cancel">Cancelar</button>
+        <button class="btn-confirm" id="credits-confirm">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="delete-modal">
+    <div class="modal">
+      <h3>Eliminar utilizador</h3>
+      <p style="font-size:13px;color:#c8c8c8;margin-bottom:6px">Esta ação é irreversível. Todas as conversas deste utilizador serão eliminadas.</p>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="delete-cancel">Cancelar</button>
+        <button class="btn-confirm danger" id="delete-confirm">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API_BASE = 'https://ipc.alfredopjonas.workers.dev';
+    const TOKEN_KEY = 'nexa_admin_token';
+
+    let currentUsers = [];
+    let usersCursor = null;
+    let pendingCreditsUserId = null;
+    let pendingDeleteUserId = null;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+    function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+    async function api(path, options = {}) {
+      const token = getToken();
+      const res = await fetch(API_BASE + path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+          ...(options.headers || {}),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('Erro ' + res.status));
+      return data;
+    }
+
+    // ---------- LOGIN ----------
+    document.getElementById('login-btn').addEventListener('click', doLogin);
+    document.getElementById('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      errorEl.textContent = '';
+      if (!email || !password) { errorEl.textContent = 'Preenche email e password'; return; }
+
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true;
+      btn.textContent = 'A entrar…';
+      try {
+        const res = await fetch(API_BASE + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao autenticar');
+        setToken(data.token);
+
+        // Confirmar que é admin
+        const me = await api('/user/me');
+        if (!me.isAdmin) {
+          clearToken();
+          errorEl.textContent = 'Esta conta não tem acesso de administrador';
+          return;
+        }
+        enterApp();
+      } catch (e) {
+        errorEl.textContent = e.message || 'Erro ao autenticar';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      clearToken();
+      document.getElementById('app-screen').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+    });
+
+    function enterApp() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-screen').style.display = 'block';
+      loadDashboard();
+    }
+
+    // ---------- NAV ----------
+    document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-btn[data-view]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const view = btn.dataset.view;
+        document.getElementById('view-dashboard').style.display = view === 'dashboard' ? 'block' : 'none';
+        document.getElementById('view-users').style.display = view === 'users' ? 'block' : 'none';
+        document.getElementById('view-notify').style.display = view === 'notify' ? 'block' : 'none';
+        if (view === 'dashboard') loadDashboard();
+        if (view === 'users' && currentUsers.length === 0) loadUsers();
+      });
+    });
+
+    // ---------- DASHBOARD ----------
+    async function loadDashboard() {
+      try {
+        const stats = await api('/admin/stats');
+        document.getElementById('stat-total-users').textContent = stats.totalUsers ?? '—';
+      } catch (e) {
+        showToast(e.message || 'Erro ao carregar estatísticas');
+      }
+    }
+
+    // ---------- USERS ----------
+    document.getElementById('users-reload').addEventListener('click', () => loadUsers());
+    document.getElementById('users-filter').addEventListener('input', renderUsersTable);
+
+    async function loadUsers() {
+      const wrap = document.getElementById('users-table-wrap');
+      wrap.innerHTML = '<div class="loading-state">A carregar utilizadores…</div>';
+      try {
+        const data = await api('/admin/users?limit=100');
+        currentUsers = data.users || [];
+        usersCursor = data.cursor || null;
+        renderUsersTable();
+      } catch (e) {
+        wrap.innerHTML = '<div class="empty-state">Erro ao carregar: ' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    function renderUsersTable() {
+      const wrap = document.getElementById('users-table-wrap');
+      const filter = document.getElementById('users-filter').value.trim().toLowerCase();
+      const filtered = currentUsers.filter(u =>
+        !filter || (u.name || '').toLowerCase().includes(filter) || (u.email || '').toLowerCase().includes(filter)
+      );
+
+      if (filtered.length === 0) {
+        wrap.innerHTML = '<div class="empty-state">Nenhum utilizador encontrado</div>';
+        return;
+      }
+
+      const rows = filtered.map(u => `
+        <tr>
+          <td>${escapeHtml(u.name)}${u.isAdmin ? '<span class="badge admin">admin</span>' : ''}</td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${u.credits ?? 0}</td>
+          <td>${escapeHtml(u.profile?.country || '—')}</td>
+          <td><span class="badge ${u.blocked ? 'blocked' : 'active'}">${u.blocked ? 'Bloqueado' : 'Ativo'}</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="mini-btn" data-action="credits" data-id="${u.id}" data-current="${u.credits ?? 0}">Créditos</button>
+              <button class="mini-btn" data-action="block" data-id="${u.id}" data-blocked="${u.blocked ? '1' : '0'}">${u.blocked ? 'Desbloquear' : 'Bloquear'}</button>
+              <button class="mini-btn danger" data-action="delete" data-id="${u.id}">Eliminar</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Nome</th><th>Email</th><th>Créditos</th><th>País</th><th>Estado</th><th>Ações</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+
+      wrap.querySelectorAll('[data-action="credits"]').forEach(btn => {
+        btn.addEventListener('click', () => openCreditsModal(btn.dataset.id, btn.dataset.current));
+      });
+      wrap.querySelectorAll('[data-action="block"]').forEach(btn => {
+        btn.addEventListener('click', () => toggleBlock(btn.dataset.id, btn.dataset.blocked === '1'));
+      });
+      wrap.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => openDeleteModal(btn.dataset.id));
+      });
+    }
+
+    async function toggleBlock(id, currentlyBlocked) {
+      try {
+        await api('/admin/users/' + id + '/block', {
+          method: 'PUT',
+          body: JSON.stringify({ blocked: !currentlyBlocked }),
+        });
+        showToast(!currentlyBlocked ? 'Utilizador bloqueado' : 'Utilizador desbloqueado');
+        loadUsers();
+      } catch (e) {
+        showToast(e.message || 'Erro ao atualizar');
+      }
+    }
+
+    function openCreditsModal(id, current) {
+      pendingCreditsUserId = id;
+      document.getElementById('credits-input').value = current;
+      document.getElementById('credits-modal').classList.add('open');
+    }
+    document.getElementById('credits-cancel').addEventListener('click', () => {
+      document.getElementById('credits-modal').classList.remove('open');
+      pendingCreditsUserId = null;
+    });
+    document.getElementById('credits-confirm').addEventListener('click', async () => {
+      const val = Number(document.getElementById('credits-input').value);
+      if (!Number.isFinite(val) || val < 0) { showToast('Valor inválido'); return; }
+      try {
+        await api('/admin/users/' + pendingCreditsUserId + '/credits', {
+          method: 'PUT',
+          body: JSON.stringify({ credits: val }),
+        });
+        showToast('Créditos atualizados');
+        document.getElementById('credits-modal').classList.remove('open');
+        loadUsers();
+      } catch (e) {
+        showToast(e.message || 'Erro ao atualizar créditos');
+      }
+    });
+
+    function openDeleteModal(id) {
+      pendingDeleteUserId = id;
+      document.getElementById('delete-modal').classList.add('open');
+    }
+    document.getElementById('delete-cancel').addEventListener('click', () => {
+      document.getElementById('delete-modal').classList.remove('open');
+      pendingDeleteUserId = null;
+    });
+    document.getElementById('delete-confirm').addEventListener('click', async () => {
+      try {
+        await api('/admin/users/' + pendingDeleteUserId, { method: 'DELETE' });
+        showToast('Utilizador eliminado');
+        document.getElementById('delete-modal').classList.remove('open');
+        loadUsers();
+      } catch (e) {
+        showToast(e.message || 'Erro ao eliminar');
+      }
+    });
+
+    // ---------- NOTIFY ----------
+    document.getElementById('notify-send').addEventListener('click', async () => {
+      const email = document.getElementById('notify-email').value.trim();
+      const subject = document.getElementById('notify-subject').value.trim();
+      const message = document.getElementById('notify-message').value.trim();
+      if (!subject || !message) { showToast('Preenche assunto e mensagem'); return; }
+      if (!email) { showToast('Indica um email de destinatário'); return; }
+      try {
+        const res = await api('/admin/notify', {
+          method: 'POST',
+          body: JSON.stringify({ email, subject, message }),
+        });
+        showToast('Enviado: ' + (res.sent ?? 0) + '/' + (res.total ?? 0));
+      } catch (e) {
+        showToast(e.message || 'Erro ao enviar notificação');
+      }
+    });
+
+    // ---------- BOOT ----------
+    (async function boot() {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const me = await api('/user/me');
+        if (me.isAdmin) enterApp();
+        else clearToken();
+      } catch (e) {
+        clearToken();
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // nome da pasta no disco -> nome da rota final em dist/
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
-  { dir: 'home', route: 'home', nested: ['apps-modelos'] },
+  { dir: 'home', route: 'home', nested: ['apps-modelos', 'search'] },
   { dir: 'auth', route: 'auth', nested: [] },
   { dir: 'profile', route: 'profile', nested: ['settings'] },
   { dir: 'ai', route: 'ai', nested: ['settings'] },

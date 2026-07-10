@@ -1,6 +1,7 @@
 <!-- src/home/components/CreateTab.svelte -->
 <script>
   export let platformApps = [];
+  export let onOpenSearch = () => {};
 
   function openApp(app) {
     if (app.id === 'ai') {
@@ -13,11 +14,9 @@
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
 
-  // navegação real de página — o browser trata como carregamento novo
-  // (progress bar nativa), consistente com a arquitetura MPA do Nexa.
-  function openSearch() {
+  function handleOpenSearch() {
     buzz();
-    window.location.href = '/home/search/';
+    onOpenSearch();
   }
 
   // rubber-band scroll (mesma técnica usada no ecrã de Perfil)
@@ -61,7 +60,7 @@
   on:touchcancel={onTouchEnd}>
   <div bind:this={bodyInnerEl}>
 
-    <button class="search-bar pulse-tap" on:click={openSearch}>
+    <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
       <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
       <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
     </button>
@@ -86,7 +85,6 @@
     overscroll-behavior: contain;
   }
 
-  /* ── Search bar (entry point) ─────────────────────────────── */
   .search-bar {
     display: flex;
     align-items: center;

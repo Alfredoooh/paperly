@@ -21,11 +21,6 @@
   const VALID_ROUTES = ['projects', 'templates', 'tools'];
   const router = createRouter(BASE, VALID_ROUTES, 'create');
 
-  // rota real e nova (reload de página, progress bar do browser), servida
-  // como nested do próprio home/index.html — ver vite.config.js.
-  const isSearchPage = typeof window !== 'undefined' &&
-    window.location.pathname.replace(/\/+$/, '') === (BASE + 'search').replace(/\/+$/, '');
-
   let activeTab = 'create';
   $: currentTabMeta = TABS.find(t => t.id === activeTab);
   $: currentTitle = currentTabMeta?.title || '';
@@ -116,11 +111,36 @@
     requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
   }
 
-  // botão de pesquisa do appbar (tab Templates) e barra de pesquisa do
-  // Workspace — navegação REAL de página (reload), não SPA. O browser
-  // mostra a progress bar nativa porque isto é um novo carregamento.
+  // ------------------------------------------------------------------
+  // Tela de pesquisa — push estilo iOS (slide da direita, sem reload).
+  // Usa pushState/popstate só para o botão físico/gesto de voltar do
+  // Android fechar a pesquisa; a URL não muda de app, fica tudo em SPA.
+  // ------------------------------------------------------------------
+  let searchOpen = false;
+  let searchPushed = false; // controla a classe que dispara a transição CSS
+
   function openSearch() {
-    window.location.href = BASE + 'search/';
+    if (searchOpen) return;
+    history.pushState({ nexaSearch: true }, '', window.location.pathname);
+    searchOpen = true;
+    // um frame vazio garante que o browser pinte o estado inicial (fora
+    // do ecrã) antes de aplicar a classe que anima a entrada.
+    requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
+  }
+
+  function closeSearchVisual() {
+    searchPushed = false;
+    setTimeout(() => { searchOpen = false; }, 340);
+  }
+
+  // chamado pelo botão "voltar" dentro da própria tela de pesquisa
+  function closeSearch() {
+    if (!searchOpen) return;
+    if (history.state && history.state.nexaSearch) {
+      history.back();
+    } else {
+      closeSearchVisual();
+    }
   }
 
   function goToAIWithPrompt(promptText) {
@@ -156,12 +176,6 @@
     const saved = getTheme();
     applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
 
-    // página de pesquisa: tema aplicado, sem o resto do bootstrap de tabs/router
-    if (isSearchPage) {
-      mounted = true;
-      return;
-    }
-
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', handleSystemChange);
 
@@ -189,80 +203,89 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
+    // botão/gesto físico de voltar do Android — fecha a pesquisa se estiver aberta
+    function onPopState() {
+      if (searchOpen) {
+        closeSearchVisual();
+      }
+    }
+    window.addEventListener('popstate', onPopState);
+
     return () => {
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('resize', measureAppbar);
+      window.removeEventListener('popstate', onPopState);
       unbindRouter?.();
       unsubscribeInstall?.();
     };
   });
 </script>
 
-{#if isSearchPage}
-  <SearchPage
+<div class="root">
+  <div class="bg-layer"></div>
+
+  <AppHeader
     {mounted}
+    bind:topPanelEl
+    {scrolled}
+    onOpenDrawer={openDrawer}
+    {avatarUrl}
+    {avatarColor}
+    {userInitial}
+    {userName}
+    title={currentTitle}
+    solidGradient={activeTab === 'templates'}
+    showSearchBtn={activeTab === 'templates'}
+    onOpenSearch={openSearch}
+    showToggle={activeTab === 'templates'}
+    toggleOptions={TEMPLATE_VIEWS}
+    toggleValue={templatesView}
+    onToggleChange={selectTemplatesView}
+  />
+
+  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
+    {#if activeTab === 'create'}
+      <CreateTab {platformApps} onOpenSearch={openSearch} />
+    {:else if activeTab === 'projects'}
+      <ProjectsTab />
+    {:else if activeTab === 'templates'}
+      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} />
+    {:else if activeTab === 'tools'}
+      <ToolsTab />
+    {/if}
+  </div>
+
+  <BottomTabBar {activeTab} onSelect={selectTab} />
+</div>
+
+{#if searchOpen}
+  <SearchPage
+    pushed={searchPushed}
     {platformApps}
     imageModels={IMAGE_MODELS}
     docModels={DOC_MODELS}
     onUsePrompt={goToAIWithPrompt}
-    backHref={BASE}
-  />
-{:else}
-  <div class="root">
-    <div class="bg-layer"></div>
-
-    <AppHeader
-      {mounted}
-      bind:topPanelEl
-      {scrolled}
-      onOpenDrawer={openDrawer}
-      {avatarUrl}
-      {avatarColor}
-      {userInitial}
-      {userName}
-      title={currentTitle}
-      solidGradient={activeTab === 'templates'}
-      showSearchBtn={activeTab === 'templates'}
-      onOpenSearch={openSearch}
-      showToggle={activeTab === 'templates'}
-      toggleOptions={TEMPLATE_VIEWS}
-      toggleValue={templatesView}
-      onToggleChange={selectTemplatesView}
-    />
-
-    <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
-      {#if activeTab === 'create'}
-        <CreateTab {platformApps} onOpenSearch={openSearch} />
-      {:else if activeTab === 'projects'}
-        <ProjectsTab />
-      {:else if activeTab === 'templates'}
-        <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} />
-      {:else if activeTab === 'tools'}
-        <ToolsTab />
-      {/if}
-    </div>
-
-    <BottomTabBar {activeTab} onSelect={selectTab} />
-  </div>
-
-  <AppDrawer
-    {drawerOpen}
-    {drawerVisible}
-    {themeExpanded}
-    {themeValue}
-    {avatarColor}
-    {avatarUrl}
-    {userInitial}
-    {userName}
-    {showInstall}
-    onClose={closeDrawer}
-    onToggleThemeExpanded={toggleThemeExpanded}
-    onApplyTheme={applyThemeFromDrawer}
-    onLogout={logout}
-    onInstall={handleInstall}
+    onClose={closeSearch}
   />
 {/if}
+
+<AppDrawer
+  {drawerOpen}
+  {drawerVisible}
+  {themeExpanded}
+  {themeValue}
+  {avatarColor}
+  {avatarUrl}
+  {userInitial}
+  {userName}
+  {showInstall}
+  onClose={closeDrawer}
+  onToggleThemeExpanded={toggleThemeExpanded}
+  onApplyTheme={applyThemeFromDrawer}
+  onLogout={logout}
+  onInstall={handleInstall}
+/>
 
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }

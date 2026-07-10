@@ -2,12 +2,12 @@
 <script>
   import { onMount } from 'svelte';
 
-  export let mounted = false;
+  export let pushed = false; // true = tela empurrada para dentro (visível)
   export let platformApps = [];
   export let imageModels = [];
   export let docModels = [];
   export let onUsePrompt = () => {};
-  export let backHref = '/home/';
+  export let onClose = () => {};
 
   let query = '';
   let inputEl;
@@ -51,20 +51,24 @@
     inputEl?.focus();
   }
 
-  // navegação real de página de volta (reload, progress bar do browser)
-  function goBack() {
+  function handleClose() {
     buzz();
-    window.location.href = backHref;
+    onClose();
   }
 
   onMount(() => {
-    requestAnimationFrame(() => inputEl?.focus());
+    // foca depois da transição de entrada terminar, para não atrapalhar
+    // a animação de slide com o teclado a abrir no meio do movimento
+    setTimeout(() => inputEl?.focus(), 340);
   });
 </script>
 
-<div class="search-page" class:in={mounted}>
+<!-- camada escurecida sobre o conteúdo de trás, como no push do iOS -->
+<div class="scrim" class:in={pushed}></div>
+
+<div class="search-page" class:pushed>
   <header class="search-header">
-    <button class="back-btn pulse-tap" on:click={goBack} aria-label="Voltar">
+    <button class="back-btn pulse-tap" on:click={handleClose} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('/icons/svg/back.svg');-webkit-mask-image:url('/icons/svg/back.svg')"></span>
     </button>
 
@@ -116,18 +120,35 @@
 </div>
 
 <style>
+  /* escurece o ecrã de trás enquanto a pesquisa desliza por cima,
+     igual ao comportamento de um push de UINavigationController */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+    background: rgba(0,0,0,0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .34s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .scrim.in {
+    opacity: 1;
+  }
+
   .search-page {
     position: fixed;
     inset: 0;
-    z-index: 10;
+    z-index: 30;
     display: flex;
     flex-direction: column;
     background: var(--app-bg);
-    opacity: 0;
-    transition: opacity .22s ease;
+    transform: translate3d(100%, 0, 0);
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.18);
   }
-  .search-page.in {
-    opacity: 1;
+  .search-page.pushed {
+    transform: translate3d(0, 0, 0);
   }
 
   .search-header {
@@ -297,6 +318,6 @@
   .pulse-tap:active { transform: scale(0.96); opacity: .80; }
 
   @media (prefers-reduced-motion: reduce) {
-    .search-page { transition: none !important; }
+    .search-page, .scrim { transition: none !important; }
   }
 </style>

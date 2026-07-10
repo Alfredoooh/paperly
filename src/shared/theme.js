@@ -60,6 +60,12 @@ export function syncTheme(isDark) {
   body.style.background = colors.background;
   body.style.color = colors.textPrimary;
   syncStatusBar(isDark, colors.background);
+
+  // Ponte para o shell nativo Android (HomeActivity). Sem isto, o drawer
+  // nativo e a status bar não acompanham a troca de tema feita aqui na Web.
+  if (window.AndroidTheme && typeof window.AndroidTheme.onThemeChanged === 'function') {
+    window.AndroidTheme.onThemeChanged(isDark);
+  }
 }
 
 function syncStatusBar(isDark, bgColor) {
@@ -78,4 +84,18 @@ function syncStatusBar(isDark, bgColor) {
     document.head.appendChild(appleMeta);
   }
   appleMeta.setAttribute('content', isDark ? 'black-translucent' : 'default');
+}
+
+// Ponte inversa: Kotlin -> JS. Chamada pelo AccountDrawerSheet nativo quando
+// o utilizador escolhe um tema no drawer nativo, para aplicar exatamente
+// a mesma lógica que o AppDrawer.svelte usaria (applyThemeFromDrawer).
+if (typeof window !== 'undefined') {
+  window.__nexaSetTheme = function (value) {
+    if (value === 'system') {
+      localStorage.removeItem('nexa_theme');
+      syncTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } else {
+      setTheme(value);
+    }
+  };
 }

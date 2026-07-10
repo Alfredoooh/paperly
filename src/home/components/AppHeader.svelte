@@ -16,7 +16,15 @@
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
   function handleUpgrade() { buzz(); onUpgrade?.(); }
-  function handleMenu() { buzz(); onOpenDrawer?.(); }
+
+  function handleMenu() {
+    buzz();
+    if (window.AndroidDrawer && typeof window.AndroidDrawer.openAccountDrawer === 'function') {
+      window.AndroidDrawer.openAccountDrawer();
+    } else {
+      onOpenDrawer?.();
+    }
+  }
 </script>
 
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>

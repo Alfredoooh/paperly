@@ -750,8 +750,9 @@
   :global(html), :global(body) {
     overflow: hidden;
     overscroll-behavior: none;
-    height: 100%;""
+    height: 100%;
     width: 100%;
+  }
   }
   :global([data-theme="dark"]) {
     --app-bg: #0F0F0F;

@@ -15,10 +15,15 @@
   import ProjectsTab from './components/ProjectsTab.svelte';
   import TemplatesTab from './components/TemplatesTab.svelte';
   import ToolsTab from './components/ToolsTab.svelte';
+  import TemplatesSearchPage from './components/TemplatesSearchPage.svelte';
 
   const BASE = '/home/';
   const VALID_ROUTES = ['projects', 'templates', 'tools'];
   const router = createRouter(BASE, VALID_ROUTES, 'create');
+
+  // rota "virtual" da página de pesquisa dos Templates — não passa pelo
+  // createRouter porque é uma sub-rota interna do tab, não um tab novo.
+  const SEARCH_PATH = BASE + 'templates/search/';
 
   let activeTab = 'create';
   $: currentTabMeta = TABS.find(t => t.id === activeTab);
@@ -110,11 +115,36 @@
     requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
   }
 
-  // botão de pesquisa do appbar (tab Templates) — reencaminha para a mesma
-  // lógica de pesquisa usada no tab "Criar & Workspace"
-  let templatesSearchTrigger = 0;
+  // ------------------------------------------------------------------
+  // Página de pesquisa dos Templates — navegação real (pushState),
+  // com histórico próprio, para que o botão "voltar" do Android/navegador
+  // feche a pesquisa em vez de sair do app.
+  // ------------------------------------------------------------------
+  let searchPageOpen = false;
+  let searchPageVisible = false;
+
   function openTemplatesSearch() {
-    templatesSearchTrigger++;
+    if (searchPageOpen) return;
+    history.pushState({ nexaSearch: true }, '', SEARCH_PATH);
+    searchPageOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { searchPageVisible = true; }));
+  }
+
+  function closeTemplatesSearchVisual() {
+    searchPageVisible = false;
+    setTimeout(() => { searchPageOpen = false; }, 320);
+  }
+
+  // chamado pelo botão "voltar" dentro da própria página de pesquisa
+  function closeTemplatesSearch() {
+    if (!searchPageOpen) return;
+    // se o topo do histórico é o nosso estado de pesquisa, apenas volta;
+    // o popstate tratado abaixo faz o fecho visual.
+    if (history.state && history.state.nexaSearch) {
+      history.back();
+    } else {
+      closeTemplatesSearchVisual();
+    }
   }
 
   function goToAIWithPrompt(promptText) {
@@ -177,10 +207,19 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
+    // trata o botão "voltar" quando a página de pesquisa dos Templates está aberta
+    function onPopState() {
+      if (searchPageOpen) {
+        closeTemplatesSearchVisual();
+      }
+    }
+    window.addEventListener('popstate', onPopState);
+
     return () => {
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('resize', measureAppbar);
+      window.removeEventListener('popstate', onPopState);
       unbindRouter?.();
       unsubscribeInstall?.();
     };
@@ -215,7 +254,7 @@
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}
-      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} searchTrigger={templatesSearchTrigger} />
+      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} />
     {:else if activeTab === 'tools'}
       <ToolsTab />
     {/if}
@@ -223,6 +262,15 @@
 
   <BottomTabBar {activeTab} onSelect={selectTab} />
 </div>
+
+{#if searchPageOpen}
+  <TemplatesSearchPage
+    view={templatesView}
+    visible={searchPageVisible}
+    onClose={closeTemplatesSearch}
+    onUsePrompt={goToAIWithPrompt}
+  />
+{/if}
 
 <AppDrawer
   {drawerOpen}

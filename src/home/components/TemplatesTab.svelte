@@ -420,14 +420,14 @@
   }
   .preview-btn:active { transform: scale(0.96); opacity: 0.8; }
   .preview-btn-cancel {
-    background: light-dark(rgba(255,255,255,0.2), rgba(0,0,0,0.6));
-    color: light-dark(#fff, #fff);
+    background: rgba(0,0,0,0.6);
+    color: #fff;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
   .preview-btn-use {
-    background: light-dark(#2a2a2a, #f5f5f5);
-    color: light-dark(#ffffff, #1a1a1a);
+    background: var(--btn-solid-bg);
+    color: var(--btn-solid-text);
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
   }
 </style>

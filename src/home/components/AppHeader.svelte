@@ -10,6 +10,14 @@
   export let userInitial = 'U';
   export let userName = 'Utilizador';
   
+  export let title = '';
+  
+  // toggle nativo (usado apenas no tab "Templates")
+  export let showToggle = false;
+  export let toggleOptions = []; // [{id,label}]
+  export let toggleValue = '';
+  export let onToggleChange = () => {};
+  
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
@@ -22,11 +30,20 @@
       onOpenDrawer?.();
     }
   }
+  
+  function selectToggle(id) {
+    if (id === toggleValue) return;
+    buzz();
+    onToggleChange(id);
+  }
+  
+  $: toggleIndex = Math.max(0, toggleOptions.findIndex(o => o.id === toggleValue));
 </script>
 
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
   <header class="header">
     <div class="header-inner">
+      <h1 class="header-title">{title}</h1>
       <button class="profile-btn pulse-tap" on:click={handleMenu}>
         {#if avatarUrl}
           <img src={avatarUrl} alt={userName} class="profile-img" />
@@ -35,6 +52,21 @@
         {/if}
       </button>
     </div>
+
+    {#if showToggle && toggleOptions.length > 0}
+      <div class="segmented" style="--count:{toggleOptions.length}">
+        <div class="segmented-thumb" style="--index:{toggleIndex}"></div>
+        {#each toggleOptions as opt}
+          <button
+            class="segmented-opt"
+            class:active={toggleValue === opt.id}
+            on:click={() => selectToggle(opt.id)}
+          >
+            {opt.label}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </header>
   <div class="header-elevate" style="opacity:{scrolled}"></div>
 </div>
@@ -71,16 +103,24 @@
   }
   .header {
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 10px;
     padding: calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-top,0px) + 4px);
   }
   .header-inner {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     width: 100%;
     max-width: 640px;
+  }
+
+  .header-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--icon-strong);
+    margin: 0;
   }
 
   .profile-btn {
@@ -120,16 +160,57 @@
     color: #fff;
   }
 
+  .segmented {
+    position: relative;
+    display: flex;
+    width: 100%;
+    max-width: 640px;
+    background: var(--btn-bg);
+    border-radius: 12px;
+    padding: 3px;
+  }
+  .segmented-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: calc((100% - 6px) / var(--count));
+    height: calc(100% - 6px);
+    border-radius: 9px;
+    background: var(--btn-solid-bg);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+    transform: translateX(calc(var(--index) * 100%));
+    transition: transform .38s cubic-bezier(0.34, 1.2, 0.4, 1);
+  }
+  .segmented-opt {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-faint);
+    cursor: pointer;
+    border-radius: 9px;
+    transition: color .22s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .segmented-opt.active {
+    color: var(--btn-solid-text);
+  }
+
   @media (hover:hover) and (pointer:fine) {
     .profile-btn:hover { background: var(--btn-solid-bg-active); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .top-panel, .profile-btn, .header-elevate { transition: none !important; }
+    .top-panel, .profile-btn, .header-elevate, .segmented-thumb { transition: none !important; }
   }
 
   @media (min-width: 720px) {
-    .header-inner { max-width:760px; }
+    .header-inner, .segmented { max-width:760px; }
   }
 
   .pulse-tap {

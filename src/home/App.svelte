@@ -7,19 +7,25 @@
   import { createRouter } from '$shared/router.js';
   import { initPwaInstall, onPwaInstallAvailable, promptPwaInstall } from '$shared/pwa-install.js';
 
-  import { getAvatarColor } from './lib/constants.js';
+  import { getAvatarColor, TABS, TEMPLATE_VIEWS } from './lib/constants.js';
   import AppHeader from './components/AppHeader.svelte';
   import BottomTabBar from './components/BottomTabBar.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
-  import HomeTab from './components/HomeTab.svelte';
-  import ImagesTab from './components/ImagesTab.svelte';
-  import DocumentsTab from './components/DocumentsTab.svelte';
+  import CreateTab from './components/CreateTab.svelte';
+  import ProjectsTab from './components/ProjectsTab.svelte';
+  import TemplatesTab from './components/TemplatesTab.svelte';
+  import ToolsTab from './components/ToolsTab.svelte';
 
   const BASE = '/home/';
-  const VALID_ROUTES = ['images', 'documents'];
-  const router = createRouter(BASE, VALID_ROUTES, 'home');
+  const VALID_ROUTES = ['projects', 'templates', 'tools'];
+  const router = createRouter(BASE, VALID_ROUTES, 'create');
 
-  let activeTab = 'home';
+  let activeTab = 'create';
+  $: currentTabMeta = TABS.find(t => t.id === activeTab);
+  $: currentTitle = currentTabMeta?.title || '';
+
+  // estado do toggle nativo do tab "Templates"
+  let templatesView = 'images';
 
   let user = null;
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
@@ -94,7 +100,13 @@
 
   function selectTab(id) {
     activeTab = id;
-    router.navigate(id === 'home' ? 'home' : id);
+    router.navigate(id === 'create' ? 'home' : id);
+    requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
+  }
+
+  function selectTemplatesView(id) {
+    templatesView = id;
+    requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
   }
 
   function goToAIWithPrompt(promptText) {
@@ -148,12 +160,13 @@
 
     const { route: initialRoute, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
-    activeTab = initialRoute === 'home' ? 'home' : initialRoute;
-    router.navigate(activeTab === 'home' ? 'home' : activeTab, { replace: true });
+    activeTab = initialRoute === 'home' ? 'create' : initialRoute;
+    router.navigate(activeTab === 'create' ? 'home' : activeTab, { replace: true });
 
     const unbindRouter = router.bindPopState((r, nf) => {
       if (nf) { window.location.replace('/404/'); return; }
-      activeTab = r === 'home' ? 'home' : r;
+      activeTab = r === 'home' ? 'create' : r;
+      requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
     return () => {
@@ -177,15 +190,22 @@
     {avatarColor}
     {userInitial}
     {userName}
+    title={currentTitle}
+    showToggle={activeTab === 'templates'}
+    toggleOptions={TEMPLATE_VIEWS}
+    toggleValue={templatesView}
+    onToggleChange={selectTemplatesView}
   />
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
-    {#if activeTab === 'home'}
-      <HomeTab {platformApps} />
-    {:else if activeTab === 'images'}
-      <ImagesTab onUsePrompt={goToAIWithPrompt} />
-    {:else if activeTab === 'documents'}
-      <DocumentsTab onUsePrompt={goToAIWithPrompt} />
+    {#if activeTab === 'create'}
+      <CreateTab {platformApps} />
+    {:else if activeTab === 'projects'}
+      <ProjectsTab />
+    {:else if activeTab === 'templates'}
+      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} />
+    {:else if activeTab === 'tools'}
+      <ToolsTab />
     {/if}
   </div>
 

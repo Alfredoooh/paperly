@@ -31,6 +31,7 @@
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: avatarColor = getAvatarColor(userName);
+  $: avatarUrl = user?.avatar || '';
 
   const platformApps = ALL_APPS.filter(a => a.id !== 'home');
 
@@ -107,6 +108,13 @@
   function selectTemplatesView(id) {
     templatesView = id;
     requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
+  }
+
+  // botão de pesquisa do appbar (tab Templates) — reencaminha para a mesma
+  // lógica de pesquisa usada no tab "Criar & Workspace"
+  let templatesSearchTrigger = 0;
+  function openTemplatesSearch() {
+    templatesSearchTrigger++;
   }
 
   function goToAIWithPrompt(promptText) {
@@ -187,11 +195,14 @@
     bind:topPanelEl
     {scrolled}
     onOpenDrawer={openDrawer}
+    {avatarUrl}
     {avatarColor}
     {userInitial}
     {userName}
     title={currentTitle}
     solidGradient={activeTab === 'templates'}
+    showSearchBtn={activeTab === 'templates'}
+    onOpenSearch={openTemplatesSearch}
     showToggle={activeTab === 'templates'}
     toggleOptions={TEMPLATE_VIEWS}
     toggleValue={templatesView}
@@ -204,7 +215,7 @@
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}
-      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} />
+      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} searchTrigger={templatesSearchTrigger} />
     {:else if activeTab === 'tools'}
       <ToolsTab />
     {/if}
@@ -219,6 +230,7 @@
   {themeExpanded}
   {themeValue}
   {avatarColor}
+  {avatarUrl}
   {userInitial}
   {userName}
   {showInstall}

@@ -4,27 +4,31 @@
   export let topPanelEl;
   export let scrolled = 0;
   export let onOpenDrawer;
-  
+
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
   export let userName = 'Utilizador';
-  
+
   export let title = '';
-  
+
   // appbar sem blur, com gradiente sólido->transparente (usado no tab "Templates")
   export let solidGradient = false;
-  
+
+  // botão de pesquisa (usado apenas no tab "Templates")
+  export let showSearchBtn = false;
+  export let onOpenSearch = () => {};
+
   // toggle nativo (usado apenas no tab "Templates")
   export let showToggle = false;
   export let toggleOptions = []; // [{id,label}]
   export let toggleValue = '';
   export let onToggleChange = () => {};
-  
+
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
-  
+
   function handleMenu() {
     buzz();
     if (window.AndroidDrawer && typeof window.AndroidDrawer.openAccountDrawer === 'function') {
@@ -33,13 +37,18 @@
       onOpenDrawer?.();
     }
   }
-  
+
+  function handleSearch() {
+    buzz();
+    onOpenSearch();
+  }
+
   function selectToggle(id) {
     if (id === toggleValue) return;
     buzz();
     onToggleChange(id);
   }
-  
+
   $: toggleIndex = Math.max(0, toggleOptions.findIndex(o => o.id === toggleValue));
 </script>
 
@@ -48,13 +57,20 @@
   <header class="header">
     <div class="header-inner">
       <h1 class="header-title">{title}</h1>
-      <button class="profile-btn pulse-tap" on:click={handleMenu}>
-        {#if avatarUrl}
-          <img src={avatarUrl} alt={userName} class="profile-img" />
-        {:else}
-          <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
+      <div class="header-actions">
+        {#if showSearchBtn}
+          <button class="action-btn pulse-tap" on:click={handleSearch} aria-label="Pesquisar">
+            <span class="icon-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+          </button>
         {/if}
-      </button>
+        <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">
+          {#if avatarUrl}
+            <img src={avatarUrl} alt={userName} class="profile-img" />
+          {:else}
+            <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
+          {/if}
+        </button>
+      </div>
     </div>
 
     {#if showToggle && toggleOptions.length > 0}
@@ -150,6 +166,48 @@
     letter-spacing: -0.3px;
     color: var(--icon-strong);
     margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--btn-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .action-btn:active {
+    background: var(--btn-bg-active);
+    transform: scale(0.88);
+  }
+  .action-btn .icon-mask {
+    width: 17px;
+    height: 17px;
+    background: var(--icon-strong);
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
   }
 
   .profile-btn {
@@ -189,7 +247,7 @@
     color: #fff;
   }
 
-  /* Toggle mais intuitivo: pill maior, labels mais legíveis, thumb com sombra mais forte */
+  /* Toggle */
   .segmented {
     position: relative;
     display: flex;
@@ -242,10 +300,11 @@
 
   @media (hover:hover) and (pointer:fine) {
     .profile-btn:hover { background: var(--btn-solid-bg-active); }
+    .action-btn:hover { background: var(--btn-bg-active); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .top-panel, .profile-btn, .header-elevate, .segmented-thumb, .segmented-opt-label { transition: none !important; }
+    .top-panel, .profile-btn, .action-btn, .header-elevate, .segmented-thumb, .segmented-opt-label { transition: none !important; }
   }
 
   @media (min-width: 720px) {

@@ -112,19 +112,21 @@
   }
 
   // ------------------------------------------------------------------
-  // Tela de pesquisa — push estilo iOS (slide da direita, sem reload).
-  // Usa pushState/popstate só para o botão físico/gesto de voltar do
-  // Android fechar a pesquisa; a URL não muda de app, fica tudo em SPA.
+  // Tela de pesquisa — push estilo iOS (slide + parallax, sem reload).
+  // Usa um hash (#search) como sentinela de histórico: nunca toca o
+  // servidor (não é uma nova URL de página, só um marcador local), mas
+  // ainda assim gera uma entrada de histórico real, então o botão/gesto
+  // físico de voltar do Android dispara popstate e fecha a pesquisa.
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false; // controla a classe que dispara a transição CSS
+  let closingFromPopstate = false;
 
   function openSearch() {
     if (searchOpen) return;
-    history.pushState({ nexaSearch: true }, '', window.location.pathname);
+    closingFromPopstate = false;
+    history.pushState({ nexaSearch: true }, '', '#search');
     searchOpen = true;
-    // um frame vazio garante que o browser pinte o estado inicial (fora
-    // do ecrã) antes de aplicar a classe que anima a entrada.
     requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
   }
 
@@ -137,6 +139,7 @@
   function closeSearch() {
     if (!searchOpen) return;
     if (history.state && history.state.nexaSearch) {
+      closingFromPopstate = true;
       history.back();
     } else {
       closeSearchVisual();
@@ -203,11 +206,13 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // botão/gesto físico de voltar do Android — fecha a pesquisa se estiver aberta
+    // botão/gesto físico de voltar do Android — fecha a pesquisa se estiver aberta.
+    // Como usamos um hash local (#search), isto nunca provoca pedido ao servidor.
     function onPopState() {
-      if (searchOpen) {
+      if (searchOpen && !closingFromPopstate) {
         closeSearchVisual();
       }
+      closingFromPopstate = false;
     }
     window.addEventListener('popstate', onPopState);
 
@@ -222,7 +227,7 @@
   });
 </script>
 
-<div class="root">
+<div class="root" class:pushed-back={searchPushed}>
   <div class="bg-layer"></div>
 
   <AppHeader
@@ -355,6 +360,14 @@
     overscroll-behavior:none;
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
     touch-action: pan-y;
+    transform: translate3d(0,0,0);
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+  }
+  /* parallax: o conteúdo de trás desliza levemente para a esquerda,
+     igual ao push nativo do iOS (UINavigationController) */
+  .root.pushed-back {
+    transform: translate3d(-28%, 0, 0);
   }
   .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); }
 
@@ -364,5 +377,9 @@
     -webkit-overflow-scrolling:touch;
     overscroll-behavior-y:contain;
     padding-bottom: 84px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .root { transition: none !important; }
   }
 </style>

@@ -63,13 +63,10 @@
   });
 </script>
 
-<!-- camada escurecida sobre o conteúdo de trás, como no push do iOS -->
-<div class="scrim" class:in={pushed}></div>
-
 <div class="search-page" class:pushed>
   <header class="search-header">
     <button class="back-btn pulse-tap" on:click={handleClose} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back.svg');-webkit-mask-image:url('/icons/svg/back.svg')"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg')"></span>
     </button>
 
     <div class="search-field">
@@ -120,21 +117,6 @@
 </div>
 
 <style>
-  /* escurece o ecrã de trás enquanto a pesquisa desliza por cima,
-     igual ao comportamento de um push de UINavigationController */
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 29;
-    background: rgba(0,0,0,0.22);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .34s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .scrim.in {
-    opacity: 1;
-  }
-
   .search-page {
     position: fixed;
     inset: 0;
@@ -318,6 +300,6 @@
   .pulse-tap:active { transform: scale(0.96); opacity: .80; }
 
   @media (prefers-reduced-motion: reduce) {
-    .search-page, .scrim { transition: none !important; }
+    .search-page { transition: none !important; }
   }
 </style>

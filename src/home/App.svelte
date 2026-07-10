@@ -15,7 +15,6 @@
   import RecordingCard from './components/RecordingCard.svelte';
   import BottomBar from './components/BottomBar.svelte';
   import ExtrasPopup from './components/ExtrasPopup.svelte';
-  import AppDrawer from './components/AppDrawer.svelte';
   import AppsModelos from './apps-modelos/AppsModelos.svelte';
 
   const BASE = '/home/';
@@ -636,7 +635,7 @@
 <div class="root">
   <div class="bg-layer"></div>
 
-  <AppHeader {mounted} bind:topPanelEl scrolled={bottomHideProgress} onUpgrade={goToPlans} onOpenDrawer={openDrawer} />
+  <AppHeader {mounted} bind:topPanelEl scrolled={bottomHideProgress} onUpgrade={goToPlans} onOpenDrawer={openDrawer} {avatarColor} {userInitial} {userName} />
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll}>
     <div class="scroll-page">
@@ -723,25 +722,6 @@
   onToggleFlash={toggleFlash}
   onToggleThink={toggleThink}
   onToggleSheets={toggleSheets}
-/>
-
-<AppDrawer
-  {drawerOpen}
-  {drawerVisible}
-  {themeExpanded}
-  {appsExpanded}
-  {themeValue}
-  {avatarColor}
-  {userInitial}
-  {userName}
-  {showInstall}
-  onClose={closeDrawer}
-  onToggleThemeExpanded={toggleThemeExpanded}
-  onToggleAppsExpanded={toggleAppsExpanded}
-  onApplyTheme={applyThemeFromDrawer}
-  onToggleAppsHidden={toggleAppsHidden}
-  onLogout={logout}
-  onInstall={handleInstall}
 />
 {/if}
 

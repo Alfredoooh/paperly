@@ -1,4 +1,4 @@
-<!-- src/routes/home/components/AppDrawer.svelte -->
+<!-- src/home/components/AppDrawer.svelte -->
 <script>
   import { THEME_OPTIONS, DRAWER_ITEMS } from '../lib/constants.js';
 
@@ -7,7 +7,6 @@
   export let themeExpanded = false;
   export let themeValue = 'dark';
 
-  // Perfil – o componente pai deve fornecer estas props
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
   export let userName = 'Utilizador';
@@ -21,7 +20,6 @@
   export let onLogout;
   export let onInstall;
 
-  // Diálogo de logout
   let showLogoutDialog = false;
 
   function goProfile() {

@@ -1,22 +1,19 @@
-<!-- src/routes/home/components/AppHeader.svelte -->
+<!-- src/home/components/AppHeader.svelte -->
 <script>
   export let mounted = false;
   export let topPanelEl;
   export let scrolled = 0;
-  export let onUpgrade;
   export let onOpenDrawer;
-
-  // Props do perfil – devem ser fornecidas pela MainPage
+  
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
   export let userName = 'Utilizador';
-
+  
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
-  function handleUpgrade() { buzz(); onUpgrade?.(); }
-
+  
   function handleMenu() {
     buzz();
     if (window.AndroidDrawer && typeof window.AndroidDrawer.openAccountDrawer === 'function') {
@@ -30,19 +27,13 @@
 <div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
   <header class="header">
     <div class="header-inner">
-      <img src="/icons/svg/logo.svg" alt="Nexa" class="logo-mark" />
-
-      <div class="header-actions">
-        <button class="upgrade-btn pulse-tap" on:click={handleUpgrade}>Atualizar</button>
-
-        <button class="profile-btn pulse-tap" on:click={handleMenu}>
-          {#if avatarUrl}
-            <img src={avatarUrl} alt={userName} class="profile-img" />
-          {:else}
-            <span class="profile-initial">{userInitial}</span>
-          {/if}
-        </button>
-      </div>
+      <button class="profile-btn pulse-tap" on:click={handleMenu}>
+        {#if avatarUrl}
+          <img src={avatarUrl} alt={userName} class="profile-img" />
+        {:else}
+          <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
+        {/if}
+      </button>
     </div>
   </header>
   <div class="header-elevate" style="opacity:{scrolled}"></div>
@@ -58,9 +49,6 @@
     background: rgba(var(--header-glass-rgb), 0.74);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom-left-radius: 26px;
-    border-bottom-right-radius: 26px;
-    padding-bottom: 10px;
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
     transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1);
@@ -84,66 +72,20 @@
   .header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-top,0px) + 4px);
+    justify-content: flex-end;
+    padding: calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-top,0px) + 4px);
   }
   .header-inner {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     width: 100%;
     max-width: 640px;
   }
-  .logo-mark {
-    height: 30px;
-    width: auto;
-    display: block;
-    flex-shrink: 0;
-    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1);
-    filter: invert(0);
-  }
-  @media (prefers-color-scheme: dark) {
-    .logo-mark { filter: invert(1); }
-  }
-  @media (min-width: 720px) {
-    .logo-mark { height: 34px; }
-  }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
 
-  /* Botão Atualizar */
-  .upgrade-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 34px;
-    padding: 0 16px;
-    border: none;
-    border-radius: 999px;
-    font: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.1px;
-    background: var(--btn-solid-bg);
-    color: var(--btn-solid-text);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
-    cursor: pointer;
-    flex-shrink: 0;
-    white-space: nowrap;
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), box-shadow .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
-  }
-  .upgrade-btn:active {
-    background: var(--btn-solid-bg-active);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
-  }
-
-  /* Botão de perfil minificado */
   .profile-btn {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     border: none;
     background: var(--btn-solid-bg);
@@ -168,24 +110,25 @@
     border-radius: 50%;
   }
   .profile-initial {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 15px;
     font-weight: 700;
-    color: var(--btn-solid-text);
+    color: #fff;
   }
 
   @media (hover:hover) and (pointer:fine) {
-    .upgrade-btn:hover { background: var(--btn-solid-bg-active); }
     .profile-btn:hover { background: var(--btn-solid-bg-active); }
-    .logo-mark:hover { transform: scale(1.05); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .top-panel, .logo-mark, .upgrade-btn, .profile-btn, .header-elevate { transition: none !important; }
-    .logo-mark:hover { transform: none; }
+    .top-panel, .profile-btn, .header-elevate { transition: none !important; }
   }
 
   @media (min-width: 720px) {
-    .top-panel { border-bottom-left-radius:0; border-bottom-right-radius:0; }
     .header-inner { max-width:760px; }
   }
 

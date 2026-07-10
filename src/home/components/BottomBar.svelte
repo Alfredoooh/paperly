@@ -1,173 +1,113 @@
-<!-- src/routes/home/components/BottomBar.svelte -->
+<!-- src/home/components/BottomTabBar.svelte -->
 <script>
-  export let pendingAttachments = [];
-  export let inputText = '';
-  export let textInputEl;
-  export let onAutoResize;
-  export let onKeyDown;
-  export let onFocus;
-  export let onBlur;
-  export let onRemoveAttachment;
-  export let onOpenAddPopup;
-  export let onOpenAppsPopup;
-  export let onSend;
-  export let onStartRecording;
+  import { TABS } from '../lib/constants.js';
   
-  export let thinkMoreMode = false;
-  export let sheetsEnabled = false;
+  export let activeTab = 'home';
+  export let onSelect = () => {};
   
-  $: badgeCount = thinkMoreMode ? (sheetsEnabled ? 2 : 1) : 0;
+  function buzz() {
+    try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
+  }
+  
+  function select(id) {
+    if (id === activeTab) return;
+    buzz();
+    onSelect(id);
+  }
 </script>
 
-<div class="bottom-bar">
-  {#if pendingAttachments.length}
-    <div class="att-preview">
-      {#each pendingAttachments as att, i}
-        <div class="att-preview-item">
-          {#if att.kind === 'image' && att.dataUrl}
-            <img src={att.dataUrl} class="att-preview-img" alt="" />
+<nav class="tab-bar">
+  {#each TABS as tab}
+    <button
+      class="tab-btn pulse-tap"
+      class:active={activeTab === tab.id}
+      on:click={() => select(tab.id)}
+      aria-label={tab.label}
+    >
+      <span class="tab-icon">
+        {#if tab.id === 'home'}
+          {#if activeTab === 'home'}
+            <!-- home filled -->
+            <svg viewBox="0 0 24 24" width="25" height="25" fill="currentColor">
+              <path d="M12 2.6 2 11h3v9.4h5.4v-6.2h3.2v6.2H19V11h3L12 2.6Z"/>
+            </svg>
           {:else}
-            <div class="att-preview-file">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:var(--icon-strong)"></span>
-            </div>
+            <!-- home outline -->
+            <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 10.6 12 4l8 6.6V20a1 1 0 0 1-1 1h-4.6v-6.6H9.6V21H5a1 1 0 0 1-1-1V10.6Z"/>
+            </svg>
           {/if}
-          <button class="att-remove pulse-tap" on:click={() => onRemoveAttachment(i)}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  <textarea
-    class="chat-input"
-    placeholder="Escreve aqui..."
-    rows="1"
-    bind:value={inputText}
-    bind:this={textInputEl}
-    on:input={onAutoResize}
-    on:keydown={onKeyDown}
-    on:focus={onFocus}
-    on:blur={onBlur}
-  ></textarea>
-
-  <div class="bb-row">
-    <button class="bb-btn pulse-tap" on:click={onOpenAddPopup}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-      {#if badgeCount > 0}
-        <span class="bb-badge">{badgeCount}</span>
-      {/if}
+        {:else if tab.id === 'images'}
+          {#if activeTab === 'images'}
+            <!-- image filled -->
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3.5 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM4 18l5-5.5 3 3 4-5L20 18H4Z"/>
+            </svg>
+          {:else}
+            <!-- image outline -->
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4.5" width="18" height="15" rx="2"/>
+              <circle cx="8.3" cy="9.3" r="1.6"/>
+              <path d="m4 17 4.7-5 3.3 3.3 3.5-4.3L21 16.5"/>
+            </svg>
+          {/if}
+        {:else}
+          {#if activeTab === 'documents'}
+            <!-- document filled -->
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V8h4.5L13 3.5Z"/>
+            </svg>
+          {:else}
+            <!-- document outline -->
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2.75h7.5L19 8.25V19.5a1.75 1.75 0 0 1-1.75 1.75H6A1.75 1.75 0 0 1 4.25 19.5V4.5A1.75 1.75 0 0 1 6 2.75Z"/>
+              <path d="M13 2.75V8h5"/>
+              <path d="M7.5 13h5M7.5 16.3h5"/>
+            </svg>
+          {/if}
+        {/if}
+      </span>
     </button>
-    <div class="flex1"></div>
-    <button class="bb-pill pulse-tap" on:click={onOpenAppsPopup}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-      <span class="bb-pill-label">Modelos &amp; Apps</span>
-    </button>
-    <div style="width:8px"></div>
-    {#if inputText.trim() || pendingAttachments.length}
-      <button class="bb-btn pulse-tap" on:click={onSend}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:var(--icon-strong)"></span>
-      </button>
-    {:else}
-      <button class="bb-btn pulse-tap" on:click={onStartRecording}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:var(--icon-strong)"></span>
-      </button>
-    {/if}
-  </div>
-</div>
+  {/each}
+</nav>
 
 <style>
-  .bottom-bar {
-    border-radius:22px;
-    background:var(--surface);
-    border:0.5px solid var(--border-soft);
-    box-shadow:0 6px 24px rgba(0,0,0,0.16);
-    display:flex; flex-direction:column;
-    transition: box-shadow .25s cubic-bezier(0.16,1,0.3,1);
+  .tab-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: rgba(var(--header-glass-rgb), 0.92);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 0.5px solid var(--border-soft);
+    padding-top: 8px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
   }
-  .att-preview { display:flex; gap:8px; padding:10px 14px 0; flex-wrap:wrap; }
-  .att-preview-item {
-    position:relative; flex-shrink:0;
-    animation: attIn .3s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-  @keyframes attIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
-  .att-preview-img { width:56px; height:56px; object-fit:cover; border-radius:10px; }
-  .att-preview-file { width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--btn-bg); }
-  .att-remove {
-    position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%;
-    background: var(--btn-solid-bg);
-    border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .att-remove:active { transform:scale(0.85); }
-  .chat-input {
-    resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5;
-    padding:13px 18px 0; width:100%; font-family:inherit; color:var(--icon-strong);
-    max-height:150px; overflow-y:auto; -webkit-user-select:text; user-select:text;
-    transition: height .12s cubic-bezier(0.16,1,0.3,1);
-  }
-  .chat-input::placeholder { color:var(--text-faint); }
-  .bb-row { display:flex; align-items:center; height:52px; padding:0 6px; }
-  .flex1 { flex:1; }
-
-  .bb-btn {
-    width:40px; height:40px; display:flex; align-items:center; justify-content:center;
-    border-radius:50%;
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
     border: none;
-    cursor:pointer;
-    background: var(--btn-solid-bg);
-    flex-shrink:0;
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .22s cubic-bezier(0.34,1.56,0.64,1);
+    background: transparent;
+    color: var(--icon-faint);
+    cursor: pointer;
+    transition: color .18s cubic-bezier(0.16,1,0.3,1);
   }
-  .bb-btn:active {
-    background: var(--btn-solid-bg-active);
-    transform:scale(0.9);
+  .tab-btn.active {
+    color: var(--icon-strong);
   }
-  .bb-btn .icon-mask {
-    background: var(--btn-solid-text) !important;
-  }
-
-  .bb-badge-holder { position:relative; overflow:visible; }
-  .bb-badge {
-    position:absolute; top:-3px; right:-3px; min-width:16px; height:16px; padding:0 4px;
-    border-radius:999px; background:#FF3B30; color:#fff; font-size:10px; font-weight:800;
-    display:flex; align-items:center; justify-content:center; line-height:1;
-    border:1.5px solid var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.3);
-    font-variant-numeric:tabular-nums; pointer-events:none;
-    animation: badgePop .28s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-  @keyframes badgePop { from { opacity:0; transform:scale(0.4); } to { opacity:1; transform:scale(1); } }
-
-  .bb-pill {
-    display:flex; align-items:center; gap:6px; height:40px; padding:0 14px; border-radius:999px;
-    border: none;
-    background: var(--btn-solid-bg);
-    cursor:pointer; flex-shrink:0;
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .22s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .bb-pill:active {
-    background: var(--btn-solid-bg-active);
-    transform:scale(0.93);
-  }
-  .bb-pill-label {
-    font-size:14px; font-weight:700;
-    color: var(--btn-solid-text);
-    white-space:nowrap;
-  }
-  .bb-pill .icon-mask {
-    background: var(--btn-solid-text) !important;
-  }
-
-  .icon-mask {
-    display:block;
-    mask-size:contain; -webkit-mask-size:contain;
-    mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat;
-    mask-position:center; -webkit-mask-position:center;
-    flex-shrink:0;
+  .tab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .pulse-tap {
-    cursor:pointer;
-    transition:transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .pulse-tap:active { transform:scale(0.96); opacity:.80; }
+  .pulse-tap:active { transform: scale(0.88); }
 </style>

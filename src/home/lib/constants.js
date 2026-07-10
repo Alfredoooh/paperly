@@ -1,4 +1,4 @@
-// src/routes/home/lib/constants.js
+// src/home/lib/constants.js
 
 export const THEME_OPTIONS = [
   { id: 'dark', label: 'Escuro' },
@@ -11,26 +11,14 @@ export const DRAWER_ITEMS = [
   { icon: 'help', label: 'Ajuda', action: () => {} },
 ];
 
-export const HERO_PHRASE = 'Em que estás a pensar hoje?';
-
-export const SUGGESTION_TOGGLES = [
-  { id: 'image', label: 'Cria uma imagem', prompt: 'Cria uma imagem de ', icon: '/icons/svg/bw/image.svg' },
-  { id: 'story', label: 'Conta uma história', prompt: 'Conta-me uma história sobre ', icon: '/icons/svg/bw/open_book.svg' },
-  { id: 'math', label: 'Resolve um problema', prompt: 'Resolve este problema matemático: ', icon: '/icons/svg/bw/math.svg' },
-  { id: 'search', label: 'Procure na web', prompt: 'Procura por ', icon: '/icons/svg/bw/browser.svg' },
-  { id: 'slides', label: 'Cria slides', prompt: 'Cria uma apresentação de slides sobre ', icon: '/icons/svg/bw/slides.svg' },
-  { id: 'pdf', label: 'Analisa um PDF', prompt: 'Analisa este PDF: ', icon: '/icons/svg/bw/pdf.svg' },
-];
-
-// Tabs do popup "Apps & Utilitários"
-export const MODELS_TABS = [
-  { id: 'docs', label: 'Documentos' },
+// Tabs da bottom bar nativa
+export const TABS = [
+  { id: 'home', label: 'Home' },
   { id: 'images', label: 'Imagens' },
-  { id: 'apps', label: 'Apps' },
+  { id: 'documents', label: 'Documentos' },
 ];
 
 // Modelos de documentos apresentados no tab "Documentos".
-// Cada modelo pré-preenche o prompt do chat com um pedido de documento específico.
 export const DOC_MODELS = [
   { id: 'doc-cv', label: 'Currículo', icon: '/icons/svg/bw/pdf.svg', prompt: 'Cria um currículo profissional para ' },
   { id: 'doc-carta', label: 'Carta de Apresentação', icon: '/icons/svg/bw/pdf.svg', prompt: 'Escreve uma carta de apresentação para ' },
@@ -40,8 +28,6 @@ export const DOC_MODELS = [
 ];
 
 // Modelos de imagem apresentados no tab "Imagens".
-// As miniaturas são importadas a partir de /images/img_models/ — troca img1.jpg...img6.jpg
-// pelos nomes de ficheiro reais quando estiverem disponíveis nessa pasta.
 export const IMAGE_MODELS = [
   { id: 'img-1', label: 'Retrato Realista', thumb: '/images/img_models/img1.jpg', prompt: 'Cria uma imagem em estilo retrato realista de ' },
   { id: 'img-2', label: 'Anime', thumb: '/images/img_models/img2.jpg', prompt: 'Cria uma imagem em estilo anime de ' },

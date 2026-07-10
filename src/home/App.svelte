@@ -753,7 +753,6 @@
     height: 100%;
     width: 100%;
   }
-  }
   :global([data-theme="dark"]) {
     --app-bg: #0F0F0F;
     --header-glass-rgb: 15,15,15;

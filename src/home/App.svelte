@@ -191,6 +191,7 @@
     {userInitial}
     {userName}
     title={currentTitle}
+    solidGradient={activeTab === 'templates'}
     showToggle={activeTab === 'templates'}
     toggleOptions={TEMPLATE_VIEWS}
     toggleValue={templatesView}

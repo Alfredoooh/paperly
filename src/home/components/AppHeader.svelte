@@ -12,6 +12,9 @@
   
   export let title = '';
   
+  // appbar sem blur, com gradiente sólido->transparente (usado no tab "Templates")
+  export let solidGradient = false;
+  
   // toggle nativo (usado apenas no tab "Templates")
   export let showToggle = false;
   export let toggleOptions = []; // [{id,label}]
@@ -40,7 +43,8 @@
   $: toggleIndex = Math.max(0, toggleOptions.findIndex(o => o.id === toggleValue));
 </script>
 
-<div class="top-panel" class:in={mounted} bind:this={topPanelEl}>
+<div class="top-panel" class:in={mounted} class:solid-gradient={solidGradient} bind:this={topPanelEl}>
+  <div class="gradient-layer"></div>
   <header class="header">
     <div class="header-inner">
       <h1 class="header-title">{title}</h1>
@@ -62,13 +66,13 @@
             class:active={toggleValue === opt.id}
             on:click={() => selectToggle(opt.id)}
           >
-            {opt.label}
+            <span class="segmented-opt-label">{opt.label}</span>
           </button>
         {/each}
       </div>
     {/if}
   </header>
-  <div class="header-elevate" style="opacity:{scrolled}"></div>
+  <div class="header-elevate" style="opacity:{solidGradient ? 0 : scrolled}"></div>
 </div>
 
 <style>
@@ -83,7 +87,7 @@
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
-    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1);
+    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .2s ease;
     pointer-events: none;
     contain: layout style paint;
   }
@@ -92,6 +96,31 @@
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
   }
+
+  /* Templates: sem blur, gradiente sólido (topo) -> transparente (fundo) */
+  .top-panel.solid-gradient {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .gradient-layer {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--header-glass-rgb), 1) 0%,
+      rgba(var(--header-glass-rgb), 1) 55%,
+      rgba(var(--header-glass-rgb), 0) 100%
+    );
+    transition: opacity .2s ease;
+    pointer-events: none;
+  }
+  .top-panel.solid-gradient .gradient-layer {
+    opacity: 1;
+  }
+
   .header-elevate {
     position: absolute;
     left: 0; right: 0; bottom: -1px;
@@ -160,45 +189,55 @@
     color: #fff;
   }
 
+  /* Toggle mais intuitivo: pill maior, labels mais legíveis, thumb com sombra mais forte */
   .segmented {
     position: relative;
     display: flex;
     width: 100%;
     max-width: 640px;
     background: var(--btn-bg);
-    border-radius: 12px;
-    padding: 3px;
+    border-radius: 999px;
+    padding: 4px;
   }
   .segmented-thumb {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: calc((100% - 6px) / var(--count));
-    height: calc(100% - 6px);
-    border-radius: 9px;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 8px) / var(--count));
+    height: calc(100% - 8px);
+    border-radius: 999px;
     background: var(--btn-solid-bg);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.12);
     transform: translateX(calc(var(--index) * 100%));
-    transition: transform .38s cubic-bezier(0.34, 1.2, 0.4, 1);
+    transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
   .segmented-opt {
     position: relative;
     z-index: 1;
     flex: 1;
-    padding: 8px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
     border: none;
     background: transparent;
     font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-faint);
     cursor: pointer;
-    border-radius: 9px;
-    transition: color .22s ease;
+    border-radius: 999px;
     -webkit-tap-highlight-color: transparent;
   }
-  .segmented-opt.active {
+  .segmented-opt-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    transition: color .22s ease, transform .3s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .segmented-opt.active .segmented-opt-label {
     color: var(--btn-solid-text);
+    transform: scale(1.04);
+  }
+  .segmented-opt:active .segmented-opt-label {
+    transform: scale(0.92);
   }
 
   @media (hover:hover) and (pointer:fine) {
@@ -206,7 +245,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .top-panel, .profile-btn, .header-elevate, .segmented-thumb { transition: none !important; }
+    .top-panel, .profile-btn, .header-elevate, .segmented-thumb, .segmented-opt-label { transition: none !important; }
   }
 
   @media (min-width: 720px) {

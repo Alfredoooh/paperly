@@ -1,5 +1,6 @@
 <!-- src/home/components/TemplatesTab.svelte -->
 <script>
+  import { onMount } from 'svelte';
   import { IMAGE_MODELS, DOC_MODELS } from '../lib/constants.js';
 
   export let view = 'images'; // 'images' | 'documents' — controlado pelo toggle do appbar
@@ -7,6 +8,7 @@
 
   let previewImg = null;
   let previewDoc = null;
+  let loading = true;
 
   function splitColumns(items) {
     const left = [], right = [];
@@ -30,10 +32,84 @@
     if (previewDoc) onUsePrompt(previewDoc.prompt);
     closeDocPreview();
   }
+
+  // Elastic / rubber-band scroll nativo dentro do próprio grid
+  let scrollEl;
+  let dragging = false;
+  let startY = 0;
+  let startScrollTop = 0;
+  let pull = 0; // 0 -> sem esticar, >0 esticado
+
+  function onPointerDown(e) {
+    if (!scrollEl) return;
+    dragging = true;
+    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    startScrollTop = scrollEl.scrollTop;
+  }
+  function onPointerMove(e) {
+    if (!dragging || !scrollEl) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const delta = y - startY;
+    const atTop = scrollEl.scrollTop <= 0;
+    const atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
+
+    if (atTop && delta > 0) {
+      pull = Math.min(64, delta * 0.42);
+    } else if (atBottom && delta < 0) {
+      pull = Math.max(-64, delta * 0.42);
+    } else {
+      pull = 0;
+    }
+  }
+  function onPointerUp() {
+    dragging = false;
+    pull = 0;
+  }
+
+  onMount(() => {
+    const t = setTimeout(() => { loading = false; }, 700);
+    return () => clearTimeout(t);
+  });
 </script>
 
-{#if view === 'images'}
-  <div class="templates-tab">
+<div
+  class="templates-tab"
+  bind:this={scrollEl}
+  style="transform: translateY({pull}px); transition: {dragging ? 'none' : 'transform .5s cubic-bezier(0.22,1.42,0.36,1)'}"
+  on:touchstart={onPointerDown}
+  on:touchmove={onPointerMove}
+  on:touchend={onPointerUp}
+  on:touchcancel={onPointerUp}
+  on:mousedown={onPointerDown}
+  on:mousemove={onPointerMove}
+  on:mouseup={onPointerUp}
+  on:mouseleave={onPointerUp}
+>
+  {#if loading}
+    {#if view === 'images'}
+      <div class="masonry">
+        <div class="masonry-col">
+          <div class="skeleton-card" style="aspect-ratio:3/4"></div>
+          <div class="skeleton-card" style="aspect-ratio:1/1"></div>
+          <div class="skeleton-card" style="aspect-ratio:4/5"></div>
+        </div>
+        <div class="masonry-col">
+          <div class="skeleton-card" style="aspect-ratio:1/1"></div>
+          <div class="skeleton-card" style="aspect-ratio:4/5"></div>
+          <div class="skeleton-card" style="aspect-ratio:3/4"></div>
+        </div>
+      </div>
+    {:else}
+      <div class="doc-grid">
+        {#each Array(6) as _}
+          <div class="skeleton-doc">
+            <div class="skeleton-sheet"></div>
+            <div class="skeleton-line"></div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  {:else if view === 'images'}
     <div class="masonry">
       {#each imageColumns as column}
         <div class="masonry-col">
@@ -47,9 +123,7 @@
         </div>
       {/each}
     </div>
-  </div>
-{:else}
-  <div class="templates-tab">
+  {:else}
     <div class="doc-grid">
       {#each DOC_MODELS as doc}
         <button class="doc-card" on:click={() => openDocPreview(doc)}>
@@ -64,8 +138,8 @@
         </button>
       {/each}
     </div>
-  </div>
-{/if}
+  {/if}
+</div>
 
 {#if previewImg}
   <div class="preview-overlay" on:click={closeImgPreview}>
@@ -98,6 +172,7 @@
   .templates-tab {
     width: 100%;
     padding: 4px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
+    will-change: transform;
   }
   .masonry {
     display: flex;
@@ -228,6 +303,42 @@
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+  }
+
+  /* Skeleton loader */
+  .skeleton-card, .skeleton-sheet, .skeleton-line {
+    background: linear-gradient(
+      100deg,
+      var(--border-faint) 30%,
+      var(--border-soft) 50%,
+      var(--border-faint) 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.3s ease-in-out infinite;
+  }
+  .skeleton-card {
+    width: 100%;
+    border-radius: 20px;
+  }
+  .skeleton-doc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .skeleton-sheet {
+    width: 100%;
+    aspect-ratio: 1 / 1.4142;
+    border-radius: 14px;
+  }
+  .skeleton-line {
+    width: 70%;
+    height: 10px;
+    border-radius: 6px;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 
   .preview-overlay {

@@ -76,10 +76,10 @@
     left: 6px;
     width: calc((100% - 12px) / var(--count));
     height: calc(100% - 14px - env(safe-area-inset-bottom, 0px));
-    border-radius: 18px;
+    border-radius: 999px;
     background: var(--row-active);
     transform: translateX(calc(var(--index) * 100%));
-    transition: transform .42s cubic-bezier(0.34, 1.2, 0.4, 1);
+    transition: transform .5s cubic-bezier(0.22, 1.42, 0.36, 1);
     pointer-events: none;
     will-change: transform;
   }
@@ -92,8 +92,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    height: 52px;
+    gap: 2px;
+    height: 50px;
     border: none;
     background: transparent;
     color: var(--icon-faint);
@@ -102,12 +102,13 @@
   }
 
   .tab-btn.bounce {
-    animation: tabBounce .38s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: tabBounce .46s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
   @keyframes tabBounce {
     0%   { transform: scale(1); }
-    35%  { transform: scale(0.86); }
-    65%  { transform: scale(1.08); }
+    28%  { transform: scale(0.80); }
+    52%  { transform: scale(1.14); }
+    72%  { transform: scale(0.96); }
     100% { transform: scale(1); }
   }
 
@@ -115,8 +116,8 @@
 
   .tab-icon {
     position: relative;
-    width: 25px;
-    height: 25px;
+    width: 19px;
+    height: 19px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -133,7 +134,7 @@
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-    transition: opacity .22s cubic-bezier(0.34, 1.2, 0.4, 1), transform .3s cubic-bezier(0.34, 1.2, 0.4, 1);
+    transition: opacity .26s cubic-bezier(0.22, 1.42, 0.36, 1), transform .38s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
 
   .icon-outline {
@@ -142,11 +143,11 @@
   }
   .icon-filled {
     opacity: 0;
-    transform: scale(0.7);
+    transform: scale(0.6);
   }
   .tab-btn.active .icon-outline {
     opacity: 0;
-    transform: scale(1.15);
+    transform: scale(1.25);
   }
   .tab-btn.active .icon-filled {
     opacity: 1;
@@ -154,10 +155,10 @@
   }
 
   .tab-label {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: -0.1px;
-    opacity: 0.75;
+    opacity: 0.7;
     transition: opacity .22s ease, font-weight .22s ease;
   }
   .tab-btn.active .tab-label {

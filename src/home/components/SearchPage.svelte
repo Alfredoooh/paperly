@@ -169,15 +169,15 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     background: var(--btn-bg);
     border-radius: 999px;
-    padding: 0 12px;
-    height: 40px;
+    padding: 0 16px;
+    height: 48px;
   }
   .search-icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
     opacity: 0.6;
   }
@@ -188,7 +188,7 @@
     background: transparent;
     outline: none;
     font: inherit;
-    font-size: 15px;
+    font-size: 16.5px;
     color: var(--icon-strong);
     padding: 0;
   }
@@ -196,8 +196,8 @@
     color: var(--text-faint);
   }
   .clear-btn {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     border: none;
     background: var(--btn-bg-active);
@@ -209,8 +209,8 @@
     padding: 0;
   }
   .clear-btn .icon-mask {
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
   }
 
   .icon-mask {

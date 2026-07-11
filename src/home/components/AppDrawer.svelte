@@ -4,6 +4,8 @@
 
   export let drawerOpen = false;
   export let drawerVisible = false;
+  export let drawerPushed = false; // bind bidirecional: controla o "empurrar" do ecrã por trás
+  export let rootEl = null; // elemento .root do App.svelte, para animar o "empurrar" 1:1 durante o gesto
   export let themeExpanded = false;
   export let themeValue = 'dark';
 
@@ -21,6 +23,7 @@
   export let onInstall;
 
   let showLogoutDialog = false;
+  let dialogVisible = false; // controla a animação de entrada/saída do dialog
 
   function goProfile() {
     onClose();
@@ -36,21 +39,29 @@
     onClose();
   }
 
+  function openLogoutDialog() {
+    showLogoutDialog = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { dialogVisible = true; }));
+  }
+
   function confirmLogout() {
-    showLogoutDialog = false;
+    dialogVisible = false;
+    setTimeout(() => { showLogoutDialog = false; }, 260);
     onClose();
     if (onLogout) onLogout();
     if (window.AndroidSession) window.AndroidSession.onLogout();
   }
 
   function cancelLogout() {
-    showLogoutDialog = false;
+    dialogVisible = false;
+    setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
   // ------------------------------------------------------------------
   // Swipe gesture nativo (estilo Android Navigation Drawer):
   // 1) Arrastar a partir da borda DIREITA do ecrã (o drawer entra pela
-  //    direita) abre o drawer seguindo o dedo 1:1.
+  //    direita) abre o drawer seguindo o dedo 1:1 — incluindo o efeito
+  //    de "empurrar" o ecrã por trás, também 1:1 com o gesto.
   // 2) Com o drawer aberto, arrastar para a direita fecha-o, também
   //    seguindo o dedo 1:1, com "solta e decide" por threshold/velocidade.
   // 3) Nada de listeners globais permanentes: o listener de abertura só
@@ -62,6 +73,11 @@
   const OPEN_THRESHOLD = 0.35;  // % arrastado para considerar "abrir" ao soltar
   const CLOSE_THRESHOLD = 0.35; // % arrastado para considerar "fechar" ao soltar
   const VELOCITY_FLING = 0.55;  // px/ms — acima disto, decide pela direção do gesto
+
+  // Amplitude do "empurrar" do ecrã de fundo, tem de refletir os
+  // mesmos valores usados em .root.pushed-by-drawer no App.svelte.
+  const PUSH_TRANSLATE = -10; // %
+  const PUSH_SCALE_MIN = 0.965;
 
   let dragging = false;
   let dragStartX = 0;
@@ -113,6 +129,7 @@
         if (!drawerVisible) {
           // ativa o drawer em modo "seguindo o dedo" sem a transição de entrada normal
           drawerVisible = true;
+          drawerPushed = true;
         }
         const progress = Math.min(1, Math.max(0, -delta / dragW));
         applyLiveTransform(1 - progress);
@@ -131,17 +148,31 @@
 
   function applyLiveTransform(closedFraction) {
     // closedFraction: 0 = totalmente aberto, 1 = totalmente fechado
-    if (!drawerEl) return;
-    drawerEl.style.transition = 'none';
-    drawerEl.style.transform = `translate3d(${closedFraction * 100}%, 0, 0)`;
-    drawerEl.style.opacity = String(1 - closedFraction * 0.02);
+    if (drawerEl) {
+      drawerEl.style.transition = 'none';
+      drawerEl.style.transform = `translate3d(${closedFraction * 100}%, 0, 0)`;
+    }
+    // Ecrã de fundo acompanha o mesmo progresso, 1:1 com o dedo, para
+    // que o "empurrar" pareça parte do mesmo gesto físico e não um
+    // efeito a reagir com atraso.
+    if (rootEl) {
+      const openFraction = 1 - closedFraction;
+      const translate = PUSH_TRANSLATE * openFraction;
+      const scale = 1 - (1 - PUSH_SCALE_MIN) * openFraction;
+      rootEl.style.transition = 'none';
+      rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
+    }
   }
 
   function releaseLiveTransform() {
-    if (!drawerEl) return;
-    drawerEl.style.transition = '';
-    drawerEl.style.transform = '';
-    drawerEl.style.opacity = '';
+    if (drawerEl) {
+      drawerEl.style.transition = '';
+      drawerEl.style.transform = '';
+    }
+    if (rootEl) {
+      rootEl.style.transition = '';
+      rootEl.style.transform = '';
+    }
   }
 
   function onDragEnd(e) {
@@ -166,6 +197,7 @@
         openViaGesture();
       } else {
         drawerVisible = false;
+        drawerPushed = false;
       }
     } else {
       // estava a tentar fechar
@@ -179,10 +211,13 @@
   }
 
   async function openViaGesture() {
-    drawerOpen = true;
-    drawerVisible = false;
-    await new Promise(r => requestAnimationFrame(r));
-    requestAnimationFrame(() => drawerVisible = true);
+    // Este caminho só resolve o estado VISUAL local (drawerVisible/
+    // drawerPushed) para o gesto parecer instantâneo; o estado lógico
+    // drawerOpen + o histórico real (pushState) continuam a ser geridos
+    // pelo App.svelte via onClose/openDrawer, mantendo uma única fonte
+    // de verdade para o botão físico de voltar do Android.
+    drawerVisible = true;
+    drawerPushed = true;
   }
 </script>
 
@@ -243,7 +278,7 @@
         </button>
       {/each}
     </nav>
-    <button class="drawer-logout pulse-tap" on:click={() => showLogoutDialog = true}>
+    <button class="drawer-logout pulse-tap" on:click={openLogoutDialog}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:var(--drawer-text)"></span>
       <span class="drawer-logout-label">Terminar sessão</span>
     </button>
@@ -251,8 +286,8 @@
 {/if}
 
 {#if showLogoutDialog}
-  <div class="logout-overlay" on:click={cancelLogout}></div>
-  <div class="logout-dialog">
+  <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}></div>
+  <div class="logout-dialog" class:logout-dialog-in={dialogVisible}>
     <p class="logout-dialog-text">Tem a certeza que deseja terminar sessão?</p>
     <div class="logout-dialog-actions">
       <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
@@ -262,13 +297,19 @@
 {/if}
 
 <style>
+  /* ------------------------------------------------------------------
+     Easing nativo partilhado por todo o drawer e pelo dialog. É o
+     mesmo cubic-bezier usado no resto do projeto (.root, .search-page)
+     para overlays que "deslizam" — mantém a app inteira a sentir-se
+     como um único sistema de movimento coerente.
+     ------------------------------------------------------------------ */
   .drawer-overlay {
     position: fixed;
     inset: 0;
     z-index: 70;
-    background: var(--drawer-overlay);
+    background: var(--drawer-overlay, rgba(0,0,0,0));
     opacity: 0;
-    transition: background .32s cubic-bezier(0.2, 0, 0, 1);
+    transition: background .42s cubic-bezier(0.32, 0.72, 0, 1);
     contain: strict;
   }
   .drawer-overlay.drawer-overlay-in {
@@ -290,15 +331,14 @@
     overflow: hidden;
     transform: translate3d(100%, 0, 0);
     opacity: 1;
-    transition: transform .32s cubic-bezier(0.2, 0, 0, 1);
+    transition: transform .42s cubic-bezier(0.32, 0.72, 0, 1);
     touch-action: pan-y;
-    will-change: transform, opacity;
+    will-change: transform;
     backface-visibility: hidden;
     contain: layout paint style;
   }
   .drawer.drawer-in {
     transform: translate3d(0, 0, 0);
-    opacity: 1;
   }
   .drawer-avatar-block {
     display: flex;
@@ -372,11 +412,11 @@
     cursor: pointer;
     font-family: inherit;
     text-align: left;
-    transition: background .14s cubic-bezier(0.2, 0, 0, 1);
+    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
     width: 100%;
   }
   .drawer-item:active {
-    background: var(--drawer-row-active);
+    background: var(--drawer-row-active, var(--btn-bg));
   }
   .drawer-item-label {
     font-size: 15px;
@@ -384,7 +424,7 @@
     color: var(--drawer-text);
   }
   .drawer-chevron {
-    transition: transform .3s cubic-bezier(0.2, 0, 0, 1);
+    transition: transform .36s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .drawer-chevron-open {
     transform: rotate(90deg);
@@ -392,7 +432,7 @@
   .theme-accordion {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows .3s cubic-bezier(0.2, 0, 0, 1);
+    transition: grid-template-rows .36s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .theme-accordion-open {
     grid-template-rows: 1fr;
@@ -413,10 +453,10 @@
     font-family: inherit;
     text-align: left;
     border-radius: 8px;
-    transition: background .14s cubic-bezier(0.2, 0, 0, 1);
+    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .theme-opt:active {
-    background: var(--drawer-row-active);
+    background: var(--drawer-row-active, var(--btn-bg));
   }
   .theme-opt-label {
     font-size: 14px;
@@ -436,7 +476,7 @@
     cursor: pointer;
     font-family: inherit;
     flex-shrink: 0;
-    transition: background .2s cubic-bezier(0.2, 0, 0, 1), transform .2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1), transform .24s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .drawer-logout:active {
     background: var(--btn-bg-active);
@@ -447,24 +487,41 @@
     font-weight: 700;
     color: var(--logout-icon);
   }
+
+  /* ------------------------------------------------------------------
+     Dialog de logout: antes aparecia instantâneo (sem transição). Agora
+     entra com fade+scale suave, com um leve "settle" no fim (sem
+     overshoot exagerado) — o mesmo espírito do resto do projeto.
+     ------------------------------------------------------------------ */
   .logout-overlay {
     position: fixed;
     inset: 0;
     z-index: 80;
+    background: rgba(0, 0, 0, 0);
+    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .logout-overlay.logout-overlay-in {
     background: rgba(0, 0, 0, 0.5);
   }
   .logout-dialog {
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(0.90);
+    opacity: 0;
     background: var(--surface);
-    border-radius: 14px;
+    border-radius: 20px;
     padding: 24px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     z-index: 81;
     min-width: 280px;
     max-width: 90vw;
+    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform, opacity;
+  }
+  .logout-dialog.logout-dialog-in {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
   }
   .logout-dialog-text {
     font-size: 16px;
@@ -480,21 +537,32 @@
   }
   .logout-btn-cancel,
   .logout-btn-confirm {
-    padding: 10px 20px;
+    flex: 1;
+    padding: 12px 20px;
     border-radius: 999px;
     border: none;
     font-family: inherit;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
+    text-align: center;
+    transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .logout-btn-cancel {
     background: var(--btn-bg);
     color: var(--text-primary);
   }
+  .logout-btn-cancel:active {
+    background: var(--btn-bg-active);
+    transform: scale(0.96);
+  }
   .logout-btn-confirm {
     background: #FF3B30;
     color: white;
+  }
+  .logout-btn-confirm:active {
+    background: #E0342A;
+    transform: scale(0.96);
   }
   .icon-mask {
     display: block;
@@ -508,10 +576,27 @@
   }
   .pulse-tap {
     cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .16s cubic-bezier(0.2, 0, 0, 1);
+    transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .pulse-tap:active {
     transform: scale(0.96);
     opacity: .80;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .drawer-overlay,
+    .drawer,
+    .drawer-item,
+    .drawer-chevron,
+    .theme-accordion,
+    .theme-opt,
+    .drawer-logout,
+    .logout-overlay,
+    .logout-dialog,
+    .logout-btn-cancel,
+    .logout-btn-confirm,
+    .pulse-tap {
+      transition: none !important;
+    }
   }
 </style>

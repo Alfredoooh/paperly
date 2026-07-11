@@ -56,24 +56,54 @@
     if (themeValue === 'system') applyThemeValue('system', false);
   }
 
+  let rootEl;
+
   let drawerOpen = false;
   let drawerVisible = false;
+  let drawerPushed = false; // controla o "empurrar" do ecrã por trás do drawer
   let themeExpanded = false;
   let showInstall = false;
   let unsubscribeInstall;
 
+  // ------------------------------------------------------------------
+  // Drawer: segue a MESMA "regra de ouro" já usada pelo search/preview.
+  // Abrir empurra um estado real para o histórico (pushState); fechar
+  // NUNCA esconde o drawer diretamente — chama history.back() e deixa
+  // o onPopState (fonte única de verdade) tratar do fecho visual. Isto
+  // faz o botão físico de voltar do Android e o gesto do Chrome
+  // fecharem o drawer exatamente como fecham a pesquisa/preview.
+  // ------------------------------------------------------------------
   async function openDrawer() {
     if (drawerOpen) return;
+    pushOverlayState('drawer', { nexaDrawer: true });
     drawerOpen = true;
     drawerVisible = false;
     themeExpanded = false;
     await new Promise(r => requestAnimationFrame(r));
-    requestAnimationFrame(() => drawerVisible = true);
+    requestAnimationFrame(() => {
+      drawerVisible = true;
+      drawerPushed = true;
+    });
   }
-  function closeDrawer() {
+
+  // Fecho visual puro — chamado apenas a partir de onPopState.
+  function closeDrawerVisual() {
     drawerVisible = false;
+    drawerPushed = false;
     themeExpanded = false;
-    setTimeout(() => drawerOpen = false, 320);
+    setTimeout(() => { drawerOpen = false; }, 320);
+  }
+
+  // Chamado pelo botão "X"/overlay/gesto de swipe dentro do próprio
+  // drawer. Não fecha nada visualmente aqui — apenas dispara o popstate
+  // real (ou faz fallback caso o histórico já tenha sido consumido).
+  function closeDrawer() {
+    if (!drawerOpen) return;
+    if (history.state && history.state.nexaDrawer) {
+      history.back();
+    } else {
+      closeDrawerVisual();
+    }
   }
   function toggleThemeExpanded() {
     themeExpanded = !themeExpanded;
@@ -278,6 +308,10 @@
         suppressRouterPopstate = true;
         closeSearchVisual();
         suppressRouterPopstate = false;
+      } else if (drawerOpen) {
+        suppressRouterPopstate = true;
+        closeDrawerVisual();
+        suppressRouterPopstate = false;
       }
     }
     window.addEventListener('popstate', onPopState);
@@ -293,7 +327,7 @@
   });
 </script>
 
-<div class="root" class:pushed-back={searchPushed || previewPushed}>
+<div class="root" bind:this={rootEl} class:pushed-back={searchPushed || previewPushed} class:pushed-by-drawer={drawerPushed}>
   <div class="bg-layer"></div>
 
   <AppHeader
@@ -354,6 +388,8 @@
 <AppDrawer
   {drawerOpen}
   {drawerVisible}
+  bind:drawerPushed
+  {rootEl}
   {themeExpanded}
   {themeValue}
   {avatarColor}
@@ -390,12 +426,12 @@
     --row-active: rgba(255,255,255,0.07);
     --btn-bg: rgba(255,255,255,0.10);
     --btn-bg-active: rgba(255,255,255,0.18);
-    --drawer-bg: #0F0F0F;
-    --drawer-border: rgba(255,255,255,0.08);
+    --drawer-bg: #1C1C1E;
+    --drawer-border: rgba(255,255,255,0.09);
     --drawer-shadow: rgba(0,0,0,0.45);
-    --drawer-text: rgba(255,255,255,0.82);
-    --drawer-text-faint: rgba(255,255,255,0.35);
-    --drawer-sep: rgba(255,255,255,0.10);
+    --drawer-text: rgba(255,255,255,0.86);
+    --drawer-text-faint: rgba(255,255,255,0.38);
+    --drawer-sep: rgba(255,255,255,0.11);
     --drawer-overlay-in: rgba(0,0,0,0.35);
     --logout-icon: #FF453A;
     --btn-solid-bg: #f5f5f5;
@@ -444,12 +480,23 @@
     overscroll-behavior:none;
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
     touch-action: pan-y;
-    transform: translate3d(0,0,0);
+    transform: translate3d(0,0,0) scale(1);
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
+    transform-origin: center;
   }
   .root.pushed-back {
-    transform: translate3d(-28%, 0, 0);
+    transform: translate3d(-28%, 0, 0) scale(1);
+  }
+  /* Efeito "empurrado" nativo quando o drawer (lateral direita) abre:
+     o conteúdo por trás recua ligeiramente e encolhe um pouco, tal como
+     acontece no Android/iOS quando um drawer/menu lateral desliza para
+     dentro. A transição CSS trata da abertura/fecho "normais"; durante
+     o gesto de arrastar, o AppDrawer escreve diretamente no estilo
+     inline deste mesmo elemento para seguir o dedo 1:1, sem o atraso
+     da transição. */
+  .root.pushed-by-drawer {
+    transform: translate3d(-10%, 0, 0) scale(0.965);
   }
   .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); }
 

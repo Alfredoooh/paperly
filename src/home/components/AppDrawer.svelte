@@ -40,6 +40,7 @@
     showLogoutDialog = false;
     onClose();
     if (onLogout) onLogout();
+    if (window.AndroidSession) window.AndroidSession.onLogout();
   }
 
   function cancelLogout() {
@@ -289,8 +290,6 @@
     overflow: hidden;
     transform: translate3d(100%, 0, 0);
     opacity: 1;
-    /* curva estilo Material (decelerate/standard) — mais próxima do
-       Android Navigation Drawer real do que a curva anterior */
     transition: transform .32s cubic-bezier(0.2, 0, 0, 1);
     touch-action: pan-y;
     will-change: transform, opacity;

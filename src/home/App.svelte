@@ -20,6 +20,8 @@
 
   const BASE = '/home/';
   const VALID_ROUTES = ['projects', 'templates', 'tools'];
+  // 'create' é o rootRoute real do router — a rota raiz '/home/' resolve
+  // sempre para 'create', tanto no parseCurrentRoute() como no navigate().
   const router = createRouter(BASE, VALID_ROUTES, 'create');
 
   let activeTab = 'create';
@@ -101,9 +103,21 @@
     }
   }
 
+  // FIX (bug: create -> "/home/home/" -> 404 numa navegação seguinte):
+  // O router usa 'create' como rootRoute (ver createRouter acima), e
+  // parseCurrentRoute() já devolve 'create' para a rota raiz. Antes,
+  // aqui passávamos a string literal 'home' (o nome da PASTA/BASE, não
+  // o rootRoute), o que fazia navigate() comparar 'home' !== 'create'
+  // e gerar o pathname inválido '/home/home/' em vez de '/home/'. Isso
+  // não dava erro na hora (é só um pushState), mas na próxima vez que
+  // essa URL fosse reavaliada — voltar, refresh, botão físico — o
+  // router não reconhecia '/home/home/' como rota válida e redirecionava
+  // para /404/. Agora passamos sempre activeTab diretamente: como
+  // activeTab já usa 'create' para a tab raiz, fala a mesma língua que
+  // o router sem qualquer tradução.
   function selectTab(id) {
     activeTab = id;
-    router.navigate(id === 'create' ? 'home' : id);
+    router.navigate(id);
     requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
   }
 
@@ -121,14 +135,7 @@
   // dentro de onPopState — nunca é antecipado por closeSearch()/
   // closeTemplatePreview(). Esses dois só fazem history.back() e mais
   // nada. Isto elimina a necessidade de "prever" se foi o botão dentro
-  // da app ou o gesto físico do Android/Chrome que disparou o popstate:
-  // não importa a origem, o popstate É a única fonte de verdade, e
-  // dispara sempre exatamente uma vez por history.back(). A versão
-  // anterior marcava closingFromPopstate=true ANTES do history.back(),
-  // o que fazia o onPopState seguinte ignorar o fecho (por já achar que
-  // tinha sido tratado) — daí ser preciso clicar duas vezes, e o
-  // histórico ficar com entradas por consumir, o que eventualmente
-  // levava o router a resolver uma URL inesperada como 404.
+  // da app ou o gesto físico do Android/Chrome que disparou o popstate.
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false;
@@ -162,9 +169,6 @@
     if (history.state && history.state.nexaSearch) {
       history.back();
     } else {
-      // segurança: se por algum motivo não há estado de histórico
-      // correspondente (ex: entrada consumida de outra forma), fecha
-      // diretamente para nunca deixar a UI presa.
       closeSearchVisual();
     }
   }
@@ -245,30 +249,26 @@
       showInstall = available;
     });
 
+    // parseCurrentRoute() já devolve 'create' diretamente para a rota
+    // raiz — não precisa de nenhuma tradução 'home' <-> 'create'.
     const { route: initialRoute, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
-    activeTab = initialRoute === 'home' ? 'create' : initialRoute;
-    router.navigate(activeTab === 'create' ? 'home' : activeTab, { replace: true });
+    activeTab = initialRoute;
+    router.navigate(activeTab, { replace: true });
 
     // IMPORTANTE: este listener é vinculado pelo router ANTES do nosso
     // onPopState local, logo corre primeiro em qualquer evento popstate.
-    // Bloqueamos a decisão do router sempre que o popstate pertencer ao
-    // fecho de um overlay nosso — a flag é ligada e desligada de forma
-    // SÍNCRONA dentro do próprio handler local (mesmo tick), nunca com
-    // setTimeout, para nunca haver uma janela onde os dois handlers
-    // discordam sobre o estado atual do histórico.
     const unbindRouter = router.bindPopState((r, nf) => {
       if (suppressRouterPopstate) return;
       if (nf) { window.location.replace('/404/'); return; }
-      activeTab = r === 'home' ? 'create' : r;
+      activeTab = r;
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
     // Fonte ÚNICA de verdade para fechar overlays: dispara tanto quando
     // o botão de voltar DENTRO da app chama history.back(), como quando
     // o botão/gesto físico do Android ou o botão de voltar do Chrome
-    // disparam popstate diretamente. Não distinguimos a origem — só
-    // reagimos ao estado atual (o que estava aberto, fecha).
+    // disparam popstate diretamente.
     function onPopState() {
       if (previewOpen) {
         suppressRouterPopstate = true;
@@ -448,8 +448,6 @@
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
   }
-  /* parallax: o conteúdo de trás desliza levemente para a esquerda,
-     igual ao push nativo do iOS (UINavigationController) */
   .root.pushed-back {
     transform: translate3d(-28%, 0, 0);
   }

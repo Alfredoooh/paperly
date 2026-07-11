@@ -114,25 +114,27 @@
 
   // ------------------------------------------------------------------
   // Navegação nativa via history real (push + popstate), usada tanto
-  // pela pesquisa como pelo preview de modelo em tela cheia. Ambas usam
-  // um hash-sentinela local ('#search' / '#preview') que nunca provoca
-  // pedido de rede — apenas cria uma entrada de histórico real para que
-  // o botão/gesto físico de voltar do Android feche a tela certa.
+  // pela pesquisa como pelo preview de modelo em tela cheia.
   //
-  // FIX (bug 404 ao voltar a partir do tab "Criar"):
-  // A causa raiz real era o build/deploy: faltavam os ficheiros físicos
-  // dist/home/templates|projects|tools/index.html e a regra de rewrite
-  // '/home/*' no static/_redirects (ver vite.config.js e _redirects).
-  // Isso já foi corrigido nesses dois ficheiros. Mantemos aqui, de forma
-  // defensiva, o bloqueio do router durante o popstate de fecho destas
-  // telas, para nunca depender só da configuração de servidor.
+  // REGRA DE OURO (fix do bug de duplo-clique + 404 ao voltar):
+  // O fecho VISUAL de qualquer overlay (search/preview) SÓ acontece
+  // dentro de onPopState — nunca é antecipado por closeSearch()/
+  // closeTemplatePreview(). Esses dois só fazem history.back() e mais
+  // nada. Isto elimina a necessidade de "prever" se foi o botão dentro
+  // da app ou o gesto físico do Android/Chrome que disparou o popstate:
+  // não importa a origem, o popstate É a única fonte de verdade, e
+  // dispara sempre exatamente uma vez por history.back(). A versão
+  // anterior marcava closingFromPopstate=true ANTES do history.back(),
+  // o que fazia o onPopState seguinte ignorar o fecho (por já achar que
+  // tinha sido tratado) — daí ser preciso clicar duas vezes, e o
+  // histórico ficar com entradas por consumir, o que eventualmente
+  // levava o router a resolver uma URL inesperada como 404.
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false;
   let previewOpen = false;
   let previewPushed = false;
   let previewData = null; // { kind: 'image'|'doc', item }
-  let closingFromPopstate = false;
   let suppressRouterPopstate = false;
 
   function pushOverlayState(hash, extra) {
@@ -142,7 +144,6 @@
 
   function openSearch() {
     if (searchOpen) return;
-    closingFromPopstate = false;
     pushOverlayState('search', { nexaSearch: true });
     searchOpen = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
@@ -153,20 +154,23 @@
     setTimeout(() => { searchOpen = false; }, 340);
   }
 
+  // Chamado pelo botão "voltar" dentro da própria tela de pesquisa.
+  // NÃO fecha nada visualmente aqui — só dispara o popstate real, que
+  // vai ser apanhado por onPopState (fonte única de verdade do fecho).
   function closeSearch() {
     if (!searchOpen) return;
     if (history.state && history.state.nexaSearch) {
-      closingFromPopstate = true;
-      suppressRouterPopstate = true;
       history.back();
     } else {
+      // segurança: se por algum motivo não há estado de histórico
+      // correspondente (ex: entrada consumida de outra forma), fecha
+      // diretamente para nunca deixar a UI presa.
       closeSearchVisual();
     }
   }
 
   function openTemplatePreview(kind, item) {
     if (previewOpen) return;
-    closingFromPopstate = false;
     previewData = { kind, item };
     pushOverlayState('preview', { nexaPreview: true });
     previewOpen = true;
@@ -181,8 +185,6 @@
   function closeTemplatePreview() {
     if (!previewOpen) return;
     if (history.state && history.state.nexaPreview) {
-      closingFromPopstate = true;
-      suppressRouterPopstate = true;
       history.back();
     } else {
       closePreviewVisual();
@@ -250,8 +252,11 @@
 
     // IMPORTANTE: este listener é vinculado pelo router ANTES do nosso
     // onPopState local, logo corre primeiro em qualquer evento popstate.
-    // Se o popstate pertence ao fecho de um overlay (search/preview),
-    // saímos imediatamente sem deixar o router avaliar/redirecionar 404.
+    // Bloqueamos a decisão do router sempre que o popstate pertencer ao
+    // fecho de um overlay nosso — a flag é ligada e desligada de forma
+    // SÍNCRONA dentro do próprio handler local (mesmo tick), nunca com
+    // setTimeout, para nunca haver uma janela onde os dois handlers
+    // discordam sobre o estado atual do histórico.
     const unbindRouter = router.bindPopState((r, nf) => {
       if (suppressRouterPopstate) return;
       if (nf) { window.location.replace('/404/'); return; }
@@ -259,18 +264,21 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // botão/gesto físico de voltar do Android — fecha o overlay aberto.
-    // Como usamos um hash local, isto nunca provoca pedido ao servidor.
+    // Fonte ÚNICA de verdade para fechar overlays: dispara tanto quando
+    // o botão de voltar DENTRO da app chama history.back(), como quando
+    // o botão/gesto físico do Android ou o botão de voltar do Chrome
+    // disparam popstate diretamente. Não distinguimos a origem — só
+    // reagimos ao estado atual (o que estava aberto, fecha).
     function onPopState() {
-      if (previewOpen && !closingFromPopstate) {
+      if (previewOpen) {
         suppressRouterPopstate = true;
         closePreviewVisual();
-      } else if (searchOpen && !closingFromPopstate) {
+        suppressRouterPopstate = false;
+      } else if (searchOpen) {
         suppressRouterPopstate = true;
         closeSearchVisual();
+        suppressRouterPopstate = false;
       }
-      closingFromPopstate = false;
-      setTimeout(() => { suppressRouterPopstate = false; }, 0);
     }
     window.addEventListener('popstate', onPopState);
 

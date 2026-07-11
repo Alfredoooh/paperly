@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { IMAGE_MODELS, DOC_MODELS } from '../lib/constants.js';
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
+  import LongPressMenu from './LongPressMenu.svelte';
 
   export let view = 'images'; // 'images' | 'documents' — controlado pelo toggle do appbar
   export let onOpenPreview = () => {}; // (kind, item) => void — controlado pelo App.svelte
@@ -22,12 +23,19 @@
   function openDocPreview(doc) { onOpenPreview('doc', doc); }
 
   // ------------------------------------------------------------------
-  // Rubber-band / pull-to-refresh via spring (rAF), não CSS transition.
-  // Reaproveita o mesmo motor físico do nav-transition.js: durante o
-  // arrasto o dedo controla o valor 1:1 (setDragValue), no release o
-  // spring assenta de volta a 0 (releaseDragTo). Isto elimina o mesmo
-  // tipo de conflito "transition vs. gesto" que causava o congelamento
-  // no preview — aqui aplicado ao puxar/soltar do grid.
+  // Elastic / pull-to-refresh via spring (rAF) — CORRIGIDO.
+  //
+  // Bug anterior: `startY` só era definido em onPointerDown e nunca
+  // recalculado; `atTop`/`atBottom` eram avaliados a cada touchmove
+  // mas o delta usava sempre o mesmo startY antigo. Na prática isto
+  // fazia o elastic "morrer" depois do primeiro gesto, porque o sinal
+  // do delta deixava de bater com a direção real do dedo assim que o
+  // scroll interno mudava de posição entre gestos.
+  //
+  // Correção: guardamos startY E o scrollTop de origem do gesto, e
+  // recalculamos "atTop"/"atBottom" a partir do estado ATUAL do scroll
+  // a cada frame de movimento — exatamente como o rubber-band do
+  // CreateTab/Perfil, que já funciona bem.
   // ------------------------------------------------------------------
   const recoil = createBackRecoilTransition();
   let pull = 0; // px, derivado do valor 0..1 do spring
@@ -36,34 +44,118 @@
 
   let scrollEl;
   let dragging = false;
-  let startY = 0;
-  let rawPull = 0; // -1..1, direção e magnitude normalizada do gesto
+  let gestureStartY = 0;
+  let gestureStartScrollTop = 0;
+
+  function dampen(delta) {
+    // mesma curva de resistência progressiva usada no CreateTab
+    const sign = delta < 0 ? -1 : 1;
+    const abs = Math.abs(delta);
+    return sign * (abs * 0.55) / (1 + abs / 120);
+  }
 
   function onPointerDown(e) {
-    if (!scrollEl) return;
+    if (!scrollEl || longPressActive) return;
     dragging = true;
-    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    gestureStartY = e.touches ? e.touches[0].clientY : e.clientY;
+    gestureStartScrollTop = scrollEl.scrollTop;
   }
   function onPointerMove(e) {
     if (!dragging || !scrollEl) return;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
-    const delta = y - startY;
-    const atTop = scrollEl.scrollTop <= 0;
-    const atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
+    const delta = y - gestureStartY;
 
+    const atTop = gestureStartScrollTop <= 0;
+    const atBottom = gestureStartScrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
+
+    let normalized = 0;
     if (atTop && delta > 0) {
-      rawPull = Math.min(1, (delta * 0.42) / MAX_PULL);
+      normalized = Math.min(1, dampen(delta) / MAX_PULL);
     } else if (atBottom && delta < 0) {
-      rawPull = Math.max(-1, (delta * 0.42) / MAX_PULL);
-    } else {
-      rawPull = 0;
+      normalized = Math.max(-1, dampen(delta) / MAX_PULL);
     }
-    recoil.setDragValue(rawPull);
+    recoil.setDragValue(normalized);
   }
   function onPointerUp() {
+    if (!dragging) return;
     dragging = false;
-    rawPull = 0;
     recoil.releaseDragTo('reset');
+  }
+
+  // ------------------------------------------------------------------
+  // Long-press estilo Pinterest: segurar um card (imagem OU documento)
+  // por ~400ms abre o menu contextual em leque. Enquanto o dedo
+  // permanece no ecrã, cada movimento é repassado ao LongPressMenu via
+  // updatePointer() para destacar a bolha sob o dedo; soltar chama
+  // resolve(), que decide a ação (ou cancela se não estiver sobre nada).
+  // ------------------------------------------------------------------
+  const LONG_PRESS_MS = 400;
+  const MOVE_CANCEL_THRESHOLD = 10; // px — cancela o long-press se o dedo deslizar antes de disparar
+
+  let longPressActive = false;
+  let longPressTimer = null;
+  let longPressOrigin = { x: 0, y: 0 };
+  let longPressTarget = null; // { kind: 'image'|'doc', item }
+  let menuRef;
+  let pressStartX = 0, pressStartY = 0;
+  let pressMoved = false;
+
+  function buzzLongPress() {
+    try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
+  }
+
+  function armLongPress(e, kind, item) {
+    const t = e.touches ? e.touches[0] : e;
+    pressStartX = t.clientX;
+    pressStartY = t.clientY;
+    pressMoved = false;
+    longPressTarget = { kind, item };
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      if (pressMoved) return;
+      longPressOrigin = { x: pressStartX, y: pressStartY };
+      longPressActive = true;
+      buzzLongPress();
+    }, LONG_PRESS_MS);
+  }
+
+  function trackLongPress(e) {
+    const t = e.touches ? e.touches[0] : e;
+    if (!longPressActive) {
+      const dx = t.clientX - pressStartX;
+      const dy = t.clientY - pressStartY;
+      if (Math.hypot(dx, dy) > MOVE_CANCEL_THRESHOLD) {
+        pressMoved = true;
+        clearTimeout(longPressTimer);
+      }
+      return;
+    }
+    // menu já está ativo: repassa a posição do dedo para destacar a bolha
+    menuRef?.updatePointer(t.clientX, t.clientY);
+  }
+
+  function releaseLongPress(e) {
+    clearTimeout(longPressTimer);
+    if (!longPressActive) return;
+    menuRef?.resolve();
+  }
+
+  function cancelLongPressGesture() {
+    clearTimeout(longPressTimer);
+    if (longPressActive) {
+      longPressActive = false;
+    }
+  }
+
+  function handleMenuSelect(e) {
+    // Visual apenas por agora — ações reais (partilhar/fixar/pesquisar/
+    // whatsapp) ligam-se aqui quando definidas.
+    longPressActive = false;
+    longPressTarget = null;
+  }
+  function handleMenuCancel() {
+    longPressActive = false;
+    longPressTarget = null;
   }
 
   onMount(() => {
@@ -73,6 +165,7 @@
   onDestroy(() => {
     unsubscribeRecoil();
     recoil.destroy();
+    clearTimeout(longPressTimer);
   });
 </script>
 
@@ -118,7 +211,19 @@
       {#each imageColumns as column}
         <div class="masonry-col">
           {#each column as img}
-            <button class="img-card" on:click={() => openImgPreview(img)}>
+            <button
+              class="img-card"
+              class:pressed={longPressActive && longPressTarget?.item === img}
+              on:click={() => openImgPreview(img)}
+              on:touchstart={(e) => armLongPress(e, 'image', img)}
+              on:touchmove={trackLongPress}
+              on:touchend={releaseLongPress}
+              on:touchcancel={cancelLongPressGesture}
+              on:mousedown={(e) => armLongPress(e, 'image', img)}
+              on:mousemove={trackLongPress}
+              on:mouseup={releaseLongPress}
+              on:mouseleave={cancelLongPressGesture}
+            >
               <img src={img.thumb} alt={img.label} class="img-card-photo" loading="lazy" />
               <span class="img-card-overlay"></span>
               <span class="img-card-label">{img.label}</span>
@@ -130,7 +235,19 @@
   {:else}
     <div class="doc-grid">
       {#each DOC_MODELS as doc}
-        <button class="doc-card" on:click={() => openDocPreview(doc)}>
+        <button
+          class="doc-card"
+          class:pressed={longPressActive && longPressTarget?.item === doc}
+          on:click={() => openDocPreview(doc)}
+          on:touchstart={(e) => armLongPress(e, 'doc', doc)}
+          on:touchmove={trackLongPress}
+          on:touchend={releaseLongPress}
+          on:touchcancel={cancelLongPressGesture}
+          on:mousedown={(e) => armLongPress(e, 'doc', doc)}
+          on:mousemove={trackLongPress}
+          on:mouseup={releaseLongPress}
+          on:mouseleave={cancelLongPressGesture}
+        >
           <div class="doc-sheet">
             <span class="doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
             <span class="doc-line doc-line-1"></span>
@@ -144,6 +261,16 @@
     </div>
   {/if}
 </div>
+
+{#if longPressActive && longPressTarget}
+  <LongPressMenu
+    bind:this={menuRef}
+    originX={longPressOrigin.x}
+    originY={longPressOrigin.y}
+    on:select={handleMenuSelect}
+    on:cancel={handleMenuCancel}
+  />
+{/if}
 
 <style>
   .templates-tab {
@@ -183,7 +310,10 @@
   .masonry-col:last-child .img-card:nth-child(3n+1) { aspect-ratio: 1 / 1; }
   .masonry-col:last-child .img-card:nth-child(3n+2) { aspect-ratio: 4 / 5; }
   .masonry-col:last-child .img-card:nth-child(3n+3) { aspect-ratio: 3 / 4; }
-  .img-card:active { transform: scale(0.96); }
+  .img-card:active,
+  .img-card.pressed {
+    transform: scale(0.96);
+  }
   .img-card-photo {
     width: 100%;
     height: 100%;
@@ -244,7 +374,8 @@
     box-shadow: 0 1px 4px var(--drawer-shadow);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
   }
-  .doc-card:active .doc-sheet {
+  .doc-card:active .doc-sheet,
+  .doc-card.pressed .doc-sheet {
     transform: scale(0.94);
     background: var(--row-active);
   }

@@ -16,6 +16,7 @@
   import TemplatesTab from './components/TemplatesTab.svelte';
   import ToolsTab from './components/ToolsTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
+  import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
 
   const BASE = '/home/';
   const VALID_ROUTES = ['projects', 'templates', 'tools'];
@@ -112,32 +113,37 @@
   }
 
   // ------------------------------------------------------------------
-  // Tela de pesquisa — push estilo iOS (slide + parallax, sem reload).
-  // Usa um hash (#search) como sentinela de histórico: nunca toca o
-  // servidor (não é uma nova URL de página, só um marcador local), mas
-  // ainda assim gera uma entrada de histórico real, então o botão/gesto
-  // físico de voltar do Android dispara popstate e fecha a pesquisa.
+  // Navegação nativa via history real (push + popstate), usada tanto
+  // pela pesquisa como pelo preview de modelo em tela cheia. Ambas usam
+  // um hash-sentinela local ('#search' / '#preview') que nunca provoca
+  // pedido de rede — apenas cria uma entrada de histórico real para que
+  // o botão/gesto físico de voltar do Android feche a tela certa.
   //
-  // FIX (bug 404 ao voltar da pesquisa a partir do tab "Criar"):
-  // 1) o pathname é agora preservado EXPLICITAMENTE no pushState (em vez
-  //    de deixar o browser resolver '#search' relativo à URL corrente).
-  // 2) `suppressRouterPopstate` bloqueia o router de correr a sua lógica
-  //    de parse/404 sempre que o popstate em curso pertence à pesquisa —
-  //    isto porque o listener do router é vinculado antes do nosso, logo
-  //    corre primeiro em qualquer popstate.
+  // FIX (bug 404 ao voltar a partir do tab "Criar"):
+  // A causa raiz real era o build/deploy: faltavam os ficheiros físicos
+  // dist/home/templates|projects|tools/index.html e a regra de rewrite
+  // '/home/*' no static/_redirects (ver vite.config.js e _redirects).
+  // Isso já foi corrigido nesses dois ficheiros. Mantemos aqui, de forma
+  // defensiva, o bloqueio do router durante o popstate de fecho destas
+  // telas, para nunca depender só da configuração de servidor.
   // ------------------------------------------------------------------
   let searchOpen = false;
-  let searchPushed = false; // controla a classe que dispara a transição CSS
+  let searchPushed = false;
+  let previewOpen = false;
+  let previewPushed = false;
+  let previewData = null; // { kind: 'image'|'doc', item }
   let closingFromPopstate = false;
   let suppressRouterPopstate = false;
+
+  function pushOverlayState(hash, extra) {
+    const currentPath = window.location.pathname + window.location.search;
+    history.pushState({ nexaOverlay: hash, fromPath: currentPath, ...extra }, '', currentPath + '#' + hash);
+  }
 
   function openSearch() {
     if (searchOpen) return;
     closingFromPopstate = false;
-    // Mantém o pathname ATUAL explícito — evita que, ao voltar, o pathname
-    // resolvido fique diferente daquele que o router espera para a tab ativa.
-    const currentPath = window.location.pathname + window.location.search;
-    history.pushState({ nexaSearch: true, fromPath: currentPath }, '', currentPath + '#search');
+    pushOverlayState('search', { nexaSearch: true });
     searchOpen = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
   }
@@ -147,7 +153,6 @@
     setTimeout(() => { searchOpen = false; }, 340);
   }
 
-  // chamado pelo botão "voltar" dentro da própria tela de pesquisa
   function closeSearch() {
     if (!searchOpen) return;
     if (history.state && history.state.nexaSearch) {
@@ -157,6 +162,36 @@
     } else {
       closeSearchVisual();
     }
+  }
+
+  function openTemplatePreview(kind, item) {
+    if (previewOpen) return;
+    closingFromPopstate = false;
+    previewData = { kind, item };
+    pushOverlayState('preview', { nexaPreview: true });
+    previewOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { previewPushed = true; }));
+  }
+
+  function closePreviewVisual() {
+    previewPushed = false;
+    setTimeout(() => { previewOpen = false; previewData = null; }, 340);
+  }
+
+  function closeTemplatePreview() {
+    if (!previewOpen) return;
+    if (history.state && history.state.nexaPreview) {
+      closingFromPopstate = true;
+      suppressRouterPopstate = true;
+      history.back();
+    } else {
+      closePreviewVisual();
+    }
+  }
+
+  function useTemplateFromPreview() {
+    if (previewData?.item?.prompt) goToAIWithPrompt(previewData.item.prompt);
+    closeTemplatePreview();
   }
 
   function goToAIWithPrompt(promptText) {
@@ -215,8 +250,8 @@
 
     // IMPORTANTE: este listener é vinculado pelo router ANTES do nosso
     // onPopState local, logo corre primeiro em qualquer evento popstate.
-    // Se o popstate pertence ao fecho da pesquisa (suppressRouterPopstate),
-    // saímos imediatamente sem deixar o router avaliar/redirecionar para 404.
+    // Se o popstate pertence ao fecho de um overlay (search/preview),
+    // saímos imediatamente sem deixar o router avaliar/redirecionar 404.
     const unbindRouter = router.bindPopState((r, nf) => {
       if (suppressRouterPopstate) return;
       if (nf) { window.location.replace('/404/'); return; }
@@ -224,16 +259,17 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // botão/gesto físico de voltar do Android — fecha a pesquisa se estiver aberta.
-    // Como usamos um hash local (#search), isto nunca provoca pedido ao servidor.
+    // botão/gesto físico de voltar do Android — fecha o overlay aberto.
+    // Como usamos um hash local, isto nunca provoca pedido ao servidor.
     function onPopState() {
-      if (searchOpen && !closingFromPopstate) {
+      if (previewOpen && !closingFromPopstate) {
+        suppressRouterPopstate = true;
+        closePreviewVisual();
+      } else if (searchOpen && !closingFromPopstate) {
         suppressRouterPopstate = true;
         closeSearchVisual();
       }
       closingFromPopstate = false;
-      // liberta o router só depois deste ciclo de eventos terminar,
-      // para garantir que a nossa decisão já foi aplicada primeiro
       setTimeout(() => { suppressRouterPopstate = false; }, 0);
     }
     window.addEventListener('popstate', onPopState);
@@ -249,7 +285,7 @@
   });
 </script>
 
-<div class="root" class:pushed-back={searchPushed}>
+<div class="root" class:pushed-back={searchPushed || previewPushed}>
   <div class="bg-layer"></div>
 
   <AppHeader
@@ -277,7 +313,7 @@
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}
-      <TemplatesTab view={templatesView} onUsePrompt={goToAIWithPrompt} />
+      <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
     {:else if activeTab === 'tools'}
       <ToolsTab />
     {/if}
@@ -294,6 +330,16 @@
     docModels={DOC_MODELS}
     onUsePrompt={goToAIWithPrompt}
     onClose={closeSearch}
+  />
+{/if}
+
+{#if previewOpen && previewData}
+  <TemplatePreviewPage
+    pushed={previewPushed}
+    kind={previewData.kind}
+    item={previewData.item}
+    onClose={closeTemplatePreview}
+    onUse={useTemplateFromPreview}
   />
 {/if}
 
@@ -347,6 +393,10 @@
     --btn-solid-bg: #f5f5f5;
     --btn-solid-bg-active: #e0e0e0;
     --btn-solid-text: #1a1a1a;
+    --danger: #FF453A;
+    --danger-active: #E0342A;
+    --accent-primary: #0A84FF;
+    --accent-primary-active: #0070E0;
   }
   :global([data-theme="light"]) {
     --app-bg: #FFFFFF;
@@ -373,6 +423,10 @@
     --btn-solid-bg: #2a2a2a;
     --btn-solid-bg-active: #1e1e1e;
     --btn-solid-text: #ffffff;
+    --danger: #FF3B30;
+    --danger-active: #E0342A;
+    --accent-primary: #007AFF;
+    --accent-primary-active: #0062CC;
   }
 
   .root {

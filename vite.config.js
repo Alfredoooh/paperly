@@ -6,7 +6,14 @@ import { cpSync, mkdirSync, existsSync } from 'fs';
 // nome da pasta no disco -> nome da rota final em dist/
 // APENAS as apps reais do site. A página de erro 404 NÃO entra aqui.
 const apps = [
-  { dir: 'home', route: 'home', nested: ['apps-modelos', 'search'] },
+  // FIX: faltavam 'templates', 'projects' e 'tools' — são as 3 tabs da
+  // bottom bar que usam router.navigate() para mudar de URL sem reload.
+  // Sem o HTML físico correspondente em dist/home/<rota>/index.html, um
+  // reload real do browser (ou certos comportamentos do WebView Android
+  // ao cruzar history.back()) nessas rotas caía direto em 404 — só
+  // '/home/' (a rota raiz = tab "Criar") existia fisicamente, por isso
+  // só ela nunca dava erro.
+  { dir: 'home', route: 'home', nested: ['apps-modelos', 'search', 'templates', 'projects', 'tools'] },
   { dir: 'auth', route: 'auth', nested: [] },
   { dir: 'profile', route: 'profile', nested: ['settings'] },
   { dir: 'ai', route: 'ai', nested: ['settings'] },

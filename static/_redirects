@@ -1,3 +1,4 @@
+/home/* /home/index.html 200
 /auth/* /auth/index.html 200
 /profile/* /profile/index.html 200
 /ai/* /ai/index.html 200

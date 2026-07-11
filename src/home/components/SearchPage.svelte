@@ -142,8 +142,8 @@
   }
 
   .back-btn {
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: none;
     background: var(--btn-bg);
@@ -160,8 +160,8 @@
     transform: scale(0.88);
   }
   .back-btn .icon-mask {
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
   }
 
   .search-field {

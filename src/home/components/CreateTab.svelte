@@ -68,7 +68,9 @@
     <div class="apps-grid">
       {#each platformApps as app}
         <button class="app-item" on:click={() => openApp(app)}>
-          <img src={app.icon} alt={app.label} class="app-icon-img" />
+          <span class="app-icon-circle">
+            <img src={app.icon} alt={app.label} class="app-icon-img" />
+          </span>
           <span class="app-label">{app.label}</span>
         </button>
       {/each}
@@ -90,17 +92,18 @@
     align-items: center;
     gap: 10px;
     width: 100%;
+    height: 48px;
     margin-top: 6px;
-    padding: 12px 14px;
+    padding: 0 16px;
     border: none;
-    border-radius: 14px;
+    border-radius: 999px;
     background: var(--btn-bg);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
   .search-bar-icon {
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
     background: var(--icon-faint);
     mask-size: contain;
     -webkit-mask-size: contain;
@@ -109,6 +112,7 @@
     mask-position: center;
     -webkit-mask-position: center;
     flex-shrink: 0;
+    opacity: 0.6;
   }
   .search-bar-placeholder {
     font-size: 14.5px;
@@ -134,15 +138,24 @@
     font: inherit;
     color: var(--drawer-text);
   }
-  .app-icon-img {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-    display: block;
+  .app-icon-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--app-icon-circle-bg);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .app-item:active .app-icon-img {
+  .app-item:active .app-icon-circle {
     transform: scale(0.88);
+  }
+  .app-icon-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    display: block;
   }
   .app-label {
     font-size: 11.5px;

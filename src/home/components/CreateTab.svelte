@@ -68,9 +68,7 @@
     <div class="apps-grid">
       {#each platformApps as app}
         <button class="app-item" on:click={() => openApp(app)}>
-          <span class="app-icon-circle">
-            <img src={app.icon} alt={app.label} class="app-icon-img" />
-          </span>
+          <img src={app.icon} alt={app.label} class="app-icon-img" />
           <span class="app-label">{app.label}</span>
         </button>
       {/each}
@@ -138,24 +136,15 @@
     font: inherit;
     color: var(--drawer-text);
   }
-  .app-icon-circle {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--app-icon-circle-bg);
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .app-item:active .app-icon-circle {
-    transform: scale(0.88);
-  }
   .app-icon-img {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
     display: block;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .app-item:active .app-icon-img {
+    transform: scale(0.88);
   }
   .app-label {
     font-size: 11.5px;

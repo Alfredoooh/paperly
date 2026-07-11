@@ -45,11 +45,161 @@
   function cancelLogout() {
     showLogoutDialog = false;
   }
+
+  // ------------------------------------------------------------------
+  // Swipe gesture nativo (estilo Android Navigation Drawer):
+  // 1) Arrastar a partir da borda DIREITA do ecrã (o drawer entra pela
+  //    direita) abre o drawer seguindo o dedo 1:1.
+  // 2) Com o drawer aberto, arrastar para a direita fecha-o, também
+  //    seguindo o dedo 1:1, com "solta e decide" por threshold/velocidade.
+  // 3) Nada de listeners globais permanentes: o listener de abertura só
+  //    fica ativo quando o drawer está fechado, e vice-versa — para não
+  //    conflitar com o scroll normal do resto da app.
+  // ------------------------------------------------------------------
+  const EDGE_ZONE = 24;       // px a partir da borda direita para iniciar o "abrir"
+  const DRAWER_WIDTH_FRACTION = 0.82; // deve refletir min(288px, 82vw) do CSS
+  const OPEN_THRESHOLD = 0.35;  // % arrastado para considerar "abrir" ao soltar
+  const CLOSE_THRESHOLD = 0.35; // % arrastado para considerar "fechar" ao soltar
+  const VELOCITY_FLING = 0.55;  // px/ms — acima disto, decide pela direção do gesto
+
+  let dragging = false;
+  let dragStartX = 0;
+  let dragStartTime = 0;
+  let dragCurrentX = 0;
+  let dragW = 300;
+  let liveDragActive = false; // true enquanto o dedo controla o drawer em tempo real
+  let drawerEl;
+
+  function getDrawerWidth() {
+    if (drawerEl) return drawerEl.getBoundingClientRect().width;
+    return Math.min(288, window.innerWidth * DRAWER_WIDTH_FRACTION);
+  }
+
+  function onEdgeTouchStart(e) {
+    if (drawerOpen) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    if (x < window.innerWidth - EDGE_ZONE) return; // só a partir da borda direita
+    dragging = true;
+    liveDragActive = false;
+    dragStartX = x;
+    dragCurrentX = x;
+    dragStartTime = performance.now();
+    dragW = getDrawerWidth();
+  }
+
+  function onDrawerTouchStart(e) {
+    if (!drawerOpen) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    dragging = true;
+    liveDragActive = false;
+    dragStartX = x;
+    dragCurrentX = x;
+    dragStartTime = performance.now();
+    dragW = getDrawerWidth();
+  }
+
+  function onDragMove(e) {
+    if (!dragging) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    dragCurrentX = x;
+    const delta = x - dragStartX;
+
+    if (!drawerOpen) {
+      // gesto de ABRIR: arrastar para a esquerda a partir da borda direita
+      if (delta > 6 && !liveDragActive) return; // ainda não decidiu a direção
+      if (delta >= -6) {
+        liveDragActive = true;
+        if (!drawerVisible) {
+          // ativa o drawer em modo "seguindo o dedo" sem a transição de entrada normal
+          drawerVisible = true;
+        }
+        const progress = Math.min(1, Math.max(0, -delta / dragW));
+        applyLiveTransform(1 - progress);
+        e.preventDefault?.();
+      }
+    } else {
+      // gesto de FECHAR: arrastar para a direita com o drawer aberto
+      if (delta < -6 && !liveDragActive) return;
+      if (delta <= 6) return;
+      liveDragActive = true;
+      const progress = Math.min(1, Math.max(0, delta / dragW));
+      applyLiveTransform(progress);
+      e.preventDefault?.();
+    }
+  }
+
+  function applyLiveTransform(closedFraction) {
+    // closedFraction: 0 = totalmente aberto, 1 = totalmente fechado
+    if (!drawerEl) return;
+    drawerEl.style.transition = 'none';
+    drawerEl.style.transform = `translate3d(${closedFraction * 100}%, 0, 0)`;
+    drawerEl.style.opacity = String(1 - closedFraction * 0.02);
+  }
+
+  function releaseLiveTransform() {
+    if (!drawerEl) return;
+    drawerEl.style.transition = '';
+    drawerEl.style.transform = '';
+    drawerEl.style.opacity = '';
+  }
+
+  function onDragEnd(e) {
+    if (!dragging) return;
+    dragging = false;
+    const elapsed = Math.max(1, performance.now() - dragStartTime);
+    const delta = dragCurrentX - dragStartX;
+    const velocity = Math.abs(delta) / elapsed; // px/ms
+
+    if (!liveDragActive) {
+      liveDragActive = false;
+      return;
+    }
+    liveDragActive = false;
+
+    if (!drawerOpen) {
+      // estava a tentar abrir
+      const openedFraction = Math.min(1, Math.max(0, -delta / dragW));
+      const shouldOpen = openedFraction > OPEN_THRESHOLD || (delta < 0 && velocity > VELOCITY_FLING);
+      releaseLiveTransform();
+      if (shouldOpen) {
+        openViaGesture();
+      } else {
+        drawerVisible = false;
+      }
+    } else {
+      // estava a tentar fechar
+      const closedFraction = Math.min(1, Math.max(0, delta / dragW));
+      const shouldClose = closedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
+      releaseLiveTransform();
+      if (shouldClose) {
+        onClose();
+      }
+    }
+  }
+
+  async function openViaGesture() {
+    drawerOpen = true;
+    drawerVisible = false;
+    await new Promise(r => requestAnimationFrame(r));
+    requestAnimationFrame(() => drawerVisible = true);
+  }
 </script>
+
+<svelte:window
+  on:touchstart={drawerOpen ? undefined : onEdgeTouchStart}
+  on:touchmove={dragging ? onDragMove : undefined}
+  on:touchend={dragging ? onDragEnd : undefined}
+  on:touchcancel={dragging ? onDragEnd : undefined}
+/>
 
 {#if drawerOpen}
   <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={onClose}></div>
-  <div class="drawer" class:drawer-in={drawerVisible}>
+  <div
+    class="drawer"
+    class:drawer-in={drawerVisible}
+    bind:this={drawerEl}
+    on:touchstart={onDrawerTouchStart}
+  >
     <button class="drawer-avatar-block pulse-tap" on:click={goProfile}>
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="drawer-avatar-img" />
@@ -117,7 +267,7 @@
     z-index: 70;
     background: var(--drawer-overlay);
     opacity: 0;
-    transition: background .28s ease;
+    transition: background .32s cubic-bezier(0.2, 0, 0, 1);
     contain: strict;
   }
   .drawer-overlay.drawer-overlay-in {
@@ -138,8 +288,11 @@
     padding-top: max(env(safe-area-inset-top, 0px), 16px);
     overflow: hidden;
     transform: translate3d(100%, 0, 0);
-    opacity: 0.98;
-    transition: transform .32s cubic-bezier(0.16, 1, 0.3, 1), opacity .2s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 1;
+    /* curva estilo Material (decelerate/standard) — mais próxima do
+       Android Navigation Drawer real do que a curva anterior */
+    transition: transform .32s cubic-bezier(0.2, 0, 0, 1);
+    touch-action: pan-y;
     will-change: transform, opacity;
     backface-visibility: hidden;
     contain: layout paint style;
@@ -220,7 +373,7 @@
     cursor: pointer;
     font-family: inherit;
     text-align: left;
-    transition: background .14s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: background .14s cubic-bezier(0.2, 0, 0, 1);
     width: 100%;
   }
   .drawer-item:active {
@@ -232,7 +385,7 @@
     color: var(--drawer-text);
   }
   .drawer-chevron {
-    transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform .3s cubic-bezier(0.2, 0, 0, 1);
   }
   .drawer-chevron-open {
     transform: rotate(90deg);
@@ -240,7 +393,7 @@
   .theme-accordion {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows .3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: grid-template-rows .3s cubic-bezier(0.2, 0, 0, 1);
   }
   .theme-accordion-open {
     grid-template-rows: 1fr;
@@ -261,7 +414,7 @@
     font-family: inherit;
     text-align: left;
     border-radius: 8px;
-    transition: background .14s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: background .14s cubic-bezier(0.2, 0, 0, 1);
   }
   .theme-opt:active {
     background: var(--drawer-row-active);
@@ -284,7 +437,7 @@
     cursor: pointer;
     font-family: inherit;
     flex-shrink: 0;
-    transition: background .2s cubic-bezier(0.16, 1, 0.3, 1), transform .2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background .2s cubic-bezier(0.2, 0, 0, 1), transform .2s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .drawer-logout:active {
     background: var(--btn-bg-active);
@@ -356,7 +509,7 @@
   }
   .pulse-tap {
     cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .16s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform .16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .16s cubic-bezier(0.2, 0, 0, 1);
   }
   .pulse-tap:active {
     transform: scale(0.96);

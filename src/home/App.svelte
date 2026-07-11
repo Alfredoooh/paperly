@@ -117,15 +117,27 @@
   // servidor (não é uma nova URL de página, só um marcador local), mas
   // ainda assim gera uma entrada de histórico real, então o botão/gesto
   // físico de voltar do Android dispara popstate e fecha a pesquisa.
+  //
+  // FIX (bug 404 ao voltar da pesquisa a partir do tab "Criar"):
+  // 1) o pathname é agora preservado EXPLICITAMENTE no pushState (em vez
+  //    de deixar o browser resolver '#search' relativo à URL corrente).
+  // 2) `suppressRouterPopstate` bloqueia o router de correr a sua lógica
+  //    de parse/404 sempre que o popstate em curso pertence à pesquisa —
+  //    isto porque o listener do router é vinculado antes do nosso, logo
+  //    corre primeiro em qualquer popstate.
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false; // controla a classe que dispara a transição CSS
   let closingFromPopstate = false;
+  let suppressRouterPopstate = false;
 
   function openSearch() {
     if (searchOpen) return;
     closingFromPopstate = false;
-    history.pushState({ nexaSearch: true }, '', '#search');
+    // Mantém o pathname ATUAL explícito — evita que, ao voltar, o pathname
+    // resolvido fique diferente daquele que o router espera para a tab ativa.
+    const currentPath = window.location.pathname + window.location.search;
+    history.pushState({ nexaSearch: true, fromPath: currentPath }, '', currentPath + '#search');
     searchOpen = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
   }
@@ -140,6 +152,7 @@
     if (!searchOpen) return;
     if (history.state && history.state.nexaSearch) {
       closingFromPopstate = true;
+      suppressRouterPopstate = true;
       history.back();
     } else {
       closeSearchVisual();
@@ -200,7 +213,12 @@
     activeTab = initialRoute === 'home' ? 'create' : initialRoute;
     router.navigate(activeTab === 'create' ? 'home' : activeTab, { replace: true });
 
+    // IMPORTANTE: este listener é vinculado pelo router ANTES do nosso
+    // onPopState local, logo corre primeiro em qualquer evento popstate.
+    // Se o popstate pertence ao fecho da pesquisa (suppressRouterPopstate),
+    // saímos imediatamente sem deixar o router avaliar/redirecionar para 404.
     const unbindRouter = router.bindPopState((r, nf) => {
+      if (suppressRouterPopstate) return;
       if (nf) { window.location.replace('/404/'); return; }
       activeTab = r === 'home' ? 'create' : r;
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
@@ -210,9 +228,13 @@
     // Como usamos um hash local (#search), isto nunca provoca pedido ao servidor.
     function onPopState() {
       if (searchOpen && !closingFromPopstate) {
+        suppressRouterPopstate = true;
         closeSearchVisual();
       }
       closingFromPopstate = false;
+      // liberta o router só depois deste ciclo de eventos terminar,
+      // para garantir que a nossa decisão já foi aplicada primeiro
+      setTimeout(() => { suppressRouterPopstate = false; }, 0);
     }
     window.addEventListener('popstate', onPopState);
 

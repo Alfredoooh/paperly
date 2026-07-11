@@ -1,7 +1,8 @@
 <!-- src/home/components/TemplatesTab.svelte -->
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { IMAGE_MODELS, DOC_MODELS } from '../lib/constants.js';
+  import { createBackRecoilTransition } from '../lib/nav-transition.js';
 
   export let view = 'images'; // 'images' | 'documents' — controlado pelo toggle do appbar
   export let onOpenPreview = () => {}; // (kind, item) => void — controlado pelo App.svelte
@@ -20,18 +21,28 @@
   function openImgPreview(img) { onOpenPreview('image', img); }
   function openDocPreview(doc) { onOpenPreview('doc', doc); }
 
-  // Elastic / rubber-band scroll nativo dentro do próprio grid
+  // ------------------------------------------------------------------
+  // Rubber-band / pull-to-refresh via spring (rAF), não CSS transition.
+  // Reaproveita o mesmo motor físico do nav-transition.js: durante o
+  // arrasto o dedo controla o valor 1:1 (setDragValue), no release o
+  // spring assenta de volta a 0 (releaseDragTo). Isto elimina o mesmo
+  // tipo de conflito "transition vs. gesto" que causava o congelamento
+  // no preview — aqui aplicado ao puxar/soltar do grid.
+  // ------------------------------------------------------------------
+  const recoil = createBackRecoilTransition();
+  let pull = 0; // px, derivado do valor 0..1 do spring
+  const MAX_PULL = 64;
+  const unsubscribeRecoil = recoil.subscribe((v) => { pull = v * MAX_PULL; });
+
   let scrollEl;
   let dragging = false;
   let startY = 0;
-  let startScrollTop = 0;
-  let pull = 0; // 0 -> sem esticar, >0 esticado
+  let rawPull = 0; // -1..1, direção e magnitude normalizada do gesto
 
   function onPointerDown(e) {
     if (!scrollEl) return;
     dragging = true;
     startY = e.touches ? e.touches[0].clientY : e.clientY;
-    startScrollTop = scrollEl.scrollTop;
   }
   function onPointerMove(e) {
     if (!dragging || !scrollEl) return;
@@ -41,28 +52,34 @@
     const atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
 
     if (atTop && delta > 0) {
-      pull = Math.min(64, delta * 0.42);
+      rawPull = Math.min(1, (delta * 0.42) / MAX_PULL);
     } else if (atBottom && delta < 0) {
-      pull = Math.max(-64, delta * 0.42);
+      rawPull = Math.max(-1, (delta * 0.42) / MAX_PULL);
     } else {
-      pull = 0;
+      rawPull = 0;
     }
+    recoil.setDragValue(rawPull);
   }
   function onPointerUp() {
     dragging = false;
-    pull = 0;
+    rawPull = 0;
+    recoil.releaseDragTo('reset');
   }
 
   onMount(() => {
     const t = setTimeout(() => { loading = false; }, 700);
     return () => clearTimeout(t);
   });
+  onDestroy(() => {
+    unsubscribeRecoil();
+    recoil.destroy();
+  });
 </script>
 
 <div
   class="templates-tab"
   bind:this={scrollEl}
-  style="transform: translateY({pull}px); transition: {dragging ? 'none' : 'transform .5s cubic-bezier(0.22,1.42,0.36,1)'}"
+  style="transform: translateY({pull}px);"
   on:touchstart={onPointerDown}
   on:touchmove={onPointerMove}
   on:touchend={onPointerUp}

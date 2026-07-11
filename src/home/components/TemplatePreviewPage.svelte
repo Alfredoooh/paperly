@@ -1,5 +1,8 @@
 <!-- src/home/components/TemplatePreviewPage.svelte -->
 <script>
+  import { onMount, onDestroy } from 'svelte';
+  import { createSlideTransition } from '../lib/nav-transition.js';
+
   export let pushed = false; // true = tela empurrada para dentro (visível)
   export let kind = 'image'; // 'image' | 'doc'
   export let item = null;
@@ -9,6 +12,21 @@
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
+
+  const slide = createSlideTransition({});
+  let slideX = 100;
+  const unsubscribe = slide.subscribe((v) => { slideX = v; });
+
+  // reage à prop `pushed` vinda do App.svelte (fonte de verdade da
+  // navegação/history), traduzindo-a para o motor de spring
+  let lastPushed = null;
+  $: if (pushed !== lastPushed) {
+    lastPushed = pushed;
+    if (pushed) slide.open();
+    else slide.close();
+  }
+
+  onDestroy(() => { unsubscribe(); slide.destroy(); });
 
   function handleClose() {
     buzz();
@@ -20,7 +38,7 @@
   }
 </script>
 
-<div class="preview-page" class:pushed>
+<div class="preview-page" style="transform: translate3d({slideX}%, 0, 0);">
   <header class="preview-header">
     <button class="back-btn pulse-tap" on:click={handleClose} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg')"></span>
@@ -48,11 +66,13 @@
 
 <style>
   /* ------------------------------------------------------------------
-     Tela cheia com navegação nativa idêntica à SearchPage: mesmo
-     translate3d(100%,0,0) -> translate3d(0,0,0), mesma curva, mesmo
-     back-btn circular com arrow_left.svg no appbar.
-     Cantos LEVEMENTE arredondados (não é um modal centrado) — dá a
-     sensação de painel nativo tipo "sheet" full screen do Android/iOS.
+     A posição é 100% controlada pelo spring em nav-transition.js via
+     rAF — de propósito SEM transition CSS aqui. Isto é o que resolve
+     o congelamento: uma CSS transition não pode ser redirecionada a
+     meio do gesto/troca sem reflow; um valor JS pode, a cada frame.
+     Sombra reduzida ao mínimo perceptível (era 24px de blur / 0.18
+     de opacidade, pesada o suficiente para ser repintada a cada frame
+     do transform e contribuir para o jank).
   ------------------------------------------------------------------- */
   .preview-page {
     position: fixed;
@@ -63,13 +83,8 @@
     background: var(--app-bg);
     border-radius: 18px;
     overflow: hidden;
-    transform: translate3d(100%, 0, 0);
-    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
-    box-shadow: -6px 0 24px rgba(0,0,0,0.18);
-  }
-  .preview-page.pushed {
-    transform: translate3d(0, 0, 0);
+    box-shadow: -2px 0 8px rgba(0,0,0,0.08);
   }
 
   .preview-header {
@@ -92,7 +107,7 @@
     cursor: pointer;
     flex-shrink: 0;
     padding: 0;
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
   .back-btn:active {
     background: var(--btn-bg-active);
@@ -143,7 +158,7 @@
     height: 100%;
     object-fit: cover;
     border-radius: 14px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14);
   }
   .preview-doc-sheet {
     background: var(--surface-apps-tab);
@@ -192,9 +207,8 @@
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s, background .16s;
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s, background .14s;
   }
-  /* Cancelar: vermelho de perigo, igual ao botão de logout do drawer */
   .preview-btn-cancel {
     background: var(--danger);
     color: #fff;
@@ -202,22 +216,17 @@
   .preview-btn-cancel:active {
     background: var(--danger-active);
   }
-  /* Usar modelo: azul primário nativo (accent do sistema) */
   .preview-btn-use {
     background: var(--accent-primary);
     color: #fff;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.14);
   }
   .preview-btn-use:active {
     background: var(--accent-primary-active);
   }
 
   .pulse-tap {
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s cubic-bezier(0.16,1,0.3,1);
   }
-  .pulse-tap:active { transform: scale(0.96); opacity: .80; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .preview-page { transition: none !important; }
-  }
+  .pulse-tap:active { transform: scale(0.95); opacity: .78; }
 </style>

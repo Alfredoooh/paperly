@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { createSlideTransition } from './home/lib/nav-transition.js';
+  import { createSlideTransition, createBackRecoilTransition } from './home/lib/nav-transition.js';
 
   import HomeApp from './home/App.svelte';
   import AiApp from './ai/App.svelte';
@@ -54,6 +54,17 @@
   let layers = [];
   let ready = false;
 
+  // Recuo da CAMADA DE BAIXO (home, ou a app anterior na pilha) —
+  // efeito push estilo iOS: a tela nova entra da direita ENQUANTO a
+  // de trás recua para a esquerda, em simultâneo, com o mesmo motor
+  // de spring que já é usado por home/App.svelte (createBackRecoilTransition).
+  // A camada de baixo é identificada por índice: cada layer guarda o
+  // seu próprio recoil, e o home tem o dele fixo cá fora.
+  const homeRecoil = createBackRecoilTransition();
+  let homeRecoilValue = 0;
+  const unsubHomeRecoil = homeRecoil.subscribe((v) => { homeRecoilValue = v; });
+  $: homeRecoilTranslate = -28 * homeRecoilValue; // %
+
   function currentPath() {
     return window.location.pathname + window.location.search;
   }
@@ -74,6 +85,20 @@
 
   function pushOverlayState(appId, targetPath) {
     history.pushState({ nexaApp: appId, fromPath: currentPath() }, '', targetPath);
+  }
+
+  // Recalcula o recuo da camada imediatamente abaixo do topo sempre
+  // que a pilha muda: se há pelo menos uma layer "pushed", a camada
+  // de baixo (home, se layers.length === 1, ou a penúltima layer) recua.
+  function syncRecoil() {
+    const topPushed = layers.some((l) => l.pushed);
+    if (layers.length <= 1) {
+      if (topPushed) homeRecoil.recoil(); else homeRecoil.reset();
+      return;
+    }
+    // Com 2+ layers empilhadas, o home fica sempre totalmente recuado
+    // enquanto houver qualquer coisa aberta por cima dele.
+    homeRecoil.recoil();
   }
 
   // Abre uma app como overlay por cima do home. Sempre empurra
@@ -98,6 +123,7 @@
       id: appId,
       component: def.component,
       pushed: false,
+      x: 100,
       slide: null,
       unsub: null,
     };
@@ -107,13 +133,13 @@
       layer.x = v;
       layers = layers.slice();
     });
-    layer.x = 100;
 
     layers = [...layers, layer];
     requestAnimationFrame(() => requestAnimationFrame(() => {
       layer.pushed = true;
       layers = layers.slice();
       layer.slide.open();
+      syncRecoil();
     }));
   }
 
@@ -124,6 +150,7 @@
     layer.pushed = false;
     layers = layers.slice();
     layer.slide.close();
+    syncRecoil();
     setTimeout(() => {
       layer.unsub?.();
       layer.slide?.destroy?.();
@@ -201,6 +228,7 @@
           top.pushed = true;
           top.x = 0;
           layers = layers.slice();
+          homeRecoil.recoil();
         }
       }
     }
@@ -245,6 +273,8 @@
 
     return () => {
       window.removeEventListener('popstate', onPopState);
+      unsubHomeRecoil?.();
+      homeRecoil.destroy?.();
       layers.forEach((layer) => {
         layer.unsub?.();
         layer.slide?.destroy?.();
@@ -256,9 +286,11 @@
 
 {#if ready}
   <div class="shell">
-    <!-- Base fixa: o home NUNCA desliza, nunca tem animação de -->
-    <!-- entrada própria — é o ecrã por defeito, sempre montado. -->
-    <div class="home-layer">
+    <!-- Base fixa: o home nunca tem animação de entrada própria — é -->
+    <!-- o ecrã por defeito, sempre montado. Só recua (efeito push -->
+    <!-- estilo iOS) quando alguma app abre por cima dele, com o -->
+    <!-- MESMO motor de recoil que search/preview já usam dentro dele. -->
+    <div class="home-layer" style="transform: translate3d({homeRecoilTranslate}%, 0, 0);">
       <HomeApp on:nav={handleNav} />
     </div>
 
@@ -303,6 +335,7 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    will-change: transform;
   }
 
   .layer {

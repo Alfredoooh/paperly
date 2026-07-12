@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { getThemeColors, getTheme } from '$shared/theme.js';
   import { logout } from '$shared/auth-guard.js';
   import { AuthApiService } from '$shared/api.js';
@@ -7,7 +7,11 @@
   import { showToast } from '$shared/utils.js';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
-  export let pushed = false;
+  // slideX vem PRONTO do spring do App.svelte pai (settingsSlide) — a
+  // própria tela já não gere o seu próprio slide de entrada/saída,
+  // eliminando a duplicação de spring que causava a dessincronia com
+  // a MainPage (a "animação estranha" reportada).
+  export let slideX = 100;
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Perfil';
@@ -15,26 +19,12 @@
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
-  // ── Slide nativo (mesmo motor do home: search/preview/drawer) ──────
-  const slide = createSlideTransition({});
-  let slideX = 100;
-  const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
-  let lastPushed = null;
-  $: if (pushed !== lastPushed) {
-    lastPushed = pushed;
-    if (pushed) slide.open(); else slide.close();
-  }
-
-  let pageVisible = false;
-  onMount(() => { requestAnimationFrame(() => { pageVisible = true; }); });
-
   // ── Gesto de arrastar da borda esquerda para fechar (edge-swipe) ───
-  // Mesmo princípio físico do AppDrawer no home: arrastar a partir da
-  // borda esquerda do ecrã segue o dedo 1:1 (sem spring, via
-  // setDragValue) e ao soltar decide por threshold/velocidade se volta
-  // à posição aberta ou termina o fecho — chamando dispatch('nav',
-  // {to:'main'}), exatamente o mesmo caminho do botão "voltar".
-  const EDGE_ZONE = 24; // px a partir da borda esquerda
+  // Segue o dedo 1:1 escrevendo diretamente no elemento (sem tocar no
+  // spring do pai, que pertence à App.svelte) — ao soltar, decide por
+  // threshold/velocidade e delega ao dispatch('nav',{to:'main'}), que
+  // é o MESMO caminho usado pelo botão "voltar" do cabeçalho.
+  const EDGE_ZONE = 24;
   const CLOSE_THRESHOLD = 0.32;
   const VELOCITY_FLING = 0.5; // px/ms
   let dragging = false;
@@ -43,10 +33,12 @@
   let dragCurrentX = 0;
   let dragStartTime = 0;
   let dragW = 360;
+  let rootEl;
+  let liveOverrideX = null; // null = usa slideX do pai; número = dedo está a controlar
 
   function onEdgeTouchStart(e) {
     const x = e.touches[0].clientX;
-    if (x > EDGE_ZONE) return; // só a partir da borda esquerda
+    if (x > EDGE_ZONE) return;
     dragging = true;
     dragLiveActive = false;
     dragStartX = x;
@@ -59,30 +51,31 @@
     const x = e.touches[0].clientX;
     dragCurrentX = x;
     const delta = x - dragStartX;
-    if (delta <= 4) return; // só arrastar para a direita
+    if (delta <= 4) return;
     if (!dragLiveActive) dragLiveActive = true;
     const progress = Math.min(1, Math.max(0, delta / dragW));
-    slide.setDragValue(progress * 100);
+    liveOverrideX = progress * 100;
     e.preventDefault();
   }
   function onEdgeTouchEnd() {
     if (!dragging) return;
     dragging = false;
-    if (!dragLiveActive) { dragLiveActive = false; return; }
+    if (!dragLiveActive) { dragLiveActive = false; liveOverrideX = null; return; }
     dragLiveActive = false;
     const elapsed = Math.max(1, performance.now() - dragStartTime);
     const delta = dragCurrentX - dragStartX;
     const velocity = Math.abs(delta) / elapsed;
     const draggedFraction = Math.min(1, Math.max(0, delta / dragW));
     const shouldClose = draggedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
+    liveOverrideX = null;
     if (shouldClose) {
       dispatch('nav', { to: 'main' });
-    } else {
-      slide.releaseDragTo('open');
     }
+    // se não fechar, o próximo valor de slideX do pai (já em 0) volta
+    // a assumir o controlo visual automaticamente
   }
 
-  onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); });
+  $: displayX = liveOverrideX !== null ? liveOverrideX : slideX;
 
   let themeValue = getTheme();
   let currentLang = user?.preferences?.language || 'pt';
@@ -105,15 +98,7 @@
     dispatch('nav', { to: 'settings', data: { isDark: dark } });
   }
 
-  // ── Bottom sheets nativos: spring dedicado + arrastáveis com o dedo ──
-  function createSheetController() {
-    const s = createSlideTransition({});
-    let y = 100;
-    const unsub = s.subscribe((v) => { y = v; });
-    return { s, get y() { return y; }, unsub };
-  }
-
-  // ── Idioma ───────────────────────────────────────────────────────
+  // ── Idioma: bottom sheet com spring próprio + arrastável ──────────
   const langSlide = createSlideTransition({});
   let langSheetY = 100;
   const unsubscribeLangSlide = langSlide.subscribe((v) => { langSheetY = v; });
@@ -139,26 +124,24 @@
     showToast('Idioma atualizado');
   }
 
-  // ── Confirmação de logout ────────────────────────────────────────
-  const logoutSlide = createSlideTransition({});
-  let logoutSheetY = 100;
-  const unsubscribeLogoutSlide = logoutSlide.subscribe((v) => { logoutSheetY = v; });
-  let showLogoutSheet = false;
-  let logoutOverlayVisible = false;
+  // ══════════════════════════════════════════════════════════════════
+  //  CONFIRMAR LOGOUT — MESMO padrão visual/comportamental do
+  //  logout-dialog do AppDrawer no home: overlay a escurecer + dialog
+  //  central com scale-in (não é um bottom sheet), duas ações
+  //  (Cancelar / Terminar sessão).
+  // ══════════════════════════════════════════════════════════════════
+  let showLogoutDialog = false;
+  let logoutDialogVisible = false;
   let logoutMode = 'single';
 
-  function openLogoutSheet(mode) {
+  function openLogoutDialog(mode) {
     logoutMode = mode;
-    showLogoutSheet = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      logoutOverlayVisible = true;
-      logoutSlide.open();
-    }));
+    showLogoutDialog = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { logoutDialogVisible = true; }));
   }
-  function closeLogoutSheet() {
-    logoutOverlayVisible = false;
-    logoutSlide.close();
-    setTimeout(() => { showLogoutSheet = false; }, 300);
+  function cancelLogoutDialog() {
+    logoutDialogVisible = false;
+    setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
   let loggingOut = false;
@@ -168,15 +151,17 @@
       if (logoutMode === 'all' && user?.token && AuthApiService.logoutAll) {
         const ok = await AuthApiService.logoutAll(user.token);
         showToast(ok ? 'Sessões terminadas em todos os dispositivos' : 'Não foi possível terminar as outras sessões');
-        if (!ok) { loggingOut = false; closeLogoutSheet(); return; }
+        if (!ok) { loggingOut = false; cancelLogoutDialog(); return; }
       }
+      logoutDialogVisible = false;
+      setTimeout(() => { showLogoutDialog = false; }, 260);
       logout();
     } finally {
       loggingOut = false;
     }
   }
 
-  // ── Gesto de arrastar genérico para os dois sheets (pega + título) ──
+  // ── Gesto de arrastar genérico para o sheet de idioma ─────────────
   function makeSheetDrag(slideCtrl, getHeight, onClose) {
     let dragging = false, liveActive = false;
     let startY = 0, currentY = 0, startTime = 0, sheetH = 400;
@@ -216,21 +201,18 @@
     };
   }
 
-  let langSheetEl, logoutSheetEl;
+  let langSheetEl;
   const langDrag = makeSheetDrag(langSlide, () => langSheetEl ? langSheetEl.getBoundingClientRect().height : 400, closeLangSheet);
-  const logoutDrag = makeSheetDrag(logoutSlide, () => logoutSheetEl ? logoutSheetEl.getBoundingClientRect().height : 400, closeLogoutSheet);
 
   onDestroy(() => {
     unsubscribeLangSlide?.();
-    unsubscribeLogoutSlide?.();
     langSlide.destroy();
-    logoutSlide.destroy();
   });
 </script>
 
 <svelte:window on:touchstart={onEdgeTouchStart} on:touchmove|nonpassive={onEdgeTouchMove} on:touchend={onEdgeTouchEnd} on:touchcancel={onEdgeTouchEnd} />
 
-<div class="st-root" class:st-in={pageVisible} style="background:{c.background}; transform: translate3d({slideX}%, 0, 0);">
+<div class="st-root" bind:this={rootEl} style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
   <div class="st-header">
     <button class="st-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>
@@ -283,11 +265,11 @@
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Conta</div>
     <div class="st-section" style="background:{c.dialogBackground}">
-      <button class="st-row" on:click={() => openLogoutSheet('all')}>
+      <button class="st-row" on:click={() => openLogoutDialog('all')}>
         <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
       </button>
       <div class="st-divider" style="background:{c.divider}"></div>
-      <button class="st-row st-danger" on:click={() => openLogoutSheet('single')}>
+      <button class="st-row st-danger" on:click={() => openLogoutDialog('single')}>
         <span class="st-row-label">Terminar sessão</span>
       </button>
     </div>
@@ -318,28 +300,19 @@
     </div>
   {/if}
 
-  <!-- ══ POPUP — Confirmar logout (spring nativo + arrastável) ═════ -->
-  {#if showLogoutSheet}
-    <button class="overlay" class:overlay-in={logoutOverlayVisible} on:click={closeLogoutSheet}></button>
-    <div class="bottom-sheet sheet-confirm" bind:this={logoutSheetEl} style="background:{c.dialogBackground};transform: translate3d(0, {logoutSheetY}%, 0);">
-      <div class="sheet-grab-zone"
-        on:touchstart={logoutDrag.touchstart}
-        on:touchmove|nonpassive={logoutDrag.touchmove}
-        on:touchend={logoutDrag.touchend}
-        on:touchcancel={logoutDrag.touchend}>
-        <div class="sheet-handle" style="background:{c.divider}"></div>
-        <div class="sheet-confirm-title" style="color:{c.textPrimary}">
-          {logoutMode === 'all' ? 'Terminar sessão em todos os dispositivos?' : 'Terminar sessão?'}
-        </div>
-      </div>
-      <p class="sheet-confirm-desc" style="color:{c.textSecondary}">
-        {logoutMode === 'all'
-          ? 'Vais ser desconectado deste e de todos os outros dispositivos onde tens sessão iniciada.'
-          : 'Vais precisar de voltar a iniciar sessão neste dispositivo.'}
+  <!-- ══════════════════════════════════════════════════════════════
+       CONFIRMAR LOGOUT — mesmo padrão do logout-dialog no AppDrawer
+       do home: overlay a escurecer + cartão central com scale-in.
+  ══════════════════════════════════════════════════════════════ -->
+  {#if showLogoutDialog}
+    <div class="logout-overlay" class:logout-overlay-in={logoutDialogVisible}></div>
+    <div class="logout-dialog" class:logout-dialog-in={logoutDialogVisible} style="background:{c.dialogBackground}">
+      <p class="logout-dialog-text" style="color:{c.textPrimary}">
+        {logoutMode === 'all' ? 'Tens a certeza que queres terminar a sessão em todos os dispositivos?' : 'Tens a certeza que queres terminar a sessão?'}
       </p>
-      <div class="sheet-confirm-actions">
-        <button class="sheet-cancel-btn" style="border-color:{c.divider};color:{c.textPrimary}" on:click={closeLogoutSheet} disabled={loggingOut}>Cancelar</button>
-        <button class="sheet-danger-btn" on:click={confirmLogout} disabled={loggingOut}>
+      <div class="logout-dialog-actions">
+        <button class="logout-btn-cancel" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={cancelLogoutDialog} disabled={loggingOut}>Cancelar</button>
+        <button class="logout-btn-confirm" on:click={confirmLogout} disabled={loggingOut}>
           {loggingOut ? 'A terminar…' : 'Terminar sessão'}
         </button>
       </div>
@@ -349,12 +322,11 @@
 
 <style>
   .st-root {
-    position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
-    opacity: 0;
-    transition: opacity .24s cubic-bezier(0.16,1,0.3,1);
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column; overflow: hidden;
     will-change: transform;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.18);
   }
-  .st-root.st-in { opacity: 1; }
   .st-header {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: calc(env(safe-area-inset-top,0px) + 14px) 16px 12px; flex-shrink: 0;
@@ -391,8 +363,7 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* ── Overlay + bottom sheet (spring nativo via rAF, sem CSS transition
-       no transform — mesma técnica das telas fullscreen) ──────────── */
+  /* ── Bottom sheet (idioma) — spring nativo via rAF ───────────────── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
@@ -418,22 +389,40 @@
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
-  .sheet-confirm { padding-left: 18px; padding-right: 18px; }
-  .sheet-confirm-title { font-size: 17px; font-weight: 700; padding: 4px 0 6px; }
-  .sheet-confirm-desc { font-size: 13.5px; line-height: 1.5; margin: 0 0 18px; }
-  .sheet-confirm-actions { display: flex; gap: 10px; padding-bottom: 4px; }
-  .sheet-cancel-btn {
-    flex: 1; padding: 13px; border-radius: 14px; border: 1px solid; background: transparent;
-    font-size: 15px; font-weight: 700; cursor: pointer;
+  /* ── Confirmar logout — MESMO padrão do AppDrawer do home ────────── */
+  .logout-overlay {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgba(0, 0, 0, 0);
+    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .sheet-danger-btn {
-    flex: 1; padding: 13px; border: none; border-radius: 14px; background: #FF3B30; color: #fff;
-    font-size: 15px; font-weight: 700; cursor: pointer;
+  .logout-overlay.logout-overlay-in { background: rgba(0, 0, 0, 0.5); }
+  .logout-dialog {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.90);
+    opacity: 0;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 81;
+    min-width: 280px; max-width: 90vw;
+    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform, opacity;
   }
-  .sheet-cancel-btn:disabled, .sheet-danger-btn:disabled { opacity: .6; }
+  .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  .logout-dialog-text { font-size: 16px; margin: 0 0 20px; text-align: center; font-family: inherit; }
+  .logout-dialog-actions { display: flex; gap: 12px; justify-content: center; }
+  .logout-btn-cancel, .logout-btn-confirm {
+    flex: 1; padding: 12px 20px; border-radius: 999px; border: none;
+    font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
+    transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .logout-btn-cancel:active { transform: scale(0.96); }
+  .logout-btn-confirm { background: #FF3B30; color: white; }
+  .logout-btn-confirm:active { background: #E0342A; transform: scale(0.96); }
+  .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 
   @media (prefers-reduced-motion: reduce) {
-    .st-root, .st-icon-btn, .st-row, .sheet-opt {
+    .st-icon-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm {
       transition: none !important;
     }
   }

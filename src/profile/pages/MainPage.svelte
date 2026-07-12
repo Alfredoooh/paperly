@@ -6,7 +6,6 @@
   import { OCCUPATION_OPTIONS } from '$shared/plans.js';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
-  export let pushed = false;
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Perfil';
@@ -15,16 +14,6 @@
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
-
-  // ── Slide nativo da própria tela (entrada/saída empurrada pelo home) ──
-  const slide = createSlideTransition({});
-  let slideX = 100;
-  const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
-  let lastPushed = null;
-  $: if (pushed !== lastPushed) {
-    lastPushed = pushed;
-    if (pushed) slide.open(); else slide.close();
-  }
 
   // ── Entrada da página ────────────────────────────────────────────
   let pageVisible = false;
@@ -114,9 +103,6 @@
   // ══════════════════════════════════════════════════════════════════
   //  TELA DE EDIÇÃO (fullscreen slide-up nativo — spring dedicado)
   // ══════════════════════════════════════════════════════════════════
-  // Reaproveita o MESMO createSlideTransition — o valor 0..100 é
-  // reinterpretado como translateY em vez de translateX, já que a tela
-  // de edição sobe de baixo em vez de entrar pela direita.
   const editSlide = createSlideTransition({});
   let editSlideY = 100;
   const unsubscribeEditSlide = editSlide.subscribe((v) => { editSlideY = v; });
@@ -126,13 +112,6 @@
   let saving = false;
 
   // ── Voltar físico/gesto fecha a tela de edição ─────────────────────
-  // Mesma "regra de ouro" do resto da app (search/preview/drawer no
-  // home): abrir empurra um estado real para o histórico; fechar NUNCA
-  // esconde a tela diretamente — chama history.back() e deixa o
-  // onPopState (fonte única de verdade) tratar do fecho visual. Assim o
-  // botão físico de voltar do Android e o gesto de "voltar" do
-  // navegador fecham a edição exatamente como fecham qualquer outro
-  // overlay full-screen da app.
   let suppressEditPopstate = false;
   function onEditPopState() {
     if (suppressEditPopstate) return;
@@ -156,7 +135,6 @@
   function closeEditScreen() {
     if (!showEditScreen) return;
     if (history.state && history.state.nexaEdit) {
-      suppressEditPopstate = false;
       history.back();
     } else {
       closeEditScreenVisual();
@@ -164,20 +142,14 @@
   }
 
   // ── Gesto de arrastar para fechar (swipe-down nativo) ───────────────
-  // Mesmo princípio físico do AppDrawer: o dedo controla o valor 1:1
-  // (sem spring) enquanto arrasta, e ao soltar decide por threshold ou
-  // velocidade se assenta de volta (0) ou termina o fecho (100). Só
-  // ativa quando o toque começa no cabeçalho da tela de edição, para
-  // não roubar o gesto de scroll do corpo do formulário.
   const EDIT_CLOSE_THRESHOLD = 0.28;
-  const EDIT_VELOCITY_FLING = 0.5; // px/ms
+  const EDIT_VELOCITY_FLING = 0.5;
   let editDragging = false;
   let editDragStartY = 0;
   let editDragCurrentY = 0;
   let editDragStartTime = 0;
   let editDragLiveActive = false;
   let editScreenH = 600;
-  let editHeaderEl;
 
   function onEditHeaderTouchStart(e) {
     editDragging = true;
@@ -192,7 +164,7 @@
     const y = e.touches[0].clientY;
     editDragCurrentY = y;
     const delta = y - editDragStartY;
-    if (delta <= 4) return; // só arrastar para baixo
+    if (delta <= 4) return;
     if (!editDragLiveActive) editDragLiveActive = true;
     const progress = Math.min(1, Math.max(0, delta / editScreenH));
     editSlide.setDragValue(progress * 100);
@@ -244,10 +216,6 @@
   // ══════════════════════════════════════════════════════════════════
   //  BOTTOM SHEET — seletor de ocupação
   // ══════════════════════════════════════════════════════════════════
-  // Mesmo motor de spring (nav-transition.js) reinterpretado como
-  // translateY 0..100%, e agora arrastável com o dedo: a pega/handle e
-  // o título respondem ao toque para fechar por gesto, exatamente como
-  // um bottom sheet nativo (iOS/Android).
   const occSheetSlide = createSlideTransition({});
   let occSheetY = 100;
   const unsubscribeOccSheetSlide = occSheetSlide.subscribe((v) => { occSheetY = v; });
@@ -344,20 +312,20 @@
   });
   onDestroy(() => {
     window.removeEventListener('popstate', onEditPopState);
-    unsubscribeSlide?.();
     unsubscribeEditSlide?.();
     unsubscribeOccSheetSlide?.();
-    slide.destroy();
     editSlide.destroy();
     occSheetSlide.destroy();
   });
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ROOT
+     ROOT — já não controla o próprio slide de entrada; quem posiciona
+     esta tela agora é o wrapper .profile-main-layer no App.svelte pai
+     (recuo suave quando a Settings entra por cima, como o .root do home)
 ════════════════════════════════════════════════════════════════════ -->
 <div class="pf-root" class:pf-in={pageVisible}
-  style="background:{c.background};color:{c.textPrimary};transform: translate3d({slideX}%, 0, 0);">
+  style="background:{c.background};color:{c.textPrimary};">
 
   <!-- ══ APPBAR ══════════════════════════════════════════════════ -->
   <div class="pf-header">
@@ -382,7 +350,7 @@
 
       <!-- Hero -->
       <div class="pf-hero">
-        <label class="pf-avatar-wrap" style="background:{c.primary}">
+        <div class="pf-avatar-wrap" style="background:{c.primary}">
           {#if user?.avatar}
             <img src={user.avatar} alt={userName} />
           {:else}
@@ -391,11 +359,15 @@
           {#if avatarUploading}
             <div class="pf-avatar-loading"><div class="pf-spinner"></div></div>
           {/if}
-          <input type="file" accept="image/*" on:change={handleAvatarPick} hidden />
-          <span class="pf-avatar-edit-badge" style="background:{c.dialogBackground};border-color:{c.background}">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');background:{c.iconTint};width:13px;height:13px"></span>
-          </span>
-        </label>
+          <!-- Badge de upload SEMPRE em frente, centrado sobre o avatar,
+               nunca deslocado para um canto/atrás — cobre o círculo
+               inteiro como uma camada por cima, clicável em qualquer
+               ponto do avatar. -->
+          <label class="pf-avatar-upload-front">
+            <input type="file" accept="image/*" on:change={handleAvatarPick} hidden />
+            <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');background:#fff;width:20px;height:20px"></span>
+          </label>
+        </div>
         <h1>{userName}</h1>
         {#if userEmail}<p style="color:{c.textSecondary}">{userEmail}</p>{/if}
       </div>
@@ -459,19 +431,15 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
-       TELA FULLSCREEN DE EDIÇÃO — visual "nativo iOS Settings":
-       sem ícones nas linhas, só texto, cada campo é uma linha limpa.
-       Sobe via spring dedicado (editSlideY: 100 = fora do ecrã por
-       baixo, 0 = posição final). O cabeçalho responde ao toque para
-       um swipe-down nativo, e o botão físico/gesto de voltar do
-       browser fecha a tela via history.
+       TELA FULLSCREEN DE EDIÇÃO — cards nativos (mesma linguagem
+       visual do pf-card da tela principal, em vez de linhas soltas
+       sem agrupamento) + botão de guardar como ícone check no appbar.
   ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
     <div class="edit-screen"
       style="background:{c.background};color:{c.textPrimary};transform: translate3d(0, {editSlideY}%, 0);">
 
       <div class="edit-drag-zone"
-        bind:this={editHeaderEl}
         on:touchstart={onEditHeaderTouchStart}
         on:touchmove|nonpassive={onEditHeaderTouchMove}
         on:touchend={onEditHeaderTouchEnd}
@@ -482,8 +450,12 @@
             <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
           </button>
           <span class="edit-header-title" style="color:{c.textPrimary}">Editar perfil</span>
-          <button class="edit-save-btn" style="color:{c.primary}" on:click={saveProfile} disabled={saving}>
-            {saving ? 'A guardar…' : 'Guardar'}
+          <button class="pf-icon-btn edit-save-icon-btn" style="background:{c.primary}" on:click={saveProfile} disabled={saving}>
+            {#if saving}
+              <span class="edit-save-spinner"></span>
+            {:else}
+              <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:#fff;width:17px;height:17px"></span>
+            {/if}
           </button>
         </div>
       </div>
@@ -498,7 +470,12 @@
             bind:value={editForm.name} />
         </div>
 
-        <div class="edit-group" style="border-bottom:0.5px solid {c.divider}">
+        <!-- Cards nativos: mesma linguagem visual do pf-card (fundo
+             elevado, cantos arredondados, borda subtil, linhas
+             separadas por divisor interno) em vez de linhas soltas
+             sem contentor. -->
+        <div class="edit-section-title" style="color:{c.textSecondary}">Localização</div>
+        <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
           <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
             <input type="number" min="0" max="120" class="edit-input-right" placeholder="—"
@@ -525,7 +502,8 @@
           </div>
         </div>
 
-        <div class="edit-group" style="border-bottom:0.5px solid {c.divider}">
+        <div class="edit-section-title" style="color:{c.textSecondary}">Ocupação</div>
+        <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
           <button class="edit-row edit-row-btn" on:click={openOccSheet}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
             <div class="edit-row-right-group">
@@ -543,7 +521,8 @@
           </div>
         </div>
 
-        <div class="edit-group" style="border-bottom:0.5px solid {c.divider}">
+        <div class="edit-section-title" style="color:{c.textSecondary}">Bio</div>
+        <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
           <div class="edit-row edit-notes-row">
             <textarea class="edit-textarea"
               placeholder="Escreve uma pequena bio…"
@@ -558,8 +537,7 @@
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       BOTTOM SHEET — seletor de ocupação (mesmo visual, entrada com
-       spring nativo, e agora arrastável com o dedo pela pega/título)
+       BOTTOM SHEET — seletor de ocupação
   ══════════════════════════════════════════════════════════════ -->
   {#if showOccSheet}
     <button class="overlay" class:overlay-in={occOverlayVisible} on:click={closeOccSheet}></button>
@@ -634,14 +612,12 @@
   .pf-hero { padding: 20px 16px 8px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
   .pf-avatar-wrap {
     position: relative; width: 88px; height: 88px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
-  .pf-avatar-wrap:active { transform: scale(0.94); }
   .pf-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
   .pf-avatar-initial { font-size: 32px; font-weight: 700; color: #fff; }
   .pf-avatar-loading {
-    position: absolute; inset: 0; background: rgba(0,0,0,.4);
+    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2;
     display: flex; align-items: center; justify-content: center;
   }
   .pf-spinner {
@@ -650,10 +626,22 @@
     animation: pf-spin .7s linear infinite;
   }
   @keyframes pf-spin { to { transform: rotate(360deg); } }
-  .pf-avatar-edit-badge {
-    position: absolute; bottom: -1px; right: -1px; width: 26px; height: 26px;
-    border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center;
+
+  /* Badge/label de upload — SEMPRE EM FRENTE do avatar, cobrindo o
+     círculo inteiro como uma camada por cima (nunca num canto, nunca
+     atrás). Fica transparente em repouso e escurece ligeiramente ao
+     toque, exatamente como um overlay de "editar foto" nativo. */
+  .pf-avatar-upload-front {
+    position: absolute; inset: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0);
+    cursor: pointer;
+    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
+  .pf-avatar-upload-front:active { background: rgba(0,0,0,.32); }
+  .pf-avatar-upload-front .icon-mask { opacity: 0; transition: opacity .18s; }
+  .pf-avatar-upload-front:active .icon-mask { opacity: 1; }
+
   .pf-hero h1 { margin: 8px 0 0; font-size: 21px; font-weight: 800; line-height: 1.15; }
   .pf-hero p { margin: 0; font-size: 13.5px; }
 
@@ -692,10 +680,6 @@
 
   /* ══════════════════════════════════════════════════════════════════
      TELA FULLSCREEN DE EDIÇÃO
-     Sem transition CSS no transform — o movimento é 100% controlado
-     pelo spring editSlide (JS, via rAF), tal como o resto das telas
-     "nativas" da app. A zona de arrasto (grabber + header) responde
-     ao toque para o swipe-down nativo.
   ══════════════════════════════════════════════════════════════════ */
   .edit-screen {
     position: fixed; inset: 0; z-index: 500;
@@ -703,27 +687,25 @@
     will-change: transform;
   }
 
-  .edit-drag-zone {
-    flex-shrink: 0;
-    touch-action: none;
-  }
-  .edit-grabber {
-    width: 36px; height: 4px; border-radius: 2px;
-    margin: 8px auto 2px;
-    opacity: .55;
-  }
+  .edit-drag-zone { flex-shrink: 0; touch-action: none; }
+  .edit-grabber { width: 36px; height: 4px; border-radius: 2px; margin: 8px auto 2px; opacity: .55; }
   .edit-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: calc(env(safe-area-inset-top,0px) + 6px) 14px 14px;
     gap: 8px;
   }
   .edit-header-title { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
-  .edit-save-btn {
-    background: none; border: none; font-size: 16px; font-weight: 700;
-    cursor: pointer; transition: opacity .14s;
+
+  /* Botão de guardar como ÍCONE (check.svg) no appbar, mesma forma
+     circular dos outros pf-icon-btn, com fundo sólido na cor primária
+     em vez de texto "Guardar". */
+  .edit-save-icon-btn { position: relative; }
+  .edit-save-icon-btn:disabled { opacity: .55; }
+  .edit-save-spinner {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+    animation: pf-spin .7s linear infinite;
   }
-  .edit-save-btn:active { opacity: .55; }
-  .edit-save-btn:disabled { opacity: .5; }
 
   .edit-body { flex: 1; overflow-y: auto; padding-bottom: calc(env(safe-area-inset-bottom,0px) + 24px); }
 
@@ -733,11 +715,16 @@
     border: none; outline: none; border-bottom: 2px solid; padding-bottom: 10px; font-family: inherit;
   }
 
-  /* ── Linhas "nativo iOS Settings": sem ícones, só texto ──────────── */
-  .edit-group { }
+  /* Cards nativos: mesma linguagem visual do pf-card (fundo elevado,
+     cantos arredondados, borda subtil) — cada grupo de campos vive
+     dentro do seu próprio cartão, com título de secção acima, tal como
+     "Dados pessoais" na tela principal. */
+  .edit-section-title { padding: 20px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .edit-card { margin: 0 16px; border: 1px solid; border-radius: 18px; overflow: hidden; }
+
   .edit-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px; gap: 12px; width: 100%; background: none; border: none;
+    padding: 14px 16px; gap: 12px; width: 100%; background: none; border: none;
   }
   .edit-row-btn { cursor: pointer; text-align: left; transition: opacity .14s; }
   .edit-row-btn:active { opacity: .6; }
@@ -758,7 +745,6 @@
     transition: background .32s ease;
   }
   .overlay.overlay-in { background: rgba(0,0,0,.45); }
-
   .bottom-sheet {
     position: fixed; bottom: 0; left: 0; right: 0;
     border-radius: 20px 20px 0 0; z-index: 700;
@@ -778,7 +764,7 @@
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
   @media (prefers-reduced-motion: reduce) {
-    .pf-root, .pf-icon-btn, .pf-avatar-wrap, .pf-edit-btn, .edit-save-btn, .edit-row-btn, .sheet-opt {
+    .pf-root, .pf-icon-btn, .pf-edit-btn, .edit-row-btn, .sheet-opt, .pf-avatar-upload-front {
       transition: none !important;
     }
   }

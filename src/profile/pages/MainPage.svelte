@@ -17,13 +17,6 @@
   $: c = getThemeColors(isDark);
 
   // ── Slide nativo da própria tela (entrada/saída empurrada pelo home) ──
-  // Este spring já existia mas nunca era aplicado ao template — o
-  // .pf-root usava só a transição CSS declarativa (opacity/translateY),
-  // que é o "fade + subida ligeira" genérico, sem a física de mola do
-  // motor único usado no resto da app (search, preview, drawer, e a
-  // SettingsPage, que já liga slideX corretamente). Agora slideX entra
-  // no transform do .pf-root, tal como a SettingsPage já faz — as duas
-  // telas passam a mover-se com a MESMA física, indistinguível do home.
   const slide = createSlideTransition({});
   let slideX = 100;
   const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
@@ -104,41 +97,26 @@
       loading = false;
     }
   }
-  onMount(loadProfile);
-  onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); editSlide.destroy(); });
 
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userEmail = user?.email || '';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: occupationLabel = OCCUPATION_OPTIONS.find(o => o.id === form.occupation)?.label || null;
 
-  // NOTA: os ícones de cada linha (icon-mask 'calendar'/'location') foram
-  // removidos do template do card — ver o bloco #each mais abaixo. O
-  // campo `icon` fica aqui só porque outras partes do código (nenhuma,
-  // de momento) poderiam vir a precisar da associação linha→ícone; não
-  // afeta o visual, já que deixou de ser lido no markup.
   const INFO_ROWS = [
-    { key: 'age', icon: 'calendar', label: 'Idade', get: f => f.age ? `${f.age} anos` : null },
-    { key: 'country', icon: 'location', label: 'País', get: f => f.country || null },
-    { key: 'state', icon: 'location', label: 'Estado / Província', get: f => f.state || null },
-    { key: 'city', icon: 'location', label: 'Cidade', get: f => f.city || null },
+    { key: 'age', label: 'Idade', get: f => f.age ? `${f.age} anos` : null },
+    { key: 'country', label: 'País', get: f => f.country || null },
+    { key: 'state', label: 'Estado / Província', get: f => f.state || null },
+    { key: 'city', label: 'Cidade', get: f => f.city || null },
   ];
   $: filledRows = INFO_ROWS.map(r => ({ ...r, value: r.get(form) })).filter(r => r.value);
 
   // ══════════════════════════════════════════════════════════════════
   //  TELA DE EDIÇÃO (fullscreen slide-up nativo — spring dedicado)
   // ══════════════════════════════════════════════════════════════════
-  // ANTES: transição CSS declarativa fixa (transform .32s cubic-bezier),
-  // igual a uma modal comum — funcional, mas não é o mesmo motor físico
-  // que dá ao home a sensação "nativa" (spring via rAF, que acelera e
-  // desacelera de forma contínua em vez de seguir uma curva de tempo
-  // fixa). Aqui reaproveita-se o MESMO createSlideTransition — o valor
-  // 0..100 é reinterpretado como translateY em vez de translateX, já
-  // que a tela de edição sobe de baixo em vez de entrar pela direita.
-  // Fica um spring próprio (não o `slide` da própria página), porque as
-  // duas transições são independentes: a tela de edição pode abrir e
-  // fechar várias vezes sem nunca mexer no slide de entrada/saída da
-  // MainPage em si.
+  // Reaproveita o MESMO createSlideTransition — o valor 0..100 é
+  // reinterpretado como translateY em vez de translateX, já que a tela
+  // de edição sobe de baixo em vez de entrar pela direita.
   const editSlide = createSlideTransition({});
   let editSlideY = 100;
   const unsubscribeEditSlide = editSlide.subscribe((v) => { editSlideY = v; });
@@ -147,14 +125,94 @@
   let editForm = { ...form };
   let saving = false;
 
+  // ── Voltar físico/gesto fecha a tela de edição ─────────────────────
+  // Mesma "regra de ouro" do resto da app (search/preview/drawer no
+  // home): abrir empurra um estado real para o histórico; fechar NUNCA
+  // esconde a tela diretamente — chama history.back() e deixa o
+  // onPopState (fonte única de verdade) tratar do fecho visual. Assim o
+  // botão físico de voltar do Android e o gesto de "voltar" do
+  // navegador fecham a edição exatamente como fecham qualquer outro
+  // overlay full-screen da app.
+  let suppressEditPopstate = false;
+  function onEditPopState() {
+    if (suppressEditPopstate) return;
+    const state = history.state;
+    if (showEditScreen && (!state || state.nexaEdit === undefined)) {
+      closeEditScreenVisual();
+    }
+  }
+
   function openEdit() {
     editForm = { ...form };
+    const currentPath = window.location.pathname + window.location.search;
+    history.pushState({ nexaEdit: true, fromPath: currentPath }, '', currentPath + '#edit');
     showEditScreen = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { editSlide.open(); }));
   }
-  function closeEditScreen() {
+  function closeEditScreenVisual() {
     editSlide.close();
     setTimeout(() => { showEditScreen = false; }, 340);
+  }
+  function closeEditScreen() {
+    if (!showEditScreen) return;
+    if (history.state && history.state.nexaEdit) {
+      suppressEditPopstate = false;
+      history.back();
+    } else {
+      closeEditScreenVisual();
+    }
+  }
+
+  // ── Gesto de arrastar para fechar (swipe-down nativo) ───────────────
+  // Mesmo princípio físico do AppDrawer: o dedo controla o valor 1:1
+  // (sem spring) enquanto arrasta, e ao soltar decide por threshold ou
+  // velocidade se assenta de volta (0) ou termina o fecho (100). Só
+  // ativa quando o toque começa no cabeçalho da tela de edição, para
+  // não roubar o gesto de scroll do corpo do formulário.
+  const EDIT_CLOSE_THRESHOLD = 0.28;
+  const EDIT_VELOCITY_FLING = 0.5; // px/ms
+  let editDragging = false;
+  let editDragStartY = 0;
+  let editDragCurrentY = 0;
+  let editDragStartTime = 0;
+  let editDragLiveActive = false;
+  let editScreenH = 600;
+  let editHeaderEl;
+
+  function onEditHeaderTouchStart(e) {
+    editDragging = true;
+    editDragLiveActive = false;
+    editDragStartY = e.touches[0].clientY;
+    editDragCurrentY = editDragStartY;
+    editDragStartTime = performance.now();
+    editScreenH = window.innerHeight || 600;
+  }
+  function onEditHeaderTouchMove(e) {
+    if (!editDragging) return;
+    const y = e.touches[0].clientY;
+    editDragCurrentY = y;
+    const delta = y - editDragStartY;
+    if (delta <= 4) return; // só arrastar para baixo
+    if (!editDragLiveActive) editDragLiveActive = true;
+    const progress = Math.min(1, Math.max(0, delta / editScreenH));
+    editSlide.setDragValue(progress * 100);
+    e.preventDefault();
+  }
+  function onEditHeaderTouchEnd() {
+    if (!editDragging) return;
+    editDragging = false;
+    if (!editDragLiveActive) { editDragLiveActive = false; return; }
+    editDragLiveActive = false;
+    const elapsed = Math.max(1, performance.now() - editDragStartTime);
+    const delta = editDragCurrentY - editDragStartY;
+    const velocity = Math.abs(delta) / elapsed;
+    const draggedFraction = Math.min(1, Math.max(0, delta / editScreenH));
+    const shouldClose = draggedFraction > EDIT_CLOSE_THRESHOLD || (delta > 0 && velocity > EDIT_VELOCITY_FLING);
+    if (shouldClose) {
+      closeEditScreen();
+    } else {
+      editSlide.releaseDragTo('open');
+    }
   }
 
   async function saveProfile() {
@@ -183,19 +241,80 @@
     }
   }
 
-  // ── Seletor de ocupação (bottom sheet leve) ──────────────────────
-  let showOccSheet = false, occSheetVisible = false;
+  // ══════════════════════════════════════════════════════════════════
+  //  BOTTOM SHEET — seletor de ocupação
+  // ══════════════════════════════════════════════════════════════════
+  // Mesmo motor de spring (nav-transition.js) reinterpretado como
+  // translateY 0..100%, e agora arrastável com o dedo: a pega/handle e
+  // o título respondem ao toque para fechar por gesto, exatamente como
+  // um bottom sheet nativo (iOS/Android).
+  const occSheetSlide = createSlideTransition({});
+  let occSheetY = 100;
+  const unsubscribeOccSheetSlide = occSheetSlide.subscribe((v) => { occSheetY = v; });
+  let showOccSheet = false;
+  let occOverlayVisible = false;
+
   function openOccSheet() {
     showOccSheet = true;
-    requestAnimationFrame(() => { occSheetVisible = true; });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      occOverlayVisible = true;
+      occSheetSlide.open();
+    }));
   }
   function closeOccSheet() {
-    occSheetVisible = false;
-    setTimeout(() => { showOccSheet = false; }, 260);
+    occOverlayVisible = false;
+    occSheetSlide.close();
+    setTimeout(() => { showOccSheet = false; }, 300);
   }
   function pickOcc(id) {
     editForm.occupation = id;
     closeOccSheet();
+  }
+
+  const SHEET_CLOSE_THRESHOLD = 0.3;
+  const SHEET_VELOCITY_FLING = 0.5;
+  let sheetDragging = false;
+  let sheetDragStartY = 0;
+  let sheetDragCurrentY = 0;
+  let sheetDragStartTime = 0;
+  let sheetDragLiveActive = false;
+  let sheetDragH = 400;
+  let occSheetEl;
+
+  function onSheetGrabTouchStart(e) {
+    sheetDragging = true;
+    sheetDragLiveActive = false;
+    sheetDragStartY = e.touches[0].clientY;
+    sheetDragCurrentY = sheetDragStartY;
+    sheetDragStartTime = performance.now();
+    sheetDragH = occSheetEl ? occSheetEl.getBoundingClientRect().height : 400;
+  }
+  function onSheetGrabTouchMove(e) {
+    if (!sheetDragging) return;
+    const y = e.touches[0].clientY;
+    sheetDragCurrentY = y;
+    const delta = y - sheetDragStartY;
+    if (delta <= 4) return;
+    if (!sheetDragLiveActive) sheetDragLiveActive = true;
+    const progress = Math.min(1, Math.max(0, delta / sheetDragH));
+    occSheetSlide.setDragValue(progress * 100);
+    e.preventDefault();
+  }
+  function onSheetGrabTouchEnd() {
+    if (!sheetDragging) return;
+    sheetDragging = false;
+    if (!sheetDragLiveActive) { sheetDragLiveActive = false; return; }
+    sheetDragLiveActive = false;
+    const elapsed = Math.max(1, performance.now() - sheetDragStartTime);
+    const delta = sheetDragCurrentY - sheetDragStartY;
+    const velocity = Math.abs(delta) / elapsed;
+    const draggedFraction = Math.min(1, Math.max(0, delta / sheetDragH));
+    const shouldClose = draggedFraction > SHEET_CLOSE_THRESHOLD || (delta > 0 && velocity > SHEET_VELOCITY_FLING);
+    if (shouldClose) {
+      closeOccSheet();
+    } else {
+      occSheetSlide.releaseDragTo('open');
+    }
   }
 
   // ── Avatar ────────────────────────────────────────────────────────
@@ -218,6 +337,20 @@
     };
     reader.readAsDataURL(file);
   }
+
+  onMount(() => {
+    loadProfile();
+    window.addEventListener('popstate', onEditPopState);
+  });
+  onDestroy(() => {
+    window.removeEventListener('popstate', onEditPopState);
+    unsubscribeSlide?.();
+    unsubscribeEditSlide?.();
+    unsubscribeOccSheetSlide?.();
+    slide.destroy();
+    editSlide.destroy();
+    occSheetSlide.destroy();
+  });
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -326,21 +459,33 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
-       TELA FULLSCREEN DE EDIÇÃO — subida nativa via spring dedicado
-       (editSlideY: 100 = fora do ecrã por baixo, 0 = posição final)
+       TELA FULLSCREEN DE EDIÇÃO — visual "nativo iOS Settings":
+       sem ícones nas linhas, só texto, cada campo é uma linha limpa.
+       Sobe via spring dedicado (editSlideY: 100 = fora do ecrã por
+       baixo, 0 = posição final). O cabeçalho responde ao toque para
+       um swipe-down nativo, e o botão físico/gesto de voltar do
+       browser fecha a tela via history.
   ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
     <div class="edit-screen"
       style="background:{c.background};color:{c.textPrimary};transform: translate3d(0, {editSlideY}%, 0);">
 
-      <div class="edit-header" style="border-bottom:0.5px solid {c.divider}">
-        <button class="pf-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEditScreen} disabled={saving}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
-        </button>
-        <span class="edit-header-title" style="color:{c.textPrimary}">Editar perfil</span>
-        <button class="edit-save-btn" style="color:{c.primary}" on:click={saveProfile} disabled={saving}>
-          {saving ? 'A guardar…' : 'Guardar'}
-        </button>
+      <div class="edit-drag-zone"
+        bind:this={editHeaderEl}
+        on:touchstart={onEditHeaderTouchStart}
+        on:touchmove|nonpassive={onEditHeaderTouchMove}
+        on:touchend={onEditHeaderTouchEnd}
+        on:touchcancel={onEditHeaderTouchEnd}>
+        <div class="edit-grabber" style="background:{c.divider}"></div>
+        <div class="edit-header">
+          <button class="pf-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEditScreen} disabled={saving}>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
+          </button>
+          <span class="edit-header-title" style="color:{c.textPrimary}">Editar perfil</span>
+          <button class="edit-save-btn" style="color:{c.primary}" on:click={saveProfile} disabled={saving}>
+            {saving ? 'A guardar…' : 'Guardar'}
+          </button>
+        </div>
       </div>
 
       <div class="edit-body">
@@ -355,37 +500,25 @@
 
         <div class="edit-group" style="border-bottom:0.5px solid {c.divider}">
           <div class="edit-row">
-            <div class="edit-row-left">
-              <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/calendar.svg');-webkit-mask-image:url('/icons/svg/calendar.svg');background:{c.textSecondary}"></span>
-              <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
-            </div>
+            <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
             <input type="number" min="0" max="120" class="edit-input-right" placeholder="—"
               style="color:{c.textSecondary};background:transparent;border:none"
               bind:value={editForm.age} />
           </div>
           <div class="edit-row" style="border-top:0.5px solid {c.divider}">
-            <div class="edit-row-left">
-              <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/location.svg');-webkit-mask-image:url('/icons/svg/location.svg');background:{c.textSecondary}"></span>
-              <span class="edit-row-lbl" style="color:{c.textPrimary}">País</span>
-            </div>
+            <span class="edit-row-lbl" style="color:{c.textPrimary}">País</span>
             <input class="edit-input-right" placeholder="Adicionar"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
               bind:value={editForm.country} />
           </div>
           <div class="edit-row" style="border-top:0.5px solid {c.divider}">
-            <div class="edit-row-left">
-              <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/location.svg');-webkit-mask-image:url('/icons/svg/location.svg');background:{c.textSecondary};opacity:.6"></span>
-              <span class="edit-row-lbl" style="color:{c.textPrimary}">Estado / Província</span>
-            </div>
+            <span class="edit-row-lbl" style="color:{c.textPrimary}">Estado / Província</span>
             <input class="edit-input-right" placeholder="Adicionar"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
               bind:value={editForm.state} />
           </div>
           <div class="edit-row" style="border-top:0.5px solid {c.divider}">
-            <div class="edit-row-left">
-              <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/location.svg');-webkit-mask-image:url('/icons/svg/location.svg');background:{c.textSecondary};opacity:.6"></span>
-              <span class="edit-row-lbl" style="color:{c.textPrimary}">Cidade</span>
-            </div>
+            <span class="edit-row-lbl" style="color:{c.textPrimary}">Cidade</span>
             <input class="edit-input-right" placeholder="Adicionar"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
               bind:value={editForm.city} />
@@ -394,10 +527,7 @@
 
         <div class="edit-group" style="border-bottom:0.5px solid {c.divider}">
           <button class="edit-row edit-row-btn" on:click={openOccSheet}>
-            <div class="edit-row-left">
-              <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');background:{c.textSecondary}"></span>
-              <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
-            </div>
+            <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
             <div class="edit-row-right-group">
               <span style="color:{c.textSecondary};font-size:14px">
                 {OCCUPATION_OPTIONS.find(o => o.id === editForm.occupation)?.label || 'Selecionar'}
@@ -406,10 +536,7 @@
             </div>
           </button>
           <div class="edit-row" style="border-top:0.5px solid {c.divider}">
-            <div class="edit-row-left">
-              <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/note.svg');-webkit-mask-image:url('/icons/svg/note.svg');background:{c.textSecondary};opacity:.6"></span>
-              <span class="edit-row-lbl" style="color:{c.textPrimary}">Detalhe</span>
-            </div>
+            <span class="edit-row-lbl" style="color:{c.textPrimary}">Detalhe</span>
             <input class="edit-input-right" placeholder="Curso, cargo…"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
               bind:value={editForm.occupationDetail} />
@@ -418,7 +545,6 @@
 
         <div class="edit-group" style="border-bottom:0.5px solid {c.divider}">
           <div class="edit-row edit-notes-row">
-            <span class="icon-mask edit-row-ic" style="mask-image:url('/icons/svg/note.svg');-webkit-mask-image:url('/icons/svg/note.svg');background:{c.textSecondary};flex-shrink:0;margin-top:1px"></span>
             <textarea class="edit-textarea"
               placeholder="Escreve uma pequena bio…"
               style="color:{c.textPrimary};background:transparent;caret-color:{c.primary}"
@@ -432,14 +558,21 @@
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       BOTTOM SHEET — seletor de ocupação (popup nativo)
+       BOTTOM SHEET — seletor de ocupação (mesmo visual, entrada com
+       spring nativo, e agora arrastável com o dedo pela pega/título)
   ══════════════════════════════════════════════════════════════ -->
   {#if showOccSheet}
-    <button class="overlay" class:overlay-in={occSheetVisible} on:click={closeOccSheet}></button>
-    <div class="bottom-sheet" class:sheet-in={occSheetVisible}
-      style="background:{c.dialogBackground}">
-      <div class="sheet-handle" style="background:{c.divider}"></div>
-      <div class="sheet-title" style="color:{c.textPrimary}">Ocupação</div>
+    <button class="overlay" class:overlay-in={occOverlayVisible} on:click={closeOccSheet}></button>
+    <div class="bottom-sheet" bind:this={occSheetEl}
+      style="background:{c.dialogBackground};transform: translate3d(0, {occSheetY}%, 0);">
+      <div class="sheet-grab-zone"
+        on:touchstart={onSheetGrabTouchStart}
+        on:touchmove|nonpassive={onSheetGrabTouchMove}
+        on:touchend={onSheetGrabTouchEnd}
+        on:touchcancel={onSheetGrabTouchEnd}>
+        <div class="sheet-handle" style="background:{c.divider}"></div>
+        <div class="sheet-title" style="color:{c.textPrimary}">Ocupação</div>
+      </div>
       {#each OCCUPATION_OPTIONS as opt}
         <button class="sheet-opt" on:click={() => pickOcc(opt.id)}>
           <span class="sheet-opt-label" style="color:{c.textPrimary}">{opt.label}</span>
@@ -561,9 +694,8 @@
      TELA FULLSCREEN DE EDIÇÃO
      Sem transition CSS no transform — o movimento é 100% controlado
      pelo spring editSlide (JS, via rAF), tal como o resto das telas
-     "nativas" da app. Isto é o que a torna "super suave": não há uma
-     curva de tempo fixa a terminar de repente, a física desacelera de
-     forma contínua até assentar exatamente no destino.
+     "nativas" da app. A zona de arrasto (grabber + header) responde
+     ao toque para o swipe-down nativo.
   ══════════════════════════════════════════════════════════════════ */
   .edit-screen {
     position: fixed; inset: 0; z-index: 500;
@@ -571,10 +703,19 @@
     will-change: transform;
   }
 
+  .edit-drag-zone {
+    flex-shrink: 0;
+    touch-action: none;
+  }
+  .edit-grabber {
+    width: 36px; height: 4px; border-radius: 2px;
+    margin: 8px auto 2px;
+    opacity: .55;
+  }
   .edit-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: calc(env(safe-area-inset-top,0px) + 14px) 14px 14px;
-    flex-shrink: 0; gap: 8px;
+    padding: calc(env(safe-area-inset-top,0px) + 6px) 14px 14px;
+    gap: 8px;
   }
   .edit-header-title { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
   .edit-save-btn {
@@ -592,6 +733,7 @@
     border: none; outline: none; border-bottom: 2px solid; padding-bottom: 10px; font-family: inherit;
   }
 
+  /* ── Linhas "nativo iOS Settings": sem ícones, só texto ──────────── */
   .edit-group { }
   .edit-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -600,8 +742,6 @@
   .edit-row-btn { cursor: pointer; text-align: left; transition: opacity .14s; }
   .edit-row-btn:active { opacity: .6; }
   .edit-notes-row { align-items: flex-start; }
-  .edit-row-left { display: flex; align-items: center; gap: 12px; }
-  .edit-row-ic { width: 18px; height: 18px; opacity: .65; }
   .edit-row-lbl { font-size: 15px; font-weight: 500; }
   .edit-row-right-group { display: flex; align-items: center; gap: 6px; }
   .edit-input-right { font-size: 14px; outline: none; text-align: right; }
@@ -611,7 +751,7 @@
     font-family: inherit; line-height: 1.55; min-height: 80px; width: 100%;
   }
 
-  /* ── Overlay + bottom sheet (popup nativo, como no calendar) ────────── */
+  /* ── Overlay + bottom sheet (popup nativo, spring dedicado) ─────────── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
@@ -623,11 +763,10 @@
     position: fixed; bottom: 0; left: 0; right: 0;
     border-radius: 20px 20px 0 0; z-index: 700;
     padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
-    transform: translateY(100%);
-    transition: transform .34s cubic-bezier(0.16,1,0.3,1);
+    will-change: transform;
     box-shadow: 0 -4px 40px rgba(0,0,0,.16);
   }
-  .bottom-sheet.sheet-in { transform: translateY(0); }
+  .sheet-grab-zone { touch-action: none; }
   .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; }
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
   .sheet-opt {
@@ -637,4 +776,10 @@
   }
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pf-root, .pf-icon-btn, .pf-avatar-wrap, .pf-edit-btn, .edit-save-btn, .edit-row-btn, .sheet-opt {
+      transition: none !important;
+    }
+  }
 </style>

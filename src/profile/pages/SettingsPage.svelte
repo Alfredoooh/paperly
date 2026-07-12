@@ -15,6 +15,7 @@
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
+  // ── Slide nativo (mesmo motor do home: search/preview/drawer) ──────
   const slide = createSlideTransition({});
   let slideX = 100;
   const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
@@ -26,6 +27,61 @@
 
   let pageVisible = false;
   onMount(() => { requestAnimationFrame(() => { pageVisible = true; }); });
+
+  // ── Gesto de arrastar da borda esquerda para fechar (edge-swipe) ───
+  // Mesmo princípio físico do AppDrawer no home: arrastar a partir da
+  // borda esquerda do ecrã segue o dedo 1:1 (sem spring, via
+  // setDragValue) e ao soltar decide por threshold/velocidade se volta
+  // à posição aberta ou termina o fecho — chamando dispatch('nav',
+  // {to:'main'}), exatamente o mesmo caminho do botão "voltar".
+  const EDGE_ZONE = 24; // px a partir da borda esquerda
+  const CLOSE_THRESHOLD = 0.32;
+  const VELOCITY_FLING = 0.5; // px/ms
+  let dragging = false;
+  let dragLiveActive = false;
+  let dragStartX = 0;
+  let dragCurrentX = 0;
+  let dragStartTime = 0;
+  let dragW = 360;
+
+  function onEdgeTouchStart(e) {
+    const x = e.touches[0].clientX;
+    if (x > EDGE_ZONE) return; // só a partir da borda esquerda
+    dragging = true;
+    dragLiveActive = false;
+    dragStartX = x;
+    dragCurrentX = x;
+    dragStartTime = performance.now();
+    dragW = window.innerWidth || 360;
+  }
+  function onEdgeTouchMove(e) {
+    if (!dragging) return;
+    const x = e.touches[0].clientX;
+    dragCurrentX = x;
+    const delta = x - dragStartX;
+    if (delta <= 4) return; // só arrastar para a direita
+    if (!dragLiveActive) dragLiveActive = true;
+    const progress = Math.min(1, Math.max(0, delta / dragW));
+    slide.setDragValue(progress * 100);
+    e.preventDefault();
+  }
+  function onEdgeTouchEnd() {
+    if (!dragging) return;
+    dragging = false;
+    if (!dragLiveActive) { dragLiveActive = false; return; }
+    dragLiveActive = false;
+    const elapsed = Math.max(1, performance.now() - dragStartTime);
+    const delta = dragCurrentX - dragStartX;
+    const velocity = Math.abs(delta) / elapsed;
+    const draggedFraction = Math.min(1, Math.max(0, delta / dragW));
+    const shouldClose = draggedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
+    if (shouldClose) {
+      dispatch('nav', { to: 'main' });
+    } else {
+      slide.releaseDragTo('open');
+    }
+  }
+
   onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); });
 
   let themeValue = getTheme();
@@ -49,15 +105,32 @@
     dispatch('nav', { to: 'settings', data: { isDark: dark } });
   }
 
-  // ── Bottom sheet — idioma (popup nativo) ─────────────────────────
-  let showLangSheet = false, langSheetVisible = false;
+  // ── Bottom sheets nativos: spring dedicado + arrastáveis com o dedo ──
+  function createSheetController() {
+    const s = createSlideTransition({});
+    let y = 100;
+    const unsub = s.subscribe((v) => { y = v; });
+    return { s, get y() { return y; }, unsub };
+  }
+
+  // ── Idioma ───────────────────────────────────────────────────────
+  const langSlide = createSlideTransition({});
+  let langSheetY = 100;
+  const unsubscribeLangSlide = langSlide.subscribe((v) => { langSheetY = v; });
+  let showLangSheet = false;
+  let langOverlayVisible = false;
+
   function openLangSheet() {
     showLangSheet = true;
-    requestAnimationFrame(() => { langSheetVisible = true; });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      langOverlayVisible = true;
+      langSlide.open();
+    }));
   }
   function closeLangSheet() {
-    langSheetVisible = false;
-    setTimeout(() => { showLangSheet = false; }, 260);
+    langOverlayVisible = false;
+    langSlide.close();
+    setTimeout(() => { showLangSheet = false; }, 300);
   }
   function selectLang(code) {
     currentLang = code;
@@ -66,17 +139,26 @@
     showToast('Idioma atualizado');
   }
 
-  // ── Bottom sheet — confirmação de logout (popup nativo) ──────────
-  let showLogoutSheet = false, logoutSheetVisible = false;
+  // ── Confirmação de logout ────────────────────────────────────────
+  const logoutSlide = createSlideTransition({});
+  let logoutSheetY = 100;
+  const unsubscribeLogoutSlide = logoutSlide.subscribe((v) => { logoutSheetY = v; });
+  let showLogoutSheet = false;
+  let logoutOverlayVisible = false;
   let logoutMode = 'single';
+
   function openLogoutSheet(mode) {
     logoutMode = mode;
     showLogoutSheet = true;
-    requestAnimationFrame(() => { logoutSheetVisible = true; });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      logoutOverlayVisible = true;
+      logoutSlide.open();
+    }));
   }
   function closeLogoutSheet() {
-    logoutSheetVisible = false;
-    setTimeout(() => { showLogoutSheet = false; }, 260);
+    logoutOverlayVisible = false;
+    logoutSlide.close();
+    setTimeout(() => { showLogoutSheet = false; }, 300);
   }
 
   let loggingOut = false;
@@ -93,7 +175,60 @@
       loggingOut = false;
     }
   }
+
+  // ── Gesto de arrastar genérico para os dois sheets (pega + título) ──
+  function makeSheetDrag(slideCtrl, getHeight, onClose) {
+    let dragging = false, liveActive = false;
+    let startY = 0, currentY = 0, startTime = 0, sheetH = 400;
+    return {
+      touchstart(e) {
+        dragging = true;
+        liveActive = false;
+        startY = e.touches[0].clientY;
+        currentY = startY;
+        startTime = performance.now();
+        sheetH = getHeight();
+      },
+      touchmove(e) {
+        if (!dragging) return;
+        const y = e.touches[0].clientY;
+        currentY = y;
+        const delta = y - startY;
+        if (delta <= 4) return;
+        if (!liveActive) liveActive = true;
+        const progress = Math.min(1, Math.max(0, delta / sheetH));
+        slideCtrl.setDragValue(progress * 100);
+        e.preventDefault();
+      },
+      touchend() {
+        if (!dragging) return;
+        dragging = false;
+        if (!liveActive) { liveActive = false; return; }
+        liveActive = false;
+        const elapsed = Math.max(1, performance.now() - startTime);
+        const delta = currentY - startY;
+        const velocity = Math.abs(delta) / elapsed;
+        const draggedFraction = Math.min(1, Math.max(0, delta / sheetH));
+        const shouldClose = draggedFraction > 0.3 || (delta > 0 && velocity > 0.5);
+        if (shouldClose) onClose();
+        else slideCtrl.releaseDragTo('open');
+      },
+    };
+  }
+
+  let langSheetEl, logoutSheetEl;
+  const langDrag = makeSheetDrag(langSlide, () => langSheetEl ? langSheetEl.getBoundingClientRect().height : 400, closeLangSheet);
+  const logoutDrag = makeSheetDrag(logoutSlide, () => logoutSheetEl ? logoutSheetEl.getBoundingClientRect().height : 400, closeLogoutSheet);
+
+  onDestroy(() => {
+    unsubscribeLangSlide?.();
+    unsubscribeLogoutSlide?.();
+    langSlide.destroy();
+    logoutSlide.destroy();
+  });
 </script>
+
+<svelte:window on:touchstart={onEdgeTouchStart} on:touchmove|nonpassive={onEdgeTouchMove} on:touchend={onEdgeTouchEnd} on:touchcancel={onEdgeTouchEnd} />
 
 <div class="st-root" class:st-in={pageVisible} style="background:{c.background}; transform: translate3d({slideX}%, 0, 0);">
   <div class="st-header">
@@ -158,12 +293,18 @@
     </div>
   </div>
 
-  <!-- ══ POPUP — Idioma ══════════════════════════════════════════ -->
+  <!-- ══ POPUP — Idioma (spring nativo + arrastável) ══════════════ -->
   {#if showLangSheet}
-    <button class="overlay" class:overlay-in={langSheetVisible} on:click={closeLangSheet}></button>
-    <div class="bottom-sheet" class:sheet-in={langSheetVisible} style="background:{c.dialogBackground}">
-      <div class="sheet-handle" style="background:{c.divider}"></div>
-      <div class="sheet-title" style="color:{c.textPrimary}">Idioma da app</div>
+    <button class="overlay" class:overlay-in={langOverlayVisible} on:click={closeLangSheet}></button>
+    <div class="bottom-sheet" bind:this={langSheetEl} style="background:{c.dialogBackground};transform: translate3d(0, {langSheetY}%, 0);">
+      <div class="sheet-grab-zone"
+        on:touchstart={langDrag.touchstart}
+        on:touchmove|nonpassive={langDrag.touchmove}
+        on:touchend={langDrag.touchend}
+        on:touchcancel={langDrag.touchend}>
+        <div class="sheet-handle" style="background:{c.divider}"></div>
+        <div class="sheet-title" style="color:{c.textPrimary}">Idioma da app</div>
+      </div>
       <div class="sheet-scroll">
         {#each AVAILABLE_LANGUAGES as lang}
           <button class="sheet-opt" on:click={() => selectLang(lang.code)}>
@@ -177,13 +318,19 @@
     </div>
   {/if}
 
-  <!-- ══ POPUP — Confirmar logout ════════════════════════════════ -->
+  <!-- ══ POPUP — Confirmar logout (spring nativo + arrastável) ═════ -->
   {#if showLogoutSheet}
-    <button class="overlay" class:overlay-in={logoutSheetVisible} on:click={closeLogoutSheet}></button>
-    <div class="bottom-sheet sheet-confirm" class:sheet-in={logoutSheetVisible} style="background:{c.dialogBackground}">
-      <div class="sheet-handle" style="background:{c.divider}"></div>
-      <div class="sheet-confirm-title" style="color:{c.textPrimary}">
-        {logoutMode === 'all' ? 'Terminar sessão em todos os dispositivos?' : 'Terminar sessão?'}
+    <button class="overlay" class:overlay-in={logoutOverlayVisible} on:click={closeLogoutSheet}></button>
+    <div class="bottom-sheet sheet-confirm" bind:this={logoutSheetEl} style="background:{c.dialogBackground};transform: translate3d(0, {logoutSheetY}%, 0);">
+      <div class="sheet-grab-zone"
+        on:touchstart={logoutDrag.touchstart}
+        on:touchmove|nonpassive={logoutDrag.touchmove}
+        on:touchend={logoutDrag.touchend}
+        on:touchcancel={logoutDrag.touchend}>
+        <div class="sheet-handle" style="background:{c.divider}"></div>
+        <div class="sheet-confirm-title" style="color:{c.textPrimary}">
+          {logoutMode === 'all' ? 'Terminar sessão em todos os dispositivos?' : 'Terminar sessão?'}
+        </div>
       </div>
       <p class="sheet-confirm-desc" style="color:{c.textSecondary}">
         {logoutMode === 'all'
@@ -203,10 +350,11 @@
 <style>
   .st-root {
     position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
-    opacity: 0; transform: translateY(16px);
-    transition: opacity .24s cubic-bezier(0.16,1,0.3,1), transform .24s cubic-bezier(0.16,1,0.3,1);
+    opacity: 0;
+    transition: opacity .24s cubic-bezier(0.16,1,0.3,1);
+    will-change: transform;
   }
-  .st-root.st-in { opacity: 1; transform: translateY(0); }
+  .st-root.st-in { opacity: 1; }
   .st-header {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: calc(env(safe-area-inset-top,0px) + 14px) 16px 12px; flex-shrink: 0;
@@ -243,7 +391,8 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* ── Overlay + bottom sheet (popup nativo) ───────────────────────── */
+  /* ── Overlay + bottom sheet (spring nativo via rAF, sem CSS transition
+       no transform — mesma técnica das telas fullscreen) ──────────── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
@@ -254,11 +403,10 @@
     position: fixed; bottom: 0; left: 0; right: 0;
     border-radius: 20px 20px 0 0; z-index: 700;
     padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
-    transform: translateY(100%);
-    transition: transform .34s cubic-bezier(0.16,1,0.3,1);
+    will-change: transform;
     box-shadow: 0 -4px 40px rgba(0,0,0,.16);
   }
-  .bottom-sheet.sheet-in { transform: translateY(0); }
+  .sheet-grab-zone { touch-action: none; }
   .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; }
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
   .sheet-scroll { max-height: 50vh; overflow-y: auto; }
@@ -283,4 +431,10 @@
     font-size: 15px; font-weight: 700; cursor: pointer;
   }
   .sheet-cancel-btn:disabled, .sheet-danger-btn:disabled { opacity: .6; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .st-root, .st-icon-btn, .st-row, .sheet-opt {
+      transition: none !important;
+    }
+  }
 </style>

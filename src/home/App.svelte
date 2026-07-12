@@ -1,44 +1,62 @@
 <!-- src/home/App.svelte -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
-  import { createEventDispatcher } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { requireAuth, logout } from '$shared/auth-guard.js';
+  import { ALL_APPS } from '$shared/plans.js';
+  import { getTheme, syncTheme } from '$shared/theme.js';
+  import { createRouter } from '$shared/router.js';
+  import { initPwaInstall, onPwaInstallAvailable, promptPwaInstall } from '$shared/pwa-install.js';
+
+  import { getAvatarColor, TABS, TEMPLATE_VIEWS, IMAGE_MODELS, DOC_MODELS } from './lib/constants.js';
+  import { createBackRecoilTransition } from './lib/nav-transition.js';
   import AppHeader from './components/AppHeader.svelte';
   import BottomTabBar from './components/BottomTabBar.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
-  import SearchPage from './components/SearchPage.svelte';
-  import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
   import CreateTab from './components/CreateTab.svelte';
   import ProjectsTab from './components/ProjectsTab.svelte';
   import TemplatesTab from './components/TemplatesTab.svelte';
   import ToolsTab from './components/ToolsTab.svelte';
-  import { requireAuth, logout as authLogout } from './lib/auth.js';
-  import { getTheme, applyTheme } from './lib/theme.js';
-  import { router } from './lib/router.js';
-  import { pushOverlayState } from './lib/nav-history.js';
-  import { initPwaInstall, onPwaInstallAvailable, handleInstall as pwaHandleInstall } from './lib/pwa-install.js';
-  import { createBackRecoilTransition } from './lib/nav-transition.js';
-  import { TEMPLATE_VIEWS, IMAGE_MODELS, DOC_MODELS } from './lib/constants.js';
+  import SearchPage from './components/SearchPage.svelte';
+  import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
+
+  export let pushed = false;
+  // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
 
   const dispatch = createEventDispatcher();
 
-  export let platformApps = [];
+  const BASE = '/home/';
+  const VALID_ROUTES = ['projects', 'templates', 'tools'];
+  // 'create' é o rootRoute real do router — a rota raiz '/home/' resolve
+  // sempre para 'create', tanto no parseCurrentRoute() como no navigate().
+  const router = createRouter(BASE, VALID_ROUTES, 'create');
+
+  let activeTab = 'create';
+  $: currentTabMeta = TABS.find(t => t.id === activeTab);
+  $: currentTitle = currentTabMeta?.title || '';
+
+  // estado do toggle nativo do tab "Templates"
+  let templatesView = 'images';
 
   let user = null;
-  let activeTab = 'create';
-  let templatesView = TEMPLATE_VIEWS?.[0]?.id ?? 'grid';
-  let currentTitle = '';
-  let mediaQuery;
-  let suppressRouterPopstate = false;
+  $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
+  $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
+  $: avatarColor = getAvatarColor(userName);
+  $: avatarUrl = user?.avatar || '';
 
-  let avatarColor = '#FF3B30';
-  let userInitial = 'U';
-  let userName = 'Utilizador';
-  let avatarUrl = '';
+  const platformApps = ALL_APPS.filter(a => a.id !== 'home');
 
   let themeValue = 'dark';
-  function applyThemeValue(id, persist = true) {
-    themeValue = id;
-    applyTheme(id, persist);
+  let isDark = true;
+  let mediaQuery;
+  function resolveIsDark(v) {
+    return v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function applyThemeValue(v, persist = true) {
+    themeValue = v;
+    isDark = resolveIsDark(v);
+    if (persist) localStorage.setItem('nexa_theme', v);
+    syncTheme(isDark);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }
   function handleSystemChange() {
     if (themeValue === 'system') applyThemeValue('system', false);
@@ -115,35 +133,91 @@
   }
   function applyThemeFromDrawer(id) {
     applyThemeValue(id);
+    themeExpanded = false;
   }
 
-  function logout() {
-    authLogout();
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(100px)';
+    }, 2200);
   }
 
-  function handleInstall() {
-    pwaHandleInstall();
+  async function handleInstall() {
+    const result = await promptPwaInstall();
+    closeDrawer();
+    if (result.outcome === 'accepted') {
+      showToast('Nexa instalado!');
+    }
   }
 
+  // FIX (bug: create -> "/home/home/" -> 404 numa navegação seguinte):
+  // O router usa 'create' como rootRoute (ver createRouter acima), e
+  // parseCurrentRoute() já devolve 'create' para a rota raiz. Antes,
+  // aqui passávamos a string literal 'home' (o nome da PASTA/BASE, não
+  // o rootRoute), o que fazia navigate() comparar 'home' !== 'create'
+  // e gerar o pathname inválido '/home/home/' em vez de '/home/'. Isso
+  // não dava erro na hora (é só um pushState), mas na próxima vez que
+  // essa URL fosse reavaliada — voltar, refresh, botão físico — o
+  // router não reconhecia '/home/home/' como rota válida e redirecionava
+  // para /404/. Agora passamos sempre activeTab diretamente: como
+  // activeTab já usa 'create' para a tab raiz, fala a mesma língua que
+  // o router sem qualquer tradução.
+  function selectTab(id) {
+    activeTab = id;
+    router.navigate(id);
+    requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
+  }
+
+  function selectTemplatesView(id) {
+    templatesView = id;
+    requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
+  }
+
+  // ------------------------------------------------------------------
+  // Navegação nativa via history real (push + popstate), usada pela
+  // pesquisa, pelo preview de modelo, e agora também pelo perfil e
+  // pelas definições do perfil — todas em tela cheia.
+  //
+  // REGRA DE OURO (fix do bug de duplo-clique + 404 ao voltar):
+  // O fecho VISUAL de qualquer overlay (search/preview/profile/settings)
+  // SÓ acontece dentro de onPopState — nunca é antecipado pelas funções
+  // close*(). Essas só fazem history.back() e mais nada. Isto elimina a
+  // necessidade de "prever" se foi o botão dentro da app ou o gesto
+  // físico do Android/Chrome que disparou o popstate.
+  // ------------------------------------------------------------------
   let searchOpen = false;
-  let searchVisible = false;
   let searchPushed = false;
-  async function openSearch() {
+  let previewOpen = false;
+  let previewPushed = false;
+  let previewData = null; // { kind: 'image'|'doc', item }
+  let suppressRouterPopstate = false;
+
+  function pushOverlayState(hash, extra) {
+    const currentPath = window.location.pathname + window.location.search;
+    history.pushState({ nexaOverlay: hash, fromPath: currentPath, ...extra }, '', currentPath + '#' + hash);
+  }
+
+  function openSearch() {
     if (searchOpen) return;
     pushOverlayState('search', { nexaSearch: true });
     searchOpen = true;
-    searchVisible = false;
-    await new Promise(r => requestAnimationFrame(r));
-    requestAnimationFrame(() => {
-      searchVisible = true;
-      searchPushed = true;
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
   }
+
   function closeSearchVisual() {
-    searchVisible = false;
     searchPushed = false;
-    setTimeout(() => { searchOpen = false; }, 320);
+    setTimeout(() => { searchOpen = false; }, 340);
   }
+
+  // Chamado pelo botão "voltar" dentro da própria tela de pesquisa.
+  // NÃO fecha nada visualmente aqui — só dispara o popstate real, que
+  // vai ser apanhado por onPopState (fonte única de verdade do fecho).
   function closeSearch() {
     if (!searchOpen) return;
     if (history.state && history.state.nexaSearch) {
@@ -153,27 +227,19 @@
     }
   }
 
-  let previewOpen = false;
-  let previewVisible = false;
-  let previewPushed = false;
-  let previewData = null;
-  async function openTemplatePreview(kind, item) {
+  function openTemplatePreview(kind, item) {
     if (previewOpen) return;
     previewData = { kind, item };
     pushOverlayState('preview', { nexaPreview: true });
     previewOpen = true;
-    previewVisible = false;
-    await new Promise(r => requestAnimationFrame(r));
-    requestAnimationFrame(() => {
-      previewVisible = true;
-      previewPushed = true;
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => { previewPushed = true; }));
   }
+
   function closePreviewVisual() {
-    previewVisible = false;
     previewPushed = false;
-    setTimeout(() => { previewOpen = false; previewData = null; }, 320);
+    setTimeout(() => { previewOpen = false; previewData = null; }, 340);
   }
+
   function closeTemplatePreview() {
     if (!previewOpen) return;
     if (history.state && history.state.nexaPreview) {
@@ -182,18 +248,12 @@
       closePreviewVisual();
     }
   }
-  function useTemplateFromPreview(item) {
+
+  function useTemplateFromPreview() {
+    if (previewData?.item?.prompt) goToAIWithPrompt(previewData.item.prompt);
     closeTemplatePreview();
-    dispatch('nav', { to: 'create', data: { path: '/', template: item } });
   }
 
-  function selectTab(tabId) {
-    activeTab = tabId;
-    router.navigate(tabId);
-  }
-  function selectTemplatesView(id) {
-    templatesView = id;
-  }
 
   function goToAIWithPrompt(promptText) {
     try {
@@ -211,22 +271,17 @@
     dispatch('nav', { to: app.id, data: { path: app.path } });
   }
 
-  // FIX (bug: clicar no perfil não fechava o drawer nem "desempurrava"
-  // o ecrã de trás corretamente antes de navegar):
-  // O botão do perfil vive DENTRO do AppDrawer. Antes, o goProfile() de
-  // lá chamava onClose() (history.back() assíncrono) e onOpenProfile()
-  // (pushState síncrono) no mesmo tick — o pushState do perfil corria
+  // FIX (bug: clicar no perfil "falhava à toa"):
+  // O botão do perfil vive DENTRO do AppDrawer, e o goProfile() de lá
+  // chamava onClose() (que faz history.back() para fechar o drawer,
+  // ASSÍNCRONO — só resolve no próximo popstate) imediatamente seguido
+  // de onOpenProfile() (que faz history.pushState(), SÍNCRONO). Como os
+  // dois disparavam no mesmo tick, o pushState do perfil acontecia
   // ANTES do browser processar o back() do drawer, corrompendo a pilha
-  // de histórico e deixando o drawer/o "empurrar" do ecrã por trás
-  // presos a meio da transição enquanto a página de perfil já tinha
-  // navegado por cima.
-  //
-  // Agora o AppDrawer NUNCA chama onClose() sozinho neste caso — chama
-  // só onOpenProfile(), e é esta função aqui que decide, de forma
-  // sequencial e determinística: se o drawer estiver aberto, fecha-se
-  // primeiro (closeDrawer real, via popstate) e SÓ DEPOIS do popstate
-  // real disparar (drawer 100% fechado, ecrã 100% "desempurrado") é que
-  // navega para o perfil.
+  // de histórico — por vezes o perfil não abria, por vezes abria e
+  // fechava sozinho. Agora, se o drawer estiver aberto, fecha-se
+  // primeiro e espera-se o popstate REAL do fecho antes de navegar
+  // para o perfil.
   function openProfile() {
     if (drawerOpen) {
       const onDrawerClosed = () => {

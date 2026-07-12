@@ -323,10 +323,9 @@
 
   // Altura da imagem de fundo do CreateTab (tem de bater com .hero-bg
   // em CreateTab.svelte). heroProgress vai de 0 (topo) a 1 (scroll >=
-  // esta altura) e alimenta tanto a camada sólida sobre a imagem como
-  // a opacidade gradual do próprio appbar (heroOpacity no AppHeader) —
-  // calculado a partir do MESMO scroll real (scrollRootEl) que já
-  // alimenta `scrolled`, sem criar nenhum scroll container extra.
+  // esta altura) e alimenta a camada sólida sobre a imagem dentro do
+  // CreateTab — calculado a partir do MESMO scroll real (scrollRootEl)
+  // que já alimenta `scrolled`, sem criar nenhum scroll container extra.
   const CREATE_HERO_HEIGHT = 260;
 
   function handleScroll() {
@@ -493,14 +492,15 @@
     {avatarColor}
     {userInitial}
     {userName}
-    title={currentTabMeta?.label ?? ''}
+    title={currentTitle}
     solidGradient={activeTab === 'templates'}
     transparentHero={activeTab === 'create'}
     showSearchBtn={activeTab === 'templates'}
+    onOpenSearch={openSearch}
     showToggle={activeTab === 'templates'}
-    {toggleOptions}
-    {toggleValue}
-    onToggleChange={handleToggleChange}
+    toggleOptions={TEMPLATE_VIEWS}
+    toggleValue={templatesView}
+    onToggleChange={selectTemplatesView}
   />
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">

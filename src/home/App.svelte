@@ -1,6 +1,6 @@
 <!-- src/home/App.svelte -->
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
@@ -8,6 +8,7 @@
   import { initPwaInstall, onPwaInstallAvailable, promptPwaInstall } from '$shared/pwa-install.js';
 
   import { getAvatarColor, TABS, TEMPLATE_VIEWS, IMAGE_MODELS, DOC_MODELS } from './lib/constants.js';
+  import { createBackRecoilTransition } from './lib/nav-transition.js';
   import AppHeader from './components/AppHeader.svelte';
   import BottomTabBar from './components/BottomTabBar.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
@@ -17,6 +18,8 @@
   import ToolsTab from './components/ToolsTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
+  import ProfilePage from './components/ProfilePage.svelte';
+  import ProfileSettingsPage from './components/ProfileSettingsPage.svelte';
 
   const BASE = '/home/';
   const VALID_ROUTES = ['projects', 'templates', 'tools'];
@@ -157,21 +160,26 @@
   }
 
   // ------------------------------------------------------------------
-  // Navegação nativa via history real (push + popstate), usada tanto
-  // pela pesquisa como pelo preview de modelo em tela cheia.
+  // Navegação nativa via history real (push + popstate), usada pela
+  // pesquisa, pelo preview de modelo, e agora também pelo perfil e
+  // pelas definições do perfil — todas em tela cheia.
   //
   // REGRA DE OURO (fix do bug de duplo-clique + 404 ao voltar):
-  // O fecho VISUAL de qualquer overlay (search/preview) SÓ acontece
-  // dentro de onPopState — nunca é antecipado por closeSearch()/
-  // closeTemplatePreview(). Esses dois só fazem history.back() e mais
-  // nada. Isto elimina a necessidade de "prever" se foi o botão dentro
-  // da app ou o gesto físico do Android/Chrome que disparou o popstate.
+  // O fecho VISUAL de qualquer overlay (search/preview/profile/settings)
+  // SÓ acontece dentro de onPopState — nunca é antecipado pelas funções
+  // close*(). Essas só fazem history.back() e mais nada. Isto elimina a
+  // necessidade de "prever" se foi o botão dentro da app ou o gesto
+  // físico do Android/Chrome que disparou o popstate.
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false;
   let previewOpen = false;
   let previewPushed = false;
   let previewData = null; // { kind: 'image'|'doc', item }
+  let profileOpen = false;
+  let profilePushed = false;
+  let settingsOpen = false;
+  let settingsPushed = false;
   let suppressRouterPopstate = false;
 
   function pushOverlayState(hash, extra) {
@@ -230,6 +238,56 @@
     closeTemplatePreview();
   }
 
+  // Perfil: mesmo padrão exato do search/preview — pushState real,
+  // fecho visual só a partir de onPopState. Isto é o que elimina a
+  // "recriação de página" que existia antes (window.location.href
+  // para /profile/): agora o ProfilePage é só mais um componente
+  // montado dentro do MESMO App.svelte, com transform via spring.
+  function openProfile() {
+    if (profileOpen) return;
+    pushOverlayState('profile', { nexaProfile: true });
+    profileOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { profilePushed = true; }));
+  }
+
+  function closeProfileVisual() {
+    profilePushed = false;
+    setTimeout(() => { profileOpen = false; }, 340);
+  }
+
+  function closeProfile() {
+    if (!profileOpen) return;
+    if (history.state && history.state.nexaProfile) {
+      history.back();
+    } else {
+      closeProfileVisual();
+    }
+  }
+
+  // Definições do perfil: empilhada POR CIMA do ProfilePage (push duplo
+  // no history — voltar uma vez fecha definições, voltar de novo fecha
+  // o perfil), exatamente como o Android trata pilhas de Activities.
+  function openProfileSettings() {
+    if (settingsOpen) return;
+    pushOverlayState('profile-settings', { nexaProfileSettings: true });
+    settingsOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = true; }));
+  }
+
+  function closeProfileSettingsVisual() {
+    settingsPushed = false;
+    setTimeout(() => { settingsOpen = false; }, 340);
+  }
+
+  function closeProfileSettings() {
+    if (!settingsOpen) return;
+    if (history.state && history.state.nexaProfileSettings) {
+      history.back();
+    } else {
+      closeProfileSettingsVisual();
+    }
+  }
+
   function goToAIWithPrompt(promptText) {
     try {
       sessionStorage.setItem('nexa_pending_message', promptText);
@@ -255,6 +313,28 @@
   }
 
   let mounted = false;
+
+  // ------------------------------------------------------------------
+  // Recuo do fundo (.root) quando um overlay full-screen entra — ANTES
+  // usava CSS transition (transform .38s) na classe .pushed-back, que
+  // competia com a transition do próprio overlay (ex: TemplatePreviewPage)
+  // e causava o congelamento reportado. Agora usa o MESMO motor de
+  // spring via rAF do nav-transition.js: nunca há duas transições CSS
+  // de transform disputando o mesmo frame.
+  // ------------------------------------------------------------------
+  const backRecoil = createBackRecoilTransition();
+  let rootRecoilValue = 0; // 0..1
+  const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
+
+  $: anyFullScreenOverlayPushed = searchPushed || previewPushed || profilePushed || settingsPushed;
+  let lastOverlayPushedState = false;
+  $: if (anyFullScreenOverlayPushed !== lastOverlayPushedState) {
+    lastOverlayPushedState = anyFullScreenOverlayPushed;
+    if (anyFullScreenOverlayPushed) backRecoil.recoil();
+    else backRecoil.reset();
+  }
+  $: rootRecoilTranslate = -28 * rootRecoilValue; // %
+  $: rootRecoilScale = 1; // mantém escala normal (só o drawer encolhe)
 
   onMount(() => {
     user = requireAuth();
@@ -298,9 +378,19 @@
     // Fonte ÚNICA de verdade para fechar overlays: dispara tanto quando
     // o botão de voltar DENTRO da app chama history.back(), como quando
     // o botão/gesto físico do Android ou o botão de voltar do Chrome
-    // disparam popstate diretamente.
+    // disparam popstate diretamente. A ORDEM importa: overlays "mais
+    // profundos" na pilha (definições, depois perfil) são checados
+    // primeiro, espelhando exatamente a ordem em que foram empilhados.
     function onPopState() {
-      if (previewOpen) {
+      if (settingsOpen) {
+        suppressRouterPopstate = true;
+        closeProfileSettingsVisual();
+        suppressRouterPopstate = false;
+      } else if (profileOpen) {
+        suppressRouterPopstate = true;
+        closeProfileVisual();
+        suppressRouterPopstate = false;
+      } else if (previewOpen) {
         suppressRouterPopstate = true;
         closePreviewVisual();
         suppressRouterPopstate = false;
@@ -325,9 +415,19 @@
       unsubscribeInstall?.();
     };
   });
+
+  onDestroy(() => {
+    unsubscribeBackRecoil();
+    backRecoil.destroy();
+  });
 </script>
 
-<div class="root" bind:this={rootEl} class:pushed-back={searchPushed || previewPushed} class:pushed-by-drawer={drawerPushed}>
+<div
+  class="root"
+  bind:this={rootEl}
+  class:pushed-by-drawer={drawerPushed}
+  style={drawerPushed ? '' : `transform: translate3d(${rootRecoilTranslate}%, 0, 0) scale(${rootRecoilScale});`}
+>
   <div class="bg-layer"></div>
 
   <AppHeader
@@ -385,6 +485,25 @@
   />
 {/if}
 
+{#if profileOpen}
+  <ProfilePage
+    pushed={profilePushed}
+    {userName}
+    {userInitial}
+    {avatarColor}
+    {avatarUrl}
+    onClose={closeProfile}
+    onOpenSettings={openProfileSettings}
+  />
+{/if}
+
+{#if settingsOpen}
+  <ProfileSettingsPage
+    pushed={settingsPushed}
+    onClose={closeProfileSettings}
+  />
+{/if}
+
 <AppDrawer
   {drawerOpen}
   {drawerVisible}
@@ -402,6 +521,7 @@
   onApplyTheme={applyThemeFromDrawer}
   onLogout={logout}
   onInstall={handleInstall}
+  onOpenProfile={openProfile}
 />
 
 <style>
@@ -480,23 +600,19 @@
     overscroll-behavior:none;
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
     touch-action: pan-y;
-    transform: translate3d(0,0,0) scale(1);
-    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
     transform-origin: center;
   }
-  .root.pushed-back {
-    transform: translate3d(-28%, 0, 0) scale(1);
-  }
   /* Efeito "empurrado" nativo quando o drawer (lateral direita) abre:
-     o conteúdo por trás recua ligeiramente e encolhe um pouco, tal como
-     acontece no Android/iOS quando um drawer/menu lateral desliza para
-     dentro. A transição CSS trata da abertura/fecho "normais"; durante
-     o gesto de arrastar, o AppDrawer escreve diretamente no estilo
-     inline deste mesmo elemento para seguir o dedo 1:1, sem o atraso
-     da transição. */
+     o conteúdo por trás recua ligeiramente e encolhe um pouco. Esta
+     classe MANTÉM a transition CSS de propósito (não é o caso do
+     recuo por overlay full-screen) porque o AppDrawer já escreve
+     diretamente no estilo inline durante o gesto de arrastar — a
+     transition só entra quando o gesto termina e o CSS assume a
+     abertura/fecho "normais", sem conflito nenhum com rAF. */
   .root.pushed-by-drawer {
     transform: translate3d(-10%, 0, 0) scale(0.965);
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); }
 

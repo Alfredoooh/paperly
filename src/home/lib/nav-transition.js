@@ -1,11 +1,12 @@
 // src/home/lib/nav-transition.js
 //
 // Motor único de transição para telas full-screen "empurradas" (search,
-// preview, e qualquer outra tela que precise do padrão nativo de
-// slide-in/slide-out). Usa spring físico via requestAnimationFrame em vez
-// de CSS transitions declarativas — isto é o que elimina o congelamento:
-// uma transição CSS não pode ser "interrompida e redirecionada" a meio do
-// caminho sem re-flow, mas um valor JS atualizado por frame pode.
+// preview, profile, settings, e qualquer outra tela que precise do
+// padrão nativo de slide-in/slide-out). Usa spring físico via
+// requestAnimationFrame em vez de CSS transitions declarativas — isto é
+// o que elimina o congelamento: uma transição CSS não pode ser
+// "interrompida e redirecionada" a meio do caminho sem re-flow, mas um
+// valor JS atualizado por frame pode.
 //
 // Uso típico dentro de um componente Svelte:
 //
@@ -118,7 +119,8 @@ export function createSlideTransition(opts = {}) {
 // Companheiro do slide: mesma técnica de spring aplicada ao "recuo" do
 // ecrã de trás (o efeito .pushed-back do App.svelte). Mantido como spring
 // separado porque tem stiffness/damping diferentes (mais suave, menos
-// "elástico" que a tela que entra por cima).
+// "elástico" que a tela que entra por cima). Também reaproveitado pelo
+// pull-to-refresh do TemplatesTab (valor 0..1 reinterpretado como px).
 const BACK_STIFFNESS = 220;
 const BACK_DAMPING = 26;
 
@@ -167,7 +169,17 @@ export function createBackRecoilTransition() {
   }
   function recoil() { target = 1; startLoop(); }
   function reset() { target = 0; startLoop(); }
+  // Alias usado pelo pull-to-refresh (setDragValue/releaseDragTo têm a
+  // mesma assinatura conceptual do createSlideTransition, mas aqui em
+  // escala 0..1 em vez de 0..100).
+  function setDragValue(v) {
+    stopLoop();
+    velocity = 0;
+    value = Math.max(-1, Math.min(1, v));
+    notify();
+  }
+  function releaseDragTo() { reset(); }
   function destroy() { stopLoop(); subscribers.clear(); }
 
-  return { subscribe, recoil, reset, destroy };
+  return { subscribe, recoil, reset, setDragValue, releaseDragTo, destroy };
 }

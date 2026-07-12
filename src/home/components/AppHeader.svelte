@@ -113,7 +113,13 @@
     pointer-events: auto;
   }
 
-  /* Templates: sem blur, gradiente sólido (topo) -> transparente (fundo) */
+  /* Templates: sem blur, gradiente sólido (topo) -> transparente (fundo).
+     CORRIGIDO: antes o gradiente ficava sólido só até 55% da própria
+     altura do appbar e desvanecia lentamente até 100% — como a faixa é
+     estreita, na prática isso lia como "transparente demais, cedo
+     demais", deixando o conteúdo por trás visível perto da base do
+     appbar. Agora fica sólido até mais tarde (78%) e o fade final é
+     bem mais curto e abrupto, then close to nothing bleeds through. */
   .top-panel.solid-gradient {
     background: transparent;
     backdrop-filter: none;
@@ -127,7 +133,7 @@
     background: linear-gradient(
       to bottom,
       rgba(var(--header-glass-rgb), 1) 0%,
-      rgba(var(--header-glass-rgb), 1) 55%,
+      rgba(var(--header-glass-rgb), 1) 78%,
       rgba(var(--header-glass-rgb), 0) 100%
     );
     transition: opacity .2s ease;

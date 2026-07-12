@@ -1,32 +1,45 @@
 <!-- src/home/components/LongPressMenu.svelte -->
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
 
   // ------------------------------------------------------------------
   // Menu contextual estilo Pinterest: aparece ao segurar um card por
   // ~400ms. O dedo continua no ecrã e pode ARRASTAR entre as opções
-  // sem soltar — cada botão sob o dedo acende (muda de cor) para
-  // indicar seleção em tempo real, e soltar sobre um botão dispara
-  // essa ação. Soltar fora de qualquer botão cancela.
+  // sem soltar — cada botão sob o dedo acende E CRESCE para indicar
+  // seleção em tempo real, e soltar sobre um botão dispara essa ação.
   //
-  // Layout: 4 bolhas em leque à volta do ponto de origem do toque,
-  // como no screenshot de referência (partilhar/fixar/pesquisar/whatsapp).
+  // Escurecimento: todo o fundo escurece um pouco, EXCETO o card que
+  // foi pressionado, que continua exatamente tão claro quanto estava
+  // (implementado com um "buraco" recortado via box-shadow gigante
+  // sobre um retângulo posicionado exatamente sobre o cardRect).
+  //
+  // Posicionamento adaptativo: os 4 botões nascem em leque à volta do
+  // ponto de toque, mas o leque é recalculado com base em QUANTO
+  // ESPAÇO existe entre o toque e cada borda da viewport — perto da
+  // borda direita o leque abre para a esquerda, perto do topo abre
+  // para baixo, etc. Isto evita bolhas cortadas/invisíveis fora da tela.
   // ------------------------------------------------------------------
 
-  export let originX = 0;   // posição X (px, viewport) onde o dedo tocou
-  export let originY = 0;   // posição Y (px, viewport) onde o dedo tocou
+  export let originX = 0;
+  export let originY = 0;
+  export let cardRect = null; // DOMRect do card pressionado (ou null)
 
   const dispatch = createEventDispatcher();
 
-  const OPTIONS = [
-    { id: 'share',  icon: '/icons/svg/share.svg',    label: 'Partilhar',  angle: -125, dist: 92 },
-    { id: 'pin',    icon: '/icons/svg/pin.svg',       label: 'Fixar',      angle: -175, dist: 78 },
-    { id: 'search', icon: '/icons/svg/search.svg',    label: 'Pesquisar',  angle: -55,  dist: 92 },
-    { id: 'whatsapp', icon: '/icons/svg/whatsapp.svg', label: 'WhatsApp', angle: -5,   dist: 78 },
+  const OPTION_DEFS = [
+    { id: 'share',    icon: '/icons/svg/share.svg',    label: 'Partilhar' },
+    { id: 'pin',       icon: '/icons/svg/pin.svg',       label: 'Fixar' },
+    { id: 'search',    icon: '/icons/svg/search.svg',    label: 'Pesquisar' },
+    { id: 'whatsapp',  icon: '/icons/svg/whatsapp.svg',  label: 'WhatsApp' },
   ];
+
+  const BUBBLE_DIST = 92;   // px do centro do leque até cada bolha
+  const BUBBLE_SIZE = 52;
+  const MARGIN = 34;        // margem mínima de segurança até a borda da viewport
 
   let activeId = null;
   let bubbleEls = {};
+  let options = [];
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -35,27 +48,75 @@
     try { navigator.vibrate && navigator.vibrate(4); } catch (e) {}
   }
 
-  function bubblePos(opt) {
-    const rad = (opt.angle * Math.PI) / 180;
-    return {
-      x: Math.cos(rad) * opt.dist,
-      y: Math.sin(rad) * opt.dist,
-    };
+  // Calcula o leque de 4 bolhas centrado no ponto de toque, escolhendo
+  // o arco (para cima/baixo, esquerda/direita) que tem mais espaço
+  // livre na viewport, e depois clampando cada bolha individualmente
+  // para nunca ultrapassar a margem de segurança.
+  function computeFan() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const spaceRight = vw - originX;
+    const spaceLeft = originX;
+    const spaceBelow = vh - originY;
+    const spaceAbove = originY;
+
+    // ângulo central do leque: aponta para o quadrante com MAIS espaço
+    const preferRight = spaceRight >= spaceLeft;
+    const preferBelow = spaceBelow >= spaceAbove;
+
+    // leque de 160° de abertura, centrado na diagonal com mais espaço
+    let centerAngle;
+    if (preferRight && preferBelow) centerAngle = -45;      // abre para baixo-direita... mas em canvas Y cresce p/ baixo, então usamos ângulos "matemáticos" abaixo
+    else if (!preferRight && preferBelow) centerAngle = -135;
+    else if (preferRight && !preferBelow) centerAngle = 45;
+    else centerAngle = 135;
+
+    // nota: como o eixo Y da tela cresce para baixo, um ângulo positivo
+    // aqui corresponde visualmente a "para cima" na trigonometria normal
+    // — por isso invertemos o seno ao converter para px mais abaixo.
+    const spread = 150; // graus totais do leque
+    const step = spread / (OPTION_DEFS.length - 1);
+    const startAngle = centerAngle - spread / 2;
+
+    return OPTION_DEFS.map((opt, i) => {
+      const angle = startAngle + step * i;
+      const rad = (angle * Math.PI) / 180;
+      let x = Math.cos(rad) * BUBBLE_DIST;
+      let y = -Math.sin(rad) * BUBBLE_DIST; // inverte para o eixo Y da tela
+
+      // clamp final: garante que o CENTRO de cada bolha nunca fica a
+      // menos de MARGIN+raio da borda da viewport, ajustando originX/Y
+      // como referência absoluta.
+      const absX = originX + x;
+      const absY = originY + y;
+      const half = BUBBLE_SIZE / 2;
+
+      const clampedAbsX = Math.min(vw - MARGIN - half, Math.max(MARGIN + half, absX));
+      const clampedAbsY = Math.min(vh - MARGIN - half, Math.max(MARGIN + half, absY));
+
+      return {
+        ...opt,
+        x: clampedAbsX - originX,
+        y: clampedAbsY - originY,
+      };
+    });
   }
 
-  // Chamado pelo pai a cada touchmove do gesto que já está em curso.
-  // Recebe as coordenadas do dedo e decide qual bolha (se alguma) está
-  // sob o ponto, atualizando `activeId` para o feedback de cor.
+  onMount(() => {
+    options = computeFan();
+  });
+
   export function updatePointer(clientX, clientY) {
     let hit = null;
-    for (const opt of OPTIONS) {
+    for (const opt of options) {
       const el = bubbleEls[opt.id];
       if (!el) continue;
       const r = el.getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
       const dist = Math.hypot(clientX - cx, clientY - cy);
-      if (dist <= r.width / 2 + 14) { // pequena margem de tolerância ao toque
+      if (dist <= r.width / 2 + 14) {
         hit = opt.id;
         break;
       }
@@ -66,7 +127,6 @@
     }
   }
 
-  // Chamado pelo pai no touchend/pointerup do gesto.
   export function resolve() {
     if (activeId) {
       buzz();
@@ -78,15 +138,32 @@
 </script>
 
 <div class="menu-overlay" on:click={() => dispatch('cancel')}>
+  {#if cardRect}
+    <!-- "Buraco" no escurecimento: um retângulo exatamente sobre o
+         card, com box-shadow gigante ao redor que pinta tudo o resto
+         de escuro — o card em si fica sem nenhuma camada por cima. -->
+    <div
+      class="dark-veil-hole"
+      style="
+        left:{cardRect.left}px;
+        top:{cardRect.top}px;
+        width:{cardRect.width}px;
+        height:{cardRect.height}px;
+        border-radius:20px;
+      "
+    ></div>
+  {:else}
+    <div class="dark-veil-full"></div>
+  {/if}
+
   <div class="menu-anchor" style="left:{originX}px; top:{originY}px;">
     <span class="origin-ring"></span>
-    {#each OPTIONS as opt (opt.id)}
-      {@const pos = bubblePos(opt)}
+    {#each options as opt (opt.id)}
       <div
         class="bubble"
         class:active={activeId === opt.id}
         bind:this={bubbleEls[opt.id]}
-        style="transform: translate({pos.x}px, {pos.y}px);"
+        style="transform: translate({opt.x}px, {opt.y}px);"
       >
         <span class="bubble-icon" style="mask-image:url('{opt.icon}');-webkit-mask-image:url('{opt.icon}')"></span>
       </div>
@@ -99,7 +176,26 @@
     position: fixed;
     inset: 0;
     z-index: 50;
-    background: rgba(0,0,0,0.001); /* captura o click de cancelar sem escurecer — o card por trás já escurece sozinho via ::after no pai */
+  }
+
+  /* Escurece tudo, exceto o card (via box-shadow gigante ao redor de um
+     buraco transparente do tamanho exato do card). */
+  .dark-veil-hole {
+    position: fixed;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    pointer-events: none;
+    animation: veilIn .22s cubic-bezier(0.16,1,0.3,1);
+  }
+  .dark-veil-full {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    pointer-events: none;
+    animation: veilIn .22s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes veilIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .menu-anchor {
@@ -133,7 +229,7 @@
     margin-left: -26px;
     margin-top: -26px;
     border-radius: 50%;
-    background: rgba(60,60,60,0.88);
+    background: rgba(60,60,60,0.92);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     display: flex;
@@ -150,14 +246,10 @@
   @keyframes bubbleIn {
     from { transform: translate(0,0) scale(0.3); opacity: 0; }
   }
-  /* nota: a keyframe acima sobrepõe-se ao translate() do estilo inline
-     apenas durante a entrada (animation-fill-mode backwards fixa o
-     estado inicial); assim que a animação termina, o transform inline
-     do template volta a ser a única fonte de posição. */
 
   .bubble.active {
     background: var(--accent-primary, #0A84FF);
-    transform: scale(1.18);
+    transform: scale(1.32);
   }
 
   .bubble-icon {
@@ -173,6 +265,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .bubble, .origin-ring { animation: none !important; }
+    .bubble, .origin-ring, .dark-veil-hole, .dark-veil-full { animation: none !important; }
   }
 </style>

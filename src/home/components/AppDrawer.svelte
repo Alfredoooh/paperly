@@ -21,13 +21,14 @@
   export let onApplyTheme;
   export let onLogout;
   export let onInstall;
+  export let onOpenProfile = () => {}; // NOVO: navegação interna, sem reload
 
   let showLogoutDialog = false;
   let dialogVisible = false; // controla a animação de entrada/saída do dialog
 
   function goProfile() {
     onClose();
-    window.location.href = '/profile/';
+    onOpenProfile();
   }
 
   function handleItemClick(item) {
@@ -262,9 +263,9 @@
         <div class="theme-accordion-inner">
           {#each THEME_OPTIONS as opt}
             <button class="theme-opt pulse-tap" on:click={() => onApplyTheme(opt.id)}>
-              <span class="theme-opt-label" style={themeValue === opt.id ? 'color:var(--drawer-text);font-weight:600' : ''}>{opt.label}</span>
+              <span class="theme-opt-label">{opt.label}</span>
               {#if themeValue === opt.id}
-                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:14px;height:14px;background:var(--drawer-text);"></span>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:16px;height:16px;background:var(--accent-primary)"></span>
               {/if}
             </button>
           {/each}
@@ -273,69 +274,53 @@
 
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label">{item.label}</span>
+          <span class="drawer-item-label" style="flex:1">{item.label}</span>
         </button>
-      {/each}
+      {/each>
     </nav>
+
     <button class="drawer-logout pulse-tap" on:click={openLogoutDialog}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:var(--drawer-text)"></span>
       <span class="drawer-logout-label">Terminar sessão</span>
     </button>
   </div>
 {/if}
 
 {#if showLogoutDialog}
-  <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}></div>
-  <div class="logout-dialog" class:logout-dialog-in={dialogVisible}>
-    <p class="logout-dialog-text">Tem a certeza que deseja terminar sessão?</p>
-    <div class="logout-dialog-actions">
-      <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
-      <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Sair</button>
+  <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}>
+    <div class="logout-dialog" class:logout-dialog-in={dialogVisible} on:click|stopPropagation>
+      <p class="logout-dialog-text">Tens a certeza que queres terminar sessão?</p>
+      <div class="logout-dialog-actions">
+        <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
+        <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Terminar</button>
+      </div>
     </div>
   </div>
 {/if}
 
 <style>
-  /* ------------------------------------------------------------------
-     Easing nativo partilhado por todo o drawer e pelo dialog. É o
-     mesmo cubic-bezier usado no resto do projeto (.root, .search-page)
-     para overlays que "deslizam" — mantém a app inteira a sentir-se
-     como um único sistema de movimento coerente.
-     ------------------------------------------------------------------ */
   .drawer-overlay {
     position: fixed;
     inset: 0;
-    z-index: 70;
-    background: var(--drawer-overlay, rgba(0,0,0,0));
-    opacity: 0;
-    transition: background .42s cubic-bezier(0.32, 0.72, 0, 1);
-    contain: strict;
+    z-index: 60;
+    background: rgba(0,0,0,0);
+    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .drawer-overlay.drawer-overlay-in {
     background: var(--drawer-overlay-in);
   }
   .drawer {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 71;
+    top: 0; right: 0; bottom: 0;
+    z-index: 61;
     width: min(288px, 82vw);
     background: var(--drawer-bg);
     border-left: 0.5px solid var(--drawer-border);
-    box-shadow: -12px 0 48px var(--drawer-shadow);
+    box-shadow: -8px 0 32px var(--drawer-shadow);
     display: flex;
     flex-direction: column;
-    padding-top: max(env(safe-area-inset-top, 0px), 16px);
-    overflow: hidden;
     transform: translate3d(100%, 0, 0);
-    opacity: 1;
-    transition: transform .42s cubic-bezier(0.32, 0.72, 0, 1);
-    touch-action: pan-y;
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
-    backface-visibility: hidden;
-    contain: layout paint style;
   }
   .drawer.drawer-in {
     transform: translate3d(0, 0, 0);
@@ -488,11 +473,6 @@
     color: var(--logout-icon);
   }
 
-  /* ------------------------------------------------------------------
-     Dialog de logout: antes aparecia instantâneo (sem transição). Agora
-     entra com fade+scale suave, com um leve "settle" no fim (sem
-     overshoot exagerado) — o mesmo espírito do resto do projeto.
-     ------------------------------------------------------------------ */
   .logout-overlay {
     position: fixed;
     inset: 0;

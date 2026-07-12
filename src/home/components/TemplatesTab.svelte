@@ -23,32 +23,29 @@
   function openDocPreview(doc) { onOpenPreview('doc', doc); }
 
   // ------------------------------------------------------------------
-  // Elastic / pull-to-refresh via spring (rAF) — CORRIGIDO.
+  // Elastic / pull-to-refresh via spring (rAF).
   //
-  // Bug anterior: `startY` só era definido em onPointerDown e nunca
-  // recalculado; `atTop`/`atBottom` eram avaliados a cada touchmove
-  // mas o delta usava sempre o mesmo startY antigo. Na prática isto
-  // fazia o elastic "morrer" depois do primeiro gesto, porque o sinal
-  // do delta deixava de bater com a direção real do dedo assim que o
-  // scroll interno mudava de posição entre gestos.
-  //
-  // Correção: guardamos startY E o scrollTop de origem do gesto, e
-  // recalculamos "atTop"/"atBottom" a partir do estado ATUAL do scroll
-  // a cada frame de movimento — exatamente como o rubber-band do
-  // CreateTab/Perfil, que já funciona bem.
+  // BUG CORRIGIDO NESTA VERSÃO: o `.templates-tab` recebia o
+  // translateY do pull, mas quem tinha overflow-y:auto de verdade era
+  // o `.scroll-root` do App.svelte (o pai). Como o elemento que rola
+  // fisicamente e o elemento que "estica" eram diferentes, o rubber-
+  // band nunca aparecia — o scrollTop lido em onPointerMove vinha
+  // sempre do elemento errado. Agora `.templates-tab` É o próprio
+  // scroller (overflow-y:auto aqui), e o pull é aplicado num wrapper
+  // interno — exatamente o mesmo padrão que já funciona no CreateTab.
   // ------------------------------------------------------------------
   const recoil = createBackRecoilTransition();
-  let pull = 0; // px, derivado do valor 0..1 do spring
+  let pull = 0; // px, derivado do valor -1..1 do spring
   const MAX_PULL = 64;
   const unsubscribeRecoil = recoil.subscribe((v) => { pull = v * MAX_PULL; });
 
-  let scrollEl;
+  let scrollEl;   // o elemento que rola de verdade (overflow-y:auto)
+  let innerEl;    // wrapper que recebe o translateY do elastic
   let dragging = false;
   let gestureStartY = 0;
   let gestureStartScrollTop = 0;
 
   function dampen(delta) {
-    // mesma curva de resistência progressiva usada no CreateTab
     const sign = delta < 0 ? -1 : 1;
     const abs = Math.abs(delta);
     return sign * (abs * 0.55) / (1 + abs / 120);
@@ -74,31 +71,31 @@
     } else if (atBottom && delta < 0) {
       normalized = Math.max(-1, dampen(delta) / MAX_PULL);
     }
+
+    if (normalized !== 0) e.preventDefault?.();
     recoil.setDragValue(normalized);
   }
   function onPointerUp() {
     if (!dragging) return;
     dragging = false;
-    recoil.releaseDragTo('reset');
+    recoil.releaseDragTo();
   }
 
   // ------------------------------------------------------------------
-  // Long-press estilo Pinterest: segurar um card (imagem OU documento)
-  // por ~400ms abre o menu contextual em leque. Enquanto o dedo
-  // permanece no ecrã, cada movimento é repassado ao LongPressMenu via
-  // updatePointer() para destacar a bolha sob o dedo; soltar chama
-  // resolve(), que decide a ação (ou cancela se não estiver sobre nada).
+  // Long-press estilo Pinterest.
   // ------------------------------------------------------------------
   const LONG_PRESS_MS = 400;
-  const MOVE_CANCEL_THRESHOLD = 10; // px — cancela o long-press se o dedo deslizar antes de disparar
+  const MOVE_CANCEL_THRESHOLD = 10;
 
   let longPressActive = false;
   let longPressTimer = null;
   let longPressOrigin = { x: 0, y: 0 };
-  let longPressTarget = null; // { kind: 'image'|'doc', item }
+  let longPressTarget = null;
+  let longPressCardRect = null; // DOMRect do card pressionado, para o "buraco" no overlay
   let menuRef;
   let pressStartX = 0, pressStartY = 0;
   let pressMoved = false;
+  let pressedEl = null;
 
   function buzzLongPress() {
     try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
@@ -110,10 +107,12 @@
     pressStartY = t.clientY;
     pressMoved = false;
     longPressTarget = { kind, item };
+    pressedEl = e.currentTarget;
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
       if (pressMoved) return;
       longPressOrigin = { x: pressStartX, y: pressStartY };
+      longPressCardRect = pressedEl?.getBoundingClientRect() || null;
       longPressActive = true;
       buzzLongPress();
     }, LONG_PRESS_MS);
@@ -130,11 +129,10 @@
       }
       return;
     }
-    // menu já está ativo: repassa a posição do dedo para destacar a bolha
     menuRef?.updatePointer(t.clientX, t.clientY);
   }
 
-  function releaseLongPress(e) {
+  function releaseLongPress() {
     clearTimeout(longPressTimer);
     if (!longPressActive) return;
     menuRef?.resolve();
@@ -142,20 +140,20 @@
 
   function cancelLongPressGesture() {
     clearTimeout(longPressTimer);
-    if (longPressActive) {
-      longPressActive = false;
-    }
+    if (longPressActive) longPressActive = false;
   }
 
-  function handleMenuSelect(e) {
+  function handleMenuSelect() {
     // Visual apenas por agora — ações reais (partilhar/fixar/pesquisar/
     // whatsapp) ligam-se aqui quando definidas.
     longPressActive = false;
     longPressTarget = null;
+    longPressCardRect = null;
   }
   function handleMenuCancel() {
     longPressActive = false;
     longPressTarget = null;
+    longPressCardRect = null;
   }
 
   onMount(() => {
@@ -172,9 +170,8 @@
 <div
   class="templates-tab"
   bind:this={scrollEl}
-  style="transform: translateY({pull}px);"
   on:touchstart={onPointerDown}
-  on:touchmove={onPointerMove}
+  on:touchmove|nonpassive={onPointerMove}
   on:touchend={onPointerUp}
   on:touchcancel={onPointerUp}
   on:mousedown={onPointerDown}
@@ -182,84 +179,86 @@
   on:mouseup={onPointerUp}
   on:mouseleave={onPointerUp}
 >
-  {#if loading}
-    {#if view === 'images'}
+  <div class="templates-tab-inner" bind:this={innerEl} style="transform: translateY({pull}px);">
+    {#if loading}
+      {#if view === 'images'}
+        <div class="masonry">
+          <div class="masonry-col">
+            <div class="skeleton-card" style="aspect-ratio:3/4"></div>
+            <div class="skeleton-card" style="aspect-ratio:1/1"></div>
+            <div class="skeleton-card" style="aspect-ratio:4/5"></div>
+          </div>
+          <div class="masonry-col">
+            <div class="skeleton-card" style="aspect-ratio:1/1"></div>
+            <div class="skeleton-card" style="aspect-ratio:4/5"></div>
+            <div class="skeleton-card" style="aspect-ratio:3/4"></div>
+          </div>
+        </div>
+      {:else}
+        <div class="doc-grid">
+          {#each Array(6) as _}
+            <div class="skeleton-doc">
+              <div class="skeleton-sheet"></div>
+              <div class="skeleton-line"></div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    {:else if view === 'images'}
       <div class="masonry">
-        <div class="masonry-col">
-          <div class="skeleton-card" style="aspect-ratio:3/4"></div>
-          <div class="skeleton-card" style="aspect-ratio:1/1"></div>
-          <div class="skeleton-card" style="aspect-ratio:4/5"></div>
-        </div>
-        <div class="masonry-col">
-          <div class="skeleton-card" style="aspect-ratio:1/1"></div>
-          <div class="skeleton-card" style="aspect-ratio:4/5"></div>
-          <div class="skeleton-card" style="aspect-ratio:3/4"></div>
-        </div>
-      </div>
-    {:else}
-      <div class="doc-grid">
-        {#each Array(6) as _}
-          <div class="skeleton-doc">
-            <div class="skeleton-sheet"></div>
-            <div class="skeleton-line"></div>
+        {#each imageColumns as column}
+          <div class="masonry-col">
+            {#each column as img}
+              <button
+                class="img-card"
+                class:pressed={longPressActive && longPressTarget?.item === img}
+                on:click={() => openImgPreview(img)}
+                on:touchstart={(e) => armLongPress(e, 'image', img)}
+                on:touchmove={trackLongPress}
+                on:touchend={releaseLongPress}
+                on:touchcancel={cancelLongPressGesture}
+                on:mousedown={(e) => armLongPress(e, 'image', img)}
+                on:mousemove={trackLongPress}
+                on:mouseup={releaseLongPress}
+                on:mouseleave={cancelLongPressGesture}
+              >
+                <img src={img.thumb} alt={img.label} class="img-card-photo" loading="lazy" />
+                <span class="img-card-overlay"></span>
+                <span class="img-card-label">{img.label}</span>
+              </button>
+            {/each}
           </div>
         {/each}
       </div>
+    {:else}
+      <div class="doc-grid">
+        {#each DOC_MODELS as doc}
+          <button
+            class="doc-card"
+            class:pressed={longPressActive && longPressTarget?.item === doc}
+            on:click={() => openDocPreview(doc)}
+            on:touchstart={(e) => armLongPress(e, 'doc', doc)}
+            on:touchmove={trackLongPress}
+            on:touchend={releaseLongPress}
+            on:touchcancel={cancelLongPressGesture}
+            on:mousedown={(e) => armLongPress(e, 'doc', doc)}
+            on:mousemove={trackLongPress}
+            on:mouseup={releaseLongPress}
+            on:mouseleave={cancelLongPressGesture}
+          >
+            <div class="doc-sheet">
+              <span class="doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
+              <span class="doc-line doc-line-1"></span>
+              <span class="doc-line doc-line-2"></span>
+              <span class="doc-line doc-line-3"></span>
+              <span class="doc-line doc-line-4"></span>
+            </div>
+            <span class="doc-label">{doc.label}</span>
+          </button>
+        {/each}
+      </div>
     {/if}
-  {:else if view === 'images'}
-    <div class="masonry">
-      {#each imageColumns as column}
-        <div class="masonry-col">
-          {#each column as img}
-            <button
-              class="img-card"
-              class:pressed={longPressActive && longPressTarget?.item === img}
-              on:click={() => openImgPreview(img)}
-              on:touchstart={(e) => armLongPress(e, 'image', img)}
-              on:touchmove={trackLongPress}
-              on:touchend={releaseLongPress}
-              on:touchcancel={cancelLongPressGesture}
-              on:mousedown={(e) => armLongPress(e, 'image', img)}
-              on:mousemove={trackLongPress}
-              on:mouseup={releaseLongPress}
-              on:mouseleave={cancelLongPressGesture}
-            >
-              <img src={img.thumb} alt={img.label} class="img-card-photo" loading="lazy" />
-              <span class="img-card-overlay"></span>
-              <span class="img-card-label">{img.label}</span>
-            </button>
-          {/each}
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <div class="doc-grid">
-      {#each DOC_MODELS as doc}
-        <button
-          class="doc-card"
-          class:pressed={longPressActive && longPressTarget?.item === doc}
-          on:click={() => openDocPreview(doc)}
-          on:touchstart={(e) => armLongPress(e, 'doc', doc)}
-          on:touchmove={trackLongPress}
-          on:touchend={releaseLongPress}
-          on:touchcancel={cancelLongPressGesture}
-          on:mousedown={(e) => armLongPress(e, 'doc', doc)}
-          on:mousemove={trackLongPress}
-          on:mouseup={releaseLongPress}
-          on:mouseleave={cancelLongPressGesture}
-        >
-          <div class="doc-sheet">
-            <span class="doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
-            <span class="doc-line doc-line-1"></span>
-            <span class="doc-line doc-line-2"></span>
-            <span class="doc-line doc-line-3"></span>
-            <span class="doc-line doc-line-4"></span>
-          </div>
-          <span class="doc-label">{doc.label}</span>
-        </button>
-      {/each}
-    </div>
-  {/if}
+  </div>
 </div>
 
 {#if longPressActive && longPressTarget}
@@ -267,6 +266,7 @@
     bind:this={menuRef}
     originX={longPressOrigin.x}
     originY={longPressOrigin.y}
+    cardRect={longPressCardRect}
     on:select={handleMenuSelect}
     on:cancel={handleMenuCancel}
   />
@@ -274,6 +274,13 @@
 
 <style>
   .templates-tab {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  .templates-tab-inner {
     width: 100%;
     padding: 4px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
     will-change: transform;
@@ -303,6 +310,7 @@
     background: var(--surface-apps-tab);
     box-shadow: 0 2px 10px var(--drawer-shadow);
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 1;
   }
   .masonry-col:first-child .img-card:nth-child(3n+1) { aspect-ratio: 3 / 4; }
   .masonry-col:first-child .img-card:nth-child(3n+2) { aspect-ratio: 1 / 1; }
@@ -310,9 +318,10 @@
   .masonry-col:last-child .img-card:nth-child(3n+1) { aspect-ratio: 1 / 1; }
   .masonry-col:last-child .img-card:nth-child(3n+2) { aspect-ratio: 4 / 5; }
   .masonry-col:last-child .img-card:nth-child(3n+3) { aspect-ratio: 3 / 4; }
-  .img-card:active,
+  .img-card:active { transform: scale(0.96); }
   .img-card.pressed {
-    transform: scale(0.96);
+    transform: scale(1.04);
+    z-index: 51; /* acima do overlay do long-press (z-index 50) */
   }
   .img-card-photo {
     width: 100%;
@@ -358,6 +367,11 @@
     cursor: pointer;
     font: inherit;
     color: var(--drawer-text);
+    position: relative;
+    z-index: 1;
+  }
+  .doc-card.pressed {
+    z-index: 51;
   }
   .doc-sheet {
     position: relative;
@@ -374,10 +388,13 @@
     box-shadow: 0 1px 4px var(--drawer-shadow);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
   }
-  .doc-card:active .doc-sheet,
-  .doc-card.pressed .doc-sheet {
+  .doc-card:active .doc-sheet {
     transform: scale(0.94);
     background: var(--row-active);
+  }
+  .doc-card.pressed .doc-sheet {
+    transform: scale(1.06);
+    background: var(--surface-apps-tab);
   }
   .doc-icon-mask {
     width: 26%;

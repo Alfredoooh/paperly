@@ -276,7 +276,7 @@
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
           <span class="drawer-item-label" style="flex:1">{item.label}</span>
         </button>
-      {/each>
+      {/each}
     </nav>
 
     <button class="drawer-logout pulse-tap" on:click={openLogoutDialog}>

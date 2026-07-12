@@ -1,101 +1,534 @@
-<!DOCTYPE html> 
-<html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="pt-PT">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Logo Pixelizado – Tamanho adequado</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #ffffff; }
-    canvas { display: block; position: fixed; inset: 0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNG → SVG</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0d0f13;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #13161c;
+    border-bottom: 1px solid #1f2330;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 { font-size: 16px; font-weight: 700; color: #fff; }
+  header span { font-size: 12px; color: #6b7280; }
+
+  .api-bar {
+    background: #13161c;
+    border-bottom: 1px solid #1f2330;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .api-bar label { margin: 0; white-space: nowrap; font-size: 12px; color: #9ca3af; }
+  .api-bar input { margin: 0; flex: 1; }
+
+  .main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .painel h2 {
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .painel p.desc {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: #13161c;
+    border: 1px solid #1f2330;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 5px;
+  }
+
+  input[type="text"],
+  input[type="url"],
+  input[type="number"],
+  input[type="file"],
+  select,
+  textarea {
+    width: 100%;
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    color: #e0e0e0;
+    padding: 9px 11px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  input[type="file"] { padding: 7px; }
+
+  textarea {
+    height: 90px;
+    resize: vertical;
+    font-family: monospace;
+    font-size: 11px;
+  }
+
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+
+  button.btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  button.btn-primary:hover { background: #1d4ed8; }
+  button.btn-primary:disabled { background: #1f2330; cursor: not-allowed; color: #4b5563; }
+
+  .status {
+    margin-top: 10px;
+    font-size: 12px;
+    min-height: 16px;
+  }
+
+  .status.ok { color: #34d399; }
+  .status.erro { color: #f87171; }
+  .status.loading { color: #facc15; }
+
+  .resultado {
+    margin-top: 14px;
+    display: none;
+  }
+
+  .resultado.visivel { display: block; }
+
+  .resultado img,
+  .resultado svg {
+    max-width: 100%;
+    max-height: 260px;
+    border-radius: 6px;
+    background: #fff;
+    padding: 6px;
+  }
+
+  .resultado pre {
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 11px;
+    overflow-x: auto;
+    max-height: 200px;
+    color: #a3e635;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .meta {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 6px;
+    margin-bottom: 8px;
+  }
+
+  .acoes { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+  button.btn-sec {
+    background: #1f2330;
+    color: #9ca3af;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  button.btn-sec:hover { background: #2a2f3d; color: #e0e0e0; }
+
+  .badge {
+    display: inline-block;
+    background: #1e3a5f;
+    color: #60a5fa;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* Editor de traço */
+  .traco-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .traco-item {
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .traco-item-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .traco-item-nome {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .traco-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #2a2f3d;
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+
+  .traco-nome-wrap {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .switch input { display: none; }
+
+  .switch .slider {
+    position: absolute;
+    inset: 0;
+    background: #2a2f3d;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .switch .slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    background: #6b7280;
+    border-radius: 50%;
+    transition: transform 0.15s, background 0.15s;
+  }
+
+  .switch input:checked + .slider { background: #1e3a5f; }
+  .switch input:checked + .slider::before { transform: translateX(16px); background: #60a5fa; }
+
+  .traco-controles {
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .traco-controles.ativo { display: flex; }
+
+  .traco-controles input[type="range"] {
+    flex: 1;
+    accent-color: #60a5fa;
+  }
+
+  .traco-controles input[type="color"] {
+    width: 30px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid #2a2f3d;
+    border-radius: 5px;
+    background: #0d0f13;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .traco-valor {
+    font-size: 11px;
+    color: #6b7280;
+    width: 34px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  #svg-preview-resultado svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+</style>
 </head>
 <body>
-  <canvas id="pixelCanvas"></canvas>
 
-  <script>
-    (function() {
-      const canvas = document.getElementById('pixelCanvas');
-      const ctx = canvas.getContext('2d');
+<header>
+  <h1>🛠 PNG → SVG</h1>
+  <span>tools-2pjc.onrender.com</span>
+</header>
 
-      // Configuração da grade
-      const CELL_SIZE = 6;
-      const DOT_RADIUS = 1.8;
-      const IMAGE_SRC = 'logo_1.png';
+<div class="api-bar">
+  <label for="apiBase">API Base:</label>
+  <input type="url" id="apiBase" value="https://tools-2pjc.onrender.com">
+</div>
 
-      let imageData = null;
-      let imgWidth = 0;
-      let imgHeight = 0;
-      let imageLoaded = false;
+<div class="main">
 
-      function loadImage() {
-        const img = new Image();
-        img.src = IMAGE_SRC;
-        img.onload = function() {
-          resizeImage(img);
-          imageLoaded = true;
-          redraw();
-        };
-        img.onerror = function() {
-          console.error('Imagem logo_1.png não encontrada.');
-        };
-      }
+  <!-- PNG → SVG -->
+  <div class="painel" id="painel-png-svg">
+    <h2>PNG → SVG <span class="badge">POST /convert</span></h2>
+    <p class="desc">Vetoriza um PNG usando potrace com fallback automático.</p>
+    <div class="card">
+      <label>Ficheiro PNG</label>
+      <input type="file" id="svg-file" accept="image/png">
+      <div class="row">
+        <div><label>Cores</label><input type="number" id="svg-cores" value="4" min="1" max="32"></div>
+        <div><label>Opttolerance</label><input type="number" id="svg-opt" value="0.5" step="0.1" min="0.1" max="2"></div>
+        <div><label>Turdsize</label><input type="number" id="svg-turd" value="5" min="0" max="100"></div>
+      </div>
+      <button class="btn-primary" onclick="runConvert()">Converter</button>
+      <div class="status" id="svg-status"></div>
+    </div>
+    <div class="resultado" id="svg-resultado">
+      <div class="card">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;">
+            <div class="meta">Original (PNG)</div>
+            <img id="svg-preview-original" alt="">
+          </div>
+          <div style="flex:1;min-width:120px;">
+            <div class="meta">Resultado (SVG)</div>
+            <div id="svg-preview-resultado"></div>
+          </div>
+        </div>
+        <div class="meta" id="svg-meta"></div>
+        <div class="acoes">
+          <button class="btn-sec" onclick="downloadSvg()">Descarregar SVG</button>
+          <button class="btn-sec" onclick="toggleCodigo('svg-codigo')">Ver código</button>
+        </div>
+        <textarea id="svg-codigo" style="display:none;" readonly></textarea>
+      </div>
 
-      function resizeImage(img) {
-        // 90% da menor dimensão da janela (altura ou largura)
-        const maxSize = Math.min(window.innerWidth, window.innerHeight) * 0.9;
-        const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-        imgWidth = Math.floor(img.width * scale);
-        imgHeight = Math.floor(img.height * scale);
+      <!-- Editor de traço -->
+      <div class="card">
+        <div class="meta" style="margin-top:0;">Editar traço por elemento</div>
+        <div class="traco-lista" id="traco-lista"></div>
+      </div>
+    </div>
+  </div>
 
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = imgWidth;
-        offCanvas.height = imgHeight;
-        const offCtx = offCanvas.getContext('2d');
-        offCtx.drawImage(img, 0, 0, imgWidth, imgHeight);
-        imageData = offCtx.getImageData(0, 0, imgWidth, imgHeight).data;
-      }
+</div>
 
-      function redraw() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!imageLoaded) return;
+<script>
+  function apiBase() {
+    return document.getElementById("apiBase").value.replace(/\/$/, "");
+  }
 
-        const offsetX = Math.floor((canvas.width - imgWidth) / 2);
-        const offsetY = Math.floor((canvas.height - imgHeight) / 2);
+  function setStatus(id, msg, tipo) {
+    const el = document.getElementById(id + "-status");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "status " + (tipo || "");
+  }
 
-        for (let y = 0; y < imgHeight; y += CELL_SIZE) {
-          for (let x = 0; x < imgWidth; x += CELL_SIZE) {
-            const idx = (Math.floor(y) * imgWidth + Math.floor(x)) * 4;
-            const r = imageData[idx];
-            const g = imageData[idx + 1];
-            const b = imageData[idx + 2];
-            const a = imageData[idx + 3] / 255;
+  function mostrarResultado(id) {
+    const el = document.getElementById(id + "-resultado");
+    if (el) el.classList.add("visivel");
+  }
 
-            if (a > 0.02) {
-              ctx.beginPath();
-              ctx.arc(offsetX + x, offsetY + y, DOT_RADIUS, 0, Math.PI * 2);
-              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-              ctx.fill();
-            }
-          }
+  function toggleCodigo(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = el.style.display === "none" ? "block" : "none";
+  }
+
+  function formatBytes(b) {
+    if (b < 1024) return b + " B";
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+    return (b / 1024 / 1024).toFixed(2) + " MB";
+  }
+
+  function triggerDownload(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // PNG → SVG
+  let svgAtual = null;
+  let svgEl = null; // referência ao <svg> vivo dentro do preview
+
+  async function runConvert() {
+    const file = document.getElementById("svg-file").files[0];
+    if (!file) return setStatus("svg", "Escolhe um ficheiro PNG.", "erro");
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("cores", document.getElementById("svg-cores").value);
+    fd.append("opttolerance", document.getElementById("svg-opt").value);
+    fd.append("turdsize", document.getElementById("svg-turd").value);
+
+    setStatus("svg", "A converter...", "loading");
+
+    try {
+      const r = await fetch(apiBase() + "/convert", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+
+      svgAtual = d.svg;
+      document.getElementById("svg-preview-original").src = URL.createObjectURL(file);
+      document.getElementById("svg-preview-resultado").innerHTML = svgAtual;
+      document.getElementById("svg-codigo").value = svgAtual;
+      document.getElementById("svg-meta").textContent = "Tamanho: " + formatBytes(d.tamanho_bytes);
+
+      svgEl = document.querySelector("#svg-preview-resultado svg");
+      montarEditorTraco();
+
+      mostrarResultado("svg");
+      setStatus("svg", "Concluído.", "ok");
+    } catch (err) {
+      setStatus("svg", "Erro: " + err.message, "erro");
+    }
+  }
+
+  // Monta a lista de controlos de traço, um por <path>/<polygon>/<circle>/<rect>/<ellipse>/<line>/<polyline> encontrado no SVG
+  function montarEditorTraco() {
+    const lista = document.getElementById("traco-lista");
+    lista.innerHTML = "";
+    if (!svgEl) return;
+
+    const seletores = "path, polygon, polyline, circle, rect, ellipse, line";
+    const elementos = svgEl.querySelectorAll(seletores);
+
+    if (elementos.length === 0) {
+      lista.innerHTML = '<div class="meta" style="margin:0;">Nenhum elemento vetorial encontrado.</div>';
+      return;
+    }
+
+    elementos.forEach((el, i) => {
+      el.dataset.tracoId = "el-" + i;
+
+      const corAtual = el.getAttribute("fill") && el.getAttribute("fill") !== "none"
+        ? el.getAttribute("fill")
+        : "#000000";
+
+      const item = document.createElement("div");
+      item.className = "traco-item";
+      item.innerHTML = `
+        <div class="traco-item-topo">
+          <div class="traco-nome-wrap">
+            <span class="traco-swatch" style="background:${corAtual}"></span>
+            <span class="traco-item-nome">${el.tagName} #${i + 1}</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" data-role="ativo">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="traco-controles">
+          <input type="color" data-role="cor" value="#000000">
+          <input type="range" data-role="largura" min="0" max="20" step="0.5" value="1">
+          <span class="traco-valor" data-role="valor">1.0</span>
+        </div>
+      `;
+      lista.appendChild(item);
+
+      const chkAtivo = item.querySelector('[data-role="ativo"]');
+      const inputCor = item.querySelector('[data-role="cor"]');
+      const inputLargura = item.querySelector('[data-role="largura"]');
+      const spanValor = item.querySelector('[data-role="valor"]');
+      const controles = item.querySelector(".traco-controles");
+
+      function aplicar() {
+        if (chkAtivo.checked) {
+          el.setAttribute("stroke", inputCor.value);
+          el.setAttribute("stroke-width", inputLargura.value);
+        } else {
+          el.removeAttribute("stroke");
+          el.removeAttribute("stroke-width");
         }
+        sincronizarCodigo();
       }
 
-      loadImage();
-      window.addEventListener('resize', () => {
-        if (imageLoaded) {
-          // Recarrega a imagem com o novo tamanho da janela
-          const img = new Image();
-          img.src = IMAGE_SRC;
-          img.onload = function() {
-            resizeImage(img);
-            redraw();
-          };
-        }
+      chkAtivo.addEventListener("change", () => {
+        controles.classList.toggle("ativo", chkAtivo.checked);
+        aplicar();
       });
-    })();
-  </script>
+
+      inputCor.addEventListener("input", () => {
+        spanValor.textContent = inputLargura.value;
+        aplicar();
+      });
+
+      inputLargura.addEventListener("input", () => {
+        spanValor.textContent = parseFloat(inputLargura.value).toFixed(1);
+        aplicar();
+      });
+    });
+  }
+
+  // Atualiza svgAtual e a textarea de código com o estado atual do SVG editado
+  function sincronizarCodigo() {
+    if (!svgEl) return;
+    svgAtual = svgEl.outerHTML;
+    document.getElementById("svg-codigo").value = svgAtual;
+  }
+
+  function downloadSvg() {
+    if (!svgAtual) return;
+    const blob = new Blob([svgAtual], { type: "image/svg+xml" });
+    triggerDownload(blob, "convertido.svg");
+  }
+</script>
 </body>
 </html>

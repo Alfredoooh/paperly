@@ -224,7 +224,8 @@
     padding: 0 16px;
     border: none;
     border-radius: 999px;
-    background: var(--btn-bg);
+    background: var(--drawer-bg);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     position: relative;
@@ -251,7 +252,7 @@
 
   .apps-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 18px 8px;
     padding: 20px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
   }
@@ -268,8 +269,8 @@
     color: var(--drawer-text);
   }
   .app-icon-wrap {
-    width: 48px;
-    height: 48px;
+    width: 43px;
+    height: 43px;
     display: flex;
     align-items: center;
     justify-content: center;

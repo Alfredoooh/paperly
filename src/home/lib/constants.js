@@ -15,8 +15,8 @@ export const DRAWER_ITEMS = [
 export const TABS = [
   {
     id: 'create',
-    label: 'Criar & Workspace',
-    title: 'Criar & Workspace',
+    label: 'Criar',
+    title: 'Criar',
     icon: '/icons/svg/create.svg',
     iconFilled: '/icons/svg/create_filled.svg',
   },

@@ -1,5 +1,6 @@
 <script>
-  import { onMount } from 'svelte';
+  export let pushed = false;
+  import { onMount, createEventDispatcher } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { getUser } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
@@ -13,9 +14,11 @@
   let route = 'login';
   let isDark = false;
 
+  const dispatch = createEventDispatcher();
+
   onMount(() => {
     const user = getUser();
-    if (user?.token) { window.location.href = '/home/'; return; }
+    if (user?.token) { dispatch('nav', { to: 'home' }); return; }
 
     const t = getTheme();
     isDark = t === 'dark';
@@ -40,7 +43,7 @@
     if (to === 'login') { route = 'login'; router.navigate('login'); return; }
     if (to === 'home' || to === 'chat') {
       if (data?.user) localStorage.setItem('nexa_user', JSON.stringify(data.user));
-      window.location.href = '/home/';
+      dispatch('nav', { to: 'home' });
     }
   }
 </script>

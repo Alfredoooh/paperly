@@ -1,6 +1,6 @@
 <!-- src/home/App.svelte -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
@@ -18,8 +18,10 @@
   import ToolsTab from './components/ToolsTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
-  import ProfilePage from './components/ProfilePage.svelte';
-  import ProfileSettingsPage from './components/ProfileSettingsPage.svelte';
+
+  export let pushed = false;
+
+  const dispatch = createEventDispatcher();
 
   const BASE = '/home/';
   const VALID_ROUTES = ['projects', 'templates', 'tools'];
@@ -176,10 +178,6 @@
   let previewOpen = false;
   let previewPushed = false;
   let previewData = null; // { kind: 'image'|'doc', item }
-  let profileOpen = false;
-  let profilePushed = false;
-  let settingsOpen = false;
-  let settingsPushed = false;
   let suppressRouterPopstate = false;
 
   function pushOverlayState(hash, extra) {
@@ -238,63 +236,25 @@
     closeTemplatePreview();
   }
 
-  // Perfil: mesmo padrão exato do search/preview — pushState real,
-  // fecho visual só a partir de onPopState. Isto é o que elimina a
-  // "recriação de página" que existia antes (window.location.href
-  // para /profile/): agora o ProfilePage é só mais um componente
-  // montado dentro do MESMO App.svelte, com transform via spring.
-  function openProfile() {
-    if (profileOpen) return;
-    pushOverlayState('profile', { nexaProfile: true });
-    profileOpen = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { profilePushed = true; }));
-  }
-
-  function closeProfileVisual() {
-    profilePushed = false;
-    setTimeout(() => { profileOpen = false; }, 340);
-  }
-
-  function closeProfile() {
-    if (!profileOpen) return;
-    if (history.state && history.state.nexaProfile) {
-      history.back();
-    } else {
-      closeProfileVisual();
-    }
-  }
-
-  // Definições do perfil: empilhada POR CIMA do ProfilePage (push duplo
-  // no history — voltar uma vez fecha definições, voltar de novo fecha
-  // o perfil), exatamente como o Android trata pilhas de Activities.
-  function openProfileSettings() {
-    if (settingsOpen) return;
-    pushOverlayState('profile-settings', { nexaProfileSettings: true });
-    settingsOpen = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = true; }));
-  }
-
-  function closeProfileSettingsVisual() {
-    settingsPushed = false;
-    setTimeout(() => { settingsOpen = false; }, 340);
-  }
-
-  function closeProfileSettings() {
-    if (!settingsOpen) return;
-    if (history.state && history.state.nexaProfileSettings) {
-      history.back();
-    } else {
-      closeProfileSettingsVisual();
-    }
-  }
 
   function goToAIWithPrompt(promptText) {
     try {
       sessionStorage.setItem('nexa_pending_message', promptText);
       sessionStorage.removeItem('nexa_pending_attachments');
     } catch (e) {}
-    const ai = platformApps.find(x => x.id === 'ai');
-    window.location.href = ai ? ai.path : '/ai/';
+    dispatch('nav', { to: 'ai', data: { path: '/ai/' } });
+  }
+
+  function navigateToApp(app) {
+    if (!app?.id || !app?.path) return;
+    if (app.id === 'ai') {
+      try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
+    }
+    dispatch('nav', { to: app.id, data: { path: app.path } });
+  }
+
+  function openProfile() {
+    dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
   }
 
   let appbarHeight = 0;
@@ -326,7 +286,7 @@
   let rootRecoilValue = 0; // 0..1
   const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
 
-  $: anyFullScreenOverlayPushed = searchPushed || previewPushed || profilePushed || settingsPushed;
+  $: anyFullScreenOverlayPushed = searchPushed || previewPushed;
   let lastOverlayPushedState = false;
   $: if (anyFullScreenOverlayPushed !== lastOverlayPushedState) {
     lastOverlayPushedState = anyFullScreenOverlayPushed;
@@ -382,15 +342,7 @@
     // profundos" na pilha (definições, depois perfil) são checados
     // primeiro, espelhando exatamente a ordem em que foram empilhados.
     function onPopState() {
-      if (settingsOpen) {
-        suppressRouterPopstate = true;
-        closeProfileSettingsVisual();
-        suppressRouterPopstate = false;
-      } else if (profileOpen) {
-        suppressRouterPopstate = true;
-        closeProfileVisual();
-        suppressRouterPopstate = false;
-      } else if (previewOpen) {
+      if (previewOpen) {
         suppressRouterPopstate = true;
         closePreviewVisual();
         suppressRouterPopstate = false;
@@ -451,13 +403,13 @@
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
     {#if activeTab === 'create'}
-      <CreateTab {platformApps} onOpenSearch={openSearch} />
+      <CreateTab {platformApps} onOpenSearch={openSearch} onOpenApp={navigateToApp} />
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}
       <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
     {:else if activeTab === 'tools'}
-      <ToolsTab />
+      <ToolsTab onOpenApp={navigateToApp} />
     {/if}
   </div>
 
@@ -471,6 +423,7 @@
     imageModels={IMAGE_MODELS}
     docModels={DOC_MODELS}
     onUsePrompt={goToAIWithPrompt}
+    onOpenApp={navigateToApp}
     onClose={closeSearch}
   />
 {/if}
@@ -485,24 +438,6 @@
   />
 {/if}
 
-{#if profileOpen}
-  <ProfilePage
-    pushed={profilePushed}
-    {userName}
-    {userInitial}
-    {avatarColor}
-    {avatarUrl}
-    onClose={closeProfile}
-    onOpenSettings={openProfileSettings}
-  />
-{/if}
-
-{#if settingsOpen}
-  <ProfileSettingsPage
-    pushed={settingsPushed}
-    onClose={closeProfileSettings}
-  />
-{/if}
 
 <AppDrawer
   {drawerOpen}

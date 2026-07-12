@@ -1,8 +1,10 @@
 <script>
-  import { onMount } from 'svelte';
+  export let pushed = false;
+  import { onMount, createEventDispatcher } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
+  import { createSlideTransition } from '../home/lib/nav-transition.js';
   import MainPage from './pages/MainPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
 
@@ -17,6 +19,53 @@
   let user = null;
   let isDark = false;
   let ready = false;
+  let mainOpen = false;
+  let mainPushed = false;
+  let settingsOpen = false;
+  let settingsPushed = false;
+  let lastRoute = null;
+
+  const pageSlide = createSlideTransition({});
+  let pageSlideX = 100;
+  const unsubscribePageSlide = pageSlide.subscribe((v) => { pageSlideX = v; });
+
+  function syncPageSlide(nextRoute, immediate = false) {
+    if (nextRoute === lastRoute && !immediate) return;
+    lastRoute = nextRoute;
+
+    if (nextRoute === 'settings') {
+      if (!mainOpen) mainOpen = true;
+      settingsOpen = true;
+      if (immediate) {
+        mainPushed = false;
+        settingsPushed = true;
+        pageSlide.open();
+        setTimeout(() => { mainOpen = false; }, 0);
+      } else {
+        requestAnimationFrame(() => requestAnimationFrame(() => { mainPushed = false; }));
+        requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = true; }));
+        setTimeout(() => { mainOpen = false; }, 340);
+        pageSlide.open();
+      }
+    } else {
+      if (!settingsOpen) settingsOpen = true;
+      mainOpen = true;
+      if (immediate) {
+        settingsPushed = false;
+        mainPushed = true;
+        pageSlide.open();
+        setTimeout(() => { settingsOpen = false; }, 0);
+      } else {
+        requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = false; }));
+        requestAnimationFrame(() => requestAnimationFrame(() => { mainPushed = true; }));
+        setTimeout(() => { settingsOpen = false; }, 340);
+        pageSlide.open();
+      }
+    }
+  }
+
+
+  const dispatch = createEventDispatcher();
 
   onMount(() => {
     user = requireAuth();
@@ -30,14 +79,20 @@
     if (notFound) { window.location.replace('/404/'); return; }
     route = initialRoute;
     router.navigate(route, { replace: true });
+    syncPageSlide(route, true);
     ready = true;
 
     const unbind = router.bindPopState((r, nf) => {
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
+      syncPageSlide(route, false);
     });
 
-    return unbind;
+    return () => {
+      unbind?.();
+      unsubscribePageSlide?.();
+      pageSlide.destroy();
+    };
   });
 
   function handleNav(e) {
@@ -52,9 +107,9 @@
       window.location.href = '/auth/';
       return;
     }
-    if (to === 'home') { window.location.href = '/home/'; return; }
-    if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
-    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); return; }
+    if (to === 'home') { dispatch('nav', { to: 'home' }); return; }
+    if (to === 'settings') { route = 'settings'; router.navigate('settings'); syncPageSlide('settings', false); return; }
+    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); syncPageSlide('main', false); return; }
   }
 
   function handleUserUpdate(e) {
@@ -67,10 +122,11 @@
 </script>
 
 {#if ready}
-  {#if route === 'main'}
-    <MainPage {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} on:userUpdate={handleUserUpdate} />
-  {:else if route === 'settings'}
-    <SettingsPage {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
+  {#if mainOpen}
+    <MainPage pushed={mainPushed} {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} on:userUpdate={handleUserUpdate} />
+  {/if}
+  {#if settingsOpen}
+    <SettingsPage pushed={settingsPushed} {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
   {/if}
 {/if}
 

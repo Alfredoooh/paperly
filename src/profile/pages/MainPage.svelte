@@ -1,10 +1,12 @@
 <script>
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onMount, tick, onDestroy } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
   import { ProfileApiService } from '$shared/api.js';
   import { OCCUPATION_OPTIONS } from '$shared/plans.js';
+  import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
+  export let pushed = false;
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Perfil';
@@ -13,6 +15,15 @@
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
+
+  const slide = createSlideTransition({});
+  let slideX = 100;
+  const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
+  let lastPushed = null;
+  $: if (pushed !== lastPushed) {
+    lastPushed = pushed;
+    if (pushed) slide.open(); else slide.close();
+  }
 
   // ── Entrada da página ────────────────────────────────────────────
   let pageVisible = false;
@@ -86,6 +97,7 @@
     }
   }
   onMount(loadProfile);
+  onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); });
 
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userEmail = user?.email || '';

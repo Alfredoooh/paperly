@@ -5,6 +5,7 @@
   export let pushed = false; // true = tela empurrada para dentro (visível)
   export let platformApps = [];
   export let imageModels = [];
+  export let onOpenApp = () => {};
   export let docModels = [];
   export let onUsePrompt = () => {};
   export let onClose = () => {};
@@ -37,7 +38,7 @@
     if (app.id === 'ai') {
       try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
     }
-    window.location.href = app.path;
+    onOpenApp(app);
   }
 
   function pickResult(r) {

@@ -13,7 +13,7 @@
   function navigate(app) {
     dispatch('close');
     if (app.id === currentAppId) return;
-    window.location.href = app.path;
+    dispatch('nav', { to: app.id, data: { path: app.path } });
   }
 </script>
 

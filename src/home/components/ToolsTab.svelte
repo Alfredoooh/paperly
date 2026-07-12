@@ -1,9 +1,10 @@
 <!-- src/home/components/ToolsTab.svelte -->
 <script>
   export let tools = [];
+  export let onOpenApp = () => {};
   
   function openTool(tool) {
-    if (tool?.path) window.location.href = tool.path;
+    if (tool?.path) onOpenApp({ id: tool.id || tool.label, path: tool.path });
   }
 </script>
 

@@ -2,12 +2,13 @@
 <script>
   export let platformApps = [];
   export let onOpenSearch = () => {};
+  export let onOpenApp = () => {};
 
   function openApp(app) {
     if (app.id === 'ai') {
       try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
     }
-    window.location.href = app.path;
+    onOpenApp(app);
   }
 
   function buzz() {

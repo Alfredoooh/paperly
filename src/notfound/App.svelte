@@ -1,13 +1,16 @@
 <!-- 404 App.svelte -->
 <script>
-  import { onMount } from 'svelte';
+  export let pushed = false;
+  import { onMount, createEventDispatcher } from 'svelte';
 
   function goHome() {
-    window.location.href = '/home/';
+    dispatch('nav', { to: 'home' });
   }
 
   let themeValue = 'system';
   let mediaQuery;
+
+  const dispatch = createEventDispatcher();
 
   function resolveIsDark(v) {
     return v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);

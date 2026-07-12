@@ -32,9 +32,7 @@
   }
 
   function handleItemClick(item) {
-    if (item.url) {
-      window.location.href = item.url;
-    } else if (typeof item.action === 'function') {
+    if (typeof item.action === 'function') {
       item.action();
     }
     onClose();

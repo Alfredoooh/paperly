@@ -1,11 +1,13 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { getThemeColors, getTheme } from '$shared/theme.js';
   import { logout } from '$shared/auth-guard.js';
   import { AuthApiService } from '$shared/api.js';
   import { AVAILABLE_LANGUAGES } from '$shared/plans.js';
   import { showToast } from '$shared/utils.js';
+  import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
+  export let pushed = false;
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Perfil';
@@ -13,8 +15,18 @@
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
+  const slide = createSlideTransition({});
+  let slideX = 100;
+  const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
+  let lastPushed = null;
+  $: if (pushed !== lastPushed) {
+    lastPushed = pushed;
+    if (pushed) slide.open(); else slide.close();
+  }
+
   let pageVisible = false;
   onMount(() => { requestAnimationFrame(() => { pageVisible = true; }); });
+  onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); });
 
   let themeValue = getTheme();
   let currentLang = user?.preferences?.language || 'pt';
@@ -83,7 +95,7 @@
   }
 </script>
 
-<div class="st-root" class:st-in={pageVisible} style="background:{c.background}">
+<div class="st-root" class:st-in={pageVisible} style="background:{c.background}; transform: translate3d({slideX}%, 0, 0);">
   <div class="st-header">
     <button class="st-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>

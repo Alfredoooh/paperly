@@ -1,5 +1,6 @@
 <script>
-  import { onMount } from 'svelte';
+  export let pushed = false;
+  import { onMount, createEventDispatcher } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
@@ -17,6 +18,8 @@
   let user = null;
   let isDark = false;
   let ready = false;
+
+  const dispatch = createEventDispatcher();
 
   onMount(() => {
     user = requireAuth();
@@ -52,7 +55,7 @@
       window.location.href = '/auth/';
       return;
     }
-    if (to === 'home') { window.location.href = '/home/'; return; }
+    if (to === 'home') { dispatch('nav', { to: 'home' }); return; }
     if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
     if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); return; }
   }

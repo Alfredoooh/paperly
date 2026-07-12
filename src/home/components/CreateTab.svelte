@@ -1,34 +1,66 @@
 <!-- src/home/components/CreateTab.svelte -->
+<!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
+     Não usa AppHeader — este tab é o único caso especial. -->
 <script>
   export let platformApps = [];
   export let onOpenSearch = () => {};
   export let onOpenApp = () => {};
-  
-  // 0 → 1: progresso do scroll ao longo da altura da imagem de topo.
-  // Vem do App.svelte, calculado a partir do scroll REAL (.scroll-root
-  // do App.svelte). Usado tanto para o fade final da imagem para o
-  // fundo do tema, como para o appbar (via heroOpacity no AppHeader).
+
   export let heroProgress = 0;
-  
+
+  // dados do header próprio (antes vinham via AppHeader)
+  export let mounted = false;
+  export let avatarUrl = '';
+  export let avatarColor = '#FF3B30';
+  export let userInitial = 'U';
+  export let userName = 'Utilizador';
+  export let title = '';
+  export let onOpenDrawer = () => {};
+
   function openApp(app) {
     if (app.id === 'ai') {
       try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
     }
     onOpenApp(app);
   }
-  
+
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
-  
+
   function handleOpenSearch() {
     buzz();
     onOpenSearch();
   }
+
+  function handleMenu() {
+    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+    if (window.AndroidDrawer && typeof window.AndroidDrawer.openAccountDrawer === 'function') {
+      window.AndroidDrawer.openAccountDrawer();
+    } else {
+      onOpenDrawer?.();
+    }
+  }
 </script>
 
+<!-- Header próprio do Create: fixo, transparente puro, título sempre
+     branco. NÃO usa var(--header-glass-rgb) nem var(--icon-strong),
+     por isso nunca herda cor/fundo do tema. -->
+<div class="create-header" class:in={mounted}>
+  <div class="create-header-inner">
+    <h1 class="create-header-title">{title}</h1>
+    <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">
+      {#if avatarUrl}
+        <img src={avatarUrl} alt={userName} class="profile-img" />
+      {:else}
+        <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
+      {/if}
+    </button>
+  </div>
+</div>
+
 <div class="create-tab">
-  
+
   <div class="hero-bg">
     <!-- Camada 1: a foto em si -->
     <div class="hero-photo" style="background-image:url('/images/createbg/img.jpg')"></div>
@@ -40,12 +72,12 @@
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
   </div>
-  
+
   <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
     <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
-  
+
   <div class="apps-grid">
     {#each platformApps as app}
       <button class="app-item" on:click={() => openApp(app)}>
@@ -59,14 +91,93 @@
 </div>
 
 <style>
+  /* ---------- Header próprio do Create ---------- */
+  .create-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 15;
+    background: transparent;
+    opacity: 0;
+    transform: translateY(-16px) translateZ(0);
+    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1);
+    pointer-events: none;
+    contain: layout style paint;
+  }
+  .create-header.in {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+    pointer-events: auto;
+  }
+  .create-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-top,0px) + 4px);
+  }
+  .create-header-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.35);
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .profile-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .profile-btn:active {
+    background: rgba(255,255,255,0.26);
+    transform: scale(0.9);
+  }
+  .profile-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .profile-initial {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+  @media (hover:hover) and (pointer:fine) {
+    .profile-btn:hover { background: rgba(255,255,255,0.24); }
+  }
+  @media (min-width: 720px) {
+    .create-header-inner { max-width:760px; }
+  }
+
+  /* ---------- Conteúdo do Create ---------- */
   .create-tab {
     width: 100%;
   }
 
-  /* Imagem puramente decorativa no topo do tab. Fica dentro do fluxo
-     normal do documento — não tem position:absolute no próprio bloco,
-     não tem overflow próprio. O scroll real é feito pelo .scroll-root
-     do App.svelte, exatamente como nos outros tabs. */
   .hero-bg {
     position: relative;
     width: 100%;
@@ -82,11 +193,6 @@
     background-repeat: no-repeat;
   }
 
-  /* Gradiente ESTÁTICO e sempre presente: topo mais transparente
-     (deixa a imagem "pura" aparecer perto do appbar), base mais
-     sólida (funde suavemente com o fundo do tema logo antes da search
-     bar) — é o "estilo" fixo da imagem, igual em repouso e não reage
-     ao scroll. var(--app-bg) já é branco no claro e escuro no dark. */
   .hero-static-fade {
     position: absolute;
     inset: 0;
@@ -100,9 +206,6 @@
     pointer-events: none;
   }
 
-  /* Cobre a imagem por completo, incluindo a parte de cima que o
-     gradiente estático deixava visível — SÓ conforme o utilizador
-     desliza para cima. heroProgress vem do scroll real (App.svelte). */
   .hero-scroll-solid {
     position: absolute;
     inset: 0;

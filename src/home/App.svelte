@@ -483,29 +483,42 @@
 >
   <div class="bg-layer"></div>
 
-  <AppHeader
-    {mounted}
-    bind:topPanelEl
-    {scrolled}
-    onOpenDrawer={openDrawer}
-    {avatarUrl}
-    {avatarColor}
-    {userInitial}
-    {userName}
-    title={currentTitle}
-    solidGradient={activeTab === 'templates'}
-    transparentHero={activeTab === 'create'}
-    showSearchBtn={activeTab === 'templates'}
-    onOpenSearch={openSearch}
-    showToggle={activeTab === 'templates'}
-    toggleOptions={TEMPLATE_VIEWS}
-    toggleValue={templatesView}
-    onToggleChange={selectTemplatesView}
-  />
+  {#if activeTab !== 'create'}
+    <AppHeader
+      {mounted}
+      bind:topPanelEl
+      {scrolled}
+      onOpenDrawer={openDrawer}
+      {avatarUrl}
+      {avatarColor}
+      {userInitial}
+      {userName}
+      title={currentTitle}
+      solidGradient={activeTab === 'templates'}
+      showSearchBtn={activeTab === 'templates'}
+      onOpenSearch={openSearch}
+      showToggle={activeTab === 'templates'}
+      toggleOptions={TEMPLATE_VIEWS}
+      toggleValue={templatesView}
+      onToggleChange={selectTemplatesView}
+    />
+  {/if}
 
-  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
+  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{activeTab === 'create' ? 0 : appbarHeight}px;">
     {#if activeTab === 'create'}
-      <CreateTab {platformApps} {heroProgress} onOpenSearch={openSearch} onOpenApp={navigateToApp} />
+      <CreateTab
+        {platformApps}
+        {heroProgress}
+        {mounted}
+        {avatarUrl}
+        {avatarColor}
+        {userInitial}
+        {userName}
+        title={currentTitle}
+        onOpenDrawer={openDrawer}
+        onOpenSearch={openSearch}
+        onOpenApp={navigateToApp}
+      />
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}

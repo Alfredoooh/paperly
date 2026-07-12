@@ -1,4 +1,6 @@
 <!-- src/home/components/AppHeader.svelte -->
+<!-- Usado por TODOS os tabs exceto "Criar" — o Criar tem o seu próprio
+     header standalone dentro de CreateTab.svelte. -->
 <script>
   export let mounted = false;
   export let topPanelEl;
@@ -12,20 +14,13 @@
 
   export let title = '';
 
-  // appbar sem blur, com gradiente sólido->transparente (usado no tab "Templates")
   export let solidGradient = false;
 
-  // appbar do tab "Criar": totalmente transparente, sem blur, título
-  // sempre branco — fixo, não depende do scroll nem do tema.
-  export let transparentHero = false;
-
-  // botão de pesquisa (usado apenas no tab "Templates")
   export let showSearchBtn = false;
   export let onOpenSearch = () => {};
 
-  // toggle nativo (usado apenas no tab "Templates")
   export let showToggle = false;
-  export let toggleOptions = []; // [{id,label}]
+  export let toggleOptions = [];
   export let toggleValue = '';
   export let onToggleChange = () => {};
 
@@ -60,13 +55,12 @@
   class="top-panel"
   class:in={mounted}
   class:solid-gradient={solidGradient}
-  class:transparent-hero={transparentHero}
   bind:this={topPanelEl}
 >
   <div class="gradient-layer"></div>
   <header class="header">
     <div class="header-inner">
-      <h1 class="header-title" class:on-image={transparentHero}>{title}</h1>
+      <h1 class="header-title">{title}</h1>
       <div class="header-actions">
         {#if showSearchBtn}
           <button class="action-btn pulse-tap" on:click={handleSearch} aria-label="Pesquisar">
@@ -98,7 +92,7 @@
       </div>
     {/if}
   </header>
-  <div class="header-elevate" style="opacity:{(solidGradient || transparentHero) ? 0 : scrolled}"></div>
+  <div class="header-elevate" style="opacity:{solidGradient ? 0 : scrolled}"></div>
 </div>
 
 <style>
@@ -123,7 +117,6 @@
     pointer-events: auto;
   }
 
-  /* Templates: sem blur, gradiente sólido (topo) -> transparente (fundo). */
   .top-panel.solid-gradient {
     background: transparent;
     backdrop-filter: none;
@@ -145,25 +138,6 @@
   }
   .top-panel.solid-gradient .gradient-layer {
     opacity: 1;
-  }
-
-  /* Criar: appbar SEMPRE transparente puro, sem blur, fixo — não
-     depende do scroll nem do tema. Título sempre branco (.on-image).
-     Declarado DEPOIS de .solid-gradient e com !important para nunca
-     poder ser sobreposto por nenhuma outra regra de background. */
-  .top-panel.transparent-hero {
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-  .top-panel.transparent-hero .gradient-layer {
-    opacity: 0 !important;
-  }
-
-  /* título branco fixo no tab "Criar", independente do tema */
-  .header-title.on-image {
-    color: #fff;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.35);
   }
 
   .header-elevate {
@@ -277,7 +251,6 @@
     color: #fff;
   }
 
-  /* Toggle */
   .segmented {
     position: relative;
     display: flex;

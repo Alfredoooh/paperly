@@ -101,6 +101,41 @@
   $: filledRows = INFO_ROWS.map(r => ({ ...r, value: r.get(form) })).filter(r => r.value);
 
   // ══════════════════════════════════════════════════════════════════
+  //  VISUALIZADOR DE AVATAR EM TELA CHEIA — container transform
+  // ══════════════════════════════════════════════════════════════════
+  // O avatar "expande" da posição/tamanho exatos do círculo pequeno na
+  // Hero até preencher o ecrã — FLIP technique: mede o rect de origem
+  // no clique, monta a camada fullscreen já posicionada/dimensionada
+  // EXATAMENTE como o círculo pequeno (via style inline, sem
+  // transition), e só no frame seguinte anima para inset:0. O caminho
+  // inverso (fechar) faz o mesmo em sentido contrário antes de
+  // desmontar — a mesma técnica de "origem visível" usada pelo resto
+  // da app para telas que abrem a partir de um elemento concreto.
+  let avatarImgEl;
+  let showAvatarViewer = false;
+  let avatarViewerVisible = false;
+  let avatarViewerRect = null; // {top,left,width,height,borderRadius}
+
+  function openAvatarViewer() {
+    if (!user?.avatar || !avatarImgEl) return;
+    const r = avatarImgEl.getBoundingClientRect();
+    avatarViewerRect = { top: r.top, left: r.left, width: r.width, height: r.height };
+    showAvatarViewer = true;
+    avatarViewerVisible = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => { avatarViewerVisible = true; }));
+  }
+  function closeAvatarViewer() {
+    avatarViewerVisible = false;
+    setTimeout(() => { showAvatarViewer = false; avatarViewerRect = null; }, 340);
+  }
+
+  $: avatarViewerStyle = avatarViewerRect
+    ? (avatarViewerVisible
+        ? 'top:0; left:0; width:100vw; height:100dvh; border-radius:0;'
+        : `top:${avatarViewerRect.top}px; left:${avatarViewerRect.left}px; width:${avatarViewerRect.width}px; height:${avatarViewerRect.height}px; border-radius:50%;`)
+    : '';
+
+  // ══════════════════════════════════════════════════════════════════
   //  TELA DE EDIÇÃO (fullscreen slide-up nativo — spring dedicado)
   // ══════════════════════════════════════════════════════════════════
   const editSlide = createSlideTransition({});
@@ -305,6 +340,11 @@
     };
     reader.readAsDataURL(file);
   }
+  // impede que o clique no badge de upload (que fica por cima do
+  // avatar) dispare também a abertura do visualizador em tela cheia
+  function onUploadLabelClick(e) {
+    e.stopPropagation();
+  }
 
   onMount(() => {
     loadProfile();
@@ -320,9 +360,8 @@
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ROOT — já não controla o próprio slide de entrada; quem posiciona
-     esta tela agora é o wrapper .profile-main-layer no App.svelte pai
-     (recuo suave quando a Settings entra por cima, como o .root do home)
+     ROOT — o slide de entrada/saída é gerido pelo wrapper
+     .profile-main-layer no App.svelte pai.
 ════════════════════════════════════════════════════════════════════ -->
 <div class="pf-root" class:pf-in={pageVisible}
   style="background:{c.background};color:{c.textPrimary};">
@@ -350,24 +389,23 @@
 
       <!-- Hero -->
       <div class="pf-hero">
-        <div class="pf-avatar-wrap" style="background:{c.primary}">
+        <button class="pf-avatar-wrap" style="background:{c.primary}" on:click={openAvatarViewer}>
           {#if user?.avatar}
-            <img src={user.avatar} alt={userName} />
+            <img bind:this={avatarImgEl} src={user.avatar} alt={userName} />
           {:else}
-            <span class="pf-avatar-initial">{userInitial}</span>
+            <span class="pf-avatar-initial" bind:this={avatarImgEl}>{userInitial}</span>
           {/if}
           {#if avatarUploading}
             <div class="pf-avatar-loading"><div class="pf-spinner"></div></div>
           {/if}
-          <!-- Badge de upload SEMPRE em frente, centrado sobre o avatar,
-               nunca deslocado para um canto/atrás — cobre o círculo
-               inteiro como uma camada por cima, clicável em qualquer
-               ponto do avatar. -->
-          <label class="pf-avatar-upload-front">
+          <!-- Badge de atualizar avatar: pequeno, ancorado no canto
+               inferior direito, SEMPRE por cima e sempre visível —
+               não cobre o círculo inteiro, não é um overlay ao toque. -->
+          <label class="pf-avatar-edit-badge" style="background:{c.dialogBackground};border-color:{c.background}" on:click={onUploadLabelClick}>
             <input type="file" accept="image/*" on:change={handleAvatarPick} hidden />
-            <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');background:#fff;width:20px;height:20px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');background:{c.iconTint};width:13px;height:13px"></span>
           </label>
-        </div>
+        </button>
         <h1>{userName}</h1>
         {#if userEmail}<p style="color:{c.textSecondary}">{userEmail}</p>{/if}
       </div>
@@ -431,9 +469,24 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
-       TELA FULLSCREEN DE EDIÇÃO — cards nativos (mesma linguagem
-       visual do pf-card da tela principal, em vez de linhas soltas
-       sem agrupamento) + botão de guardar como ícone check no appbar.
+       VISUALIZADOR DE AVATAR EM TELA CHEIA — container transform.
+       Abre a partir da posição/tamanho exatos do avatar pequeno na
+       Hero (FLIP), expande até inset:0, botão de voltar no canto.
+  ══════════════════════════════════════════════════════════════ -->
+  {#if showAvatarViewer && user?.avatar}
+    <div class="avatar-viewer-overlay" class:avatar-viewer-overlay-in={avatarViewerVisible} on:click={closeAvatarViewer}></div>
+    <div class="avatar-viewer" style={avatarViewerStyle}>
+      <img class="avatar-viewer-img" src={user.avatar} alt={userName} />
+    </div>
+    <button class="avatar-viewer-back" class:avatar-viewer-back-in={avatarViewerVisible} on:click={closeAvatarViewer} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:#fff;width:19px;height:19px"></span>
+    </button>
+  {/if}
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TELA FULLSCREEN DE EDIÇÃO — cards nativos + botão de guardar
+       como ícone check no appbar. Botão de fechar (X) sem fundo azul,
+       neutro como o resto dos ícones do appbar.
   ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
     <div class="edit-screen"
@@ -470,10 +523,6 @@
             bind:value={editForm.name} />
         </div>
 
-        <!-- Cards nativos: mesma linguagem visual do pf-card (fundo
-             elevado, cantos arredondados, borda subtil, linhas
-             separadas por divisor interno) em vez de linhas soltas
-             sem contentor. -->
         <div class="edit-section-title" style="color:{c.textSecondary}">Localização</div>
         <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
           <div class="edit-row">
@@ -612,12 +661,18 @@
   .pf-hero { padding: 20px 16px 8px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
   .pf-avatar-wrap {
     position: relative; width: 88px; height: 88px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; overflow: visible;
+    border: none; padding: 0; cursor: pointer;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .pf-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .pf-avatar-wrap:active { transform: scale(0.96); }
+  .pf-avatar-wrap img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+    display: block;
+  }
   .pf-avatar-initial { font-size: 32px; font-weight: 700; color: #fff; }
   .pf-avatar-loading {
-    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2;
+    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
   }
   .pf-spinner {
@@ -627,20 +682,19 @@
   }
   @keyframes pf-spin { to { transform: rotate(360deg); } }
 
-  /* Badge/label de upload — SEMPRE EM FRENTE do avatar, cobrindo o
-     círculo inteiro como uma camada por cima (nunca num canto, nunca
-     atrás). Fica transparente em repouso e escurece ligeiramente ao
-     toque, exatamente como um overlay de "editar foto" nativo. */
-  .pf-avatar-upload-front {
-    position: absolute; inset: 0; z-index: 3;
+  /* Badge de atualizar avatar: pequeno, ancorado no canto inferior
+     direito DO CONTAINER do avatar, sempre por cima e sempre visível
+     — exatamente como o preview mostra. Não cobre o círculo, não se
+     desloca, não depende de toque para aparecer. */
+  .pf-avatar-edit-badge {
+    position: absolute; bottom: -2px; right: -2px; z-index: 3;
+    width: 30px; height: 30px;
+    border-radius: 50%; border: 2.5px solid;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0);
     cursor: pointer;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
-  .pf-avatar-upload-front:active { background: rgba(0,0,0,.32); }
-  .pf-avatar-upload-front .icon-mask { opacity: 0; transition: opacity .18s; }
-  .pf-avatar-upload-front:active .icon-mask { opacity: 1; }
+  .pf-avatar-edit-badge:active { transform: scale(0.88); opacity: .8; }
 
   .pf-hero h1 { margin: 8px 0 0; font-size: 21px; font-weight: 800; line-height: 1.15; }
   .pf-hero p { margin: 0; font-size: 13.5px; }
@@ -679,6 +733,46 @@
   .pf-edit-btn:active { transform: scale(0.98); opacity: .88; }
 
   /* ══════════════════════════════════════════════════════════════════
+     VISUALIZADOR DE AVATAR EM TELA CHEIA (container transform / FLIP)
+     .avatar-viewer usa position:fixed com top/left/width/height/
+     border-radius em style INLINE (calculados em JS), com UMA ÚNICA
+     transition CSS nessas propriedades — é isto que dá o efeito de o
+     círculo pequeno "esticar" até preencher o ecrã, exatamente a
+     mesma técnica FLIP usada em transições nativas de galeria.
+  ══════════════════════════════════════════════════════════════════ */
+  .avatar-viewer-overlay {
+    position: fixed; inset: 0; z-index: 550;
+    background: rgba(0,0,0,0);
+    transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .avatar-viewer-overlay.avatar-viewer-overlay-in { background: rgba(0,0,0,.92); }
+  .avatar-viewer {
+    position: fixed; z-index: 551;
+    overflow: hidden;
+    transition: top .38s cubic-bezier(0.32, 0.72, 0, 1),
+                left .38s cubic-bezier(0.32, 0.72, 0, 1),
+                width .38s cubic-bezier(0.32, 0.72, 0, 1),
+                height .38s cubic-bezier(0.32, 0.72, 0, 1),
+                border-radius .38s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: top, left, width, height, border-radius;
+  }
+  .avatar-viewer-img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .avatar-viewer-back {
+    position: fixed; z-index: 552;
+    top: calc(env(safe-area-inset-top,0px) + 14px); left: 14px;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    opacity: 0; transform: scale(0.85);
+    transition: opacity .24s cubic-bezier(0.16,1,0.3,1), transform .24s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .avatar-viewer-back.avatar-viewer-back-in { opacity: 1; transform: scale(1); }
+  .avatar-viewer-back:active { transform: scale(0.88); }
+
+  /* ══════════════════════════════════════════════════════════════════
      TELA FULLSCREEN DE EDIÇÃO
   ══════════════════════════════════════════════════════════════════ */
   .edit-screen {
@@ -696,9 +790,9 @@
   }
   .edit-header-title { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
 
-  /* Botão de guardar como ÍCONE (check.svg) no appbar, mesma forma
-     circular dos outros pf-icon-btn, com fundo sólido na cor primária
-     em vez de texto "Guardar". */
+  /* Botão de guardar como ÍCONE (check.svg), fundo sólido cor primária.
+     Botão de fechar (X) reaproveita .pf-icon-btn puro — SEM cor de
+     destaque, apenas o fundo neutro appbarBtnBg como os outros ícones. */
   .edit-save-icon-btn { position: relative; }
   .edit-save-icon-btn:disabled { opacity: .55; }
   .edit-save-spinner {
@@ -715,10 +809,6 @@
     border: none; outline: none; border-bottom: 2px solid; padding-bottom: 10px; font-family: inherit;
   }
 
-  /* Cards nativos: mesma linguagem visual do pf-card (fundo elevado,
-     cantos arredondados, borda subtil) — cada grupo de campos vive
-     dentro do seu próprio cartão, com título de secção acima, tal como
-     "Dados pessoais" na tela principal. */
   .edit-section-title { padding: 20px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
   .edit-card { margin: 0 16px; border: 1px solid; border-radius: 18px; overflow: hidden; }
 
@@ -764,7 +854,8 @@
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
   @media (prefers-reduced-motion: reduce) {
-    .pf-root, .pf-icon-btn, .pf-edit-btn, .edit-row-btn, .sheet-opt, .pf-avatar-upload-front {
+    .pf-root, .pf-icon-btn, .pf-avatar-wrap, .pf-avatar-edit-badge, .pf-edit-btn, .edit-row-btn, .sheet-opt,
+    .avatar-viewer-overlay, .avatar-viewer, .avatar-viewer-back {
       transition: none !important;
     }
   }

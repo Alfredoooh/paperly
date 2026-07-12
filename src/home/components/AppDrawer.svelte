@@ -27,8 +27,17 @@
   let showLogoutDialog = false;
   let dialogVisible = false; // controla a animação de entrada/saída do dialog
 
+  // FIX (bug: clicar em perfil deixava o drawer/ecrã empurrado presos
+  // a meio da animação enquanto o perfil já tinha navegado por cima):
+  // Antes, esta função chamava onClose() (history.back(), assíncrono)
+  // E onOpenProfile() (pushState, síncrono) no mesmo tick — as duas
+  // disparavam por cima uma da outra, corrompendo a pilha de histórico.
+  // Agora chama-se APENAS onOpenProfile(); é o App.svelte (via a
+  // função openProfile) quem decide, de forma sequencial, fechar
+  // primeiro o drawer (só se estiver aberto) e esperar o popstate REAL
+  // do fecho antes de navegar — garantindo que o drawer fecha e o
+  // ecrã "desempurra" por completo antes da tela de perfil aparecer.
   function goProfile() {
-    onClose();
     onOpenProfile();
   }
 

@@ -6,8 +6,8 @@
   
   // 0 → 1: progresso do scroll ao longo da altura da imagem de topo.
   // Vem do App.svelte, calculado a partir do scroll REAL (.scroll-root
-  // do App.svelte). Este componente não tem overflow/scroll próprio —
-  // isso é que estava a quebrar o ecrã (dois scrolls encaixados).
+  // do App.svelte). Usado tanto para o fade final da imagem para o
+  // fundo do tema, como para o appbar (via heroOpacity no AppHeader).
   export let heroProgress = 0;
   
   function openApp(app) {
@@ -29,8 +29,16 @@
 
 <div class="create-tab">
   
-  <div class="hero-bg" style="background-image:url('/images/createbg/img.jpg')">
-    <div class="hero-solid" style="opacity:{heroProgress}"></div>
+  <div class="hero-bg">
+    <!-- Camada 1: a foto em si -->
+    <div class="hero-photo" style="background-image:url('/images/createbg/img.jpg')"></div>
+    <!-- Camada 2: gradiente ESTÁTICO (não depende do scroll) — mais
+         transparente no topo (perto do appbar/relógio), mais sólido
+         em baixo (perto da search bar/apps), tal como no CapCut. -->
+    <div class="hero-static-fade"></div>
+    <!-- Camada 3: cobre a imagem por completo conforme o utilizador
+         desliza para cima — ESTA sim depende do scroll (heroProgress) -->
+    <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
   </div>
   
   <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
@@ -56,25 +64,46 @@
   }
 
   /* Imagem puramente decorativa no topo do tab. Fica dentro do fluxo
-     normal do documento — não tem position:absolute, não tem overflow
-     próprio, não tem altura "mágica" negativa. O scroll de verdade é
-     feito pelo .scroll-root do App.svelte, exatamente como nos outros
-     tabs (ProjectsTab, TemplatesTab, ToolsTab). */
+     normal do documento — não tem position:absolute no próprio bloco,
+     não tem overflow próprio. O scroll real é feito pelo .scroll-root
+     do App.svelte, exatamente como nos outros tabs. */
   .hero-bg {
     position: relative;
     width: 100%;
     height: 260px;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     overflow: hidden;
   }
 
-  /* Camada sólida que cobre a imagem conforme o utilizador desliza
-     para cima — branca no tema claro, escura no tema escuro, via
-     var(--app-bg) (já definida no App.svelte para os dois temas).
-     heroProgress (0 a 1) vem do scroll real medido no App.svelte. */
-  .hero-solid {
+  .hero-photo {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* Gradiente ESTÁTICO e sempre presente: topo mais transparente
+     (deixa a imagem "pura" aparecer perto do appbar), base mais
+     sólida (funde suavemente com o fundo do tema logo antes da search
+     bar) — é o "estilo" fixo da imagem, igual em repouso e não reage
+     ao scroll. var(--app-bg) já é branco no claro e escuro no dark. */
+  .hero-static-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 35%,
+      color-mix(in srgb, var(--app-bg) 55%, transparent) 82%,
+      var(--app-bg) 100%
+    );
+    pointer-events: none;
+  }
+
+  /* Cobre a imagem por completo, incluindo a parte de cima que o
+     gradiente estático deixava visível — SÓ conforme o utilizador
+     desliza para cima. heroProgress vem do scroll real (App.svelte). */
+  .hero-scroll-solid {
     position: absolute;
     inset: 0;
     background: var(--app-bg);

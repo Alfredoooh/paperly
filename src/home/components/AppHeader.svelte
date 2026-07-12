@@ -15,8 +15,11 @@
   // appbar sem blur, com gradiente sólido->transparente (usado no tab "Templates")
   export let solidGradient = false;
 
-  // appbar totalmente transparente, sem fundo nem blur (usado no tab "Criar")
-  export let transparent = false;
+  // appbar do tab "Criar": 0 = totalmente transparente (imagem visível
+  // por trás), 1 = totalmente sólido (mesmo fundo do glass normal).
+  // Gradual, ligado ao heroProgress do scroll — NUNCA binário. Fica em
+  // 0 por padrão nos outros tabs, preservando o comportamento normal.
+  export let heroOpacity = 0;
 
   // botão de pesquisa (usado apenas no tab "Templates")
   export let showSearchBtn = false;
@@ -53,13 +56,25 @@
   }
 
   $: toggleIndex = Math.max(0, toggleOptions.findIndex(o => o.id === toggleValue));
+
+  // heroOpacity só se aplica quando > 0 nalgum momento (tab "Criar").
+  // Nos outros tabs fica sempre 0, então isto não muda nada do que já
+  // existia — glass normal (background/backdrop-filter do .top-panel).
+  $: heroActive = heroOpacity > 0 || heroOpacity === 0;
 </script>
 
-<div class="top-panel" class:in={mounted} class:solid-gradient={solidGradient} class:transparent-panel={transparent} bind:this={topPanelEl}>
+<div
+  class="top-panel"
+  class:in={mounted}
+  class:solid-gradient={solidGradient}
+  class:hero-mode={heroActive && !solidGradient}
+  style={(!solidGradient) ? `--hero-opacity:${heroOpacity}` : ''}
+  bind:this={topPanelEl}
+>
   <div class="gradient-layer"></div>
   <header class="header">
     <div class="header-inner">
-      <h1 class="header-title" class:on-image={transparent}>{title}</h1>
+      <h1 class="header-title" class:on-image={heroOpacity < 1 && !solidGradient}>{title}</h1>
       <div class="header-actions">
         {#if showSearchBtn}
           <button class="action-btn pulse-tap" on:click={handleSearch} aria-label="Pesquisar">
@@ -91,7 +106,7 @@
       </div>
     {/if}
   </header>
-  <div class="header-elevate" style="opacity:{(solidGradient || transparent) ? 0 : scrolled}"></div>
+  <div class="header-elevate" style="opacity:{solidGradient ? 0 : (heroActive ? heroOpacity * scrolled : scrolled)}"></div>
 </div>
 
 <style>
@@ -146,18 +161,24 @@
     opacity: 1;
   }
 
-  /* Criar & Workspace: appbar 100% transparente, sem fundo, sem blur,
-     sem gradiente — a imagem de fundo do CreateTab passa por trás
-     dele livremente, tal como no CapCut. */
-  .top-panel.transparent-panel {
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+  /* Criar & Workspace: appbar acompanha heroOpacity (0 a 1) em vez de
+     ser um interruptor on/off. Em 0 fica idêntico a solid-gradient
+     (transparente, sem blur) — a imagem do CreateTab passa livremente
+     por trás. Conforme heroOpacity sobe (o scroll cobre a imagem), o
+     próprio glass normal (background/backdrop-filter acima) vai
+     ficando visível através da var --hero-opacity, SEM trocar de
+     classe nem "saltar" — é uma única variável a subir gradualmente. */
+  .top-panel.hero-mode {
+    background: rgba(var(--header-glass-rgb), calc(0.74 * var(--hero-opacity, 0)));
+    backdrop-filter: blur(calc(20px * var(--hero-opacity, 0))) saturate(180%);
+    -webkit-backdrop-filter: blur(calc(20px * var(--hero-opacity, 0))) saturate(180%);
+    transition: background .05s linear, backdrop-filter .05s linear;
   }
-  .top-panel.transparent-panel .gradient-layer {
+  .top-panel.hero-mode .gradient-layer {
     opacity: 0;
   }
-  /* título em branco fixo sobre a imagem (independente do tema) */
+  /* título em branco enquanto a imagem ainda está visível por trás;
+     funde para a cor normal do tema assim que o appbar fica sólido */
   .header-title.on-image {
     color: #fff;
     text-shadow: 0 1px 6px rgba(0,0,0,0.35);

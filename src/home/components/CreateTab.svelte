@@ -59,19 +59,14 @@
   on:touchmove|nonpassive={onTouchMove}
   on:touchend={onTouchEnd}
   on:touchcancel={onTouchEnd}>
-
-  <div class="hero-bg" style="background-image:url('/images/createbg/img.jpg')">
-    <div class="hero-bg-fade"></div>
-  </div>
-
   <div bind:this={bodyInnerEl}>
+
+    <div class="hero-bg" style="background-image:url('/images/createbg/img.jpg')"></div>
 
     <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
       <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
       <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
     </button>
-
-    <div class="hero-spacer"></div>
 
     <div class="apps-grid">
       {#each platformApps as app}
@@ -88,67 +83,47 @@
 
 <style>
   .create-tab {
-    position: relative;
     width: 100%;
-    padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 96px);
     overflow-y: auto;
-    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
 
-  /* Fundo azul estilo CapCut, fixo no topo do tab, com fade suave
-     para o fundo normal do ecrã por baixo do conteúdo. */
+  /* Imagem de fundo puramente decorativa, no topo do tab, por trás
+     do appbar transparente (ver AppHeader) — segue o fluxo normal do
+     documento, tal como qualquer outro bloco. Sem position:absolute
+     e sem alturas inventadas: é só um bloco com background-image. */
   .hero-bg {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 340px;
+    width: 100%;
+    height: 260px;
+    margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + 84px));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 84px);
+    box-sizing: border-box;
     background-size: cover;
-    background-position: center top;
+    background-position: center;
     background-repeat: no-repeat;
-    z-index: 0;
-    pointer-events: none;
-  }
-  .hero-bg-fade {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(0,0,0,0) 0%,
-      rgba(0,0,0,0) 55%,
-      var(--bg) 100%
-    );
-  }
-
-  .create-tab > div {
-    position: relative;
-    z-index: 1;
-    padding: 4px 14px 0;
-  }
-
-  .hero-spacer {
-    height: 190px;
   }
 
   .search-bar {
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 100%;
+    width: calc(100% - 28px);
     height: 48px;
-    margin-top: 6px;
+    margin: -24px 14px 0;
     padding: 0 16px;
     border: none;
     border-radius: 999px;
-    background: rgba(255,255,255,0.94);
-    box-shadow: 0 4px 18px rgba(0,0,0,0.16);
+    background: var(--btn-bg);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    position: relative;
+    z-index: 1;
   }
   .search-bar-icon {
     width: 18px;
     height: 18px;
-    background: #6b6f76;
+    background: var(--icon-faint);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
@@ -156,19 +131,19 @@
     mask-position: center;
     -webkit-mask-position: center;
     flex-shrink: 0;
-    opacity: 0.7;
+    opacity: 0.6;
   }
   .search-bar-placeholder {
     font-size: 14.5px;
     font-weight: 500;
-    color: #6b6f76;
+    color: var(--text-faint);
   }
 
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 18px 8px;
-    padding-top: 4px;
+    padding: 20px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
   }
   .app-item {
     display: flex;

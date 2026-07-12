@@ -15,6 +15,9 @@
   // appbar sem blur, com gradiente sólido->transparente (usado no tab "Templates")
   export let solidGradient = false;
 
+  // appbar totalmente transparente, sem fundo nem blur (usado no tab "Criar")
+  export let transparent = false;
+
   // botão de pesquisa (usado apenas no tab "Templates")
   export let showSearchBtn = false;
   export let onOpenSearch = () => {};
@@ -52,11 +55,11 @@
   $: toggleIndex = Math.max(0, toggleOptions.findIndex(o => o.id === toggleValue));
 </script>
 
-<div class="top-panel" class:in={mounted} class:solid-gradient={solidGradient} bind:this={topPanelEl}>
+<div class="top-panel" class:in={mounted} class:solid-gradient={solidGradient} class:transparent-panel={transparent} bind:this={topPanelEl}>
   <div class="gradient-layer"></div>
   <header class="header">
     <div class="header-inner">
-      <h1 class="header-title">{title}</h1>
+      <h1 class="header-title" class:on-image={transparent}>{title}</h1>
       <div class="header-actions">
         {#if showSearchBtn}
           <button class="action-btn pulse-tap" on:click={handleSearch} aria-label="Pesquisar">
@@ -88,7 +91,7 @@
       </div>
     {/if}
   </header>
-  <div class="header-elevate" style="opacity:{solidGradient ? 0 : scrolled}"></div>
+  <div class="header-elevate" style="opacity:{(solidGradient || transparent) ? 0 : scrolled}"></div>
 </div>
 
 <style>
@@ -143,6 +146,23 @@
     opacity: 1;
   }
 
+  /* Criar & Workspace: appbar 100% transparente, sem fundo, sem blur,
+     sem gradiente — a imagem de fundo do CreateTab passa por trás
+     dele livremente, tal como no CapCut. */
+  .top-panel.transparent-panel {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .top-panel.transparent-panel .gradient-layer {
+    opacity: 0;
+  }
+  /* título em branco fixo sobre a imagem (independente do tema) */
+  .header-title.on-image {
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.35);
+  }
+
   .header-elevate {
     position: absolute;
     left: 0; right: 0; bottom: -1px;
@@ -177,6 +197,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: color .2s ease;
   }
 
   .header-actions {

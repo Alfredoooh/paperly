@@ -474,9 +474,9 @@
   <div class="bg-layer"></div>
 
   <AppHeader
-    {mounted}
+    bind:mounted
     bind:topPanelEl
-    {scrolled}
+    scrolled={headerScrolled}
     onOpenDrawer={openDrawer}
     {avatarUrl}
     {avatarColor}
@@ -484,6 +484,7 @@
     {userName}
     title={currentTitle}
     solidGradient={activeTab === 'templates'}
+    transparent={activeTab === 'create'}
     showSearchBtn={activeTab === 'templates'}
     onOpenSearch={openSearch}
     showToggle={activeTab === 'templates'}

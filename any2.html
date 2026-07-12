@@ -2,246 +2,254 @@
 <html lang="pt-PT">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PNG → SVG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Editor SVG</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  html, body {
+    height: 100%;
+    overflow: hidden;
     background: #0d0f13;
     color: #e0e0e0;
-    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
-  header {
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* ---------- Topbar ---------- */
+  .topbar {
     background: #13161c;
     border-bottom: 1px solid #1f2330;
-    padding: 16px 20px;
+    padding: 10px 12px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    gap: 8px;
+    flex-shrink: 0;
+    z-index: 20;
   }
 
-  header h1 { font-size: 16px; font-weight: 700; color: #fff; }
-  header span { font-size: 12px; color: #6b7280; }
+  .topbar h1 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-right: auto;
+    white-space: nowrap;
+  }
 
-  .api-bar {
+  .icon-btn {
+    background: #1f2330;
+    border: none;
+    color: #9ca3af;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-size: 15px;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .icon-btn:active { background: #2a2f3d; }
+  .icon-btn:disabled { color: #374151; cursor: not-allowed; }
+  .icon-btn.on { background: #1e3a5f; color: #60a5fa; }
+
+  /* ---------- Tool dock (esquerda em desktop / topo horizontal scroll em mobile) ---------- */
+  .toolbar {
     background: #13161c;
     border-bottom: 1px solid #1f2330;
-    padding: 10px 24px;
+    padding: 8px 10px;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    gap: 6px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
+  .toolbar::-webkit-scrollbar { display: none; }
 
-  .api-bar label { margin: 0; white-space: nowrap; font-size: 12px; color: #9ca3af; }
-  .api-bar input { margin: 0; flex: 1; }
-
-  .main {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 24px;
-  }
-
-  .painel h2 {
-    font-size: 17px;
-    margin-bottom: 4px;
-  }
-
-  .painel p.desc {
-    font-size: 13px;
-    color: #6b7280;
-    margin-bottom: 20px;
-  }
-
-  .card {
-    background: #13161c;
+  .tool-btn {
+    background: #1a1e27;
     border: 1px solid #1f2330;
-    border-radius: 10px;
-    padding: 18px;
-    margin-bottom: 14px;
+    color: #9ca3af;
+    min-width: 44px;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
   }
 
-  label {
+  .tool-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .tool-btn.ativo { background: #1e3a5f; color: #60a5fa; border-color: #2563eb; }
+
+  /* ---------- Corpo: canvas + painel lateral ---------- */
+  .corpo {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    position: relative;
+  }
+
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(45deg, #16181f 25%, transparent 25%),
+      linear-gradient(-45deg, #16181f 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #16181f 75%),
+      linear-gradient(-45deg, transparent 75%, #16181f 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-color: #0d0f13;
+    touch-action: none;
+  }
+
+  #canvas-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
     display: block;
-    font-size: 12px;
+  }
+
+  .canvas-svg-fundo {
+    fill: #ffffff;
+  }
+
+  .elemento-selecionavel { cursor: pointer; }
+
+  .elemento-selecionado {
+    outline: none;
+  }
+
+  .zoom-hud {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(19,22,28,0.9);
+    border: 1px solid #1f2330;
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 5;
+  }
+
+  .zoom-hud button {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+
+  /* ---------- Painel lateral (bottom sheet no mobile) ---------- */
+  .painel-lateral {
+    background: #13161c;
+    border-left: 1px solid #1f2330;
+    width: 280px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease;
+  }
+
+  .painel-secao {
+    border-bottom: 1px solid #1f2330;
+    padding: 14px;
+  }
+
+  .painel-secao h3 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    margin-bottom: 10px;
+  }
+
+  .campo { margin-bottom: 10px; }
+  .campo:last-child { margin-bottom: 0; }
+
+  .campo label {
+    display: block;
+    font-size: 11px;
     color: #9ca3af;
     margin-bottom: 5px;
   }
 
+  .campo-linha {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input[type="color"] {
+    width: 32px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #2a2f3d;
+    border-radius: 6px;
+    background: #0d0f13;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: #60a5fa;
+    min-width: 0;
+  }
+
   input[type="text"],
-  input[type="url"],
   input[type="number"],
-  input[type="file"],
-  select,
-  textarea {
+  input[type="url"] {
     width: 100%;
     background: #0d0f13;
     border: 1px solid #2a2f3d;
     color: #e0e0e0;
-    padding: 9px 11px;
-    border-radius: 7px;
-    font-size: 13px;
-    margin-bottom: 12px;
-  }
-
-  input[type="file"] { padding: 7px; }
-
-  textarea {
-    height: 90px;
-    resize: vertical;
-    font-family: monospace;
-    font-size: 11px;
-  }
-
-  .row { display: flex; gap: 10px; }
-  .row > div { flex: 1; }
-
-  button.btn-primary {
-    background: #2563eb;
-    color: #fff;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  button.btn-primary:hover { background: #1d4ed8; }
-  button.btn-primary:disabled { background: #1f2330; cursor: not-allowed; color: #4b5563; }
-
-  .status {
-    margin-top: 10px;
+    padding: 7px 9px;
+    border-radius: 6px;
     font-size: 12px;
-    min-height: 16px;
   }
 
-  .status.ok { color: #34d399; }
-  .status.erro { color: #f87171; }
-  .status.loading { color: #facc15; }
-
-  .resultado {
-    margin-top: 14px;
-    display: none;
-  }
-
-  .resultado.visivel { display: block; }
-
-  .resultado img,
-  .resultado svg {
-    max-width: 100%;
-    max-height: 260px;
-    border-radius: 6px;
-    background: #fff;
-    padding: 6px;
-  }
-
-  .resultado pre {
-    background: #0d0f13;
-    border: 1px solid #2a2f3d;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 11px;
-    overflow-x: auto;
-    max-height: 200px;
-    color: #a3e635;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  .meta {
+  .valor-mono {
     font-size: 11px;
     color: #6b7280;
-    margin-top: 6px;
-    margin-bottom: 8px;
-  }
-
-  .acoes { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-
-  button.btn-sec {
-    background: #1f2330;
-    color: #9ca3af;
-    border: none;
-    padding: 7px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-
-  button.btn-sec:hover { background: #2a2f3d; color: #e0e0e0; }
-
-  .badge {
-    display: inline-block;
-    background: #1e3a5f;
-    color: #60a5fa;
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 10px;
-    font-weight: 700;
-    margin-left: 6px;
-    vertical-align: middle;
-  }
-
-  /* Editor de traço */
-  .traco-lista {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 10px;
-  }
-
-  .traco-item {
-    background: #0d0f13;
-    border: 1px solid #2a2f3d;
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-
-  .traco-item-topo {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-
-  .traco-item-nome {
-    font-size: 12px;
-    color: #9ca3af;
-    font-weight: 600;
-  }
-
-  .traco-swatch {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    border: 1px solid #2a2f3d;
+    width: 32px;
+    text-align: right;
     flex-shrink: 0;
-    margin-right: 6px;
-  }
-
-  .traco-nome-wrap {
-    display: flex;
-    align-items: center;
-    min-width: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   .switch {
     position: relative;
-    width: 36px;
-    height: 20px;
+    width: 34px;
+    height: 19px;
     flex-shrink: 0;
   }
-
   .switch input { display: none; }
-
   .switch .slider {
     position: absolute;
     inset: 0;
@@ -250,285 +258,1224 @@
     cursor: pointer;
     transition: background 0.15s;
   }
-
   .switch .slider::before {
     content: "";
     position: absolute;
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     left: 2px;
     top: 2px;
     background: #6b7280;
     border-radius: 50%;
     transition: transform 0.15s, background 0.15s;
   }
-
   .switch input:checked + .slider { background: #1e3a5f; }
-  .switch input:checked + .slider::before { transform: translateX(16px); background: #60a5fa; }
+  .switch input:checked + .slider::before { transform: translateX(15px); background: #60a5fa; }
 
-  .traco-controles {
-    display: none;
+  .lista-camadas {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .camada-item {
+    display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #9ca3af;
+    border: 1px solid transparent;
   }
 
-  .traco-controles.ativo { display: flex; }
-
-  .traco-controles input[type="range"] {
-    flex: 1;
-    accent-color: #60a5fa;
+  .camada-item:active { background: #1a1e27; }
+  .camada-item.selecionada {
+    background: #1a1e27;
+    border-color: #2563eb;
+    color: #e0e0e0;
   }
 
-  .traco-controles input[type="color"] {
-    width: 30px;
-    height: 26px;
-    padding: 0;
+  .camada-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
     border: 1px solid #2a2f3d;
-    border-radius: 5px;
-    background: #0d0f13;
-    margin: 0;
     flex-shrink: 0;
   }
 
-  .traco-valor {
-    font-size: 11px;
-    color: #6b7280;
-    width: 34px;
-    text-align: right;
+  .camada-item span.nome {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .camada-item button {
+    background: none;
+    border: none;
+    color: #4b5563;
+    font-size: 13px;
+    padding: 2px 5px;
+    cursor: pointer;
     flex-shrink: 0;
   }
 
-  #svg-preview-resultado svg {
+  .btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 9px 14px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
     width: 100%;
-    height: auto;
+  }
+
+  .btn-sec {
+    background: #1f2330;
+    color: #9ca3af;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .btn-row { display: flex; gap: 6px; }
+  .btn-row > * { flex: 1; }
+
+  .status-msg {
+    font-size: 11px;
+    margin-top: 8px;
+    min-height: 14px;
+  }
+  .status-msg.ok { color: #34d399; }
+  .status-msg.erro { color: #f87171; }
+  .status-msg.loading { color: #facc15; }
+
+  .vazio-msg {
+    font-size: 11px;
+    color: #4b5563;
+    text-align: center;
+    padding: 20px 10px;
+  }
+
+  textarea.codigo-svg {
+    width: 100%;
+    height: 140px;
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    color: #a3e635;
+    font-family: monospace;
+    font-size: 10px;
+    border-radius: 6px;
+    padding: 8px;
+    resize: vertical;
+    white-space: pre;
+    overflow: auto;
+  }
+
+  /* ---------- Modal de importação ---------- */
+  .modal-fundo {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal-fundo.visivel { display: flex; }
+
+  .modal {
+    background: #13161c;
+    border: 1px solid #1f2330;
+    border-radius: 14px 14px 0 0;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .modal h2 {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .modal p.desc {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 14px;
+  }
+
+  .modal-abas {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .modal-aba {
+    flex: 1;
+    background: #1a1e27;
+    border: 1px solid #1f2330;
+    color: #9ca3af;
+    padding: 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .modal-aba.ativa { background: #1e3a5f; color: #60a5fa; border-color: #2563eb; }
+
+  .modal-conteudo { display: none; }
+  .modal-conteudo.ativo { display: block; }
+
+  .modal-conteudo label {
     display: block;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-bottom: 5px;
+    margin-top: 10px;
+  }
+  .modal-conteudo label:first-child { margin-top: 0; }
+
+  .modal-conteudo input[type="file"] {
+    width: 100%;
+    background: #0d0f13;
+    border: 1px solid #2a2f3d;
+    color: #e0e0e0;
+    padding: 7px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  .row3 { display: flex; gap: 8px; }
+  .row3 > div { flex: 1; }
+
+  .modal-fechar {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #1f2330;
+    border: none;
+    color: #9ca3af;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  /* ---------- Responsivo mobile: painel vira bottom sheet ---------- */
+  @media (max-width: 720px) {
+    .painel-lateral {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 78%;
+      max-width: 320px;
+      transform: translateX(100%);
+      box-shadow: -8px 0 24px rgba(0,0,0,0.4);
+      z-index: 15;
+    }
+    .painel-lateral.aberto { transform: translateX(0); }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>🛠 PNG → SVG</h1>
-  <span>tools-2pjc.onrender.com</span>
-</header>
+<div id="app">
 
-<div class="api-bar">
-  <label for="apiBase">API Base:</label>
-  <input type="url" id="apiBase" value="https://tools-2pjc.onrender.com">
-</div>
+  <div class="topbar">
+    <button class="icon-btn" id="btn-novo" title="Novo">＋</button>
+    <button class="icon-btn" id="btn-importar" title="Importar / Converter">⇪</button>
+    <h1>Editor SVG</h1>
+    <button class="icon-btn" id="btn-undo" title="Desfazer" disabled>↶</button>
+    <button class="icon-btn" id="btn-redo" title="Refazer" disabled>↷</button>
+    <button class="icon-btn" id="btn-painel" title="Painel">☰</button>
+  </div>
 
-<div class="main">
+  <div class="toolbar">
+    <button class="tool-btn ativo" data-tool="selecionar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51z"/></svg>
+      Selecionar
+    </button>
+    <button class="tool-btn" data-tool="caneta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      Caneta
+    </button>
+    <button class="tool-btn" data-tool="retangulo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
+      Retângulo
+    </button>
+    <button class="tool-btn" data-tool="elipse">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg>
+      Elipse
+    </button>
+    <button class="tool-btn" data-tool="linha">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+      Linha
+    </button>
+    <button class="icon-btn" id="btn-copiar" title="Copiar SVG">⧉</button>
+    <button class="icon-btn" id="btn-exportar" title="Exportar SVG">⭳</button>
+  </div>
 
-  <!-- PNG → SVG -->
-  <div class="painel" id="painel-png-svg">
-    <h2>PNG → SVG <span class="badge">POST /convert</span></h2>
-    <p class="desc">Vetoriza um PNG usando potrace com fallback automático.</p>
-    <div class="card">
-      <label>Ficheiro PNG</label>
-      <input type="file" id="svg-file" accept="image/png">
-      <div class="row">
-        <div><label>Cores</label><input type="number" id="svg-cores" value="4" min="1" max="32"></div>
-        <div><label>Opttolerance</label><input type="number" id="svg-opt" value="0.5" step="0.1" min="0.1" max="2"></div>
-        <div><label>Turdsize</label><input type="number" id="svg-turd" value="5" min="0" max="100"></div>
+  <div class="corpo">
+    <div class="canvas-wrap" id="canvas-wrap">
+      <svg id="canvas-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="zoom-hud">
+        <button id="zoom-menos">－</button>
+        <span id="zoom-valor">100%</span>
+        <button id="zoom-mais">＋</button>
+        <button id="zoom-reset" title="Ajustar à tela">▣</button>
       </div>
-      <button class="btn-primary" onclick="runConvert()">Converter</button>
-      <div class="status" id="svg-status"></div>
     </div>
-    <div class="resultado" id="svg-resultado">
-      <div class="card">
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:120px;">
-            <div class="meta">Original (PNG)</div>
-            <img id="svg-preview-original" alt="">
+
+    <div class="painel-lateral" id="painel-lateral">
+
+      <div class="painel-secao" id="secao-propriedades">
+        <h3>Propriedades</h3>
+        <div id="propriedades-vazio" class="vazio-msg">Nenhum elemento selecionado.</div>
+        <div id="propriedades-conteudo" style="display:none;">
+          <div class="campo">
+            <label>Preenchimento</label>
+            <div class="campo-linha">
+              <input type="color" id="prop-fill-cor" value="#000000">
+              <label class="switch" style="margin-left:auto;">
+                <input type="checkbox" id="prop-fill-ativo" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
-          <div style="flex:1;min-width:120px;">
-            <div class="meta">Resultado (SVG)</div>
-            <div id="svg-preview-resultado"></div>
+
+          <div class="campo">
+            <label>Traço (contorno)</label>
+            <div class="campo-linha">
+              <input type="color" id="prop-stroke-cor" value="#000000">
+              <label class="switch" style="margin-left:auto;">
+                <input type="checkbox" id="prop-stroke-ativo">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>Espessura do traço</label>
+            <div class="campo-linha">
+              <input type="range" id="prop-stroke-largura" min="0" max="40" step="0.5" value="2">
+              <span class="valor-mono" id="prop-stroke-largura-valor">2</span>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>Ponta do traço</label>
+            <div class="campo-linha">
+              <select id="prop-stroke-linecap" style="width:100%;background:#0d0f13;border:1px solid #2a2f3d;color:#e0e0e0;padding:7px;border-radius:6px;font-size:12px;">
+                <option value="butt">Reta</option>
+                <option value="round">Arredondada</option>
+                <option value="square">Quadrada</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>Opacidade</label>
+            <div class="campo-linha">
+              <input type="range" id="prop-opacidade" min="0" max="100" step="1" value="100">
+              <span class="valor-mono" id="prop-opacidade-valor">100</span>
+            </div>
+          </div>
+
+          <div class="campo btn-row">
+            <button class="btn-sec" id="btn-duplicar">Duplicar</button>
+            <button class="btn-sec" id="btn-remover" style="color:#f87171;">Remover</button>
           </div>
         </div>
-        <div class="meta" id="svg-meta"></div>
-        <div class="acoes">
-          <button class="btn-sec" onclick="downloadSvg()">Descarregar SVG</button>
-          <button class="btn-sec" onclick="toggleCodigo('svg-codigo')">Ver código</button>
-        </div>
-        <textarea id="svg-codigo" style="display:none;" readonly></textarea>
       </div>
 
-      <!-- Editor de traço -->
-      <div class="card">
-        <div class="meta" style="margin-top:0;">Editar traço por elemento</div>
-        <div class="traco-lista" id="traco-lista"></div>
+      <div class="painel-secao" id="secao-espessura-global">
+        <h3>Espessura global (reconverter)</h3>
+        <div class="campo">
+          <div class="campo-linha">
+            <input type="range" id="espessura-global" min="-10" max="10" step="1" value="0">
+            <span class="valor-mono" id="espessura-global-valor">0</span>
+          </div>
+        </div>
+        <button class="btn-sec" id="btn-reconverter">Reconverter com esta espessura</button>
+        <div class="status-msg" id="reconverter-status"></div>
+      </div>
+
+      <div class="painel-secao" style="flex:1;">
+        <h3>Camadas</h3>
+        <div class="lista-camadas" id="lista-camadas">
+          <div class="vazio-msg">Nenhum elemento no canvas.</div>
+        </div>
+      </div>
+
+      <div class="painel-secao">
+        <h3>Código SVG</h3>
+        <textarea class="codigo-svg" id="codigo-svg" readonly></textarea>
       </div>
     </div>
   </div>
+</div>
 
+<!-- Modal de importação -->
+<div class="modal-fundo" id="modal-importar">
+  <div class="modal">
+    <button class="modal-fechar" id="modal-fechar">✕</button>
+    <h2>Novo / Importar</h2>
+    <p class="desc">Comece do zero, importe um .svg ou converta um PNG.</p>
+
+    <div class="modal-abas">
+      <button class="modal-aba ativa" data-aba="zero">Do zero</button>
+      <button class="modal-aba" data-aba="svg">Importar SVG</button>
+      <button class="modal-aba" data-aba="png">Converter PNG</button>
+    </div>
+
+    <div class="modal-conteudo ativo" data-conteudo="zero">
+      <label>Largura</label>
+      <div class="row3">
+        <div><input type="number" id="novo-largura" value="512" min="16" max="4000"></div>
+        <div><input type="number" id="novo-altura" value="512" min="16" max="4000"></div>
+      </div>
+      <button class="btn-primary" style="margin-top:14px;" id="btn-criar-novo">Criar canvas em branco</button>
+    </div>
+
+    <div class="modal-conteudo" data-conteudo="svg">
+      <label>Ficheiro .svg</label>
+      <input type="file" id="input-svg-file" accept=".svg,image/svg+xml">
+      <button class="btn-primary" style="margin-top:14px;" id="btn-importar-svg">Importar</button>
+    </div>
+
+    <div class="modal-conteudo" data-conteudo="png">
+      <label>API Base</label>
+      <input type="url" id="api-base" value="https://tools-2pjc.onrender.com">
+      <label>Ficheiro PNG</label>
+      <input type="file" id="input-png-file" accept="image/png">
+      <div class="row3" style="margin-top:10px;">
+        <div><label>Cores</label><input type="number" id="conv-cores" value="4" min="1" max="32"></div>
+        <div><label>Opttolerance</label><input type="number" id="conv-opt" value="0.5" step="0.1" min="0.1" max="2"></div>
+        <div><label>Turdsize</label><input type="number" id="conv-turd" value="5" min="0" max="100"></div>
+      </div>
+      <label>Espessura inicial</label>
+      <div class="campo-linha">
+        <input type="range" id="conv-espessura" min="-10" max="10" step="1" value="0">
+        <span class="valor-mono" id="conv-espessura-valor">0</span>
+      </div>
+      <button class="btn-primary" style="margin-top:14px;" id="btn-converter-png">Converter e importar</button>
+      <div class="status-msg" id="conv-status"></div>
+    </div>
+  </div>
 </div>
 
 <script>
-  function apiBase() {
-    return document.getElementById("apiBase").value.replace(/\/$/, "");
+(function () {
+  "use strict";
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svgCanvas = document.getElementById("canvas-svg");
+  const canvasWrap = document.getElementById("canvas-wrap");
+
+  // ---------- Estado ----------
+  let estado = {
+    largura: 512,
+    altura: 512,
+    elementos: [], // { id, tipo, node, fillAtivo, fillCor, strokeAtivo, strokeCor, strokeLargura, strokeLinecap, opacidade }
+  };
+
+  let selecionadoId = null;
+  let contadorId = 0;
+  let ferramentaAtiva = "selecionar";
+
+  let historico = [];
+  let historicoIndex = -1;
+  const HISTORICO_MAX = 60;
+
+  // Zoom/pan
+  let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+
+  // ---------- Utilitários ----------
+  function novoId() {
+    contadorId += 1;
+    return "el-" + contadorId;
   }
 
-  function setStatus(id, msg, tipo) {
-    const el = document.getElementById(id + "-status");
+  function corParaHex(cor) {
+    if (!cor || cor === "none") return "#000000";
+    if (cor.startsWith("#")) {
+      if (cor.length === 4) {
+        return "#" + [1,2,3].map(i => cor[i] + cor[i]).join("");
+      }
+      return cor.substring(0, 7);
+    }
+    return "#000000";
+  }
+
+  // ---------- Construção do canvas SVG base ----------
+  function configurarCanvasBase() {
+    svgCanvas.setAttribute("width", estado.largura);
+    svgCanvas.setAttribute("height", estado.altura);
+    svgCanvas.setAttribute("viewBox", `0 0 ${estado.largura} ${estado.altura}`);
+    svgCanvas.innerHTML = "";
+
+    const fundo = document.createElementNS(SVG_NS, "rect");
+    fundo.setAttribute("x", "0");
+    fundo.setAttribute("y", "0");
+    fundo.setAttribute("width", estado.largura);
+    fundo.setAttribute("height", estado.altura);
+    fundo.setAttribute("class", "canvas-svg-fundo");
+    fundo.setAttribute("data-fundo", "1");
+    svgCanvas.appendChild(fundo);
+  }
+
+  function aplicarTransformCanvas() {
+    svgCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    svgCanvas.style.transformOrigin = "0 0";
+    document.getElementById("zoom-valor").textContent = Math.round(zoom * 100) + "%";
+  }
+
+  function ajustarAoEcra() {
+    const rect = canvasWrap.getBoundingClientRect();
+    const margem = 40;
+    const escala = Math.min(
+      (rect.width - margem) / estado.largura,
+      (rect.height - margem) / estado.altura,
+      2.5
+    );
+    zoom = Math.max(0.05, escala);
+    panX = (rect.width - estado.largura * zoom) / 2;
+    panY = (rect.height - estado.altura * zoom) / 2;
+    aplicarTransformCanvas();
+  }
+
+  // ---------- Renderização de elementos a partir do estado ----------
+  function estilizarNode(el) {
+    const node = el.node;
+    node.setAttribute("fill", el.fillAtivo ? el.fillCor : "none");
+    if (el.strokeAtivo) {
+      node.setAttribute("stroke", el.strokeCor);
+      node.setAttribute("stroke-width", el.strokeLargura);
+      node.setAttribute("stroke-linecap", el.strokeLinecap);
+      node.setAttribute("stroke-linejoin", el.strokeLinecap === "round" ? "round" : "miter");
+    } else {
+      node.removeAttribute("stroke");
+      node.removeAttribute("stroke-width");
+      node.removeAttribute("stroke-linecap");
+      node.removeAttribute("stroke-linejoin");
+    }
+    node.style.opacity = el.opacidade / 100;
+    node.setAttribute("data-id", el.id);
+    node.classList.add("elemento-selecionavel");
+  }
+
+  function redesenharTudo() {
+    // Remove tudo exceto o fundo, e recoloca na ordem do estado
+    const fundo = svgCanvas.querySelector('[data-fundo="1"]');
+    svgCanvas.innerHTML = "";
+    svgCanvas.appendChild(fundo);
+    estado.elementos.forEach((el) => {
+      estilizarNode(el);
+      svgCanvas.appendChild(el.node);
+    });
+    atualizarSelecaoVisual();
+    atualizarListaCamadas();
+    atualizarCodigo();
+  }
+
+  function atualizarSelecaoVisual() {
+    estado.elementos.forEach((el) => {
+      if (el.id === selecionadoId) {
+        el.node.style.outline = `2px dashed #60a5fa`;
+        el.node.style.outlineOffset = "2px";
+      } else {
+        el.node.style.outline = "none";
+      }
+    });
+  }
+
+  // ---------- Histórico (undo/redo) ----------
+  function serializarEstado() {
+    return {
+      largura: estado.largura,
+      altura: estado.altura,
+      elementos: estado.elementos.map((el) => ({
+        id: el.id,
+        tipo: el.tipo,
+        d: el.node.getAttribute("d") || null,
+        atributos: Array.from(el.node.attributes).reduce((acc, a) => {
+          if (!["stroke","stroke-width","stroke-linecap","stroke-linejoin","fill","class","data-id","style"].includes(a.name)) {
+            acc[a.name] = a.value;
+          }
+          return acc;
+        }, {}),
+        fillAtivo: el.fillAtivo,
+        fillCor: el.fillCor,
+        strokeAtivo: el.strokeAtivo,
+        strokeCor: el.strokeCor,
+        strokeLargura: el.strokeLargura,
+        strokeLinecap: el.strokeLinecap,
+        opacidade: el.opacidade
+      }))
+    };
+  }
+
+  function restaurarEstado(snapshot) {
+    estado.largura = snapshot.largura;
+    estado.altura = snapshot.altura;
+    configurarCanvasBase();
+
+    estado.elementos = snapshot.elementos.map((s) => {
+      const node = document.createElementNS(SVG_NS, s.tipo);
+      Object.entries(s.atributos).forEach(([k, v]) => node.setAttribute(k, v));
+      return {
+        id: s.id,
+        tipo: s.tipo,
+        node,
+        fillAtivo: s.fillAtivo,
+        fillCor: s.fillCor,
+        strokeAtivo: s.strokeAtivo,
+        strokeCor: s.strokeCor,
+        strokeLargura: s.strokeLargura,
+        strokeLinecap: s.strokeLinecap,
+        opacidade: s.opacidade
+      };
+    });
+
+    redesenharTudo();
+    selecionarElemento(null);
+    ajustarBotoesHistorico();
+  }
+
+  function salvarHistorico() {
+    // corta redo futuro
+    historico = historico.slice(0, historicoIndex + 1);
+    historico.push(serializarEstado());
+    if (historico.length > HISTORICO_MAX) historico.shift();
+    historicoIndex = historico.length - 1;
+    ajustarBotoesHistorico();
+  }
+
+  function desfazer() {
+    if (historicoIndex <= 0) return;
+    historicoIndex -= 1;
+    restaurarEstado(historico[historicoIndex]);
+  }
+
+  function refazer() {
+    if (historicoIndex >= historico.length - 1) return;
+    historicoIndex += 1;
+    restaurarEstado(historico[historicoIndex]);
+  }
+
+  function ajustarBotoesHistorico() {
+    document.getElementById("btn-undo").disabled = historicoIndex <= 0;
+    document.getElementById("btn-redo").disabled = historicoIndex >= historico.length - 1;
+  }
+
+  // ---------- Seleção e lista de camadas ----------
+  function selecionarElemento(id) {
+    selecionadoId = id;
+    atualizarSelecaoVisual();
+    atualizarPainelPropriedades();
+    atualizarListaCamadas();
+  }
+
+  function obterSelecionado() {
+    return estado.elementos.find((el) => el.id === selecionadoId) || null;
+  }
+
+  function atualizarPainelPropriedades() {
+    const vazio = document.getElementById("propriedades-vazio");
+    const conteudo = document.getElementById("propriedades-conteudo");
+    const el = obterSelecionado();
+
+    if (!el) {
+      vazio.style.display = "block";
+      conteudo.style.display = "none";
+      return;
+    }
+
+    vazio.style.display = "none";
+    conteudo.style.display = "block";
+
+    document.getElementById("prop-fill-ativo").checked = el.fillAtivo;
+    document.getElementById("prop-fill-cor").value = el.fillCor;
+    document.getElementById("prop-stroke-ativo").checked = el.strokeAtivo;
+    document.getElementById("prop-stroke-cor").value = el.strokeCor;
+    document.getElementById("prop-stroke-largura").value = el.strokeLargura;
+    document.getElementById("prop-stroke-largura-valor").textContent = el.strokeLargura;
+    document.getElementById("prop-stroke-linecap").value = el.strokeLinecap;
+    document.getElementById("prop-opacidade").value = el.opacidade;
+    document.getElementById("prop-opacidade-valor").textContent = el.opacidade;
+  }
+
+  function atualizarListaCamadas() {
+    const lista = document.getElementById("lista-camadas");
+    lista.innerHTML = "";
+
+    if (estado.elementos.length === 0) {
+      lista.innerHTML = '<div class="vazio-msg">Nenhum elemento no canvas.</div>';
+      return;
+    }
+
+    // mostra do topo (último) para o fundo (primeiro), como camadas normalmente
+    for (let i = estado.elementos.length - 1; i >= 0; i--) {
+      const el = estado.elementos[i];
+      const item = document.createElement("div");
+      item.className = "camada-item" + (el.id === selecionadoId ? " selecionada" : "");
+      item.innerHTML = `
+        <span class="camada-swatch" style="background:${el.fillAtivo ? el.fillCor : 'transparent'};"></span>
+        <span class="nome">${el.tipo} #${i + 1}</span>
+        <button data-acao="remover" title="Remover">✕</button>
+      `;
+      item.addEventListener("click", (e) => {
+        if (e.target.closest('[data-acao="remover"]')) {
+          removerElemento(el.id);
+          return;
+        }
+        selecionarElemento(el.id);
+      });
+      lista.appendChild(item);
+    }
+  }
+
+  function removerElemento(id) {
+    estado.elementos = estado.elementos.filter((el) => el.id !== id);
+    if (selecionadoId === id) selecionadoId = null;
+    redesenharTudo();
+    atualizarPainelPropriedades();
+    salvarHistorico();
+  }
+
+  function duplicarElemento(id) {
+    const el = estado.elementos.find((e) => e.id === id);
     if (!el) return;
-    el.textContent = msg;
-    el.className = "status " + (tipo || "");
+    const novoNode = el.node.cloneNode(true);
+    const novo = { ...el, id: novoId(), node: novoNode };
+    // pequeno deslocamento visual pra perceber a duplicata
+    if (novoNode.hasAttribute("x")) novoNode.setAttribute("x", parseFloat(novoNode.getAttribute("x")) + 10);
+    if (novoNode.hasAttribute("y")) novoNode.setAttribute("y", parseFloat(novoNode.getAttribute("y")) + 10);
+    if (novoNode.hasAttribute("cx")) novoNode.setAttribute("cx", parseFloat(novoNode.getAttribute("cx")) + 10);
+    if (novoNode.hasAttribute("cy")) novoNode.setAttribute("cy", parseFloat(novoNode.getAttribute("cy")) + 10);
+    estado.elementos.push(novo);
+    redesenharTudo();
+    selecionarElemento(novo.id);
+    salvarHistorico();
   }
 
-  function mostrarResultado(id) {
-    const el = document.getElementById(id + "-resultado");
-    if (el) el.classList.add("visivel");
+  // ---------- Código SVG exportável ----------
+  function gerarSvgFinal() {
+    const clone = svgCanvas.cloneNode(true);
+    // remove o retângulo de fundo (é só guia visual do editor, não faz parte do ícone)
+    const fundo = clone.querySelector('[data-fundo="1"]');
+    if (fundo) fundo.remove();
+    // limpa atributos internos do editor
+    clone.querySelectorAll("[data-id]").forEach((n) => {
+      n.removeAttribute("data-id");
+      n.classList.remove("elemento-selecionavel");
+      n.style.outline = "";
+      n.style.outlineOffset = "";
+      if (!n.getAttribute("class")) n.removeAttribute("class");
+    });
+    clone.removeAttribute("style");
+    clone.setAttribute("xmlns", SVG_NS);
+    return clone.outerHTML;
   }
 
-  function toggleCodigo(id) {
-    const el = document.getElementById(id);
+  function atualizarCodigo() {
+    document.getElementById("codigo-svg").value = gerarSvgFinal();
+  }
+
+  // ---------- Criação de elementos ----------
+  function criarElementoBase(tipo, atributos) {
+    const node = document.createElementNS(SVG_NS, tipo);
+    Object.entries(atributos).forEach(([k, v]) => node.setAttribute(k, v));
+    const el = {
+      id: novoId(),
+      tipo,
+      node,
+      fillAtivo: tipo !== "line",
+      fillCor: "#2563eb",
+      strokeAtivo: tipo === "line",
+      strokeCor: "#000000",
+      strokeLargura: 3,
+      strokeLinecap: "round",
+      opacidade: 100
+    };
+    estado.elementos.push(el);
+    return el;
+  }
+
+  // ---------- Interação no canvas: desenhar formas ----------
+  let desenhando = false;
+  let inicioX = 0, inicioY = 0;
+  let elementoTemporario = null;
+
+  function pontoCanvasDoEvento(e) {
+    const rect = canvasWrap.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = (clientX - rect.left - panX) / zoom;
+    const y = (clientY - rect.top - panY) / zoom;
+    return { x, y };
+  }
+
+  function iniciarDesenho(e) {
+    if (ferramentaAtiva === "selecionar") return;
+    const p = pontoCanvasDoEvento(e);
+    inicioX = p.x;
+    inicioY = p.y;
+    desenhando = true;
+
+    if (ferramentaAtiva === "retangulo") {
+      elementoTemporario = criarElementoBase("rect", { x: p.x, y: p.y, width: 0, height: 0 });
+    } else if (ferramentaAtiva === "elipse") {
+      elementoTemporario = criarElementoBase("ellipse", { cx: p.x, cy: p.y, rx: 0, ry: 0 });
+    } else if (ferramentaAtiva === "linha") {
+      elementoTemporario = criarElementoBase("line", { x1: p.x, y1: p.y, x2: p.x, y2: p.y });
+    } else if (ferramentaAtiva === "caneta") {
+      elementoTemporario = criarElementoBase("path", { d: `M ${p.x} ${p.y}` });
+      elementoTemporario._pontos = [[p.x, p.y]];
+    }
+
+    redesenharTudo();
+  }
+
+  function moverDesenho(e) {
+    if (!desenhando || !elementoTemporario) return;
+    const p = pontoCanvasDoEvento(e);
+    const node = elementoTemporario.node;
+
+    if (ferramentaAtiva === "retangulo") {
+      const x = Math.min(inicioX, p.x);
+      const y = Math.min(inicioY, p.y);
+      node.setAttribute("x", x);
+      node.setAttribute("y", y);
+      node.setAttribute("width", Math.abs(p.x - inicioX));
+      node.setAttribute("height", Math.abs(p.y - inicioY));
+    } else if (ferramentaAtiva === "elipse") {
+      node.setAttribute("cx", (inicioX + p.x) / 2);
+      node.setAttribute("cy", (inicioY + p.y) / 2);
+      node.setAttribute("rx", Math.abs(p.x - inicioX) / 2);
+      node.setAttribute("ry", Math.abs(p.y - inicioY) / 2);
+    } else if (ferramentaAtiva === "linha") {
+      node.setAttribute("x2", p.x);
+      node.setAttribute("y2", p.y);
+    } else if (ferramentaAtiva === "caneta") {
+      elementoTemporario._pontos.push([p.x, p.y]);
+      const d = elementoTemporario._pontos.map((pt, i) => (i === 0 ? `M ${pt[0]} ${pt[1]}` : `L ${pt[0]} ${pt[1]}`)).join(" ");
+      node.setAttribute("d", d);
+    }
+    estilizarNode(elementoTemporario);
+  }
+
+  function terminarDesenho() {
+    if (!desenhando) return;
+    desenhando = false;
+    if (elementoTemporario) {
+      selecionarElemento(elementoTemporario.id);
+      elementoTemporario = null;
+      salvarHistorico();
+    }
+    redesenharTudo();
+    // volta pra ferramenta de seleção após desenhar, comportamento comum em editores de ícone
+    if (ferramentaAtiva !== "caneta") {
+      definirFerramenta("selecionar");
+    }
+  }
+
+  // ---------- Pan / Zoom no canvas ----------
+  let arrastandoCanvas = false;
+  let panInicioX = 0, panInicioY = 0, panOrigX = 0, panOrigY = 0;
+  let pinchDistInicial = 0, zoomInicial = 1;
+
+  canvasWrap.addEventListener("pointerdown", (e) => {
+    if (ferramentaAtiva === "selecionar") {
+      const alvo = e.target.closest("[data-id]");
+      if (alvo) {
+        selecionarElemento(alvo.getAttribute("data-id"));
+        return;
+      }
+      // clicou no vazio: inicia pan
+      arrastandoCanvas = true;
+      panInicioX = e.clientX;
+      panInicioY = e.clientY;
+      panOrigX = panX;
+      panOrigY = panY;
+      selecionarElemento(null);
+    } else {
+      iniciarDesenho(e);
+    }
+  });
+
+  canvasWrap.addEventListener("pointermove", (e) => {
+    if (arrastandoCanvas) {
+      panX = panOrigX + (e.clientX - panInicioX);
+      panY = panOrigY + (e.clientY - panInicioY);
+      aplicarTransformCanvas();
+      return;
+    }
+    moverDesenho(e);
+  });
+
+  window.addEventListener("pointerup", () => {
+    arrastandoCanvas = false;
+    terminarDesenho();
+  });
+
+  canvasWrap.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const fator = e.deltaY > 0 ? 0.9 : 1.1;
+    const novoZoom = Math.max(0.05, Math.min(8, zoom * fator));
+    zoom = novoZoom;
+    aplicarTransformCanvas();
+  }, { passive: false });
+
+  // pinch-to-zoom mobile
+  canvasWrap.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchDistInicial = Math.hypot(dx, dy);
+      zoomInicial = zoom;
+    }
+  }, { passive: true });
+
+  canvasWrap.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      zoom = Math.max(0.05, Math.min(8, zoomInicial * (dist / pinchDistInicial)));
+      aplicarTransformCanvas();
+    }
+  }, { passive: false });
+
+  document.getElementById("zoom-mais").addEventListener("click", () => {
+    zoom = Math.min(8, zoom * 1.2);
+    aplicarTransformCanvas();
+  });
+  document.getElementById("zoom-menos").addEventListener("click", () => {
+    zoom = Math.max(0.05, zoom / 1.2);
+    aplicarTransformCanvas();
+  });
+  document.getElementById("zoom-reset").addEventListener("click", ajustarAoEcra);
+
+  // ---------- Ferramentas ----------
+  function definirFerramenta(nome) {
+    ferramentaAtiva = nome;
+    document.querySelectorAll(".tool-btn").forEach((b) => {
+      b.classList.toggle("ativo", b.dataset.tool === nome);
+    });
+  }
+
+  document.querySelectorAll(".tool-btn").forEach((btn) => {
+    btn.addEventListener("click", () => definirFerramenta(btn.dataset.tool));
+  });
+
+  // ---------- Painel de propriedades: eventos ----------
+  function aplicarPropriedadesNoSelecionado() {
+    const el = obterSelecionado();
     if (!el) return;
-    el.style.display = el.style.display === "none" ? "block" : "none";
+
+    el.fillAtivo = document.getElementById("prop-fill-ativo").checked;
+    el.fillCor = document.getElementById("prop-fill-cor").value;
+    el.strokeAtivo = document.getElementById("prop-stroke-ativo").checked;
+    el.strokeCor = document.getElementById("prop-stroke-cor").value;
+    el.strokeLargura = parseFloat(document.getElementById("prop-stroke-largura").value);
+    el.strokeLinecap = document.getElementById("prop-stroke-linecap").value;
+    el.opacidade = parseInt(document.getElementById("prop-opacidade").value, 10);
+
+    estilizarNode(el);
+    atualizarListaCamadas();
+    atualizarCodigo();
   }
 
-  function formatBytes(b) {
-    if (b < 1024) return b + " B";
-    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
-    return (b / 1024 / 1024).toFixed(2) + " MB";
+  ["prop-fill-ativo", "prop-fill-cor", "prop-stroke-ativo", "prop-stroke-cor", "prop-stroke-linecap"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", () => {
+      aplicarPropriedadesNoSelecionado();
+    });
+    document.getElementById(id).addEventListener("change", salvarHistorico);
+  });
+
+  document.getElementById("prop-stroke-largura").addEventListener("input", (e) => {
+    document.getElementById("prop-stroke-largura-valor").textContent = e.target.value;
+    aplicarPropriedadesNoSelecionado();
+  });
+  document.getElementById("prop-stroke-largura").addEventListener("change", salvarHistorico);
+
+  document.getElementById("prop-opacidade").addEventListener("input", (e) => {
+    document.getElementById("prop-opacidade-valor").textContent = e.target.value;
+    aplicarPropriedadesNoSelecionado();
+  });
+  document.getElementById("prop-opacidade").addEventListener("change", salvarHistorico);
+
+  document.getElementById("btn-duplicar").addEventListener("click", () => {
+    if (selecionadoId) duplicarElemento(selecionadoId);
+  });
+  document.getElementById("btn-remover").addEventListener("click", () => {
+    if (selecionadoId) removerElemento(selecionadoId);
+  });
+
+  // ---------- Undo/redo ----------
+  document.getElementById("btn-undo").addEventListener("click", desfazer);
+  document.getElementById("btn-redo").addEventListener("click", refazer);
+
+  // ---------- Painel lateral toggle (mobile) ----------
+  document.getElementById("btn-painel").addEventListener("click", () => {
+    document.getElementById("painel-lateral").classList.toggle("aberto");
+  });
+
+  // ---------- Copiar / Exportar ----------
+  document.getElementById("btn-copiar").addEventListener("click", async () => {
+    const codigo = gerarSvgFinal();
+    try {
+      await navigator.clipboard.writeText(codigo);
+      flashIcone("btn-copiar", "✓");
+    } catch (err) {
+      // fallback: seleciona o texto na textarea
+      const ta = document.getElementById("codigo-svg");
+      ta.select();
+      document.execCommand("copy");
+      flashIcone("btn-copiar", "✓");
+    }
+  });
+
+  function flashIcone(id, texto) {
+    const btn = document.getElementById(id);
+    const original = btn.textContent;
+    btn.textContent = texto;
+    setTimeout(() => { btn.textContent = original; }, 1000);
   }
 
-  function triggerDownload(blob, nome) {
+  document.getElementById("btn-exportar").addEventListener("click", () => {
+    const codigo = gerarSvgFinal();
+    const blob = new Blob([codigo], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = nome;
+    a.download = "icone.svg";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  });
+
+  // ---------- Modal: novo / importar / converter ----------
+  const modal = document.getElementById("modal-importar");
+  document.getElementById("btn-importar").addEventListener("click", () => modal.classList.add("visivel"));
+  document.getElementById("btn-novo").addEventListener("click", () => modal.classList.add("visivel"));
+  document.getElementById("modal-fechar").addEventListener("click", () => modal.classList.remove("visivel"));
+
+  document.querySelectorAll(".modal-aba").forEach((aba) => {
+    aba.addEventListener("click", () => {
+      document.querySelectorAll(".modal-aba").forEach((a) => a.classList.remove("ativa"));
+      document.querySelectorAll(".modal-conteudo").forEach((c) => c.classList.remove("ativo"));
+      aba.classList.add("ativa");
+      document.querySelector(`[data-conteudo="${aba.dataset.aba}"]`).classList.add("ativo");
+    });
+  });
+
+  function iniciarCanvasVazio(largura, altura) {
+    estado.largura = largura;
+    estado.altura = altura;
+    estado.elementos = [];
+    selecionadoId = null;
+    configurarCanvasBase();
+    redesenharTudo();
+    setTimeout(ajustarAoEcra, 30);
+    historico = [];
+    historicoIndex = -1;
+    salvarHistorico();
+    modal.classList.remove("visivel");
   }
 
-  // PNG → SVG
-  let svgAtual = null;
-  let svgEl = null; // referência ao <svg> vivo dentro do preview
+  document.getElementById("btn-criar-novo").addEventListener("click", () => {
+    const l = parseInt(document.getElementById("novo-largura").value, 10) || 512;
+    const a = parseInt(document.getElementById("novo-altura").value, 10) || 512;
+    iniciarCanvasVazio(l, a);
+  });
 
-  async function runConvert() {
-    const file = document.getElementById("svg-file").files[0];
-    if (!file) return setStatus("svg", "Escolhe um ficheiro PNG.", "erro");
+  // ---------- Importar SVG existente ----------
+  function extrairViewBoxDimensoes(svgEl) {
+    const vb = svgEl.getAttribute("viewBox");
+    if (vb) {
+      const partes = vb.trim().split(/\s+/).map(Number);
+      if (partes.length === 4) return { largura: partes[2], altura: partes[3] };
+    }
+    const w = parseFloat(svgEl.getAttribute("width")) || 512;
+    const h = parseFloat(svgEl.getAttribute("height")) || 512;
+    return { largura: w, altura: h };
+  }
 
+  function corDoAtributo(node, attrName, fallback) {
+    let atual = node.getAttribute(attrName);
+    let n = node;
+    while ((!atual || atual === "inherit") && n.parentElement && n.parentElement.tagName !== "svg" && n.parentElement.tagName !== "html") {
+      n = n.parentElement;
+      atual = n.getAttribute ? n.getAttribute(attrName) : null;
+    }
+    return atual || fallback;
+  }
+
+  function importarSvgTexto(texto) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(texto, "image/svg+xml");
+    const svgOriginal = doc.querySelector("svg");
+    if (!svgOriginal || doc.querySelector("parsererror")) {
+      throw new Error("Ficheiro SVG inválido.");
+    }
+
+    const { largura, altura } = extrairViewBoxDimensoes(svgOriginal);
+    estado.largura = Math.round(largura);
+    estado.altura = Math.round(altura);
+    estado.elementos = [];
+    selecionadoId = null;
+    configurarCanvasBase();
+
+    const seletores = "path, rect, circle, ellipse, line, polygon, polyline";
+    const nodes = svgOriginal.querySelectorAll(seletores);
+
+    nodes.forEach((original) => {
+      const tipo = original.tagName.toLowerCase();
+      const node = document.createElementNS(SVG_NS, tipo);
+      Array.from(original.attributes).forEach((attr) => {
+        if (!["fill", "stroke", "stroke-width", "style", "class"].includes(attr.name)) {
+          node.setAttribute(attr.name, attr.value);
+        }
+      });
+
+      const fillRaw = corDoAtributo(original, "fill", "#000000");
+      const strokeRaw = original.getAttribute("stroke");
+
+      const el = {
+        id: novoId(),
+        tipo,
+        node,
+        fillAtivo: fillRaw !== "none",
+        fillCor: corParaHex(fillRaw),
+        strokeAtivo: !!(strokeRaw && strokeRaw !== "none"),
+        strokeCor: corParaHex(strokeRaw || "#000000"),
+        strokeLargura: parseFloat(original.getAttribute("stroke-width")) || 2,
+        strokeLinecap: original.getAttribute("stroke-linecap") || "round",
+        opacidade: 100
+      };
+      estado.elementos.push(el);
+    });
+
+    redesenharTudo();
+    setTimeout(ajustarAoEcra, 30);
+    historico = [];
+    historicoIndex = -1;
+    salvarHistorico();
+  }
+
+  document.getElementById("btn-importar-svg").addEventListener("click", async () => {
+    const file = document.getElementById("input-svg-file").files[0];
+    if (!file) return;
+    const texto = await file.text();
+    try {
+      importarSvgTexto(texto);
+      modal.classList.remove("visivel");
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // ---------- Converter PNG (usa o servidor /convert) ----------
+  function setConvStatus(msg, tipo) {
+    const el = document.getElementById("conv-status");
+    el.textContent = msg;
+    el.className = "status-msg " + (tipo || "");
+  }
+
+  document.getElementById("conv-espessura").addEventListener("input", (e) => {
+    document.getElementById("conv-espessura-valor").textContent = e.target.value;
+  });
+
+  document.getElementById("btn-converter-png").addEventListener("click", async () => {
+    const file = document.getElementById("input-png-file").files[0];
+    if (!file) return setConvStatus("Escolhe um ficheiro PNG.", "erro");
+
+    const apiBase = document.getElementById("api-base").value.replace(/\/$/, "");
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("cores", document.getElementById("svg-cores").value);
-    fd.append("opttolerance", document.getElementById("svg-opt").value);
-    fd.append("turdsize", document.getElementById("svg-turd").value);
+    fd.append("cores", document.getElementById("conv-cores").value);
+    fd.append("opttolerance", document.getElementById("conv-opt").value);
+    fd.append("turdsize", document.getElementById("conv-turd").value);
+    fd.append("espessura", document.getElementById("conv-espessura").value);
 
-    setStatus("svg", "A converter...", "loading");
+    setConvStatus("A converter...", "loading");
 
     try {
-      const r = await fetch(apiBase() + "/convert", { method: "POST", body: fd });
+      const r = await fetch(apiBase + "/convert", { method: "POST", body: fd });
       const d = await r.json();
       if (!d.sucesso) throw new Error(d.erro);
-
-      svgAtual = d.svg;
-      document.getElementById("svg-preview-original").src = URL.createObjectURL(file);
-      document.getElementById("svg-preview-resultado").innerHTML = svgAtual;
-      document.getElementById("svg-codigo").value = svgAtual;
-      document.getElementById("svg-meta").textContent = "Tamanho: " + formatBytes(d.tamanho_bytes);
-
-      svgEl = document.querySelector("#svg-preview-resultado svg");
-      montarEditorTraco();
-
-      mostrarResultado("svg");
-      setStatus("svg", "Concluído.", "ok");
+      importarSvgTexto(d.svg);
+      setConvStatus("Concluído.", "ok");
+      setTimeout(() => { modal.classList.remove("visivel"); }, 400);
     } catch (err) {
-      setStatus("svg", "Erro: " + err.message, "erro");
+      setConvStatus("Erro: " + err.message, "erro");
     }
-  }
+  });
 
-  // Monta a lista de controlos de traço, um por <path>/<polygon>/<circle>/<rect>/<ellipse>/<line>/<polyline> encontrado no SVG
-  function montarEditorTraco() {
-    const lista = document.getElementById("traco-lista");
-    lista.innerHTML = "";
-    if (!svgEl) return;
+  // ---------- Reconverter com espessura global (só funciona se o SVG atual veio de conversão) ----------
+  document.getElementById("espessura-global").addEventListener("input", (e) => {
+    document.getElementById("espessura-global-valor").textContent = e.target.value;
+  });
 
-    const seletores = "path, polygon, polyline, circle, rect, ellipse, line";
-    const elementos = svgEl.querySelectorAll(seletores);
+  let ultimoArquivoPng = null;
+  document.getElementById("input-png-file").addEventListener("change", (e) => {
+    ultimoArquivoPng = e.target.files[0] || null;
+  });
 
-    if (elementos.length === 0) {
-      lista.innerHTML = '<div class="meta" style="margin:0;">Nenhum elemento vetorial encontrado.</div>';
+  document.getElementById("btn-reconverter").addEventListener("click", async () => {
+    const statusEl = document.getElementById("reconverter-status");
+    if (!ultimoArquivoPng) {
+      statusEl.textContent = "Converte um PNG primeiro (aba \"Converter PNG\").";
+      statusEl.className = "status-msg erro";
       return;
     }
+    const apiBase = document.getElementById("api-base").value.replace(/\/$/, "");
+    const fd = new FormData();
+    fd.append("file", ultimoArquivoPng);
+    fd.append("cores", document.getElementById("conv-cores").value);
+    fd.append("opttolerance", document.getElementById("conv-opt").value);
+    fd.append("turdsize", document.getElementById("conv-turd").value);
+    fd.append("espessura", document.getElementById("espessura-global").value);
 
-    elementos.forEach((el, i) => {
-      el.dataset.tracoId = "el-" + i;
+    statusEl.textContent = "A reconverter...";
+    statusEl.className = "status-msg loading";
 
-      const corAtual = el.getAttribute("fill") && el.getAttribute("fill") !== "none"
-        ? el.getAttribute("fill")
-        : "#000000";
+    try {
+      const r = await fetch(apiBase + "/convert", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!d.sucesso) throw new Error(d.erro);
+      importarSvgTexto(d.svg);
+      statusEl.textContent = "Concluído.";
+      statusEl.className = "status-msg ok";
+    } catch (err) {
+      statusEl.textContent = "Erro: " + err.message;
+      statusEl.className = "status-msg erro";
+    }
+  });
 
-      const item = document.createElement("div");
-      item.className = "traco-item";
-      item.innerHTML = `
-        <div class="traco-item-topo">
-          <div class="traco-nome-wrap">
-            <span class="traco-swatch" style="background:${corAtual}"></span>
-            <span class="traco-item-nome">${el.tagName} #${i + 1}</span>
-          </div>
-          <label class="switch">
-            <input type="checkbox" data-role="ativo">
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="traco-controles">
-          <input type="color" data-role="cor" value="#000000">
-          <input type="range" data-role="largura" min="0" max="20" step="0.5" value="1">
-          <span class="traco-valor" data-role="valor">1.0</span>
-        </div>
-      `;
-      lista.appendChild(item);
+  // ---------- Inicialização ----------
+  window.addEventListener("resize", () => {
+    if (estado.elementos.length === 0) ajustarAoEcra();
+  });
 
-      const chkAtivo = item.querySelector('[data-role="ativo"]');
-      const inputCor = item.querySelector('[data-role="cor"]');
-      const inputLargura = item.querySelector('[data-role="largura"]');
-      const spanValor = item.querySelector('[data-role="valor"]');
-      const controles = item.querySelector(".traco-controles");
-
-      function aplicar() {
-        if (chkAtivo.checked) {
-          el.setAttribute("stroke", inputCor.value);
-          el.setAttribute("stroke-width", inputLargura.value);
-        } else {
-          el.removeAttribute("stroke");
-          el.removeAttribute("stroke-width");
-        }
-        sincronizarCodigo();
-      }
-
-      chkAtivo.addEventListener("change", () => {
-        controles.classList.toggle("ativo", chkAtivo.checked);
-        aplicar();
-      });
-
-      inputCor.addEventListener("input", () => {
-        spanValor.textContent = inputLargura.value;
-        aplicar();
-      });
-
-      inputLargura.addEventListener("input", () => {
-        spanValor.textContent = parseFloat(inputLargura.value).toFixed(1);
-        aplicar();
-      });
-    });
-  }
-
-  // Atualiza svgAtual e a textarea de código com o estado atual do SVG editado
-  function sincronizarCodigo() {
-    if (!svgEl) return;
-    svgAtual = svgEl.outerHTML;
-    document.getElementById("svg-codigo").value = svgAtual;
-  }
-
-  function downloadSvg() {
-    if (!svgAtual) return;
-    const blob = new Blob([svgAtual], { type: "image/svg+xml" });
-    triggerDownload(blob, "convertido.svg");
-  }
+  iniciarCanvasVazio(512, 512);
+})();
 </script>
 </body>
 </html>

@@ -2,6 +2,8 @@
 <!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
      Não usa AppHeader — este tab é o único caso especial. -->
 <script>
+  import { getAvatarColor } from '../lib/constants.js';
+
   export let platformApps = [];
   export let onOpenSearch = () => {};
   export let onOpenApp = () => {};
@@ -81,7 +83,7 @@
   <div class="apps-grid">
     {#each platformApps as app}
       <button class="app-item" on:click={() => openApp(app)}>
-        <span class="app-icon-wrap">
+        <span class="app-icon-wrap" style="background:{getAvatarColor(app.label || app.id)}">
           <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
         </span>
         <span class="app-label">{app.label}</span>
@@ -271,16 +273,18 @@
   .app-icon-wrap {
     width: 43px;
     height: 43px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
   }
   .app-icon-svg {
-    width: 100%;
-    height: 100%;
+    width: 55%;
+    height: 55%;
     display: block;
-    background: var(--icon-strong);
+    background: #fff;
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;

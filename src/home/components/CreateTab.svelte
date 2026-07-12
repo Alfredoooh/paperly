@@ -59,6 +59,11 @@
   on:touchmove|nonpassive={onTouchMove}
   on:touchend={onTouchEnd}
   on:touchcancel={onTouchEnd}>
+
+  <div class="hero-bg" style="background-image:url('/images/createbg/img.jpg')">
+    <div class="hero-bg-fade"></div>
+  </div>
+
   <div bind:this={bodyInnerEl}>
 
     <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
@@ -66,10 +71,14 @@
       <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
     </button>
 
+    <div class="hero-spacer"></div>
+
     <div class="apps-grid">
       {#each platformApps as app}
         <button class="app-item" on:click={() => openApp(app)}>
-          <img src={app.icon} alt={app.label} class="app-icon-img" />
+          <span class="app-icon-wrap">
+            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
+          </span>
           <span class="app-label">{app.label}</span>
         </button>
       {/each}
@@ -79,11 +88,46 @@
 
 <style>
   .create-tab {
+    position: relative;
     width: 100%;
-    padding: 4px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
+    padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 96px);
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+
+  /* Fundo azul estilo CapCut, fixo no topo do tab, com fade suave
+     para o fundo normal do ecrã por baixo do conteúdo. */
+  .hero-bg {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 340px;
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero-bg-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0) 55%,
+      var(--bg) 100%
+    );
+  }
+
+  .create-tab > div {
+    position: relative;
+    z-index: 1;
+    padding: 4px 14px 0;
+  }
+
+  .hero-spacer {
+    height: 190px;
   }
 
   .search-bar {
@@ -96,14 +140,15 @@
     padding: 0 16px;
     border: none;
     border-radius: 999px;
-    background: var(--btn-bg);
+    background: rgba(255,255,255,0.94);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.16);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
   .search-bar-icon {
     width: 18px;
     height: 18px;
-    background: var(--icon-faint);
+    background: #6b6f76;
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
@@ -111,19 +156,19 @@
     mask-position: center;
     -webkit-mask-position: center;
     flex-shrink: 0;
-    opacity: 0.6;
+    opacity: 0.7;
   }
   .search-bar-placeholder {
     font-size: 14.5px;
     font-weight: 500;
-    color: var(--text-faint);
+    color: #6b6f76;
   }
 
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 18px 8px;
-    padding-top: 20px;
+    padding-top: 4px;
   }
   .app-item {
     display: flex;
@@ -137,14 +182,27 @@
     font: inherit;
     color: var(--drawer-text);
   }
-  .app-icon-img {
+  .app-icon-wrap {
     width: 48px;
     height: 48px;
-    object-fit: contain;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .app-item:active .app-icon-img {
+  .app-icon-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: var(--icon-strong);
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
+  }
+  .app-item:active .app-icon-wrap {
     transform: scale(0.88);
   }
   .app-label {

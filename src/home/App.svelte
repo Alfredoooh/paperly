@@ -493,15 +493,14 @@
     {avatarColor}
     {userInitial}
     {userName}
-    title={currentTitle}
+    title={currentTabMeta?.label ?? ''}
     solidGradient={activeTab === 'templates'}
-    heroOpacity={activeTab === 'create' ? heroProgress : 0}
+    transparentHero={activeTab === 'create'}
     showSearchBtn={activeTab === 'templates'}
-    onOpenSearch={openSearch}
     showToggle={activeTab === 'templates'}
-    toggleOptions={TEMPLATE_VIEWS}
-    toggleValue={templatesView}
-    onToggleChange={selectTemplatesView}
+    {toggleOptions}
+    {toggleValue}
+    onToggleChange={handleToggleChange}
   />
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">

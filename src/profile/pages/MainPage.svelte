@@ -16,6 +16,14 @@
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
+  // ── Slide nativo da própria tela (entrada/saída empurrada pelo home) ──
+  // Este spring já existia mas nunca era aplicado ao template — o
+  // .pf-root usava só a transição CSS declarativa (opacity/translateY),
+  // que é o "fade + subida ligeira" genérico, sem a física de mola do
+  // motor único usado no resto da app (search, preview, drawer, e a
+  // SettingsPage, que já liga slideX corretamente). Agora slideX entra
+  // no transform do .pf-root, tal como a SettingsPage já faz — as duas
+  // telas passam a mover-se com a MESMA física, indistinguível do home.
   const slide = createSlideTransition({});
   let slideX = 100;
   const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
@@ -97,13 +105,18 @@
     }
   }
   onMount(loadProfile);
-  onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); });
+  onDestroy(() => { unsubscribeSlide?.(); slide.destroy(); editSlide.destroy(); });
 
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userEmail = user?.email || '';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: occupationLabel = OCCUPATION_OPTIONS.find(o => o.id === form.occupation)?.label || null;
 
+  // NOTA: os ícones de cada linha (icon-mask 'calendar'/'location') foram
+  // removidos do template do card — ver o bloco #each mais abaixo. O
+  // campo `icon` fica aqui só porque outras partes do código (nenhuma,
+  // de momento) poderiam vir a precisar da associação linha→ícone; não
+  // afeta o visual, já que deixou de ser lido no markup.
   const INFO_ROWS = [
     { key: 'age', icon: 'calendar', label: 'Idade', get: f => f.age ? `${f.age} anos` : null },
     { key: 'country', icon: 'location', label: 'País', get: f => f.country || null },
@@ -113,21 +126,35 @@
   $: filledRows = INFO_ROWS.map(r => ({ ...r, value: r.get(form) })).filter(r => r.value);
 
   // ══════════════════════════════════════════════════════════════════
-  //  TELA DE EDIÇÃO (fullscreen slide-up, idêntico ao calendar)
+  //  TELA DE EDIÇÃO (fullscreen slide-up nativo — spring dedicado)
   // ══════════════════════════════════════════════════════════════════
+  // ANTES: transição CSS declarativa fixa (transform .32s cubic-bezier),
+  // igual a uma modal comum — funcional, mas não é o mesmo motor físico
+  // que dá ao home a sensação "nativa" (spring via rAF, que acelera e
+  // desacelera de forma contínua em vez de seguir uma curva de tempo
+  // fixa). Aqui reaproveita-se o MESMO createSlideTransition — o valor
+  // 0..100 é reinterpretado como translateY em vez de translateX, já
+  // que a tela de edição sobe de baixo em vez de entrar pela direita.
+  // Fica um spring próprio (não o `slide` da própria página), porque as
+  // duas transições são independentes: a tela de edição pode abrir e
+  // fechar várias vezes sem nunca mexer no slide de entrada/saída da
+  // MainPage em si.
+  const editSlide = createSlideTransition({});
+  let editSlideY = 100;
+  const unsubscribeEditSlide = editSlide.subscribe((v) => { editSlideY = v; });
+
   let showEditScreen = false;
-  let editScreenVisible = false;
   let editForm = { ...form };
   let saving = false;
 
   function openEdit() {
     editForm = { ...form };
     showEditScreen = true;
-    requestAnimationFrame(() => { editScreenVisible = true; });
+    requestAnimationFrame(() => requestAnimationFrame(() => { editSlide.open(); }));
   }
   function closeEditScreen() {
-    editScreenVisible = false;
-    setTimeout(() => { showEditScreen = false; }, 260);
+    editSlide.close();
+    setTimeout(() => { showEditScreen = false; }, 340);
   }
 
   async function saveProfile() {
@@ -197,7 +224,7 @@
      ROOT
 ════════════════════════════════════════════════════════════════════ -->
 <div class="pf-root" class:pf-in={pageVisible}
-  style="background:{c.background};color:{c.textPrimary}">
+  style="background:{c.background};color:{c.textPrimary};transform: translate3d({slideX}%, 0, 0);">
 
   <!-- ══ APPBAR ══════════════════════════════════════════════════ -->
   <div class="pf-header">
@@ -259,7 +286,6 @@
             {#each filledRows as row, i}
               <div class="pf-info-row" style="border-color:{c.divider}">
                 <div class="pf-info-left">
-                  <span class="icon-mask pf-row-ic" style="mask-image:url('/icons/svg/{row.icon}.svg');-webkit-mask-image:url('/icons/svg/{row.icon}.svg');background:{c.textSecondary}"></span>
                   <span class="pf-info-label" style="color:{c.textSecondary}">{row.label}</span>
                 </div>
                 <span class="pf-info-value" style="color:{c.textPrimary}">{row.value}</span>
@@ -268,7 +294,6 @@
             {#if occupationLabel}
               <div class="pf-info-row" style="border-color:{c.divider}">
                 <div class="pf-info-left">
-                  <span class="icon-mask pf-row-ic" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');background:{c.textSecondary}"></span>
                   <span class="pf-info-label" style="color:{c.textSecondary}">Ocupação</span>
                 </div>
                 <span class="pf-info-value" style="color:{c.textPrimary}">{occupationLabel}</span>
@@ -276,7 +301,6 @@
               {#if form.occupationDetail}
                 <div class="pf-info-row" style="border-color:{c.divider}">
                   <div class="pf-info-left">
-                    <span class="icon-mask pf-row-ic" style="mask-image:url('/icons/svg/note.svg');-webkit-mask-image:url('/icons/svg/note.svg');background:{c.textSecondary}"></span>
                     <span class="pf-info-label" style="color:{c.textSecondary}">Detalhe</span>
                   </div>
                   <span class="pf-info-value" style="color:{c.textPrimary}">{form.occupationDetail}</span>
@@ -302,11 +326,12 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
-       TELA FULLSCREEN DE EDIÇÃO (slide-up, idêntico ao calendar)
+       TELA FULLSCREEN DE EDIÇÃO — subida nativa via spring dedicado
+       (editSlideY: 100 = fora do ecrã por baixo, 0 = posição final)
   ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
-    <div class="edit-screen" class:edit-in={editScreenVisible}
-      style="background:{c.background};color:{c.textPrimary}">
+    <div class="edit-screen"
+      style="background:{c.background};color:{c.textPrimary};transform: translate3d(0, {editSlideY}%, 0);">
 
       <div class="edit-header" style="border-bottom:0.5px solid {c.divider}">
         <button class="pf-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEditScreen} disabled={saving}>
@@ -434,11 +459,11 @@
     position: fixed; inset: 0;
     display: flex; flex-direction: column;
     overflow: hidden;
-    opacity: 0; transform: translateY(16px);
-    transition: opacity .24s cubic-bezier(0.16,1,0.3,1), transform .24s cubic-bezier(0.16,1,0.3,1);
+    opacity: 0;
+    transition: opacity .24s cubic-bezier(0.16,1,0.3,1);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   }
-  .pf-root.pf-in { opacity:1; transform:translateY(0); }
+  .pf-root.pf-in { opacity:1; }
   .pf-root * { box-sizing: border-box; }
 
   .icon-mask {
@@ -513,7 +538,6 @@
   }
   .pf-info-row:last-child { border-bottom: none; }
   .pf-info-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .pf-row-ic { width: 16px; height: 16px; opacity: .8; flex-shrink: 0; }
   .pf-info-label { font-size: 13px; white-space: nowrap; }
   .pf-info-value { font-size: 14px; font-weight: 600; text-align: right; }
   .pf-bio-row { flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -534,15 +558,18 @@
   .pf-edit-btn:active { transform: scale(0.98); opacity: .88; }
 
   /* ══════════════════════════════════════════════════════════════════
-     TELA FULLSCREEN DE EDIÇÃO (slide-up, idêntico ao calendar)
+     TELA FULLSCREEN DE EDIÇÃO
+     Sem transition CSS no transform — o movimento é 100% controlado
+     pelo spring editSlide (JS, via rAF), tal como o resto das telas
+     "nativas" da app. Isto é o que a torna "super suave": não há uma
+     curva de tempo fixa a terminar de repente, a física desacelera de
+     forma contínua até assentar exatamente no destino.
   ══════════════════════════════════════════════════════════════════ */
   .edit-screen {
     position: fixed; inset: 0; z-index: 500;
     display: flex; flex-direction: column;
-    opacity: 0; transform: translateY(100%);
-    transition: opacity .26s cubic-bezier(0.16,1,0.3,1), transform .32s cubic-bezier(0.16,1,0.3,1);
+    will-change: transform;
   }
-  .edit-screen.edit-in { opacity: 1; transform: translateY(0); }
 
   .edit-header {
     display: flex; align-items: center; justify-content: space-between;

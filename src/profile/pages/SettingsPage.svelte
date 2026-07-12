@@ -122,7 +122,9 @@
       {#each THEME_OPTIONS as opt, i}
         <button class="st-row" on:click={() => setThemeValue(opt.id)}>
           <span class="st-row-label" style="color:{c.textPrimary}">{opt.label}</span>
-          {#if themeValue === opt.id}<span class="st-check" style="color:{c.primary}">✓</span>{/if}
+          {#if themeValue === opt.id}
+            <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:{c.primary};width:16px;height:16px"></span>
+          {/if}
         </button>
         {#if i < THEME_OPTIONS.length - 1}<div class="st-divider" style="background:{c.divider}"></div>{/if}
       {/each}
@@ -232,7 +234,6 @@
   .st-row:active { opacity: .7; }
   .st-danger { color: #FF3B30; justify-content: flex-start; }
   .st-row-value { font-size: 13px; }
-  .st-check { font-weight: 700; }
   .st-divider { height: 1px; margin: 0 16px; }
 
   .icon-mask {

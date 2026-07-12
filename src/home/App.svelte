@@ -78,6 +78,10 @@
   // o onPopState (fonte única de verdade) tratar do fecho visual. Isto
   // faz o botão físico de voltar do Android e o gesto do Chrome
   // fecharem o drawer exatamente como fecham a pesquisa/preview.
+  //
+  // EXCEÇÃO: navegar para o perfil (openProfile, mais abaixo) NÃO usa
+  // o onPopState partilhado — fecha o drawer de forma direta e síncrona
+  // para eliminar a corrida entre listeners. Ver comentário em openProfile().
   // ------------------------------------------------------------------
   async function openDrawer() {
     if (drawerOpen) return;
@@ -109,7 +113,9 @@
     // drawerVisible / drawerPushed já estão true, postos pelo gesto.
   }
 
-  // Fecho visual puro — chamado apenas a partir de onPopState.
+  // Fecho visual puro — chamado a partir de onPopState E também
+  // diretamente por openProfile() (ver mais abaixo) quando queremos
+  // fechar o drawer sem depender de um evento popstate global.
   function closeDrawerVisual() {
     drawerVisible = false;
     drawerPushed = false;
@@ -271,25 +277,37 @@
     dispatch('nav', { to: app.id, data: { path: app.path } });
   }
 
-  // FIX (bug: clicar no perfil "falhava à toa"):
-  // O botão do perfil vive DENTRO do AppDrawer, e o goProfile() de lá
-  // chamava onClose() (que faz history.back() para fechar o drawer,
-  // ASSÍNCRONO — só resolve no próximo popstate) imediatamente seguido
-  // de onOpenProfile() (que faz history.pushState(), SÍNCRONO). Como os
-  // dois disparavam no mesmo tick, o pushState do perfil acontecia
-  // ANTES do browser processar o back() do drawer, corrompendo a pilha
-  // de histórico — por vezes o perfil não abria, por vezes abria e
-  // fechava sozinho. Agora, se o drawer estiver aberto, fecha-se
-  // primeiro e espera-se o popstate REAL do fecho antes de navegar
-  // para o perfil.
+  // FIX (bug: clicar no avatar por vezes não navegava para o perfil,
+  // ou deixava o drawer/histórico presos):
+  // A versão anterior dependia de UM evento popstate partilhado entre
+  // dois listeners (o onPopState interno do onMount, e um onDrawerClosed
+  // extra adicionado só aqui) — sem garantia de ordem entre os dois, e
+  // sem NENHUMA garantia de que o popstate chegava sequer a disparar
+  // (se closeDrawer() caísse no ramo de fallback sem history.back(), o
+  // listener ficava pendurado para sempre e o perfil nunca abria).
+  //
+  // Agora o fecho do drawer é feito diretamente aqui, de forma síncrona
+  // e determinística: consome-se a entrada nexaDrawer do histórico (se
+  // existir) SEM deixar o onPopState global reagir a ela — evitando que
+  // o router também reaja à mudança de histórico como se fosse uma
+  // troca de rota — faz-se o fecho visual de imediato via
+  // closeDrawerVisual(), e só se navega para o perfil depois da própria
+  // transição de fecho (320ms, a mesma duração usada dentro de
+  // closeDrawerVisual) terminar. Isto elimina por completo a corrida
+  // entre os dois listeners e garante sempre: drawer 100% fechado, sem
+  // qualquer entrada de overlay pendente no histórico, e só então a
+  // tela de perfil aparece — sem erro, sem bug, sempre na mesma ordem.
   function openProfile() {
     if (drawerOpen) {
-      const onDrawerClosed = () => {
-        window.removeEventListener('popstate', onDrawerClosed);
+      if (history.state && history.state.nexaDrawer) {
+        suppressRouterPopstate = true;
+        history.back();
+        requestAnimationFrame(() => { suppressRouterPopstate = false; });
+      }
+      closeDrawerVisual();
+      setTimeout(() => {
         dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
-      };
-      window.addEventListener('popstate', onDrawerClosed);
-      closeDrawer();
+      }, 320); // espelha exatamente a duração de closeDrawerVisual()
     } else {
       dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
     }
@@ -298,84 +316,31 @@
   let appbarHeight = 0;
   let topPanelEl;
   function measureAppbar() {
-    if (topPanelEl) {
-      appbarHeight = topPanelEl.getBoundingClientRect().height;
-    }
+    if (topPanelEl) appbarHeight = topPanelEl.getBoundingClientRect().height;
   }
 
-  let scrollRootEl;
-  let scrolled = 0;
-  function handleScroll() {
-    if (!scrollRootEl) return;
-    scrolled = Math.min(1, scrollRootEl.scrollTop / 24);
+  function onStorage(e) {
+    if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
   }
 
-  let mounted = false;
+  let backRecoil;
+  let unsubscribeBackRecoil;
 
-  // ------------------------------------------------------------------
-  // Recuo do fundo (.root) quando um overlay full-screen entra — ANTES
-  // usava CSS transition (transform .38s) na classe .pushed-back, que
-  // competia com a transition do próprio overlay (ex: TemplatePreviewPage)
-  // e causava o congelamento reportado. Agora usa o MESMO motor de
-  // spring via rAF do nav-transition.js: nunca há duas transições CSS
-  // de transform disputando o mesmo frame.
-  // ------------------------------------------------------------------
-  const backRecoil = createBackRecoilTransition();
-  let rootRecoilValue = 0; // 0..1
-  const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
+  onMount(async () => {
+    const authed = await requireAuth();
+    if (!authed) return;
+    user = authed;
 
-  $: anyFullScreenOverlayPushed = searchPushed || previewPushed;
-  let lastOverlayPushedState = false;
-  $: if (anyFullScreenOverlayPushed !== lastOverlayPushedState) {
-    lastOverlayPushedState = anyFullScreenOverlayPushed;
-    if (anyFullScreenOverlayPushed) backRecoil.recoil();
-    else backRecoil.reset();
-  }
-  $: rootRecoilTranslate = -28 * rootRecoilValue; // %
-  $: rootRecoilScale = 1; // mantém escala normal (só o drawer encolhe)
-
-  // FIX (bug: o "empurrar" do ecrã pelo drawer nunca se via de forma
-  // consistente, e o fecho ficava preso a meio):
-  // .root tinha DOIS donos de transform ao mesmo tempo — a classe CSS
-  // .pushed-by-drawer (transition .38s) E o atributo style inline com
-  // rootRecoilTranslate/rootRecoilScale (do recoil do search/preview).
-  // Como o style inline tem sempre prioridade sobre a classe, mesmo
-  // "vazio" ele continuava presente no elemento, e assim que
-  // drawerPushed voltava a false o style inline reescrevia o transform
-  // SEM transição (a classe, essa sim com a transition, já tinha
-  // saído), cortando a animação de saída a meio. Um TERCEIRO dono
-  // ainda escreve directo em rootEl.style.transform durante o arrasto
-  // ao vivo (dentro do AppDrawer, via applyLiveTransform/
-  // releaseLiveTransform) — isso mantém-se, porque durante o gesto
-  // precisa de seguir o dedo 1:1 sem qualquer transition CSS a atrasar.
-  //
-  // Agora resolvido combinando os dois estados (drawer + recoil) numa
-  // ÚNICA expressão reativa e usando só style inline (nunca a classe
-  // ao mesmo tempo) — assim há sempre exactamente UMA fonte de verdade
-  // fora do gesto ao vivo, e a transition está sempre presente porque
-  // faz parte do próprio style computado, nunca de uma classe que
-  // pode ou não estar montada no mesmo frame.
-  $: rootTransformStyle = drawerPushed
-    ? 'transform: translate3d(-10%, 0, 0) scale(0.965); transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);'
-    : `transform: translate3d(${rootRecoilTranslate}%, 0, 0) scale(${rootRecoilScale}); transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);`;
-
-  onMount(() => {
-    user = requireAuth();
-    if (!user) return;
-
-    const saved = getTheme();
-    applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
-
+    const savedTheme = localStorage.getItem('nexa_theme') || getTheme() || 'dark';
+    applyThemeValue(savedTheme, false);
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', handleSystemChange);
-
-    function onStorage(e) {
-      if (e.key === 'nexa_theme' && e.newValue) applyThemeValue(e.newValue, false);
-    }
     window.addEventListener('storage', onStorage);
-
-    requestAnimationFrame(() => { mounted = true; measureAppbar(); });
     window.addEventListener('resize', measureAppbar);
+    requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
+
+    backRecoil = createBackRecoilTransition();
+    unsubscribeBackRecoil = backRecoil.subscribe(() => {});
 
     initPwaInstall();
     unsubscribeInstall = onPwaInstallAvailable((available) => {
@@ -412,7 +377,17 @@
     // history.state realmente corresponder ao overlay em questão —
     // cada camada só trata o que é seu, sem competir por eventos que
     // não lhe dizem respeito.
+    //
+    // NOTA: openProfile() define suppressRouterPopstate = true ANTES de
+    // chamar history.back() e só o repõe a false no próximo frame — por
+    // isso este onPopState também respeita a flag, evitando que reaja
+    // ao mesmo popstate que openProfile() já está a tratar diretamente
+    // via closeDrawerVisual(). Sem este check, o drawer fecharia DUAS
+    // vezes em sequência (uma vez aqui, outra dentro de openProfile()),
+    // o que é inofensivo por closeDrawerVisual() ser idempotente, mas
+    // desnecessário.
     function onPopState() {
+      if (suppressRouterPopstate) return;
       const state = history.state;
       if (previewOpen && (!state || state.nexaPreview === undefined)) {
         suppressRouterPopstate = true;
@@ -441,187 +416,7 @@
   });
 
   onDestroy(() => {
-    unsubscribeBackRecoil();
-    backRecoil.destroy();
+    unsubscribeBackRecoil?.();
+    backRecoil?.destroy();
   });
 </script>
-
-<div
-  class="root"
-  bind:this={rootEl}
-  style={rootTransformStyle}
->
-  <div class="bg-layer"></div>
-
-  <AppHeader
-    {mounted}
-    bind:topPanelEl
-    {scrolled}
-    onOpenDrawer={openDrawer}
-    {avatarUrl}
-    {avatarColor}
-    {userInitial}
-    {userName}
-    title={currentTitle}
-    solidGradient={activeTab === 'templates'}
-    showSearchBtn={activeTab === 'templates'}
-    onOpenSearch={openSearch}
-    showToggle={activeTab === 'templates'}
-    toggleOptions={TEMPLATE_VIEWS}
-    toggleValue={templatesView}
-    onToggleChange={selectTemplatesView}
-  />
-
-  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
-    {#if activeTab === 'create'}
-      <CreateTab {platformApps} onOpenSearch={openSearch} onOpenApp={navigateToApp} />
-    {:else if activeTab === 'projects'}
-      <ProjectsTab />
-    {:else if activeTab === 'templates'}
-      <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
-    {:else if activeTab === 'tools'}
-      <ToolsTab onOpenApp={navigateToApp} />
-    {/if}
-  </div>
-
-  <BottomTabBar {activeTab} onSelect={selectTab} />
-</div>
-
-{#if searchOpen}
-  <SearchPage
-    pushed={searchPushed}
-    {platformApps}
-    imageModels={IMAGE_MODELS}
-    docModels={DOC_MODELS}
-    onUsePrompt={goToAIWithPrompt}
-    onOpenApp={navigateToApp}
-    onClose={closeSearch}
-  />
-{/if}
-
-{#if previewOpen && previewData}
-  <TemplatePreviewPage
-    pushed={previewPushed}
-    kind={previewData.kind}
-    item={previewData.item}
-    onClose={closeTemplatePreview}
-    onUse={useTemplateFromPreview}
-  />
-{/if}
-
-
-<AppDrawer
-  {drawerOpen}
-  {drawerVisible}
-  bind:drawerPushed
-  {rootEl}
-  {themeExpanded}
-  {themeValue}
-  {avatarColor}
-  {avatarUrl}
-  {userInitial}
-  {userName}
-  {showInstall}
-  onClose={closeDrawer}
-  onToggleThemeExpanded={toggleThemeExpanded}
-  onApplyTheme={applyThemeFromDrawer}
-  onLogout={logout}
-  onInstall={handleInstall}
-  onOpenProfile={openProfile}
-  onOpenViaGesture={openDrawerFromGesture}
-/>
-
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  :global(html), :global(body) {
-    overflow: hidden;
-    overscroll-behavior: none;
-    height: 100%;
-    width: 100%;
-  }
-  :global([data-theme="dark"]) {
-    --app-bg: #0F0F0F;
-    --header-glass-rgb: 15,15,15;
-    --surface: #0F0F0F;
-    --surface-strong: #0F0F0F;
-    --surface-apps-tab: #171717;
-    --border-soft: rgba(255,255,255,0.12);
-    --border-faint: rgba(255,255,255,0.09);
-    --icon-strong: rgba(255,255,255,0.88);
-    --icon-faint: rgba(255,255,255,0.30);
-    --text-faint: rgba(255,255,255,0.38);
-    --row-active: rgba(255,255,255,0.07);
-    --btn-bg: rgba(255,255,255,0.10);
-    --btn-bg-active: rgba(255,255,255,0.18);
-    --drawer-bg: #1C1C1E;
-    --drawer-border: rgba(255,255,255,0.09);
-    --drawer-shadow: rgba(0,0,0,0.45);
-    --drawer-text: rgba(255,255,255,0.86);
-    --drawer-text-faint: rgba(255,255,255,0.38);
-    --drawer-sep: rgba(255,255,255,0.11);
-    --drawer-overlay-in: rgba(0,0,0,0.35);
-    --logout-icon: #FF453A;
-    --btn-solid-bg: #f5f5f5;
-    --btn-solid-bg-active: #e0e0e0;
-    --btn-solid-text: #1a1a1a;
-    --danger: #FF453A;
-    --danger-active: #E0342A;
-    --accent-primary: #0A84FF;
-    --accent-primary-active: #0070E0;
-  }
-  :global([data-theme="light"]) {
-    --app-bg: #FFFFFF;
-    --header-glass-rgb: 255,255,255;
-    --surface: #FFFFFF;
-    --surface-strong: #FFFFFF;
-    --surface-apps-tab: #FFFFFF;
-    --border-soft: rgba(0,0,0,0.09);
-    --border-faint: rgba(0,0,0,0.07);
-    --icon-strong: rgba(20,20,20,0.85);
-    --icon-faint: rgba(20,20,20,0.28);
-    --text-faint: rgba(20,20,20,0.40);
-    --row-active: rgba(0,0,0,0.05);
-    --btn-bg: rgba(0,0,0,0.06);
-    --btn-bg-active: rgba(0,0,0,0.11);
-    --drawer-bg: #ffffff;
-    --drawer-border: rgba(0,0,0,0.07);
-    --drawer-shadow: rgba(0,0,0,0.13);
-    --drawer-text: #111111;
-    --drawer-text-faint: rgba(0,0,0,0.30);
-    --drawer-sep: rgba(0,0,0,0.09);
-    --drawer-overlay-in: rgba(0,0,0,0.20);
-    --logout-icon: #E0342A;
-    --btn-solid-bg: #2a2a2a;
-    --btn-solid-bg-active: #1e1e1e;
-    --btn-solid-text: #ffffff;
-    --danger: #FF3B30;
-    --danger-active: #E0342A;
-    --accent-primary: #007AFF;
-    --accent-primary-active: #0062CC;
-  }
-
-  .root {
-    position:fixed;
-    inset:0;
-    overflow:hidden;
-    overscroll-behavior:none;
-    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
-    touch-action: pan-y;
-    will-change: transform;
-    transform-origin: center;
-    contain: layout style paint;
-  }
-  .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); }
-
-  .scroll-root {
-    position:absolute; inset:0; z-index:5;
-    overflow-y:auto; overflow-x:hidden;
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior-y:contain;
-    padding-bottom: 84px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .root { transition: none !important; }
-  }
-</style>

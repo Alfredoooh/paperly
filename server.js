@@ -70,9 +70,12 @@ function svgTemConteudo(svgContent) {
   return /<path/.test(svgContent);
 }
 
-async function prepararBitmap(inputPath, pbmPath, cores, thresholdPercent) {
+// Ajusta a espessura da linha via morfologia binária, antes do potrace.
+// espessura > 0 engrossa (Dilate), < 0 afina (Erode), 0 não altera.
+async function prepararBitmap(inputPath, pbmPath, cores, thresholdPercent, espessura) {
   const flatPath = pbmPath.replace(".pbm", "_flat.png");
   const bmpPath = pbmPath.replace(".pbm", ".bmp");
+  const morphPath = pbmPath.replace(".pbm", "_morph.bmp");
 
   await run("convert", [
     inputPath,
@@ -85,10 +88,20 @@ async function prepararBitmap(inputPath, pbmPath, cores, thresholdPercent) {
   ]);
 
   await run("convert", [flatPath, "-colorspace", "Gray", bmpPath]);
-  await run("convert", [bmpPath, "-threshold", `${thresholdPercent}%`, pbmPath]);
+  await run("convert", [bmpPath, "-threshold", `${thresholdPercent}%`, morphPath]);
+
+  const nivel = Math.max(-10, Math.min(10, parseInt(espessura, 10) || 0));
+  if (nivel !== 0) {
+    const raio = Math.min(6, Math.abs(nivel)); // limite de segurança pro kernel
+    const operacao = nivel > 0 ? "Dilate" : "Erode";
+    await run("convert", [morphPath, "-morphology", operacao, `Disk:${raio}`, pbmPath]);
+  } else {
+    await run("convert", [morphPath, pbmPath]);
+  }
 
   fs.unlink(flatPath, () => {});
   fs.unlink(bmpPath, () => {});
+  fs.unlink(morphPath, () => {});
 }
 
 async function converterComFallback(inputPath, pbmPath, svgPath, opts) {
@@ -103,7 +116,7 @@ async function converterComFallback(inputPath, pbmPath, svgPath, opts) {
 
   for (const tentativa of tentativas) {
     try {
-      await prepararBitmap(inputPath, pbmPath, tentativa.cores, tentativa.threshold);
+      await prepararBitmap(inputPath, pbmPath, tentativa.cores, tentativa.threshold, opts.espessura);
 
       await run("potrace", [
         pbmPath,
@@ -167,6 +180,7 @@ app.post("/convert", upload.single("file"), async (req, res) => {
   const cores = parseInt(req.body.cores || req.query.cores || "4", 10);
   const opttolerance = parseFloat(req.body.opttolerance || req.query.opttolerance || "0.5");
   const turdsize = parseInt(req.body.turdsize || req.query.turdsize || "5", 10);
+  const espessura = parseInt(req.body.espessura || req.query.espessura || "0", 10);
 
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
@@ -174,7 +188,7 @@ app.post("/convert", upload.single("file"), async (req, res) => {
   const svgPath = path.join(os.tmpdir(), `${id}.svg`);
 
   try {
-    const svgBruto = await converterComFallback(inputPath, pbmPath, svgPath, { cores, opttolerance, turdsize });
+    const svgBruto = await converterComFallback(inputPath, pbmPath, svgPath, { cores, opttolerance, turdsize, espessura });
     const svgFinal = converterPtParaPx(svgBruto);
     res.json({ sucesso: true, tamanho_bytes: Buffer.byteLength(svgFinal, "utf8"), svg: svgFinal });
   } catch (err) {
@@ -191,6 +205,7 @@ app.post("/convert-download", upload.single("file"), async (req, res) => {
   const cores = parseInt(req.body.cores || req.query.cores || "4", 10);
   const opttolerance = parseFloat(req.body.opttolerance || req.query.opttolerance || "0.5");
   const turdsize = parseInt(req.body.turdsize || req.query.turdsize || "5", 10);
+  const espessura = parseInt(req.body.espessura || req.query.espessura || "0", 10);
 
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
@@ -198,7 +213,7 @@ app.post("/convert-download", upload.single("file"), async (req, res) => {
   const svgPath = path.join(os.tmpdir(), `${id}.svg`);
 
   try {
-    const svgBruto = await converterComFallback(inputPath, pbmPath, svgPath, { cores, opttolerance, turdsize });
+    const svgBruto = await converterComFallback(inputPath, pbmPath, svgPath, { cores, opttolerance, turdsize, espessura });
     const svgFinal = converterPtParaPx(svgBruto);
     res.setHeader("Content-Type", "image/svg+xml");
     res.setHeader("Content-Disposition", "attachment; filename=convertido.svg");
@@ -257,10 +272,10 @@ app.post("/compress-png", upload.single("file"), async (req, res) => {
 
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
-  const outputPath = path.join(os.tmpdir(), `${id}_out.png`);
+  const outputPath = path.join(os.tmpdir(), `${id}_c.png`);
 
   try {
-    await run("convert", [inputPath, "-strip", "-define", "png:compression-level=9", outputPath]);
+    await run("convert", [inputPath, "-strip", "-quality", "90", "-define", "png:compression-level=9", outputPath]);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Content-Disposition", "attachment; filename=comprimido.png");
     res.send(fs.readFileSync(outputPath));
@@ -279,7 +294,7 @@ app.post("/resize", upload.single("file"), async (req, res) => {
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
   const ext = path.extname(req.file.originalname) || ".png";
-  const outputPath = path.join(os.tmpdir(), `${id}_resized${ext}`);
+  const outputPath = path.join(os.tmpdir(), `${id}_r${ext}`);
 
   try {
     await run("convert", [inputPath, "-resize", `${largura}x`, outputPath]);
@@ -292,18 +307,18 @@ app.post("/resize", upload.single("file"), async (req, res) => {
   }
 });
 
-// Corrigir rotação EXIF
+// Corrigir orientação EXIF
 app.post("/auto-orient", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: "Envie uma imagem no campo 'file'" });
 
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
-  const ext = path.extname(req.file.originalname) || ".jpg";
-  const outputPath = path.join(os.tmpdir(), `${id}_orient${ext}`);
+  const outputPath = path.join(os.tmpdir(), `${id}_o.jpg`);
 
   try {
     await run("convert", [inputPath, "-auto-orient", outputPath]);
-    res.setHeader("Content-Disposition", `attachment; filename=corrigido${ext}`);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", "attachment; filename=corrigido.jpg");
     res.send(fs.readFileSync(outputPath));
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -312,18 +327,18 @@ app.post("/auto-orient", upload.single("file"), async (req, res) => {
   }
 });
 
-// Recortar bordas brancas
+// Recortar bordas brancas/transparentes
 app.post("/trim", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: "Envie uma imagem no campo 'file'" });
 
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
-  const ext = path.extname(req.file.originalname) || ".png";
-  const outputPath = path.join(os.tmpdir(), `${id}_trim${ext}`);
+  const outputPath = path.join(os.tmpdir(), `${id}_t.png`);
 
   try {
     await run("convert", [inputPath, "-trim", "+repage", outputPath]);
-    res.setHeader("Content-Disposition", `attachment; filename=recortado${ext}`);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Disposition", "attachment; filename=recortado.png");
     res.send(fs.readFileSync(outputPath));
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -332,26 +347,27 @@ app.post("/trim", upload.single("file"), async (req, res) => {
   }
 });
 
-// Marca d'água texto
+// Marca d'água em texto
 app.post("/watermark-text", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: "Envie uma imagem no campo 'file'" });
 
-  const texto = req.body.texto || req.query.texto || "MARCA D'AGUA";
+  const texto = req.body.texto || req.query.texto || "© 2026";
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;
-  const ext = path.extname(req.file.originalname) || ".png";
-  const outputPath = path.join(os.tmpdir(), `${id}_wm${ext}`);
+  const outputPath = path.join(os.tmpdir(), `${id}_wm.png`);
 
   try {
     await run("convert", [
       inputPath,
-      "-gravity", "SouthEast",
+      "-gravity", "southeast",
       "-pointsize", "24",
-      "-fill", "rgba(255,255,255,0.6)",
+      "-fill", "white",
+      "-undercolor", "#00000080",
       "-annotate", "+20+20", texto,
       outputPath
     ]);
-    res.setHeader("Content-Disposition", `attachment; filename=marcado${ext}`);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Disposition", "attachment; filename=marcado.png");
     res.send(fs.readFileSync(outputPath));
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -367,8 +383,8 @@ app.post("/exif", upload.single("file"), async (req, res) => {
   const inputPath = req.file.path;
 
   try {
-    const saida = await run("exiftool", [inputPath]);
-    res.json({ sucesso: true, metadados: saida });
+    const metadados = await run("exiftool", [inputPath]);
+    res.json({ sucesso: true, metadados });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   } finally {
@@ -376,7 +392,7 @@ app.post("/exif", upload.single("file"), async (req, res) => {
   }
 });
 
-// Gerar favicon .ico
+// Gerar favicon.ico
 app.post("/favicon", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: "Envie uma imagem no campo 'file'" });
 
@@ -385,7 +401,11 @@ app.post("/favicon", upload.single("file"), async (req, res) => {
   const outputPath = path.join(os.tmpdir(), `${id}.ico`);
 
   try {
-    await run("convert", [inputPath, "-define", "icon:auto-resize=16,32,48,64", outputPath]);
+    await run("convert", [
+      inputPath,
+      "-define", "icon:auto-resize=16,32,48,64",
+      outputPath
+    ]);
     res.setHeader("Content-Type", "image/x-icon");
     res.setHeader("Content-Disposition", "attachment; filename=favicon.ico");
     res.send(fs.readFileSync(outputPath));
@@ -396,8 +416,8 @@ app.post("/favicon", upload.single("file"), async (req, res) => {
   }
 });
 
-// Sprite sheet
-app.post("/sprite", uploadMulti.array("files", 20), async (req, res) => {
+// Sprite sheet horizontal
+app.post("/sprite", uploadMulti.array("files", 30), async (req, res) => {
   if (!req.files || req.files.length < 2) {
     return res.status(400).json({ erro: "Envie pelo menos 2 imagens no campo 'files'" });
   }
@@ -407,7 +427,7 @@ app.post("/sprite", uploadMulti.array("files", 20), async (req, res) => {
   const inputPaths = req.files.map((f) => f.path);
 
   try {
-    await run("convert", ["+append", ...inputPaths, outputPath]);
+    await run("convert", [...inputPaths, "+append", outputPath]);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Content-Disposition", "attachment; filename=sprite.png");
     res.send(fs.readFileSync(outputPath));
@@ -419,23 +439,25 @@ app.post("/sprite", uploadMulti.array("files", 20), async (req, res) => {
 });
 
 // Gerar QR Code
-app.post("/qrcode", async (req, res) => {
-  const texto = req.body.texto || req.query.texto;
-  if (!texto) return res.status(400).json({ erro: "Envie o campo 'texto' com o conteúdo do QR" });
+app.post("/qrcode", (req, res) => {
+  const texto = req.body.texto;
+  if (!texto) return res.status(400).json({ erro: "Envie 'texto' no corpo do pedido" });
 
   const id = Date.now().toString();
   const outputPath = path.join(os.tmpdir(), `${id}_qr.png`);
 
-  try {
-    await run("qrencode", ["-o", outputPath, "-s", "8", texto]);
-    res.setHeader("Content-Type", "image/png");
-    res.setHeader("Content-Disposition", "attachment; filename=qrcode.png");
-    res.send(fs.readFileSync(outputPath));
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  } finally {
-    limparArquivos([outputPath]);
-  }
+  (async () => {
+    try {
+      await run("qrencode", ["-o", outputPath, "-s", "8", texto]);
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Disposition", "attachment; filename=qrcode.png");
+      res.send(fs.readFileSync(outputPath));
+    } catch (err) {
+      res.status(500).json({ erro: err.message });
+    } finally {
+      limparArquivos([outputPath]);
+    }
+  })();
 });
 
 // Converter espaço de cor

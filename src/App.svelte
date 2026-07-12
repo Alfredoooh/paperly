@@ -54,12 +54,10 @@
   let layers = [];
   let ready = false;
 
-  // Recuo da CAMADA DE BAIXO (home, ou a app anterior na pilha) —
-  // efeito push estilo iOS: a tela nova entra da direita ENQUANTO a
-  // de trás recua para a esquerda, em simultâneo, com o mesmo motor
-  // de spring que já é usado por home/App.svelte (createBackRecoilTransition).
-  // A camada de baixo é identificada por índice: cada layer guarda o
-  // seu próprio recoil, e o home tem o dele fixo cá fora.
+  // Recuo da camada de baixo (home) — efeito push estilo iOS: a tela
+  // nova entra da direita ENQUANTO a de trás recua para a esquerda,
+  // em simultâneo, com o mesmo motor de spring que home/App.svelte já
+  // usa para o search/preview (createBackRecoilTransition).
   const homeRecoil = createBackRecoilTransition();
   let homeRecoilValue = 0;
   const unsubHomeRecoil = homeRecoil.subscribe((v) => { homeRecoilValue = v; });
@@ -87,18 +85,11 @@
     history.pushState({ nexaApp: appId, fromPath: currentPath() }, '', targetPath);
   }
 
-  // Recalcula o recuo da camada imediatamente abaixo do topo sempre
-  // que a pilha muda: se há pelo menos uma layer "pushed", a camada
-  // de baixo (home, se layers.length === 1, ou a penúltima layer) recua.
+  // Recalcula o recuo do home sempre que a pilha muda: se há pelo
+  // menos uma layer aberta, o home recua; se a pilha esvazia, volta.
   function syncRecoil() {
-    const topPushed = layers.some((l) => l.pushed);
-    if (layers.length <= 1) {
-      if (topPushed) homeRecoil.recoil(); else homeRecoil.reset();
-      return;
-    }
-    // Com 2+ layers empilhadas, o home fica sempre totalmente recuado
-    // enquanto houver qualquer coisa aberta por cima dele.
-    homeRecoil.recoil();
+    const anyPushed = layers.some((l) => l.pushed);
+    if (anyPushed) homeRecoil.recoil(); else homeRecoil.reset();
   }
 
   // Abre uma app como overlay por cima do home. Sempre empurra
@@ -336,6 +327,7 @@
     width: 100%;
     height: 100%;
     will-change: transform;
+    contain: layout style paint;
   }
 
   .layer {
@@ -345,5 +337,6 @@
     height: 100%;
     will-change: transform;
     overflow: hidden;
+    contain: layout style paint;
   }
 </style>

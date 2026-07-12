@@ -21,7 +21,8 @@
   export let onApplyTheme;
   export let onLogout;
   export let onInstall;
-  export let onOpenProfile = () => {}; // NOVO: navegação interna, sem reload
+  export let onOpenProfile = () => {}; // navegação interna, sem reload
+  export let onOpenViaGesture = () => {}; // completa o ciclo de vida real quando o gesto abre o drawer
 
   let showLogoutDialog = false;
   let dialogVisible = false; // controla a animação de entrada/saída do dialog
@@ -66,6 +67,12 @@
   // 3) Nada de listeners globais permanentes: o listener de abertura só
   //    fica ativo quando o drawer está fechado, e vice-versa — para não
   //    conflitar com o scroll normal do resto da app.
+  // 4) touch-action + listeners não-passivos: sem isto, o WebView tenta
+  //    decidir se o gesto é scroll/zoom nativo AO MESMO TEMPO que o teu
+  //    handler corre, o que causa o atraso/engasgo entre o dedo e o
+  //    drawer. Com touch-action:none no elemento e preventDefault() a
+  //    valer (listener não-passivo), o browser entrega o gesto 100% ao
+  //    teu JS desde o primeiro touchmove, sem competir por ele.
   // ------------------------------------------------------------------
   const EDGE_ZONE = 24;       // px a partir da borda direita para iniciar o "abrir"
   const DRAWER_WIDTH_FRACTION = 0.82; // deve refletir min(288px, 82vw) do CSS
@@ -124,7 +131,10 @@
       // gesto de ABRIR: arrastar para a esquerda a partir da borda direita
       if (delta > 6 && !liveDragActive) return; // ainda não decidiu a direção
       if (delta >= -6) {
-        liveDragActive = true;
+        if (!liveDragActive) {
+          liveDragActive = true;
+          document.documentElement.style.touchAction = 'none';
+        }
         if (!drawerVisible) {
           // ativa o drawer em modo "seguindo o dedo" sem a transição de entrada normal
           drawerVisible = true;
@@ -132,16 +142,19 @@
         }
         const progress = Math.min(1, Math.max(0, -delta / dragW));
         applyLiveTransform(1 - progress);
-        e.preventDefault?.();
+        e.preventDefault();
       }
     } else {
       // gesto de FECHAR: arrastar para a direita com o drawer aberto
       if (delta < -6 && !liveDragActive) return;
       if (delta <= 6) return;
-      liveDragActive = true;
+      if (!liveDragActive) {
+        liveDragActive = true;
+        document.documentElement.style.touchAction = 'none';
+      }
       const progress = Math.min(1, Math.max(0, delta / dragW));
       applyLiveTransform(progress);
-      e.preventDefault?.();
+      e.preventDefault();
     }
   }
 
@@ -177,6 +190,7 @@
   function onDragEnd(e) {
     if (!dragging) return;
     dragging = false;
+    document.documentElement.style.touchAction = '';
     const elapsed = Math.max(1, performance.now() - dragStartTime);
     const delta = dragCurrentX - dragStartX;
     const velocity = Math.abs(delta) / elapsed; // px/ms
@@ -209,23 +223,49 @@
     }
   }
 
-  async function openViaGesture() {
-    // Este caminho só resolve o estado VISUAL local (drawerVisible/
-    // drawerPushed) para o gesto parecer instantâneo; o estado lógico
-    // drawerOpen + o histórico real (pushState) continuam a ser geridos
-    // pelo App.svelte via onClose/openDrawer, mantendo uma única fonte
-    // de verdade para o botão físico de voltar do Android.
-    drawerVisible = true;
-    drawerPushed = true;
+  function openViaGesture() {
+    // O gesto já moveu drawerVisible/drawerPushed para dar resposta
+    // imediata ao dedo, mas isto sozinho NUNCA monta {#if drawerOpen}
+    // nem empurra histórico — o drawer ficava "visualmente aberto" só
+    // enquanto o transform inline do arrasto durava, sem estado real
+    // por trás, sem history.state.nexaDrawer. É por isto que o gesto
+    // parecia bugado: o listener de "abrir" nunca se desligava (porque
+    // drawerOpen continuava false) e competia com o de "fechar" no
+    // frame seguinte, e o botão físico de voltar não fechava nada.
+    //
+    // onOpenViaGesture (vindo de home/App.svelte) completa o ciclo de
+    // vida real — monta drawerOpen=true e empurra história — sem
+    // repetir a animação de entrada, porque o dedo já fez esse trabalho
+    // visualmente.
+    onOpenViaGesture();
+  }
+
+  function bindWindowTouchListeners(node) {
+    // svelte:window não permite passar { passive:false } por sintaxe;
+    // sem isso, touchmove é tratado como passivo pelo browser e
+    // e.preventDefault() é ignorado silenciosamente — o WebView então
+    // tenta fazer scroll nativo AO MESMO TEMPO que o teu JS processa o
+    // gesto, o que é a causa do atraso/engasgo entre o dedo e o drawer.
+    const opts = { passive: false };
+    const ts = (e) => { if (!drawerOpen) onEdgeTouchStart(e); };
+    const tm = (e) => { if (dragging) onDragMove(e); };
+    const te = (e) => { if (dragging) onDragEnd(e); };
+    node.addEventListener('touchstart', ts, opts);
+    node.addEventListener('touchmove', tm, opts);
+    node.addEventListener('touchend', te, opts);
+    node.addEventListener('touchcancel', te, opts);
+    return {
+      destroy() {
+        node.removeEventListener('touchstart', ts, opts);
+        node.removeEventListener('touchmove', tm, opts);
+        node.removeEventListener('touchend', te, opts);
+        node.removeEventListener('touchcancel', te, opts);
+      }
+    };
   }
 </script>
 
-<svelte:window
-  on:touchstart={drawerOpen ? undefined : onEdgeTouchStart}
-  on:touchmove={dragging ? onDragMove : undefined}
-  on:touchend={dragging ? onDragEnd : undefined}
-  on:touchcancel={dragging ? onDragEnd : undefined}
-/>
+<svelte:body use:bindWindowTouchListeners />
 
 {#if drawerOpen}
   <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={onClose}></div>
@@ -319,6 +359,8 @@
     transform: translate3d(100%, 0, 0);
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
+    contain: layout style paint;
+    touch-action: pan-y;
   }
   .drawer.drawer-in {
     transform: translate3d(0, 0, 0);

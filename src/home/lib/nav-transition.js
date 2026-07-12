@@ -22,8 +22,15 @@
 
 const STIFFNESS = 260;
 const DAMPING = 28;
-const REST_DELTA = 0.15;
-const REST_VELOCITY = 0.05;
+// REST_DELTA / REST_VELOCITY mais finos que o original (eram 0.15 / 0.05):
+// com a margem antiga, o spring podia "assentar" enquanto ainda tinha
+// uma diferença perceptível para o alvo, lido como um pequeno solavanco
+// no fim da animação em dispositivos mais lentos. Com margens mais
+// apertadas, o assentar só acontece quando o valor já está
+// visualmente indistinguível do alvo — mais suave, sem mudar a física
+// geral (stiffness/damping continuam os mesmos).
+const REST_DELTA = 0.05;
+const REST_VELOCITY = 0.02;
 
 export function createSlideTransition(opts = {}) {
   const { onSettleOpen = () => {}, onSettleClosed = () => {} } = opts;

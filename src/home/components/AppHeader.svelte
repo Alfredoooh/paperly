@@ -147,15 +147,17 @@
     opacity: 1;
   }
 
-  /* Criar: appbar sempre transparente puro, sem blur, fixo — não
-     depende do scroll nem do tema. Título sempre branco (.on-image). */
+  /* Criar: appbar SEMPRE transparente puro, sem blur, fixo — não
+     depende do scroll nem do tema. Título sempre branco (.on-image).
+     Declarado DEPOIS de .solid-gradient e com !important para nunca
+     poder ser sobreposto por nenhuma outra regra de background. */
   .top-panel.transparent-hero {
     background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
   .top-panel.transparent-hero .gradient-layer {
-    opacity: 0;
+    opacity: 0 !important;
   }
 
   /* título branco fixo no tab "Criar", independente do tema */

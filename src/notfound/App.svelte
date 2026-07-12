@@ -1,6 +1,7 @@
 <!-- 404 App.svelte -->
 <script>
   export let pushed = false;
+  // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
 
   function goHome() {

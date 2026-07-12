@@ -24,14 +24,38 @@
   let settingsOpen = false;
   let settingsPushed = false;
   let lastRoute = null;
+  let lastPushed = null;
+  let transitionToken = 0;
 
   const pageSlide = createSlideTransition({});
   let pageSlideX = 100;
   const unsubscribePageSlide = pageSlide.subscribe((v) => { pageSlideX = v; });
 
+  function scheduleClose(fn, delay, token) {
+    setTimeout(() => {
+      if (transitionToken !== token) return;
+      fn();
+    }, delay);
+  }
+
+  function closeAllVisual() {
+    transitionToken += 1;
+    const token = transitionToken;
+    mainPushed = false;
+    settingsPushed = false;
+    pageSlide.close();
+    scheduleClose(() => {
+      mainOpen = false;
+      settingsOpen = false;
+    }, 340, token);
+    lastRoute = null;
+  }
+
   function syncPageSlide(nextRoute, immediate = false) {
     if (nextRoute === lastRoute && !immediate) return;
     lastRoute = nextRoute;
+    transitionToken += 1;
+    const token = transitionToken;
 
     if (nextRoute === 'settings') {
       if (!mainOpen) mainOpen = true;
@@ -40,12 +64,18 @@
         mainPushed = false;
         settingsPushed = true;
         pageSlide.open();
-        setTimeout(() => { mainOpen = false; }, 0);
+        scheduleClose(() => { mainOpen = false; }, 0, token);
       } else {
-        requestAnimationFrame(() => requestAnimationFrame(() => { mainPushed = false; }));
-        requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = true; }));
-        setTimeout(() => { mainOpen = false; }, 340);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (transitionToken !== token) return;
+          mainPushed = false;
+        }));
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (transitionToken !== token) return;
+          settingsPushed = true;
+        }));
         pageSlide.open();
+        scheduleClose(() => { mainOpen = false; }, 340, token);
       }
     } else {
       if (!settingsOpen) settingsOpen = true;
@@ -54,16 +84,21 @@
         settingsPushed = false;
         mainPushed = true;
         pageSlide.open();
-        setTimeout(() => { settingsOpen = false; }, 0);
+        scheduleClose(() => { settingsOpen = false; }, 0, token);
       } else {
-        requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = false; }));
-        requestAnimationFrame(() => requestAnimationFrame(() => { mainPushed = true; }));
-        setTimeout(() => { settingsOpen = false; }, 340);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (transitionToken !== token) return;
+          settingsPushed = false;
+        }));
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (transitionToken !== token) return;
+          mainPushed = true;
+        }));
         pageSlide.open();
+        scheduleClose(() => { settingsOpen = false; }, 340, token);
       }
     }
   }
-
 
   const dispatch = createEventDispatcher();
 
@@ -79,13 +114,12 @@
     if (notFound) { window.location.replace('/404/'); return; }
     route = initialRoute;
     router.navigate(route, { replace: true });
-    syncPageSlide(route, true);
     ready = true;
 
     const unbind = router.bindPopState((r, nf) => {
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
-      syncPageSlide(route, false);
+      if (pushed) syncPageSlide(route, false);
     });
 
     return () => {
@@ -94,6 +128,17 @@
       pageSlide.destroy();
     };
   });
+
+  $: if (ready && pushed !== lastPushed) {
+    lastPushed = pushed;
+    if (pushed) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (pushed) syncPageSlide(route, true);
+      }));
+    } else {
+      closeAllVisual();
+    }
+  }
 
   function handleNav(e) {
     const { to, data } = e.detail || {};
@@ -108,8 +153,18 @@
       return;
     }
     if (to === 'home') { dispatch('nav', { to: 'home' }); return; }
-    if (to === 'settings') { route = 'settings'; router.navigate('settings'); syncPageSlide('settings', false); return; }
-    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); syncPageSlide('main', false); return; }
+    if (to === 'settings') {
+      route = 'settings';
+      router.navigate('settings');
+      if (pushed) syncPageSlide('settings', false);
+      return;
+    }
+    if (to === 'main' || to === APP_ID) {
+      route = 'main';
+      router.navigate('main');
+      if (pushed) syncPageSlide('main', false);
+      return;
+    }
   }
 
   function handleUserUpdate(e) {

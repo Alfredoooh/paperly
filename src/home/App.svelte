@@ -20,6 +20,7 @@
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
 
   export let pushed = false;
+  // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
 
   const dispatch = createEventDispatcher();
 

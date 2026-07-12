@@ -319,9 +319,20 @@
 
   let scrollRootEl;
   let scrolled = 0;
+  let heroProgress = 0;
+
+  // Altura da imagem de fundo do CreateTab (tem de bater com .hero-bg
+  // em CreateTab.svelte). heroProgress vai de 0 (topo) a 1 (scroll >=
+  // esta altura) e controla a opacidade da camada sólida que cobre a
+  // imagem conforme o utilizador desliza para cima — calculado a
+  // partir do MESMO scroll real (scrollRootEl) que já alimenta
+  // `scrolled`, sem criar nenhum scroll container extra.
+  const CREATE_HERO_HEIGHT = 260;
+
   function handleScroll() {
     if (!scrollRootEl) return;
     scrolled = Math.min(1, scrollRootEl.scrollTop / 24);
+    heroProgress = Math.min(1, Math.max(0, scrollRootEl.scrollTop / CREATE_HERO_HEIGHT));
   }
 
   let mounted = false;
@@ -474,9 +485,9 @@
   <div class="bg-layer"></div>
 
   <AppHeader
-    bind:mounted
+    {mounted}
     bind:topPanelEl
-    scrolled={headerScrolled}
+    {scrolled}
     onOpenDrawer={openDrawer}
     {avatarUrl}
     {avatarColor}
@@ -495,7 +506,7 @@
 
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{appbarHeight}px;">
     {#if activeTab === 'create'}
-      <CreateTab {platformApps} onOpenSearch={openSearch} onOpenApp={navigateToApp} />
+      <CreateTab {platformApps} {heroProgress} onOpenSearch={openSearch} onOpenApp={navigateToApp} />
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}

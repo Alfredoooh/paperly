@@ -3,105 +3,83 @@
   export let platformApps = [];
   export let onOpenSearch = () => {};
   export let onOpenApp = () => {};
-
+  
+  // 0 → 1: progresso do scroll ao longo da altura da imagem de topo.
+  // Vem do App.svelte, calculado a partir do scroll REAL (.scroll-root
+  // do App.svelte). Este componente não tem overflow/scroll próprio —
+  // isso é que estava a quebrar o ecrã (dois scrolls encaixados).
+  export let heroProgress = 0;
+  
   function openApp(app) {
     if (app.id === 'ai') {
       try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
     }
     onOpenApp(app);
   }
-
+  
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
-
+  
   function handleOpenSearch() {
     buzz();
     onOpenSearch();
   }
-
-  // rubber-band scroll (mesma técnica usada no ecrã de Perfil)
-  let bodyEl, bodyInnerEl;
-  let touchStartY = 0, pullOriginY = null, isPulling = false;
-
-  function dampen(delta) {
-    const sign = delta < 0 ? -1 : 1;
-    const abs = Math.abs(delta);
-    return sign * (abs * 0.6) / (1 + abs / 110);
-  }
-  function resetPull(animate = true) {
-    isPulling = false; pullOriginY = null;
-    if (bodyInnerEl) {
-      bodyInnerEl.style.transition = animate ? 'transform .48s cubic-bezier(0.16,1.35,0.3,1)' : 'none';
-      bodyInnerEl.style.transform = 'translateY(0px)';
-    }
-  }
-  function onTouchStart(e) { touchStartY = e.touches[0].clientY; }
-  function onTouchMove(e) {
-    if (!bodyEl || !bodyInnerEl) return;
-    const y = e.touches[0].clientY;
-    const st = bodyEl.scrollTop, maxScroll = bodyEl.scrollHeight - bodyEl.clientHeight;
-    const atTop = st <= 0, atBottom = st >= maxScroll - 1;
-    const draggingDown = y - touchStartY > 0, draggingUp = y - touchStartY < 0;
-    if ((atTop && draggingDown) || (atBottom && draggingUp)) {
-      if (!isPulling) { isPulling = true; pullOriginY = y; bodyInnerEl.style.transition = 'none'; }
-      const raw = y - pullOriginY;
-      const valid = atTop ? Math.max(raw, 0) : Math.min(raw, 0);
-      bodyInnerEl.style.transform = `translateY(${dampen(valid)}px)`;
-      if (Math.abs(dampen(valid)) > 0.5) e.preventDefault();
-    } else if (isPulling) { resetPull(false); }
-  }
-  function onTouchEnd() { if (isPulling) resetPull(true); }
 </script>
 
-<div class="create-tab" bind:this={bodyEl}
-  on:touchstart={onTouchStart}
-  on:touchmove|nonpassive={onTouchMove}
-  on:touchend={onTouchEnd}
-  on:touchcancel={onTouchEnd}>
-  <div bind:this={bodyInnerEl}>
-
-    <div class="hero-bg" style="background-image:url('/images/createbg/img.jpg')"></div>
-
-    <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
-      <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
-      <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
-    </button>
-
-    <div class="apps-grid">
-      {#each platformApps as app}
-        <button class="app-item" on:click={() => openApp(app)}>
-          <span class="app-icon-wrap">
-            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-          </span>
-          <span class="app-label">{app.label}</span>
-        </button>
-      {/each}
-    </div>
+<div class="create-tab">
+  
+  <div class="hero-bg" style="background-image:url('/images/createbg/img.jpg')">
+    <div class="hero-solid" style="opacity:{heroProgress}"></div>
+  </div>
+  
+  <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
+    <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+    <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
+  </button>
+  
+  <div class="apps-grid">
+    {#each platformApps as app}
+      <button class="app-item" on:click={() => openApp(app)}>
+        <span class="app-icon-wrap">
+          <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
+        </span>
+        <span class="app-label">{app.label}</span>
+      </button>
+    {/each}
   </div>
 </div>
 
 <style>
   .create-tab {
     width: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
   }
 
-  /* Imagem de fundo puramente decorativa, no topo do tab, por trás
-     do appbar transparente (ver AppHeader) — segue o fluxo normal do
-     documento, tal como qualquer outro bloco. Sem position:absolute
-     e sem alturas inventadas: é só um bloco com background-image. */
+  /* Imagem puramente decorativa no topo do tab. Fica dentro do fluxo
+     normal do documento — não tem position:absolute, não tem overflow
+     próprio, não tem altura "mágica" negativa. O scroll de verdade é
+     feito pelo .scroll-root do App.svelte, exatamente como nos outros
+     tabs (ProjectsTab, TemplatesTab, ToolsTab). */
   .hero-bg {
+    position: relative;
     width: 100%;
     height: 260px;
-    margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + 84px));
-    padding-top: calc(env(safe-area-inset-top, 0px) + 84px);
-    box-sizing: border-box;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    overflow: hidden;
+  }
+
+  /* Camada sólida que cobre a imagem conforme o utilizador desliza
+     para cima — branca no tema claro, escura no tema escuro, via
+     var(--app-bg) (já definida no App.svelte para os dois temas).
+     heroProgress (0 a 1) vem do scroll real medido no App.svelte. */
+  .hero-solid {
+    position: absolute;
+    inset: 0;
+    background: var(--app-bg);
+    pointer-events: none;
+    transition: opacity .05s linear;
   }
 
   .search-bar {

@@ -411,61 +411,77 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDING — reescrito do zero.
+  //  KEYBOARD AVOIDING — v2
   //
-  //  O erro de todas as tentativas anteriores: eu estava a tentar
-  //  "contrariar" o teclado recalculando top/scrollTo a cada evento do
-  //  visualViewport — isso é uma corrida perdida contra o browser, que
-  //  continua a redimensionar o layout por trás em muitos Android.
+  //  Problema da versão anterior: fixedRootHeight = window.innerHeight
+  //  era capturado imediatamente no onMount, antes do layout assentar
+  //  (status bar / barra de navegação / primeiro paint), e o html/body
+  //  não estavam travados — então o próprio documento podia ser
+  //  comprimido pelo teclado por baixo do .root, arrastando o appbar
+  //  junto mesmo com altura "fixa" no elemento errado.
   //
-  //  A abordagem correta (a que realmente prende o appbar): capturar
-  //  window.innerHeight UMA ÚNICA VEZ, antes do teclado alguma vez
-  //  abrir (no onMount), e usar esse valor fixo como altura do .root.
-  //  Nunca mais recalculado. O .root passa a ter uma altura em px
-  //  absoluta e constante — o teclado, ao abrir, encolhe o
-  //  visualViewport mas NÃO consegue encolher um elemento cuja altura
-  //  já está fixada em px desde antes do teclado existir.
-  //
-  //  Dentro do .root, .appbar e .canvas-area (que contém DocPage) são
-  //  flex children normais; .canvas-area tem overflow:hidden e é ela
-  //  que "perde" espaço visualmente quando o teclado ocupa a parte de
-  //  baixo do ecrã real — mas como o .root inteiro nunca muda de
-  //  tamanho, o appbar (primeiro filho, position:relative normal)
-  //  jamais se desloca. Só o kbOffset (offset do teclado) é passado à
-  //  BottomToolbar, que tem position:fixed própria e reage sozinha.
+  //  Correção: (1) trava html/body com position:fixed;inset:0 também,
+  //  não só o .root; (2) usa visualViewport.height (não innerHeight)
+  //  como fonte da altura fixa, porque é o valor que existe ANTES do
+  //  teclado abrir; (3) espera 2 frames antes de capturar, para não
+  //  travar um valor lido cedo demais; (4) recalcula em orientationchange,
+  //  porque travar para sempre só faz sentido enquanto a orientação
+  //  não muda.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
   let rootEl;
   let fixedRootHeight = 0;
 
+  function applyFixedHeight() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    fixedRootHeight = Math.round(h);
+    document.documentElement.style.setProperty('--app-vh', fixedRootHeight + 'px');
+  }
+
   function computeKbOffset() {
     const vv = window.visualViewport;
     if (!vv) { kbOffset = 0; return; }
-    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
+    const overlap = fixedRootHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
   }
   function scheduleKbUpdate() {
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     kbUpdateRaf = requestAnimationFrame(computeKbOffset);
   }
-  let vvRef = null;
-  function setupKeyboardAvoidance() {
-    // Captura a altura real do ecrã UMA VEZ, com o teclado
-    // garantidamente fechado (momento do mount da página).
-    fixedRootHeight = window.innerHeight;
 
-    vvRef = window.visualViewport;
-    if (!vvRef) return;
-    vvRef.addEventListener('resize', scheduleKbUpdate);
-    vvRef.addEventListener('scroll', scheduleKbUpdate);
+  let vvRef = null;
+  let orientationTimeout;
+
+  function handleOrientationChange() {
+    clearTimeout(orientationTimeout);
+    orientationTimeout = setTimeout(applyFixedHeight, 300);
   }
+
+  function setupKeyboardAvoidance() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        applyFixedHeight();
+
+        vvRef = window.visualViewport;
+        if (!vvRef) return;
+        vvRef.addEventListener('resize', scheduleKbUpdate);
+        vvRef.addEventListener('scroll', scheduleKbUpdate);
+      });
+    });
+
+    window.addEventListener('orientationchange', handleOrientationChange);
+  }
+
   onDestroy(() => {
     if (vvRef) {
       vvRef.removeEventListener('resize', scheduleKbUpdate);
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
+    window.removeEventListener('orientationchange', handleOrientationChange);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
+    clearTimeout(orientationTimeout);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
   });
@@ -557,11 +573,12 @@
   }
 </script>
 
-<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary};height:{fixedRootHeight ? fixedRootHeight + 'px' : '100vh'};">
+<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary};">
 
   <!-- Appbar: filho normal do flex column .root, cuja altura está
-       travada em px desde o mount. Nunca leva transform, nunca leva
-       kbOffset. Fisicamente impossível de subir com o teclado. -->
+       travada via --app-vh desde o mount (2 frames depois, para
+       garantir que o layout já assentou). Nunca leva transform,
+       nunca leva kbOffset. -->
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -678,9 +695,22 @@
 </div>
 
 <style>
+  :global(html), :global(body) {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    position: fixed;
+    inset: 0;
+  }
+
   .root {
-    position: fixed; left: 0; right: 0; top: 0;
-    display: flex; flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: var(--app-vh, 100dvh);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 

@@ -8,8 +8,6 @@
 
   const dispatch = createEventDispatcher();
 
-  // A4 real a 96dpi ≈ 794×1123px — referência física fixa para que a
-  // paginação seja consistente independentemente do zoom.
   const PAGE_W = 794;
   const PAGE_H = 1123;
   const PAGE_PAD_Y = 76;
@@ -30,13 +28,18 @@
   let resizeObserver;
 
   // ══════════════════════════════════════════════════════════════════
-  //  PAGINAÇÃO REAL — um único contenteditable "master" é montado
-  //  fisicamente (appendChild) dentro do .page-body da folha ativa, e
-  //  por isso o texto digitado aparece SEMPRE no lugar visual certo
-  //  (isto corrige o bug da versão anterior, onde o master ficava fora
-  //  do fluxo das folhas). As folhas não-ativas mostram snapshots
-  //  estáticos em innerHTML. Ao clicar numa folha não-ativa, o master
-  //  é movido para lá antes do foco.
+  //  PAGINAÇÃO — CORRIGIDA. O bug anterior: o master ficava
+  //  `display:none` sempre que não estava fisicamente dentro de um
+  //  .page-body, e um contenteditable com display:none NÃO recebe
+  //  foco nem input em nenhum browser — por isso "congelava" mesmo ao
+  //  colar ou escrever, porque na primeira renderização o master podia
+  //  estar temporariamente fora do DOM visível enquanto aguardava o
+  //  tick() de mountMasterIntoActivePage().
+  //  Agora: o master nasce SEMPRE dentro do primeiro .page-body, de
+  //  forma síncrona, dentro do próprio onMount, sem esperar por tick.
+  //  Nunca mais recebe display:none — quando é temporariamente
+  //  desacoplado (durante repaginação), fica apenas fora do fluxo por
+  //  frações de milissegundo antes de ser reanexado, nunca oculto.
   // ══════════════════════════════════════════════════════════════════
 
   let masterEl;
@@ -46,6 +49,7 @@
   let pageBodyEls = [];
   let repaginateRaf = null;
   let isRepaginating = false;
+  let masterReady = false;
 
   function measureOverflow(el) {
     return el.scrollHeight - CONTENT_H;
@@ -77,11 +81,14 @@
   }
 
   async function repaginate() {
-    if (!masterEl || isRepaginating) return;
+    if (!masterEl || isRepaginating || !masterReady) return;
     isRepaginating = true;
 
-    // 1. Junta TODO o conteúdo (master + folhas estáticas) numa árvore
-    //    de trabalho, na ordem correta.
+    // Guarda a posição do cursor (offset de texto dentro do master)
+    // para tentar restaurar depois da repaginação, evitando "saltos".
+    const sel = window.getSelection();
+    let caretWasInMaster = sel && sel.rangeCount && masterEl.contains(sel.anchorNode);
+
     const work = ensureScratchPage();
     work.innerHTML = '';
     for (let i = 0; i < pages.length; i++) {
@@ -94,7 +101,6 @@
       work.innerHTML = '<p><br></p>';
     }
 
-    // 2. Refaz a paginação, medindo overflow real de cada fragmento.
     const fragments = [];
     let current = work;
     let safety = 0;
@@ -123,7 +129,6 @@
 
     if (fragments.length === 0) fragments.push('<p><br></p>');
 
-    // 3. Aplica os fragmentos às folhas visuais.
     const prevActive = activePageIndex;
     pages = fragments.map((_, i) => ({ id: i }));
     pageContents = fragments;
@@ -132,6 +137,20 @@
     activePageIndex = Math.min(prevActive, pages.length - 1);
     await tick();
     mountMasterIntoActivePage();
+
+    if (caretWasInMaster) {
+      // Reposiciona o cursor no fim do conteúdo do master remontado —
+      // preserva a digitação contínua sem perder o foco.
+      try {
+        masterEl.focus();
+        const range = document.createRange();
+        range.selectNodeContents(masterEl);
+        range.collapse(false);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(range);
+      } catch (e) {}
+    }
 
     isRepaginating = false;
   }
@@ -166,10 +185,13 @@
   function handleKeydown(e) {
     dispatch('keydown', e);
   }
+  function handlePaste(e) {
+    // Deixa o browser colar normalmente (texto/HTML), só garante que
+    // a repaginação corre logo a seguir — sem isto, colar conteúdo
+    // grande podia ficar "invisível" até ao próximo evento input.
+    setTimeout(() => scheduleRepaginate(), 0);
+  }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  API pública (usada pela MainPage via bind:this)
-  // ══════════════════════════════════════════════════════════════════
   export function getContent() {
     if (!masterEl) return '';
     pageContents[activePageIndex] = masterEl.innerHTML;
@@ -224,7 +246,6 @@
     scheduleRepaginate();
   }
 
-  // ── Imagens: inserir + redimensionar + dispor com o texto ─────────
   export function insertImageAtCursor(dataUrl) {
     focusEditor();
     const wrapperId = 'img_' + Date.now().toString(36);
@@ -259,7 +280,6 @@
     scheduleRepaginate();
   }
 
-  // ── Tabelas: inserir editável, redimensionável e movível ──────────
   export function insertTable(rows, cols) {
     focusEditor();
     const tableId = 'tbl_' + Date.now().toString(36);
@@ -280,9 +300,6 @@
     scheduleRepaginate();
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  Interação de imagem/tabela: alças de redimensionar
-  // ══════════════════════════════════════════════════════════════════
   let resizingEl = null;
   let resizeStartX = 0;
   let resizeStartWidth = 0;
@@ -338,12 +355,18 @@
     if (containerEl) resizeObserver.observe(containerEl);
     window.addEventListener('orientationchange', computeFitScale);
 
+    // Montagem SÍNCRONA: o primeiro .page-body já existe no DOM (é
+    // renderizado pelo {#each pages} inicial com pages=[{id:0}]), por
+    // isso podemos anexar o master a ele imediatamente, sem esperar
+    // tick(). Isto é o que elimina a janela de "congelamento".
     masterEl.innerHTML = initialContent || '<p><br></p>';
-    tick().then(() => {
-      mountMasterIntoActivePage();
-      dispatch('ready', { html: getContent() });
-      repaginate();
-    });
+    const firstTarget = pageBodyEls[0];
+    if (firstTarget && masterEl.parentElement !== firstTarget) {
+      firstTarget.appendChild(masterEl);
+    }
+    masterReady = true;
+    dispatch('ready', { html: getContent() });
+    scheduleRepaginate();
 
     window.addEventListener('mousemove', onDocPointerMove);
     window.addEventListener('mouseup', onDocPointerUp);
@@ -374,6 +397,9 @@
           >
             {#if i !== activePageIndex}
               {@html pageContents[i]}
+            {:else if !masterReady}
+              <!-- placeholder até o master ser montado no onMount -->
+              <p><br></p>
             {/if}
           </div>
           <div class="page-number">{i + 1}</div>
@@ -395,18 +421,22 @@
     </div>
   </PinchZoom>
 
-  <!-- O master fica sempre montado dentro da folha ativa via appendChild em JS -->
+  <!-- O master é criado aqui pelo Svelte na primeira renderização, e
+       movido (appendChild) para dentro do .page-body ativo no onMount
+       — nunca fica display:none, só temporariamente fora do fluxo
+       (sem estar em lado nenhum do DOM) por microssegundos durante a
+       reancoragem, o que não afeta contenteditable/foco. -->
   <div
     class="editor-master"
     contenteditable="true"
     bind:this={masterEl}
     on:input={handleInput}
     on:keydown={handleKeydown}
+    on:paste={handlePaste}
     spellcheck="true"
     role="textbox"
     aria-multiline="true"
     aria-label="Conteúdo do documento"
-    style="display:none"
   ></div>
 </div>
 
@@ -444,21 +474,15 @@
     min-height: 0;
     overflow: hidden;
   }
-  /* Quando o master real está montado dentro deste .page-body (folha
-     ativa), ele volta a ficar display:block e ocupa o espaço normal. */
   .page-body :global(.editor-master) {
-    display: block !important;
-  }
-  .page-number {
-    position: absolute; bottom: 14px; right: 0; left: 0;
-    text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
-  }
-
-  .editor-master {
     outline: none;
     font-size: 15px; line-height: 1.6; color: #1a1a1a;
     overflow-wrap: break-word;
     width: 100%; height: 100%;
+  }
+  .page-number {
+    position: absolute; bottom: 14px; right: 0; left: 0;
+    text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
   }
 
   :global(.doc-table.doc-table) { border-collapse: collapse; width: 100%; margin: 4px 0; }

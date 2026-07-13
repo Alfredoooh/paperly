@@ -75,8 +75,8 @@
   function getEditorHTML() {
     return docPageComp ? docPageComp.getContent() : '';
   }
-  function setEditorHTML(html, keepScroll = false) {
-    docPageComp && docPageComp.setContent(html, keepScroll);
+  function setEditorHTML(html) {
+    docPageComp && docPageComp.setContent(html);
   }
   function focusEditor() {
     docPageComp && docPageComp.focusEditor();
@@ -118,9 +118,6 @@
     pushHistory();
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  Título editável em tempo real
-  // ══════════════════════════════════════════════════════════════════
   function handleNameInput(e) {
     docName = e.target.value;
     scheduleSave();
@@ -144,11 +141,7 @@
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  HISTÓRICO PRÓPRIO DE UNDO/REDO — corrigido: ações de toolbar
-  //  empilham de forma síncrona e imediata (immediate=true), digitação
-  //  usa debounce curto. Isto resolve o bug de undo/redo não funcionar.
-  // ══════════════════════════════════════════════════════════════════
+  // --- Histórico próprio de undo/redo ---
   let historyStack = [];
   let historyIndex = -1;
   let isRestoringHistory = false;
@@ -186,7 +179,7 @@
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
     historyIndex -= 1;
-    setEditorHTML(historyStack[historyIndex], true);
+    setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
     scheduleSave();
@@ -197,7 +190,7 @@
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
     historyIndex += 1;
-    setEditorHTML(historyStack[historyIndex], true);
+    setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
     scheduleSave();
@@ -251,9 +244,6 @@
   function setAlign(cmd) { exec(cmd); activePanel = null; }
   function setList(cmd) { exec(cmd); activePanel = null; }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  IMAGENS
-  // ══════════════════════════════════════════════════════════════════
   function insertImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -293,9 +283,6 @@
     editingImageEl = null;
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  TABELA
-  // ══════════════════════════════════════════════════════════════════
   function insertTable(e) {
     const { rows, cols } = e.detail;
     docPageComp && docPageComp.insertTable(rows, cols);
@@ -304,7 +291,6 @@
     pushHistory(true);
   }
 
-  // --- Cor: fluxo ColorModal ⇄ ColorPickerModal ---
   function selectColor(hex) {
     exec('foreColor', hex);
     colorModalOpen = false;
@@ -326,7 +312,6 @@
     colorModalOpen = true;
   }
 
-  // --- Links ---
   let linkUrlDraft = '';
   let savedSelectionRange = null;
 
@@ -381,7 +366,6 @@
     return escapeHtml(str).replace(/"/g, '&quot;');
   }
 
-  // --- Notas de rodapé ---
   let footnotes = [];
   let footnoteDraft = '';
   let footnoteCounter = 0;
@@ -427,17 +411,38 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDING — appbar e folha NUNCA se movem; só a bottom
-  //  toolbar sobe acompanhando o teclado.
+  //  KEYBOARD AVOIDING — CORRIGIDO.
+  //  O bug anterior: mesmo com .appbar sem transform ligado ao teclado,
+  //  o .root usava só `position:fixed; inset:0`, que é relativo ao
+  //  LAYOUT viewport. Em Android/Chrome, quando o teclado abre, o
+  //  layout viewport pode encolher e arrastar o body/scroll consigo,
+  //  empurrando visualmente tudo lá dentro para cima — incluindo um
+  //  elemento fixed, porque o "inset:0" passa a apontar para um
+  //  viewport menor que já subiu.
+  //  A correção: ancorar .root ao visualViewport.offsetTop/height via
+  //  JS (não CSS), fixando explicitamente top=0 e height=layout total
+  //  do ecrã físico, e SÓ passar o kbOffset para a bottom toolbar. Isto
+  //  garante que o appbar fica fisicamente colado ao topo do ecrã,
+  //  independente do que o teclado faz ao visualViewport.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
+  let rootEl;
 
   function computeKbOffset() {
     const vv = window.visualViewport;
     if (!vv) { kbOffset = 0; return; }
     const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
+
+    // Trava o root ao topo físico do ecrã, ignorando o scroll/offset
+    // que o teclado tenta impor ao visualViewport. Isto é o que
+    // impede o appbar de "subir".
+    if (rootEl) {
+      rootEl.style.top = vv.offsetTop ? -vv.offsetTop + 'px' : '0px';
+      rootEl.style.height = window.innerHeight + 'px';
+    }
+    window.scrollTo(0, 0);
   }
   function scheduleKbUpdate() {
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
@@ -460,9 +465,6 @@
     clearTimeout(historyDebounce);
   });
 
-  // ══════════════════════════════════════════════════════════════════
-  //  DocMenu — popup ancorado ao botão more_vert
-  // ══════════════════════════════════════════════════════════════════
   let showDocMenu = false;
   let docMenuBtnEl;
   let docMenuAnchor = { top: 0, right: 0 };
@@ -550,9 +552,9 @@
   }
 </script>
 
-<div class="root" style="background:{c.background};color:{c.textPrimary}">
+<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary}">
 
-  <!-- Appbar: FIXO, nunca reage ao teclado nem à folha. -->
+  <!-- Appbar: FIXO no topo físico do ecrã, nunca reage ao teclado. -->
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -575,7 +577,6 @@
     </button>
   </div>
 
-  <!-- Folha(s) A4 com paginação real -->
   <DocPage
     bind:this={docPageComp}
     {initialContent}
@@ -587,7 +588,6 @@
     on:imagerequestedit={handleImageRequestEdit}
   />
 
-  <!-- Toolbar inferior: SÓ ela sobe com o teclado. -->
   <BottomToolbar
     {c}
     {activePanel}
@@ -597,7 +597,6 @@
     on:action={(e) => handleToolbarAction(e.detail)}
   />
 
-  <!-- Popup ancorado do documento -->
   <DocMenu
     visible={showDocMenu}
     anchor={docMenuAnchor}
@@ -606,7 +605,6 @@
     on:select={handleDocMenuSelect}
   />
 
-  <!-- Bottom sheet de formatação genérico (padrão Settings) -->
   <FormatModal
     {activePanel}
     {c}
@@ -622,7 +620,6 @@
     on:confirmfootnote={confirmInsertFootnote}
   />
 
-  <!-- Bottom sheet de cores (padrão Settings) -->
   <ColorModal
     visible={colorModalOpen}
     {c}
@@ -632,7 +629,6 @@
     on:addcolor={requestAddColor}
   />
 
-  <!-- Bottom sheet de picker de cor ajustável -->
   <ColorPickerModal
     visible={colorPickerOpen}
     {c}
@@ -640,7 +636,6 @@
     on:cancel={cancelCustomColor}
   />
 
-  <!-- Bottom sheet de opções de imagem -->
   <ImageOptionsModal
     visible={imageOptionsOpen}
     {c}
@@ -650,7 +645,6 @@
     on:close={closeImageOptions}
   />
 
-  <!-- Bottom sheet de tabela editável -->
   <TableModal
     visible={tableModalOpen}
     {c}
@@ -658,7 +652,6 @@
     on:insert={insertTable}
   />
 
-  <!-- Confirmar apagar (dialog central, padrão logout do Settings) -->
   <ConfirmDialog
     visible={showDeleteConfirm}
     {c}
@@ -672,7 +665,12 @@
 </div>
 
 <style>
-  .root { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+  /* top/height passam a ser controlados via JS (rootEl.style) para
+     travar ao ecrã físico; left/right ficam fixos aqui. */
+  .root {
+    position: fixed; left: 0; right: 0; top: 0;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
 
   .appbar {
     display: flex; align-items: center; gap: 10px;

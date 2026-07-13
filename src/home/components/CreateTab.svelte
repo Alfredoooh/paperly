@@ -42,45 +42,14 @@
     return APP_CONTAINER_COLORS[app.id] || FALLBACK_COLOR;
   }
 
-  // Saudação rotativa: escolhida UMA vez ao montar (não muda com timer,
-  // só muda se a página recarregar). Vive sobre a foto da hero, NÃO
-  // no appbar — o appbar mostra sempre "Criar".
-  const GREETINGS_MANHA = [
-    'O que deseja criar esta manhã?',
-    'Bom dia! Pronto para criar algo novo?',
-    'Uma nova manhã, uma nova ideia.',
-    'Vamos começar o dia a criar?',
-    'Que tal criar algo esta manhã?',
-  ];
-  const GREETINGS_TARDE = [
-    'O que deseja criar esta tarde?',
-    'Boa tarde! O que vamos criar?',
-    'Estás pronto para a próxima criação?',
-    'Uma tarde perfeita para criar.',
-    'Que ideia vamos dar vida esta tarde?',
-  ];
-  const GREETINGS_NOITE = [
-    'O que deseja criar esta noite?',
-    'Boa noite! Ainda com energia para criar?',
-    'A noite é uma boa altura para criar.',
-    'Estás pronto para a próxima criação?',
-    'Que tal terminar o dia a criar algo?',
-  ];
-  const GREETINGS_MADRUGADA = [
-    'A criar até tarde? Vamos a isso.',
-    'Uma ideia não espera pela manhã.',
-    'Estás pronto para a próxima criação?',
-    'Silêncio lá fora, ideias aqui dentro.',
-  ];
-
+  // Saudação: curta (2-4 palavras), padrão Spotify/Notion — não uma
+  // frase inteira. Escolhida uma vez ao montar, por período do dia.
   function pickGreeting() {
     const h = new Date().getHours();
-    let pool;
-    if (h >= 5 && h < 12) pool = GREETINGS_MANHA;
-    else if (h >= 12 && h < 18) pool = GREETINGS_TARDE;
-    else if (h >= 18 && h < 24) pool = GREETINGS_NOITE;
-    else pool = GREETINGS_MADRUGADA;
-    return pool[Math.floor(Math.random() * pool.length)];
+    if (h >= 5 && h < 12) return 'Bom dia';
+    if (h >= 12 && h < 18) return 'Boa tarde';
+    if (h >= 18 && h < 24) return 'Boa noite';
+    return 'Boa madrugada';
   }
 
   const greetingText = pickGreeting();
@@ -111,9 +80,8 @@
   }
 </script>
 
-<!-- Header próprio do Create: appbar fina e fixa, SEMPRE "Criar" desde
-     o início — nunca troca de texto. Sólida quando o scroll passa o
-     threshold, tal como já era antes das saudações existirem. -->
+<!-- Header próprio do Create: appbar fina e fixa, SEMPRE "Criar",
+     nunca troca de texto. Sólida quando o scroll passa o threshold. -->
 <div class="create-header" class:in={mounted} class:solid={heroProgress >= 0.5}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:solid-text={heroProgress >= 0.5}>{title}</h1>
@@ -129,6 +97,11 @@
 
 <div class="create-tab">
 
+  <!-- Saudação curta, FORA da hero-photo, sobre fundo sólido do tema
+     (--app-bg). Padrão Spotify/Notion: título curto de topo de página,
+     não texto flutuante sobre imagem. Desaparece com o scroll. -->
+  <p class="page-greeting" style="opacity:{1 - heroProgress}">{greetingText}</p>
+
   <div class="hero-bg">
     <!-- Camada 1: a foto em si -->
     <div class="hero-photo" style="background-image:url('/images/createbg/img.jpg')"></div>
@@ -139,11 +112,6 @@
     <!-- Camada 3: cobre a imagem por completo conforme o utilizador
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
-
-    <!-- Saudação rotativa: vive AQUI, sobre a foto, por baixo do
-         appbar — não dentro dele. Desaparece com o scroll junto com
-         a própria hero (heroProgress controla a opacidade). -->
-    <p class="hero-greeting" style="opacity:{1 - heroProgress}">{greetingText}</p>
   </div>
 
   <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
@@ -165,8 +133,6 @@
 
 <style>
   /* ---------- Header próprio do Create ---------- */
-  /* Appbar fina, altura fixa, SEMPRE "Criar" — nunca cresce, nunca
-     troca de conteúdo com o scroll (só liga/desliga o fundo sólido). */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -214,7 +180,6 @@
     white-space: nowrap;
     transition: color .25s cubic-bezier(0.16,1,0.3,1), text-shadow .25s cubic-bezier(0.16,1,0.3,1);
   }
-  /* Header sólido: cor de texto do tema (resolve claro/escuro). */
   .create-header-title.solid-text {
     color: var(--drawer-text);
     text-shadow: none;
@@ -267,6 +232,18 @@
     width: 100%;
   }
 
+  /* Saudação curta: vive sobre fundo sólido do tema, ANTES da hero
+     photo, no espaço reservado ao próprio appbar (fica por baixo
+     dele, no fluxo normal da página, não flutuante). */
+  .page-greeting {
+    margin: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 64px) 20px 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-faint);
+    transition: opacity .2s linear;
+  }
+
   .hero-bg {
     position: relative;
     width: 100%;
@@ -301,24 +278,6 @@
     background: var(--app-bg);
     pointer-events: none;
     transition: opacity .05s linear;
-  }
-
-  /* Saudação rotativa: texto solto sobre a foto, por baixo de onde
-     ficaria o appbar. Espaço de sobra para frases inteiras, sem
-     cortar e sem inchar nenhum container fixo. */
-  .hero-greeting {
-    position: absolute;
-    left: 20px;
-    right: 20px;
-    bottom: 40px;
-    margin: 0;
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1.3;
-    color: #fff;
-    text-shadow: 0 1px 8px rgba(0,0,0,0.4);
-    transition: opacity .2s linear;
-    pointer-events: none;
   }
 
   .search-bar {

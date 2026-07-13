@@ -17,24 +17,23 @@
   export let title = '';
   export let onOpenDrawer = () => {};
 
-  // Cor do container por app — fixa por ID (não por posição), para
-  // nunca repetir e para o Nexa Docs ser sempre azul.
+  // Cor do container por app — fixa por ID, todas distintas entre si.
   const APP_CONTAINER_COLORS = {
     ai:           '#F0384A', // vermelho
-    profilelens:  '#E040D8', // magenta/rosa
-    docs:         '#2F7BF6', // azul (Nexa Docs)
+    profilelens:  '#D6409F', // rosa-magenta
+    docs:         '#2F7BF6', // azul
     sheets:       '#1E9E8C', // teal
-    slides:       '#6A3FE0', // roxo-azulado
+    slides:       '#E8720F', // laranja
     drive:        '#8B3FE0', // roxo
     calendar:     '#1FA34A', // verde
-    chat:         '#1D8FE0', // azul-claro
-    tasks:        '#D9D9D9', // cinza-claro
-    notes:        '#E8720F', // laranja
+    chat:         '#12A8D6', // azul-ciano
+    tasks:        '#B0B0B8', // cinza
+    notes:        '#C2410C', // laranja-terracota
     forms:        '#E0405F', // vermelho-rosado
-    projects:     '#C93FD1', // magenta-vivo
+    projects:     '#9333EA', // roxo-violeta
     wiki:         '#4A5FE0', // índigo
-    whiteboard:   '#12B5A8', // ciano-teal
-    analytics:    '#7ED321', // lima/verde-vivo
+    whiteboard:   '#0D9488', // teal-escuro
+    analytics:    '#84CC16', // lima
   };
 
   const FALLBACK_COLOR = '#8E8E93';
@@ -42,6 +41,56 @@
   function containerColor(app) {
     return APP_CONTAINER_COLORS[app.id] || FALLBACK_COLOR;
   }
+
+  // Saudação rotativa: escolhida UMA vez ao montar (não muda com timer,
+  // só muda se a página recarregar). Pool grande por período do dia
+  // para não repetir sempre a mesma frase.
+  const GREETINGS_MANHA = [
+    'O que deseja criar esta manhã?',
+    'Bom dia! Pronto para criar algo novo?',
+    'Uma nova manhã, uma nova ideia.',
+    'Vamos começar o dia a criar?',
+    'Que tal criar algo esta manhã?',
+  ];
+  const GREETINGS_TARDE = [
+    'O que deseja criar esta tarde?',
+    'Boa tarde! O que vamos criar?',
+    'Estás pronto para a próxima criação?',
+    'Uma tarde perfeita para criar.',
+    'Que ideia vamos dar vida esta tarde?',
+  ];
+  const GREETINGS_NOITE = [
+    'O que deseja criar esta noite?',
+    'Boa noite! Ainda com energia para criar?',
+    'A noite é uma boa altura para criar.',
+    'Estás pronto para a próxima criação?',
+    'Que tal terminar o dia a criar algo?',
+  ];
+  const GREETINGS_MADRUGADA = [
+    'A criar até tarde? Vamos a isso.',
+    'Uma ideia não espera pela manhã.',
+    'Estás pronto para a próxima criação?',
+    'Silêncio lá fora, ideias aqui dentro.',
+  ];
+
+  function pickGreeting() {
+    const h = new Date().getHours();
+    let pool;
+    if (h >= 5 && h < 12) pool = GREETINGS_MANHA;
+    else if (h >= 12 && h < 18) pool = GREETINGS_TARDE;
+    else if (h >= 18 && h < 24) pool = GREETINGS_NOITE;
+    else pool = GREETINGS_MADRUGADA;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // Escolhida uma única vez quando o componente monta.
+  const greetingText = pickGreeting();
+
+  // Limiar a partir do qual o header passa a sólido e o texto muda
+  // de saudação para o título simples "Criar".
+  const SOLID_THRESHOLD = 0.5;
+  $: isSolid = heroProgress >= SOLID_THRESHOLD;
+  $: headerText = isSolid ? title : greetingText;
 
   function openApp(app) {
     if (app.id === 'ai') {
@@ -69,12 +118,12 @@
   }
 </script>
 
-<!-- Header próprio do Create: fixo, transparente puro, título sempre
-     branco. NÃO usa var(--header-glass-rgb) nem var(--icon-strong),
-     por isso nunca herda cor/fundo do tema. -->
-<div class="create-header" class:in={mounted}>
+<!-- Header próprio do Create: fixo. Antes de scroll é transparente com
+     saudação rotativa; ao passar o threshold fica sólido (branco/escuro
+     conforme o tema, via --drawer-bg) e o texto passa a ser só "Criar". -->
+<div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
-    <h1 class="create-header-title">{title}</h1>
+    <h1 class="create-header-title" class:solid-text={isSolid}>{headerText}</h1>
     <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="profile-img" />
@@ -125,7 +174,7 @@
     background: transparent;
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
-    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1);
+    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .3s cubic-bezier(0.16,1,0.3,1);
     pointer-events: none;
     contain: layout style paint;
   }
@@ -133,6 +182,10 @@
     opacity: 1;
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
+  }
+  .create-header.solid {
+    background: var(--drawer-bg);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.12);
   }
   .create-header-inner {
     display: flex;
@@ -155,6 +208,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: color .25s cubic-bezier(0.16,1,0.3,1), text-shadow .25s cubic-bezier(0.16,1,0.3,1);
+  }
+  /* Header sólido: texto sem sombra branca fixa, usa a cor de texto do
+     tema (--drawer-text), que já resolve claro/escuro automaticamente. */
+  .create-header-title.solid-text {
+    color: var(--drawer-text);
+    text-shadow: none;
   }
   .profile-btn {
     width: 36px;

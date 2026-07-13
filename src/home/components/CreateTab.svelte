@@ -2,8 +2,6 @@
 <!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
      Não usa AppHeader — este tab é o único caso especial. -->
 <script>
-  import { getAvatarColor } from '../lib/constants.js';
-
   export let platformApps = [];
   export let onOpenSearch = () => {};
   export let onOpenApp = () => {};
@@ -18,6 +16,27 @@
   export let userName = 'Utilizador';
   export let title = '';
   export let onOpenDrawer = () => {};
+
+  // Paleta de containers ao estilo Canva — mapeada por POSIÇÃO na grid,
+  // ciclando se houver mais apps do que cores. Ordem tirada diretamente
+  // do print: vermelho, magenta, roxo, teal, índigo, azul-violeta,
+  // verde, azul, cinza-claro, laranja.
+  const CONTAINER_COLORS = [
+    '#F0384A', // vermelho
+    '#E040D8', // magenta/rosa
+    '#9B2FC9', // roxo
+    '#1E9E8C', // teal
+    '#4A5FE0', // azul-índigo
+    '#6A3FE0', // azul-violeta
+    '#1FA34A', // verde
+    '#1D8FE0', // azul
+    '#D9D9D9', // cinza-claro
+    '#E8720F', // laranja
+  ];
+
+  function containerColor(index) {
+    return CONTAINER_COLORS[index % CONTAINER_COLORS.length];
+  }
 
   function openApp(app) {
     if (app.id === 'ai') {
@@ -81,9 +100,9 @@
   </button>
 
   <div class="apps-grid">
-    {#each platformApps as app}
+    {#each platformApps as app, i}
       <button class="app-item" on:click={() => openApp(app)}>
-        <span class="app-icon-wrap" style="background:{getAvatarColor(app.label || app.id)}">
+        <span class="app-icon-wrap" style="background:{containerColor(i)}">
           <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
         </span>
         <span class="app-label">{app.label}</span>
@@ -255,14 +274,14 @@
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 18px 8px;
+    gap: 22px 8px;
     padding: 20px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
   }
   .app-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     border: none;
     background: transparent;
     padding: 0;
@@ -271,18 +290,17 @@
     color: var(--drawer-text);
   }
   .app-icon-wrap {
-    width: 43px;
-    height: 43px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
   }
   .app-icon-svg {
-    width: 55%;
-    height: 55%;
+    width: 60%;
+    height: 60%;
     display: block;
     background: #fff;
     mask-size: contain;
@@ -296,11 +314,11 @@
     transform: scale(0.88);
   }
   .app-label {
-    font-size: 11.5px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 500;
     text-align: center;
     line-height: 1.25;
-    max-width: 68px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;

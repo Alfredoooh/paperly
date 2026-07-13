@@ -116,8 +116,7 @@
 
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
      avatar). O título "Criar" só aparece quando o header fica sólido
-     com o scroll — antes disso o <h1> está vazio, não ocupa espaço
-     nem lugar nenhum no layout. -->
+     com o scroll. -->
 <div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:visible={isSolid}>{isSolid ? title : ''}</h1>
@@ -136,16 +135,15 @@
   <div class="hero-bg">
     <!-- Camada 1: a foto em si -->
     <div class="hero-photo" style="background-image:url('/images/createbg/img.jpg')"></div>
-    <!-- Camada 2: gradiente ESTÁTICO (não depende do scroll) — mais
-         transparente no topo (perto do appbar/relógio), mais sólido
-         em baixo (perto da search bar/apps), tal como no CapCut. -->
+    <!-- Camada 2: gradiente ESTÁTICO, agora mais suave — começa mais
+         tarde e escurece menos, para a foto respirar mais. -->
     <div class="hero-static-fade"></div>
     <!-- Camada 3: cobre a imagem por completo conforme o utilizador
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
 
-    <!-- Saudação rotativa: vive AQUI, sobre a foto — nunca no appbar.
-         Some com o scroll junto da própria hero. -->
+    <!-- Saudação rotativa: agora com o peso visual de um título hero
+         (maior, mais forte), não um subtítulo discreto. -->
     <p class="hero-greeting" style="opacity:{1 - heroProgress}">{greetingText}</p>
   </div>
 
@@ -201,8 +199,6 @@
     margin: 0 auto;
     padding: env(safe-area-inset-top, 0px) 16px 0;
   }
-  /* Vazio por defeito: sem conteúdo, sem sombra, sem ocupar espaço
-     visual — só existe quando .visible (header sólido). */
   .create-header-title {
     font-size: 20px;
     font-weight: 800;
@@ -284,14 +280,17 @@
     background-repeat: no-repeat;
   }
 
+  /* Gradiente suavizado: começa mais tarde (55% em vez de 35%) e o
+     ponto mais escuro é mais claro (35% em vez de 55% de mistura),
+     para a foto ficar visível por mais tempo e não "carregada". */
   .hero-static-fade {
     position: absolute;
     inset: 0;
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      transparent 35%,
-      color-mix(in srgb, var(--app-bg) 55%, transparent) 82%,
+      transparent 55%,
+      color-mix(in srgb, var(--app-bg) 35%, transparent) 88%,
       var(--app-bg) 100%
     );
     pointer-events: none;
@@ -305,17 +304,21 @@
     transition: opacity .05s linear;
   }
 
+  /* Saudação agora com peso de título hero: maior, mais peso de
+     fonte, sombra mais discreta (a foto já está mais clara por si
+     só, não precisa de tanta sombra para o texto se destacar). */
   .hero-greeting {
     position: absolute;
     left: 20px;
     right: 20px;
-    bottom: 40px;
+    bottom: 44px;
     margin: 0;
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1.3;
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    line-height: 1.15;
     color: #fff;
-    text-shadow: 0 1px 8px rgba(0,0,0,0.4);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
     transition: opacity .2s linear;
     pointer-events: none;
   }

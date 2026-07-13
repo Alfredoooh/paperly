@@ -1,5 +1,5 @@
 <script>
-  import { onMount, afterUpdate } from 'svelte';
+  import { onMount, afterUpdate, onDestroy } from 'svelte';
   import { createEventDispatcher } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
@@ -9,7 +9,7 @@
   export let resourceId = null;
   export let appTitle = 'Nexa Docs';
   export let appId = 'docs';
-  export let iconPath = '/icons/svg/docs.svg';
+  export let iconPath = '/icons/svg/docs/docs.svg';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -45,6 +45,8 @@
 
   onMount(() => {
     if (editorEl) editorEl.innerHTML = initialContent;
+    initHistory();
+    setupKeyboardAvoidance();
   });
 
   function persist() {
@@ -155,12 +157,46 @@
   $: canUndo = historyIndex > 0;
   $: canRedo = historyIndex < historyStack.length - 1;
 
-  // --- Estado da toolbar: painéis expansíveis ---
-  let activePanel = null; // null | 'font' | 'size' | 'color' | 'align' | 'list' | 'insert' | 'table' | 'link'
+  // --- Zoom da página A4 ---
+  // Controla a escala visual da folha, tal como o zoom de um leitor de
+  // PDF/Word no desktop. A folha mantém sempre a proporção real 210:297;
+  // o zoom apenas dimensiona o contentor, não distorce a página.
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 2;
+  const ZOOM_STEP = 0.1;
+  let zoom = 1;
+
+  function zoomIn() {
+    zoom = Math.min(ZOOM_MAX, +(zoom + ZOOM_STEP).toFixed(2));
+    buzz();
+  }
+  function zoomOut() {
+    zoom = Math.max(ZOOM_MIN, +(zoom - ZOOM_STEP).toFixed(2));
+    buzz();
+  }
+  function zoomReset() {
+    zoom = 1;
+    buzz();
+  }
+  $: zoomPct = Math.round(zoom * 100);
+
+  // --- Estado da toolbar: painéis expansíveis (agora modals centrados) ---
+  let activePanel = null; // null | 'font' | 'size' | 'color' | 'align' | 'list' | 'insert' | 'table' | 'link' | 'footnote'
+  let panelVisible = false;
 
   function togglePanel(name) {
     buzz();
-    activePanel = activePanel === name ? null : name;
+    if (activePanel === name) {
+      closePanel();
+    } else {
+      activePanel = name;
+      panelVisible = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => { panelVisible = true; }));
+    }
+  }
+  function closePanel() {
+    panelVisible = false;
+    setTimeout(() => { activePanel = null; }, 220);
   }
 
   const FONTS = [
@@ -174,7 +210,7 @@
 
   function setFont(value) {
     exec('fontName', value);
-    activePanel = null;
+    closePanel();
   }
   function setSize(px) {
     // execCommand fontSize só aceita 1-7; aplicamos via span+style para px reais.
@@ -190,19 +226,19 @@
     }
     scheduleSave();
     pushHistory();
-    activePanel = null;
+    closePanel();
   }
   function setColor(hex) {
     exec('foreColor', hex);
-    activePanel = null;
+    closePanel();
   }
   function setAlign(cmd) {
     exec(cmd);
-    activePanel = null;
+    closePanel();
   }
   function setList(cmd) {
     exec(cmd);
-    activePanel = null;
+    closePanel();
   }
 
   function insertImage(e) {
@@ -216,7 +252,7 @@
       pushHistory();
     };
     reader.readAsDataURL(file);
-    activePanel = null;
+    closePanel();
     e.target.value = '';
   }
 
@@ -234,7 +270,7 @@
     document.execCommand('insertHTML', false, html);
     scheduleSave();
     pushHistory();
-    activePanel = null;
+    closePanel();
   }
 
   // --- Links ---
@@ -283,7 +319,7 @@
     pushHistory();
     linkUrlDraft = '';
     savedSelectionRange = null;
-    activePanel = null;
+    closePanel();
   }
 
   function removeLink() {
@@ -292,7 +328,7 @@
     document.execCommand('unlink');
     scheduleSave();
     pushHistory();
-    activePanel = null;
+    closePanel();
   }
 
   function escapeHtml(str) {
@@ -336,7 +372,7 @@
     scheduleSave();
     pushHistory();
     footnoteDraft = '';
-    activePanel = null;
+    closePanel();
   }
 
   function removeFootnote(id) {
@@ -370,9 +406,139 @@
     }
   }
 
-  onMount(() => {
-    initHistory();
+  // ══════════════════════════════════════════════════════════════════
+  //  KEYBOARD AVOIDING — a bottom bar (e o painel ativo, se aberto)
+  //  sobem para cima do teclado físico do dispositivo, usando
+  //  visualViewport (fiável em iOS/Android WebView), com fallback para
+  //  window.innerHeight em browsers sem suporte.
+  // ══════════════════════════════════════════════════════════════════
+  let kbOffset = 0;
+  let kbUpdateRaf = null;
+
+  function computeKbOffset() {
+    const vv = window.visualViewport;
+    if (!vv) { kbOffset = 0; return; }
+    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
+    kbOffset = overlap > 40 ? Math.round(overlap) : 0;
+  }
+
+  function scheduleKbUpdate() {
+    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
+    kbUpdateRaf = requestAnimationFrame(computeKbOffset);
+  }
+
+  let vvRef = null;
+  function setupKeyboardAvoidance() {
+    vvRef = window.visualViewport;
+    if (!vvRef) return;
+    vvRef.addEventListener('resize', scheduleKbUpdate);
+    vvRef.addEventListener('scroll', scheduleKbUpdate);
+  }
+
+  onDestroy(() => {
+    if (vvRef) {
+      vvRef.removeEventListener('resize', scheduleKbUpdate);
+      vvRef.removeEventListener('scroll', scheduleKbUpdate);
+    }
+    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
+    clearTimeout(saveTimeout);
+    clearTimeout(historyDebounce);
   });
+
+  // ══════════════════════════════════════════════════════════════════
+  //  POPUP MENU DO DOCUMENTO — substitui o antigo botão de settings.
+  //  Mesmo padrão de overlay a escurecer + scale-in usado no
+  //  logout-dialog do SettingsPage, mas ancorado junto ao botão em vez
+  //  de centrado no ecrã.
+  // ══════════════════════════════════════════════════════════════════
+  let showDocMenu = false;
+  let docMenuVisible = false;
+
+  function openDocMenu() {
+    buzz();
+    showDocMenu = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { docMenuVisible = true; }));
+  }
+  function closeDocMenu() {
+    docMenuVisible = false;
+    setTimeout(() => { showDocMenu = false; }, 220);
+  }
+
+  function duplicateDoc() {
+    const raw = localStorage.getItem(STORAGE_PREFIX + docId);
+    if (!raw) { closeDocMenu(); return; }
+    try {
+      const parsed = JSON.parse(raw);
+      const newId = 'doc_' + Date.now().toString(36);
+      const payload = {
+        name: parsed.name + ' (cópia)',
+        content: parsed.content,
+        updatedAt: Date.now(),
+      };
+      localStorage.setItem(STORAGE_PREFIX + newId, JSON.stringify(payload));
+      const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
+      const index = indexRaw ? JSON.parse(indexRaw) : [];
+      index.push({ id: newId, name: payload.name, updatedAt: payload.updatedAt });
+      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
+      showToast('Documento duplicado');
+    } catch (e) {
+      showToast('Não foi possível duplicar');
+    }
+    closeDocMenu();
+  }
+
+  async function shareDoc() {
+    closeDocMenu();
+    const text = editorEl ? editorEl.innerText : '';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: docName, text });
+      } catch (e) {
+        // utilizador cancelou a partilha nativa, nada a fazer
+      }
+    } else {
+      showToast('Partilha não suportada neste dispositivo');
+    }
+  }
+
+  function exportDoc() {
+    closeDocMenu();
+    if (!editorEl) return;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(docName)}</title></head><body>${editorEl.innerHTML}</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = docName.replace(/[^\w\-]+/g, '_') + '.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Documento exportado');
+  }
+
+  let showDeleteConfirm = false;
+  let deleteConfirmVisible = false;
+
+  function askDeleteDoc() {
+    closeDocMenu();
+    showDeleteConfirm = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { deleteConfirmVisible = true; }));
+  }
+  function cancelDeleteDoc() {
+    deleteConfirmVisible = false;
+    setTimeout(() => { showDeleteConfirm = false; }, 260);
+  }
+  function confirmDeleteDoc() {
+    try {
+      localStorage.removeItem(STORAGE_PREFIX + docId);
+      const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
+      const index = indexRaw ? JSON.parse(indexRaw) : [];
+      const filtered = index.filter(d => d.id !== docId);
+      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(filtered));
+    } catch (e) {}
+    deleteConfirmVisible = false;
+    setTimeout(() => { showDeleteConfirm = false; }, 260);
+    dispatch('nav', { to: 'home' });
+  }
 </script>
 
 <div class="root" style="background:{c.background};color:{c.textPrimary}">
@@ -394,175 +560,238 @@
         {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
       </span>
     </div>
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'settings' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/settings.svg');-webkit-mask-image:url('/icons/svg/settings.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/docs/more.svg');-webkit-mask-image:url('/icons/svg/docs/more.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
   </div>
 
-  <!-- Área do documento: página A4 rolável, com bordas retas como no desktop -->
-  <div class="canvas-scroll">
-    <div class="page-a4" style="background:#FFFFFF">
-      <div
-        class="editor"
-        contenteditable="true"
-        bind:this={editorEl}
-        on:input={handleInput}
-        on:keydown={handleKeydown}
-        spellcheck="true"
-        role="textbox"
-        aria-multiline="true"
-        aria-label="Conteúdo do documento"
-      ></div>
+  <!-- Área do documento: folha real de desktop, com zoom, sobre uma "secretária" cinzenta -->
+  <div class="canvas-scroll" style="background:{c.docs_canvas_bg || (isDark ? '#1c1c1e' : '#e9e9ec')}">
+    <div class="page-a4-wrap" style="transform: scale({zoom});">
+      <div class="page-a4" style="background:#FFFFFF">
+        <div
+          class="editor"
+          contenteditable="true"
+          bind:this={editorEl}
+          on:input={handleInput}
+          on:keydown={handleKeydown}
+          spellcheck="true"
+          role="textbox"
+          aria-multiline="true"
+          aria-label="Conteúdo do documento"
+        ></div>
 
-      {#if hasFootnotes}
-        <div class="footnotes-block">
-          <div class="footnotes-divider"></div>
-          {#each footnotes as fn (fn.id)}
-            <div class="footnote-line">
-              <span class="footnote-num">{fn.num}.</span>
-              <span class="footnote-text">{fn.text}</span>
-              <button class="footnote-remove" on:click={() => removeFootnote(fn.id)} aria-label="Remover nota">×</button>
-            </div>
-          {/each}
-        </div>
-      {/if}
+        {#if hasFootnotes}
+          <div class="footnotes-block">
+            <div class="footnotes-divider"></div>
+            {#each footnotes as fn (fn.id)}
+              <div class="footnote-line">
+                <span class="footnote-num">{fn.num}.</span>
+                <span class="footnote-text">{fn.text}</span>
+                <button class="footnote-remove" on:click={() => removeFootnote(fn.id)} aria-label="Remover nota">×</button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 
-  <!-- Painel expansível: abre acima da toolbar quando uma ferramenta pede mais opções -->
+  <!-- Controlo de zoom: flutuante, canto inferior direito, acima da bottom bar -->
+  <div class="zoom-control" style="background:{c.dialogBackground};bottom:calc(env(safe-area-inset-bottom,0px) + 78px + {kbOffset}px)">
+    <button class="zoom-btn" on:click={zoomOut} aria-label="Reduzir">–</button>
+    <button class="zoom-pct" on:click={zoomReset} aria-label="Repor zoom">{zoomPct}%</button>
+    <button class="zoom-btn" on:click={zoomIn} aria-label="Ampliar">+</button>
+  </div>
+
+  <!-- Toolbar inferior nativa: pílula flutuante, ícones redondos, com keyboard avoiding -->
+  <div class="bottom-toolbar-wrap" style="transform: translate3d(0, -{kbOffset}px, 0);">
+    <div class="bottom-toolbar" style="background:{c.dialogBackground}">
+      <button class="tb-btn" on:click={undo} disabled={!canUndo} aria-label="Desfazer">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/undo.svg');-webkit-mask-image:url('/icons/svg/docs/undo.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;opacity:{canUndo ? 1 : 0.35};"></span>
+      </button>
+      <button class="tb-btn" on:click={redo} disabled={!canRedo} aria-label="Refazer">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/redo.svg');-webkit-mask-image:url('/icons/svg/docs/redo.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;opacity:{canRedo ? 1 : 0.35};"></span>
+      </button>
+      <div class="tb-divider" style="background:{c.divider}"></div>
+      <button class="tb-btn" on:click={() => exec('bold')} aria-label="Negrito">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/bold.svg');-webkit-mask-image:url('/icons/svg/docs/bold.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" on:click={() => exec('italic')} aria-label="Itálico">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/italic.svg');-webkit-mask-image:url('/icons/svg/docs/italic.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" on:click={() => exec('underline')} aria-label="Sublinhado">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/underline.svg');-webkit-mask-image:url('/icons/svg/docs/underline.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <div class="tb-divider" style="background:{c.divider}"></div>
+      <button class="tb-btn" class:tb-active={activePanel==='font'} on:click={() => togglePanel('font')} aria-label="Fonte">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/font.svg');-webkit-mask-image:url('/icons/svg/docs/font.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" class:tb-active={activePanel==='size'} on:click={() => togglePanel('size')} aria-label="Tamanho">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/font_size.svg');-webkit-mask-image:url('/icons/svg/docs/font_size.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" class:tb-active={activePanel==='color'} on:click={() => togglePanel('color')} aria-label="Cor">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/text_color.svg');-webkit-mask-image:url('/icons/svg/docs/text_color.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <div class="tb-divider" style="background:{c.divider}"></div>
+      <button class="tb-btn" class:tb-active={activePanel==='align'} on:click={() => togglePanel('align')} aria-label="Alinhamento">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/align_left.svg');-webkit-mask-image:url('/icons/svg/docs/align_left.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" class:tb-active={activePanel==='list'} on:click={() => togglePanel('list')} aria-label="Listas">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/list_bullet.svg');-webkit-mask-image:url('/icons/svg/docs/list_bullet.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <div class="tb-divider" style="background:{c.divider}"></div>
+      <button class="tb-btn" class:tb-active={activePanel==='link'} on:click={openLinkPanel} aria-label="Inserir link">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/link.svg');-webkit-mask-image:url('/icons/svg/docs/link.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" class:tb-active={activePanel==='footnote'} on:click={openFootnotePanel} aria-label="Inserir nota de rodapé">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/footnote.svg');-webkit-mask-image:url('/icons/svg/docs/footnote.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <div class="tb-divider" style="background:{c.divider}"></div>
+      <button class="tb-btn" class:tb-active={activePanel==='insert'} on:click={() => togglePanel('insert')} aria-label="Inserir imagem">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/image.svg');-webkit-mask-image:url('/icons/svg/docs/image.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+      <button class="tb-btn" class:tb-active={activePanel==='table'} on:click={() => togglePanel('table')} aria-label="Inserir tabela">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/table.svg');-webkit-mask-image:url('/icons/svg/docs/table.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ MODAL — Formatação (font/size/color/align/list/insert/table/link/footnote) ══
+       Mesmo padrão do SettingsPage: overlay a escurecer + cartão central com scale-in. -->
   {#if activePanel}
-    <div class="panel-sheet" style="background:{c.dialogBackground};border-top:0.5px solid {c.divider}">
+    <div class="modal-overlay" class:modal-overlay-in={panelVisible} on:click={closePanel}></div>
+    <div class="modal-card" class:modal-card-in={panelVisible} style="background:{c.dialogBackground}">
       {#if activePanel === 'font'}
-        <div class="panel-row">
+        <div class="modal-title" style="color:{c.textPrimary}">Fonte</div>
+        <div class="modal-grid">
           {#each FONTS as f}
-            <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary};font-family:{f.value}" on:click={() => setFont(f.value)}>{f.label}</button>
+            <button class="modal-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary};font-family:{f.value}" on:click={() => setFont(f.value)}>{f.label}</button>
           {/each}
         </div>
       {:else if activePanel === 'size'}
-        <div class="panel-row">
+        <div class="modal-title" style="color:{c.textPrimary}">Tamanho</div>
+        <div class="modal-grid">
           {#each SIZES as s}
-            <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => setSize(s)}>{s}</button>
+            <button class="modal-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => setSize(s)}>{s}</button>
           {/each}
         </div>
       {:else if activePanel === 'color'}
-        <div class="panel-row">
+        <div class="modal-title" style="color:{c.textPrimary}">Cor do texto</div>
+        <div class="modal-grid">
           {#each COLORS as col}
             <button class="color-dot" style="background:{col}" on:click={() => setColor(col)} aria-label={col}></button>
           {/each}
         </div>
       {:else if activePanel === 'align'}
-        <div class="panel-row">
+        <div class="modal-title" style="color:{c.textPrimary}">Alinhamento</div>
+        <div class="modal-grid">
           <button class="panel-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => setAlign('justifyLeft')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/align_left.svg');-webkit-mask-image:url('/icons/svg/align_left.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/align_left.svg');-webkit-mask-image:url('/icons/svg/docs/align_left.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
           </button>
           <button class="panel-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => setAlign('justifyCenter')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/align_center.svg');-webkit-mask-image:url('/icons/svg/align_center.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/align_center.svg');-webkit-mask-image:url('/icons/svg/docs/align_center.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
           </button>
           <button class="panel-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => setAlign('justifyRight')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/align_right.svg');-webkit-mask-image:url('/icons/svg/align_right.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/align_right.svg');-webkit-mask-image:url('/icons/svg/docs/align_right.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
           </button>
           <button class="panel-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => setAlign('justifyFull')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/align_justify.svg');-webkit-mask-image:url('/icons/svg/align_justify.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/align_justify.svg');-webkit-mask-image:url('/icons/svg/docs/align_justify.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
           </button>
         </div>
       {:else if activePanel === 'list'}
-        <div class="panel-row">
+        <div class="modal-title" style="color:{c.textPrimary}">Listas</div>
+        <div class="modal-grid">
           <button class="panel-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => setList('insertUnorderedList')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/list_bullet.svg');-webkit-mask-image:url('/icons/svg/list_bullet.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/list_bullet.svg');-webkit-mask-image:url('/icons/svg/docs/list_bullet.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
           </button>
           <button class="panel-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => setList('insertOrderedList')}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/list_number.svg');-webkit-mask-image:url('/icons/svg/list_number.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/list_number.svg');-webkit-mask-image:url('/icons/svg/docs/list_number.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
           </button>
         </div>
       {:else if activePanel === 'insert'}
-        <div class="panel-row">
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={triggerImagePicker}>Imagem</button>
+        <div class="modal-title" style="color:{c.textPrimary}">Inserir</div>
+        <div class="modal-grid">
+          <button class="modal-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={triggerImagePicker}>Imagem</button>
         </div>
       {:else if activePanel === 'table'}
-        <div class="panel-row">
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => insertTable(2,2)}>2×2</button>
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => insertTable(3,3)}>3×3</button>
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => insertTable(4,3)}>4×3</button>
+        <div class="modal-title" style="color:{c.textPrimary}">Inserir tabela</div>
+        <div class="modal-grid">
+          <button class="modal-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => insertTable(2,2)}>2×2</button>
+          <button class="modal-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => insertTable(3,3)}>3×3</button>
+          <button class="modal-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => insertTable(4,3)}>4×3</button>
         </div>
       {:else if activePanel === 'link'}
-        <div class="panel-row link-row">
-          <input
-            class="link-input"
-            style="background:{c.appbarBtnBg};color:{c.textPrimary}"
-            placeholder="https://..."
-            bind:value={linkUrlDraft}
-            on:keydown={(e) => e.key === 'Enter' && confirmInsertLink()}
-          />
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={confirmInsertLink}>Aplicar</button>
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={removeLink}>Remover</button>
+        <div class="modal-title" style="color:{c.textPrimary}">Inserir link</div>
+        <input
+          class="modal-input"
+          style="background:{c.appbarBtnBg};color:{c.textPrimary}"
+          placeholder="https://..."
+          bind:value={linkUrlDraft}
+          on:keydown={(e) => e.key === 'Enter' && confirmInsertLink()}
+        />
+        <div class="modal-actions">
+          <button class="modal-btn-secondary" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={removeLink}>Remover</button>
+          <button class="modal-btn-primary" on:click={confirmInsertLink}>Aplicar</button>
         </div>
       {:else if activePanel === 'footnote'}
-        <div class="panel-row link-row">
-          <input
-            class="link-input"
-            style="background:{c.appbarBtnBg};color:{c.textPrimary}"
-            placeholder="Texto da nota…"
-            bind:value={footnoteDraft}
-            on:keydown={(e) => e.key === 'Enter' && confirmInsertFootnote()}
-          />
-          <button class="panel-chip round" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={confirmInsertFootnote}>Inserir</button>
+        <div class="modal-title" style="color:{c.textPrimary}">Nova nota de rodapé</div>
+        <input
+          class="modal-input"
+          style="background:{c.appbarBtnBg};color:{c.textPrimary}"
+          placeholder="Texto da nota…"
+          bind:value={footnoteDraft}
+          on:keydown={(e) => e.key === 'Enter' && confirmInsertFootnote()}
+        />
+        <div class="modal-actions">
+          <button class="modal-btn-secondary" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={closePanel}>Cancelar</button>
+          <button class="modal-btn-primary" on:click={confirmInsertFootnote}>Inserir</button>
         </div>
       {/if}
     </div>
   {/if}
 
-  <!-- Toolbar inferior nativa: pílula flutuante, ícones redondos, sempre visível -->
-  <div class="bottom-toolbar-wrap">
-    <div class="bottom-toolbar" style="background:{c.dialogBackground}">
-      <button class="tb-btn" on:click={undo} disabled={!canUndo} aria-label="Desfazer">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/undo.svg');-webkit-mask-image:url('/icons/svg/undo.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;opacity:{canUndo ? 1 : 0.35};"></span>
+  <!-- ══ POPUP MENU DO DOCUMENTO — substitui o botão de settings ══
+       Ancorado junto ao botão, mesmo padrão overlay + scale-in. -->
+  {#if showDocMenu}
+    <button class="doc-menu-overlay" class:doc-menu-overlay-in={docMenuVisible} on:click={closeDocMenu}></button>
+    <div class="doc-menu" class:doc-menu-in={docMenuVisible} style="background:{c.dialogBackground}">
+      <button class="doc-menu-item" style="color:{c.textPrimary}" on:click={duplicateDoc}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/duplicate.svg');-webkit-mask-image:url('/icons/svg/docs/duplicate.svg');background:{c.iconTint};width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+        Duplicar
       </button>
-      <button class="tb-btn" on:click={redo} disabled={!canRedo} aria-label="Refazer">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/redo.svg');-webkit-mask-image:url('/icons/svg/redo.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;opacity:{canRedo ? 1 : 0.35};"></span>
+      <div class="doc-menu-divider" style="background:{c.divider}"></div>
+      <button class="doc-menu-item" style="color:{c.textPrimary}" on:click={shareDoc}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/share.svg');-webkit-mask-image:url('/icons/svg/docs/share.svg');background:{c.iconTint};width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+        Partilhar
       </button>
-      <div class="tb-divider" style="background:{c.divider}"></div>
-      <button class="tb-btn" on:click={() => exec('bold')} aria-label="Negrito">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/bold.svg');-webkit-mask-image:url('/icons/svg/bold.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <div class="doc-menu-divider" style="background:{c.divider}"></div>
+      <button class="doc-menu-item" style="color:{c.textPrimary}" on:click={exportDoc}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/export.svg');-webkit-mask-image:url('/icons/svg/docs/export.svg');background:{c.iconTint};width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+        Exportar
       </button>
-      <button class="tb-btn" on:click={() => exec('italic')} aria-label="Itálico">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/italic.svg');-webkit-mask-image:url('/icons/svg/italic.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <button class="tb-btn" on:click={() => exec('underline')} aria-label="Sublinhado">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/underline.svg');-webkit-mask-image:url('/icons/svg/underline.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <div class="tb-divider" style="background:{c.divider}"></div>
-      <button class="tb-btn" class:tb-active={activePanel==='font'} on:click={() => togglePanel('font')} aria-label="Fonte">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/font.svg');-webkit-mask-image:url('/icons/svg/font.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <button class="tb-btn" class:tb-active={activePanel==='size'} on:click={() => togglePanel('size')} aria-label="Tamanho">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/font_size.svg');-webkit-mask-image:url('/icons/svg/font_size.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <button class="tb-btn" class:tb-active={activePanel==='color'} on:click={() => togglePanel('color')} aria-label="Cor">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/text_color.svg');-webkit-mask-image:url('/icons/svg/text_color.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <div class="tb-divider" style="background:{c.divider}"></div>
-      <button class="tb-btn" class:tb-active={activePanel==='align'} on:click={() => togglePanel('align')} aria-label="Alinhamento">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/align_left.svg');-webkit-mask-image:url('/icons/svg/align_left.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <button class="tb-btn" class:tb-active={activePanel==='list'} on:click={() => togglePanel('list')} aria-label="Listas">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/list_bullet.svg');-webkit-mask-image:url('/icons/svg/list_bullet.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <div class="tb-divider" style="background:{c.divider}"></div>
-      <button class="tb-btn" class:tb-active={activePanel==='link'} on:click={openLinkPanel} aria-label="Inserir link">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/link.svg');-webkit-mask-image:url('/icons/svg/link.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <button class="tb-btn" class:tb-active={activePanel==='footnote'} on:click={openFootnotePanel} aria-label="Inserir nota de rodapé">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/footnote.svg');-webkit-mask-image:url('/icons/svg/footnote.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <div class="tb-divider" style="background:{c.divider}"></div>
-      <button class="tb-btn" class:tb-active={activePanel==='insert'} on:click={() => togglePanel('insert')} aria-label="Inserir imagem">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/image.svg');-webkit-mask-image:url('/icons/svg/image.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
-      </button>
-      <button class="tb-btn" class:tb-active={activePanel==='table'} on:click={() => togglePanel('table')} aria-label="Inserir tabela">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/table.svg');-webkit-mask-image:url('/icons/svg/table.svg');background:{c.iconTint};width:19px;height:19px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <div class="doc-menu-divider" style="background:{c.divider}"></div>
+      <button class="doc-menu-item doc-menu-danger" on:click={askDeleteDoc}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/delete.svg');-webkit-mask-image:url('/icons/svg/docs/delete.svg');background:#FF3B30;width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+        Apagar
       </button>
     </div>
-  </div>
+  {/if}
+
+  <!-- ══ MODAL — Confirmar apagar documento ══
+       Mesmo padrão do logout-dialog: overlay a escurecer + cartão central scale-in. -->
+  {#if showDeleteConfirm}
+    <div class="modal-overlay" class:modal-overlay-in={deleteConfirmVisible}></div>
+    <div class="confirm-dialog" class:confirm-dialog-in={deleteConfirmVisible} style="background:{c.dialogBackground}">
+      <p class="confirm-dialog-text" style="color:{c.textPrimary}">
+        Tens a certeza que queres apagar "{docName}"? Esta ação não pode ser desfeita.
+      </p>
+      <div class="confirm-dialog-actions">
+        <button class="confirm-btn-cancel" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={cancelDeleteDoc}>Cancelar</button>
+        <button class="confirm-btn-danger" on:click={confirmDeleteDoc}>Apagar</button>
+      </div>
+    </div>
+  {/if}
 
   <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
 </div>
@@ -581,24 +810,27 @@
   }
   .save-state { font-size:11px; font-weight:500; margin-top:1px; }
 
-  /* ---------- Canvas / página A4: bordas retas, tipo folha de desktop ---------- */
+  /* ---------- Canvas / secretária + folha A4 real com zoom ---------- */
   .canvas-scroll {
-    flex:1; overflow-y:auto; overflow-x:hidden;
-    padding: 20px 16px calc(env(safe-area-inset-bottom,0px) + 96px);
+    flex:1; overflow:auto;
+    padding: 32px 16px calc(env(safe-area-inset-bottom,0px) + 140px);
     display:flex; flex-direction:column; align-items:center;
     -webkit-overflow-scrolling: touch;
   }
-  /* Proporção A4 (210x297mm ≈ 1:1.414), escalada para caber no ecrã.
-     Bordas retas (sem border-radius) e sombra discreta para dar profundidade,
-     como uma folha de papel sobre uma secretária no desktop. */
+  .page-a4-wrap {
+    flex-shrink:0;
+    transform-origin: top center;
+    transition: transform .12s ease-out;
+  }
+  /* Proporção A4 real (210×297mm ≈ 1:1.4142). Largura fixa (não elástica
+     ao ecrã) para se comportar como uma folha real de desktop — quem
+     quer ver mais folha usa o zoom, tal como no Word/Google Docs. */
   .page-a4 {
-    width: 100%;
-    max-width: 620px;
+    width: 595px;
     aspect-ratio: 210 / 297;
     border-radius: 0;
-    padding: 48px 40px;
-    flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 10px 28px rgba(0,0,0,0.14);
+    padding: 64px 56px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.16);
     display: flex;
     flex-direction: column;
   }
@@ -629,44 +861,28 @@
   }
   .footnote-remove:active { color:#F0384A; }
 
-  /* ---------- Painel expansível ---------- */
-  .panel-sheet {
-    position: fixed;
-    left: 0; right: 0;
-    bottom: calc(env(safe-area-inset-bottom,0px) + 78px);
-    flex-shrink:0; padding:10px 12px;
-    overflow-x:auto;
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  /* ---------- Controlo de zoom flutuante ---------- */
+  .zoom-control {
+    position: fixed; right: 16px;
+    display:flex; align-items:center; gap:2px;
+    border-radius: 999px; padding: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.12);
+    z-index: 40;
+    transition: bottom .18s ease-out;
   }
-  .panel-row { display:flex; gap:8px; align-items:center; }
-  .panel-chip {
-    border:none; border-radius:14px; padding:10px 16px; font-size:14px; font-weight:600;
-    cursor:pointer; white-space:nowrap; flex-shrink:0; -webkit-tap-highlight-color:transparent;
+  .zoom-btn {
+    width:30px; height:30px; border:none; border-radius:50%; background:transparent;
+    font-size:17px; font-weight:600; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color:transparent;
   }
-  .panel-chip.round {
-    border-radius: 999px;
-  }
-  .panel-chip:active { transform:scale(0.95); }
-  .panel-icon-btn {
-    width:44px; height:44px; border:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    cursor:pointer; flex-shrink:0; -webkit-tap-highlight-color:transparent;
-  }
-  .panel-icon-btn:active { transform:scale(0.9); }
-  .color-dot {
-    width:32px; height:32px; border-radius:50%; border:2px solid rgba(127,127,127,0.2);
-    cursor:pointer; flex-shrink:0; -webkit-tap-highlight-color:transparent;
-  }
-  .color-dot:active { transform:scale(0.88); }
-
-  /* ---------- Painel de link / nota: input + ações ---------- */
-  .link-row { width:100%; }
-  .link-input {
-    flex:1; min-width:0; border:none; border-radius:999px; padding:10px 16px;
-    font-size:14px; outline:none;
+  .zoom-btn:active { transform:scale(0.88); background:rgba(127,127,127,0.14); }
+  .zoom-pct {
+    min-width:44px; border:none; background:transparent; font-size:12px; font-weight:600;
+    padding:0 4px; cursor:pointer; -webkit-tap-highlight-color:transparent;
   }
 
-  /* ---------- Bottom toolbar nativa: pílula flutuante, redonda, com profundidade ---------- */
+  /* ---------- Bottom toolbar nativa: pílula flutuante com keyboard avoiding ---------- */
   .bottom-toolbar-wrap {
     position: fixed;
     left: 0; right: 0;
@@ -675,6 +891,7 @@
     justify-content: center;
     padding: 0 12px calc(env(safe-area-inset-bottom,0px) + 14px);
     pointer-events: none;
+    transition: transform .15s ease-out;
   }
   .bottom-toolbar {
     pointer-events: auto;
@@ -698,4 +915,129 @@
   .tb-divider { width:1px; height:20px; margin:0 3px; flex-shrink:0; }
 
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
+
+  /* ══════════════════════════════════════════════════════════════
+     MODAL de formatação — MESMO padrão visual do logout-dialog do
+     SettingsPage: overlay a escurecer + cartão central com scale-in.
+  ══════════════════════════════════════════════════════════════ */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgba(0, 0, 0, 0); border: none; cursor: default; width: 100%; height: 100%;
+    transition: background .28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .modal-overlay.modal-overlay-in { background: rgba(0, 0, 0, 0.45); }
+  .modal-card {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.90);
+    opacity: 0;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 81;
+    min-width: 280px; max-width: 90vw;
+    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .26s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform, opacity;
+  }
+  .modal-card.modal-card-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  .modal-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; text-align: center; }
+  .modal-grid { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .modal-chip {
+    border:none; border-radius:14px; padding:10px 16px; font-size:14px; font-weight:600;
+    cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent;
+  }
+  .modal-chip.round { border-radius: 999px; }
+  .modal-chip:active { transform:scale(0.95); }
+  .panel-icon-btn {
+    width:44px; height:44px; border:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0; -webkit-tap-highlight-color:transparent;
+  }
+  .panel-icon-btn:active { transform:scale(0.9); }
+  .color-dot {
+    width:32px; height:32px; border-radius:50%; border:2px solid rgba(127,127,127,0.2);
+    cursor:pointer; flex-shrink:0; -webkit-tap-highlight-color:transparent;
+  }
+  .color-dot:active { transform:scale(0.88); }
+  .modal-input {
+    width:100%; border:none; border-radius:999px; padding:12px 16px;
+    font-size:14px; outline:none; margin-bottom:14px; box-sizing:border-box;
+  }
+  .modal-actions { display:flex; gap:10px; }
+  .modal-btn-primary, .modal-btn-secondary {
+    flex:1; padding:11px 16px; border-radius:999px; border:none;
+    font-size:14px; font-weight:600; cursor:pointer; text-align:center;
+    -webkit-tap-highlight-color:transparent;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .modal-btn-primary { background:#2F7BF6; color:#fff; }
+  .modal-btn-primary:active, .modal-btn-secondary:active { transform:scale(0.96); }
+
+  /* ══════════════════════════════════════════════════════════════
+     POPUP MENU do documento — ancorado ao canto superior direito,
+     mesmo overlay + scale-in do padrão do SettingsPage.
+  ══════════════════════════════════════════════════════════════ */
+  .doc-menu-overlay {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgba(0,0,0,0); border: none; cursor: default; width: 100%; height: 100%;
+    transition: background .28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .doc-menu-overlay.doc-menu-overlay-in { background: rgba(0,0,0,0.28); }
+  .doc-menu {
+    position: fixed;
+    top: calc(env(safe-area-inset-top,0px) + 96px);
+    right: 12px;
+    transform-origin: top right;
+    transform: scale(0.90);
+    opacity: 0;
+    border-radius: 16px;
+    padding: 6px;
+    min-width: 190px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.24);
+    z-index: 81;
+    transition: transform .3s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .22s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform, opacity;
+  }
+  .doc-menu.doc-menu-in { transform: scale(1); opacity: 1; }
+  .doc-menu-item {
+    width:100%; display:flex; align-items:center; gap:10px;
+    background:none; border:none; padding:11px 12px; border-radius:10px;
+    font-size:14px; font-weight:500; text-align:left; cursor:pointer;
+    -webkit-tap-highlight-color:transparent; transition: opacity .14s;
+  }
+  .doc-menu-item:active { opacity:.6; }
+  .doc-menu-danger { color:#FF3B30; }
+  .doc-menu-divider { height:1px; margin:2px 8px; }
+
+  /* ══════════════════════════════════════════════════════════════
+     Confirmar apagar — mesmo padrão do logout-dialog.
+  ══════════════════════════════════════════════════════════════ */
+  .confirm-dialog {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.90);
+    opacity: 0;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 81;
+    min-width: 280px; max-width: 90vw;
+    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform, opacity;
+  }
+  .confirm-dialog.confirm-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  .confirm-dialog-text { font-size: 16px; margin: 0 0 20px; text-align: center; font-family: inherit; }
+  .confirm-dialog-actions { display: flex; gap: 12px; justify-content: center; }
+  .confirm-btn-cancel, .confirm-btn-danger {
+    flex: 1; padding: 12px 20px; border-radius: 999px; border: none;
+    font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
+    transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .confirm-btn-cancel:active { transform: scale(0.96); }
+  .confirm-btn-danger { background: #FF3B30; color: white; }
+  .confirm-btn-danger:active { transform: scale(0.96); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-overlay, .modal-card, .doc-menu-overlay, .doc-menu, .confirm-dialog,
+    .modal-btn-primary, .modal-btn-secondary, .confirm-btn-cancel, .confirm-btn-danger {
+      transition: none !important;
+    }
+  }
 </style>

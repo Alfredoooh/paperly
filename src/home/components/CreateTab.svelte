@@ -43,8 +43,8 @@
   }
 
   // Saudação rotativa: escolhida UMA vez ao montar (não muda com timer,
-  // só muda se a página recarregar). Pool grande por período do dia
-  // para não repetir sempre a mesma frase.
+  // só muda se a página recarregar). Vive sobre a foto da hero, NÃO
+  // no appbar — o appbar mostra sempre "Criar".
   const GREETINGS_MANHA = [
     'O que deseja criar esta manhã?',
     'Bom dia! Pronto para criar algo novo?',
@@ -83,14 +83,7 @@
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  // Escolhida uma única vez quando o componente monta.
   const greetingText = pickGreeting();
-
-  // Limiar a partir do qual o header passa a sólido e o texto muda
-  // de saudação para o título simples "Criar".
-  const SOLID_THRESHOLD = 0.5;
-  $: isSolid = heroProgress >= SOLID_THRESHOLD;
-  $: headerText = isSolid ? title : greetingText;
 
   function openApp(app) {
     if (app.id === 'ai') {
@@ -118,12 +111,12 @@
   }
 </script>
 
-<!-- Header próprio do Create: fixo. Antes de scroll é transparente com
-     saudação rotativa; ao passar o threshold fica sólido (branco/escuro
-     conforme o tema, via --drawer-bg) e o texto passa a ser só "Criar". -->
-<div class="create-header" class:in={mounted} class:solid={isSolid}>
+<!-- Header próprio do Create: appbar fina e fixa, SEMPRE "Criar" desde
+     o início — nunca troca de texto. Sólida quando o scroll passa o
+     threshold, tal como já era antes das saudações existirem. -->
+<div class="create-header" class:in={mounted} class:solid={heroProgress >= 0.5}>
   <div class="create-header-inner">
-    <h1 class="create-header-title" class:solid-text={isSolid}>{headerText}</h1>
+    <h1 class="create-header-title" class:solid-text={heroProgress >= 0.5}>{title}</h1>
     <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="profile-img" />
@@ -146,6 +139,11 @@
     <!-- Camada 3: cobre a imagem por completo conforme o utilizador
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
+
+    <!-- Saudação rotativa: vive AQUI, sobre a foto, por baixo do
+         appbar — não dentro dele. Desaparece com o scroll junto com
+         a própria hero (heroProgress controla a opacidade). -->
+    <p class="hero-greeting" style="opacity:{1 - heroProgress}">{greetingText}</p>
   </div>
 
   <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
@@ -167,16 +165,20 @@
 
 <style>
   /* ---------- Header próprio do Create ---------- */
+  /* Appbar fina, altura fixa, SEMPRE "Criar" — nunca cresce, nunca
+     troca de conteúdo com o scroll (só liga/desliga o fundo sólido). */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 15;
+    height: calc(env(safe-area-inset-top, 0px) + 56px);
     background: transparent;
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
     transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .3s cubic-bezier(0.16,1,0.3,1);
     pointer-events: none;
     contain: layout style paint;
+    overflow: hidden;
   }
   .create-header.in {
     opacity: 1;
@@ -191,10 +193,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     width: 100%;
+    height: 100%;
     max-width: 640px;
     margin: 0 auto;
-    padding: calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-top,0px) + 4px);
+    padding: env(safe-area-inset-top, 0px) 16px 0;
   }
   .create-header-title {
     font-size: 22px;
@@ -210,8 +214,7 @@
     white-space: nowrap;
     transition: color .25s cubic-bezier(0.16,1,0.3,1), text-shadow .25s cubic-bezier(0.16,1,0.3,1);
   }
-  /* Header sólido: texto sem sombra branca fixa, usa a cor de texto do
-     tema (--drawer-text), que já resolve claro/escuro automaticamente. */
+  /* Header sólido: cor de texto do tema (resolve claro/escuro). */
   .create-header-title.solid-text {
     color: var(--drawer-text);
     text-shadow: none;
@@ -298,6 +301,24 @@
     background: var(--app-bg);
     pointer-events: none;
     transition: opacity .05s linear;
+  }
+
+  /* Saudação rotativa: texto solto sobre a foto, por baixo de onde
+     ficaria o appbar. Espaço de sobra para frases inteiras, sem
+     cortar e sem inchar nenhum container fixo. */
+  .hero-greeting {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: 40px;
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #fff;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.4);
+    transition: opacity .2s linear;
+    pointer-events: none;
   }
 
   .search-bar {

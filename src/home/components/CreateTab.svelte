@@ -17,25 +17,30 @@
   export let title = '';
   export let onOpenDrawer = () => {};
 
-  // Paleta de containers ao estilo Canva — mapeada por POSIÇÃO na grid,
-  // ciclando se houver mais apps do que cores. Ordem tirada diretamente
-  // do print: vermelho, magenta, roxo, teal, índigo, azul-violeta,
-  // verde, azul, cinza-claro, laranja.
-  const CONTAINER_COLORS = [
-    '#F0384A', // vermelho
-    '#E040D8', // magenta/rosa
-    '#9B2FC9', // roxo
-    '#1E9E8C', // teal
-    '#4A5FE0', // azul-índigo
-    '#6A3FE0', // azul-violeta
-    '#1FA34A', // verde
-    '#1D8FE0', // azul
-    '#D9D9D9', // cinza-claro
-    '#E8720F', // laranja
-  ];
+  // Cor do container por app — fixa por ID (não por posição), para
+  // nunca repetir e para o Nexa Docs ser sempre azul.
+  const APP_CONTAINER_COLORS = {
+    ai:           '#F0384A', // vermelho
+    profilelens:  '#E040D8', // magenta/rosa
+    docs:         '#2F7BF6', // azul (Nexa Docs)
+    sheets:       '#1E9E8C', // teal
+    slides:       '#6A3FE0', // roxo-azulado
+    drive:        '#8B3FE0', // roxo
+    calendar:     '#1FA34A', // verde
+    chat:         '#1D8FE0', // azul-claro
+    tasks:        '#D9D9D9', // cinza-claro
+    notes:        '#E8720F', // laranja
+    forms:        '#E0405F', // vermelho-rosado
+    projects:     '#C93FD1', // magenta-vivo
+    wiki:         '#4A5FE0', // índigo
+    whiteboard:   '#12B5A8', // ciano-teal
+    analytics:    '#7ED321', // lima/verde-vivo
+  };
 
-  function containerColor(index) {
-    return CONTAINER_COLORS[index % CONTAINER_COLORS.length];
+  const FALLBACK_COLOR = '#8E8E93';
+
+  function containerColor(app) {
+    return APP_CONTAINER_COLORS[app.id] || FALLBACK_COLOR;
   }
 
   function openApp(app) {
@@ -100,9 +105,9 @@
   </button>
 
   <div class="apps-grid">
-    {#each platformApps as app, i}
+    {#each platformApps as app}
       <button class="app-item" on:click={() => openApp(app)}>
-        <span class="app-icon-wrap" style="background:{containerColor(i)}">
+        <span class="app-icon-wrap" style="background:{containerColor(app)}">
           <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
         </span>
         <span class="app-label">{app.label}</span>

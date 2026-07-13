@@ -411,38 +411,39 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDING — CORRIGIDO.
-  //  O bug anterior: mesmo com .appbar sem transform ligado ao teclado,
-  //  o .root usava só `position:fixed; inset:0`, que é relativo ao
-  //  LAYOUT viewport. Em Android/Chrome, quando o teclado abre, o
-  //  layout viewport pode encolher e arrastar o body/scroll consigo,
-  //  empurrando visualmente tudo lá dentro para cima — incluindo um
-  //  elemento fixed, porque o "inset:0" passa a apontar para um
-  //  viewport menor que já subiu.
-  //  A correção: ancorar .root ao visualViewport.offsetTop/height via
-  //  JS (não CSS), fixando explicitamente top=0 e height=layout total
-  //  do ecrã físico, e SÓ passar o kbOffset para a bottom toolbar. Isto
-  //  garante que o appbar fica fisicamente colado ao topo do ecrã,
-  //  independente do que o teclado faz ao visualViewport.
+  //  KEYBOARD AVOIDING — reescrito do zero.
+  //
+  //  O erro de todas as tentativas anteriores: eu estava a tentar
+  //  "contrariar" o teclado recalculando top/scrollTo a cada evento do
+  //  visualViewport — isso é uma corrida perdida contra o browser, que
+  //  continua a redimensionar o layout por trás em muitos Android.
+  //
+  //  A abordagem correta (a que realmente prende o appbar): capturar
+  //  window.innerHeight UMA ÚNICA VEZ, antes do teclado alguma vez
+  //  abrir (no onMount), e usar esse valor fixo como altura do .root.
+  //  Nunca mais recalculado. O .root passa a ter uma altura em px
+  //  absoluta e constante — o teclado, ao abrir, encolhe o
+  //  visualViewport mas NÃO consegue encolher um elemento cuja altura
+  //  já está fixada em px desde antes do teclado existir.
+  //
+  //  Dentro do .root, .appbar e .canvas-area (que contém DocPage) são
+  //  flex children normais; .canvas-area tem overflow:hidden e é ela
+  //  que "perde" espaço visualmente quando o teclado ocupa a parte de
+  //  baixo do ecrã real — mas como o .root inteiro nunca muda de
+  //  tamanho, o appbar (primeiro filho, position:relative normal)
+  //  jamais se desloca. Só o kbOffset (offset do teclado) é passado à
+  //  BottomToolbar, que tem position:fixed própria e reage sozinha.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
   let rootEl;
+  let fixedRootHeight = 0;
 
   function computeKbOffset() {
     const vv = window.visualViewport;
     if (!vv) { kbOffset = 0; return; }
     const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
-
-    // Trava o root ao topo físico do ecrã, ignorando o scroll/offset
-    // que o teclado tenta impor ao visualViewport. Isto é o que
-    // impede o appbar de "subir".
-    if (rootEl) {
-      rootEl.style.top = vv.offsetTop ? -vv.offsetTop + 'px' : '0px';
-      rootEl.style.height = window.innerHeight + 'px';
-    }
-    window.scrollTo(0, 0);
   }
   function scheduleKbUpdate() {
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
@@ -450,6 +451,10 @@
   }
   let vvRef = null;
   function setupKeyboardAvoidance() {
+    // Captura a altura real do ecrã UMA VEZ, com o teclado
+    // garantidamente fechado (momento do mount da página).
+    fixedRootHeight = window.innerHeight;
+
     vvRef = window.visualViewport;
     if (!vvRef) return;
     vvRef.addEventListener('resize', scheduleKbUpdate);
@@ -552,9 +557,11 @@
   }
 </script>
 
-<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary}">
+<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary};height:{fixedRootHeight ? fixedRootHeight + 'px' : '100vh'};">
 
-  <!-- Appbar: FIXO no topo físico do ecrã, nunca reage ao teclado. -->
+  <!-- Appbar: filho normal do flex column .root, cuja altura está
+       travada em px desde o mount. Nunca leva transform, nunca leva
+       kbOffset. Fisicamente impossível de subir com o teclado. -->
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -577,17 +584,23 @@
     </button>
   </div>
 
-  <DocPage
-    bind:this={docPageComp}
-    {initialContent}
-    {footnotes}
-    on:ready={handleDocReady}
-    on:input={handleInput}
-    on:keydown={(e) => handleKeydown(e.detail)}
-    on:removefootnote={(e) => removeFootnote(e.detail)}
-    on:imagerequestedit={handleImageRequestEdit}
-  />
+  <!-- Área de conteúdo: absorve o encolhimento visual do viewport
+       (overflow:hidden), mas o .root pai nunca muda de tamanho. -->
+  <div class="canvas-area">
+    <DocPage
+      bind:this={docPageComp}
+      {initialContent}
+      {footnotes}
+      on:ready={handleDocReady}
+      on:input={handleInput}
+      on:keydown={(e) => handleKeydown(e.detail)}
+      on:removefootnote={(e) => removeFootnote(e.detail)}
+      on:imagerequestedit={handleImageRequestEdit}
+    />
+  </div>
 
+  <!-- Só a bottom toolbar reage ao teclado (position:fixed própria,
+       translate3d com kbOffset). -->
   <BottomToolbar
     {c}
     {activePanel}
@@ -665,11 +678,10 @@
 </div>
 
 <style>
-  /* top/height passam a ser controlados via JS (rootEl.style) para
-     travar ao ecrã físico; left/right ficam fixos aqui. */
   .root {
     position: fixed; left: 0; right: 0; top: 0;
-    display: flex; flex-direction: column; overflow: hidden;
+    display: flex; flex-direction: column;
+    overflow: hidden;
   }
 
   .appbar {
@@ -692,6 +704,14 @@
     border: none; background: transparent; outline: none; padding: 0;
   }
   .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; }
+
+  .canvas-area {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;

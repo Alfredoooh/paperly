@@ -8,265 +8,329 @@
 
   const dispatch = createEventDispatcher();
 
+  // ══════════════════════════════════════════════════════════════════
+  //  MOTOR DE PAGINAÇÃO — portado diretamente do protótipo HTML puro
+  //  fornecido (múltiplas divs contenteditable reais, uma por folha;
+  //  reequilíbrio por empurrar/puxar elementos DOM entre folhas). Isto
+  //  substitui a abordagem anterior de "master único" que quebrava
+  //  sempre que o Svelte recriava nodes do {#each}. Aqui cada folha é
+  //  o seu próprio contenteditable real e permanece assim — nada é
+  //  movido por JS para dentro de nodes geridos pelo Svelte.
+  // ══════════════════════════════════════════════════════════════════
+
   const PAGE_W = 794;
   const PAGE_H = 1123;
-  const PAGE_PAD_Y = 76;
-  const PAGE_PAD_X = 64;
-  const CONTENT_H = PAGE_H - PAGE_PAD_Y * 2;
+  const PAGE_PAD_Y = 96;
+  const PAGE_PAD_X = 72;
 
   let containerEl;
+  let stackEl;
   let fitScale = 1;
   let pinchScale = 1;
-
-  function computeFitScale() {
-    if (!containerEl) return;
-    const availableWidth = containerEl.clientWidth - 32;
-    fitScale = Math.min(1, availableWidth / PAGE_W);
-    if (fitScale <= 0 || !isFinite(fitScale)) fitScale = 1;
-  }
-
   let resizeObserver;
 
-  // ══════════════════════════════════════════════════════════════════
-  //  CORREÇÃO DEFINITIVA DO BUG "não escreve nada".
-  //
-  //  Causa real: o master (contenteditable) era movido via appendChild
-  //  para dentro de nodes gerados por {#each pages as page (page.id)}.
-  //  Sempre que repaginate() reatribuía `pages = fragments.map(...)`,
-  //  o Svelte destruía/recriava os nodes do each — incluindo o
-  //  .page-body onde o master tinha sido enfiado à força por JS. O
-  //  Svelte não sabe que ali dentro há um elemento estranho, então ao
-  //  recriar o node ele arranca o master do DOM sem eu saber. A partir
-  //  da 1ª repaginação (que acontece quase imediatamente), o master
-  //  fica órfão — continuas a escrever para um elemento fantasma que
-  //  já não está no ecrã. Por isso "não mostra nada".
-  //
-  //  Solução: o master deixa de ser injetado dentro do {#each}. Passa
-  //  a ser um elemento ÚNICO, PERMANENTE, fora do loop reativo,
-  //  sobreposto por CSS (position:absolute) exatamente em cima da
-  //  folha ativa. As folhas do {#each} nunca mais tocam no master —
-  //  só mostram snapshots estáticos em innerHTML. O Svelte pode
-  //  destruir/recriar as folhas à vontade sem nunca afetar o master.
-  // ══════════════════════════════════════════════════════════════════
-
-  let masterEl;
-  let pages = [{ id: 0 }];
-  let pageContents = [''];
-  let activePageIndex = 0;
-  let pageAEls = [];     // refs aos .page-a4 (para medir posição)
-  let repaginateRaf = null;
-  let isRepaginating = false;
-  let masterReady = false;
-
-  // Posição/tamanho do overlay do master, recalculada sempre que a
-  // folha ativa muda ou a página é repaginada.
-  let masterTop = 0;
-  let masterLeft = 0;
-  let masterWidth = PAGE_W - PAGE_PAD_X * 2;
-  let masterHeight = CONTENT_H;
-
-  function updateMasterOverlayPosition() {
-    const activeEl = pageAEls[activePageIndex];
-    if (!activeEl || !containerEl) return;
-    // Posição relativa ao containerEl (que é o pai com position:relative implícito via scroll)
-    masterTop = activeEl.offsetTop + PAGE_PAD_Y;
-    masterLeft = activeEl.offsetLeft + PAGE_PAD_X;
-    masterWidth = PAGE_W - PAGE_PAD_X * 2;
-    masterHeight = CONTENT_H;
+  function ajustarZoom() {
+    if (!containerEl) return;
+    const margem = 40;
+    const escala = Math.min((containerEl.clientWidth - margem) / PAGE_W, 1);
+    fitScale = escala > 0 && isFinite(escala) ? escala : 1;
   }
 
-  function measureOverflow(el) {
-    return el.scrollHeight - CONTENT_H;
+  // Cada folha é: { id, contentEl } — contentEl é a div contenteditable
+  // real daquela folha, criada e mantida diretamente pelo Svelte via
+  // bind:this num {#each}, nunca movida entre folhas por appendChild
+  // cruzado (só os FILHOS de dentro do contenteditable são movidos).
+  let folhas = [{ id: 0 }];
+  let contentEls = [];
+  let nextFolhaId = 1;
+
+  function criarFolha() {
+    const id = nextFolhaId++;
+    folhas = [...folhas, { id }];
+    return id;
   }
 
-  function pullOverflowingNodes(from, to) {
-    let guard = 0;
-    while (measureOverflow(from) > 0 && from.lastElementChild && guard < 2000) {
-      guard++;
-      const last = from.lastElementChild;
-      to.insertBefore(last, to.firstChild);
+  function getConteudoEl(idx) {
+    return contentEls[idx];
+  }
+
+  function normalizarFilhosSoltos(conteudo) {
+    let noAtual = conteudo.firstChild;
+    while (noAtual) {
+      const proximo = noAtual.nextSibling;
+      if (noAtual.nodeType === 3) {
+        if (noAtual.textContent.trim() !== '') {
+          const p = document.createElement('p');
+          conteudo.insertBefore(p, noAtual);
+          p.appendChild(noAtual);
+        } else {
+          conteudo.removeChild(noAtual);
+        }
+      }
+      noAtual = proximo;
+    }
+    if (!conteudo.firstElementChild) {
+      conteudo.innerHTML = '<p><br></p>';
     }
   }
 
-  function ensureScratchPage() {
-    let s = document.getElementById('__doc_scratch__');
-    if (!s) {
-      s = document.createElement('div');
-      s.id = '__doc_scratch__';
-      s.style.position = 'fixed';
-      s.style.left = '-9999px';
-      s.style.top = '0';
-      s.style.width = (PAGE_W - PAGE_PAD_X * 2) + 'px';
-      s.style.visibility = 'hidden';
-      s.style.pointerEvents = 'none';
-      document.body.appendChild(s);
+  async function obterOuCriarProximaPagina(idxAtual) {
+    if (idxAtual + 1 < folhas.length) {
+      return idxAtual + 1;
     }
-    return s;
+    criarFolha();
+    await tick();
+    return idxAtual + 1;
   }
 
-  async function repaginate() {
-    if (!masterEl || isRepaginating || !masterReady) return;
-    isRepaginating = true;
+  async function empurrarTransbordoDaPagina(idx) {
+    let empurrouAlgo = false;
+    let guarda = 0;
+    let conteudo = getConteudoEl(idx);
+    if (!conteudo) return false;
 
-    const sel = window.getSelection();
-    let caretWasInMaster = sel && sel.rangeCount && masterEl.contains(sel.anchorNode);
+    while (conteudo.scrollHeight > conteudo.clientHeight + 1 && conteudo.children.length > 1 && guarda < 500) {
+      const ultimoElemento = conteudo.lastElementChild;
+      const proximoIdx = await obterOuCriarProximaPagina(idx);
+      const proximaConteudo = getConteudoEl(proximoIdx);
+      if (!proximaConteudo) break;
 
-    // Junta o conteúdo do master (folha ativa) + snapshots estáticos
-    // das outras folhas, na ordem certa, numa árvore de trabalho.
-    const work = ensureScratchPage();
-    work.innerHTML = '';
-    const activeHtml = masterEl.innerHTML;
-    for (let i = 0; i < pages.length; i++) {
-      const html = i === activePageIndex ? activeHtml : (pageContents[i] || '');
-      const temp = document.createElement('div');
-      temp.innerHTML = html;
-      while (temp.firstChild) work.appendChild(temp.firstChild);
+      if (proximaConteudo.firstChild) {
+        proximaConteudo.insertBefore(ultimoElemento, proximaConteudo.firstChild);
+      } else {
+        proximaConteudo.appendChild(ultimoElemento);
+      }
+
+      empurrouAlgo = true;
+      guarda++;
+      conteudo = getConteudoEl(idx);
     }
-    if (!work.firstChild) {
-      work.innerHTML = '<p><br></p>';
+
+    return empurrouAlgo;
+  }
+
+  function puxarConteudoDaProximaPagina(idx) {
+    if (idx + 1 >= folhas.length) return false;
+    const conteudo = getConteudoEl(idx);
+    const proximaConteudo = getConteudoEl(idx + 1);
+    if (!conteudo || !proximaConteudo || !proximaConteudo.firstElementChild) return false;
+
+    let puxouAlgo = false;
+    let guarda = 0;
+
+    while (proximaConteudo.firstElementChild && guarda < 500) {
+      const candidato = proximaConteudo.firstElementChild;
+
+      conteudo.appendChild(candidato);
+      const causaOverflow = conteudo.scrollHeight > conteudo.clientHeight + 1;
+
+      if (causaOverflow) {
+        if (proximaConteudo.firstChild) {
+          proximaConteudo.insertBefore(candidato, proximaConteudo.firstChild);
+        } else {
+          proximaConteudo.appendChild(candidato);
+        }
+        break;
+      } else {
+        puxouAlgo = true;
+      }
+
+      guarda++;
     }
 
-    const fragments = [];
-    let current = work;
-    let safety = 0;
-    const tempNodes = [];
-    while (true) {
-      safety++;
-      if (safety > 200) break;
-      const overflow = measureOverflow(current);
-      if (overflow <= 0) {
-        fragments.push(current.innerHTML);
+    return puxouAlgo;
+  }
+
+  async function removerPaginasVaziasNoFim() {
+    for (let i = folhas.length - 1; i > 0; i--) {
+      const conteudo = getConteudoEl(i);
+      if (conteudo && conteudo.children.length === 0) {
+        folhas = folhas.slice(0, i);
+        contentEls = contentEls.slice(0, i);
+        await tick();
+      } else {
         break;
       }
-      const next = document.createElement('div');
-      next.style.width = (PAGE_W - PAGE_PAD_X * 2) + 'px';
-      next.style.position = 'fixed';
-      next.style.left = '-9999px';
-      next.style.top = '0';
-      next.style.visibility = 'hidden';
-      document.body.appendChild(next);
-      tempNodes.push(next);
-      pullOverflowingNodes(current, next);
-      fragments.push(current.innerHTML);
-      current = next;
     }
-    tempNodes.forEach(n => n.remove());
-
-    if (fragments.length === 0) fragments.push('<p><br></p>');
-
-    const prevActive = activePageIndex;
-    pageContents = fragments;
-    pages = fragments.map((_, i) => ({ id: i }));
-    activePageIndex = Math.min(prevActive, pages.length - 1);
-
-    await tick();
-
-    // Repõe no master apenas o conteúdo da página que ficou ativa —
-    // o master NUNCA sai do DOM, só o seu innerHTML e a sua posição
-    // (via CSS) mudam.
-    masterEl.innerHTML = pageContents[activePageIndex] || '<p><br></p>';
-    updateMasterOverlayPosition();
-
-    if (caretWasInMaster) {
-      try {
-        masterEl.focus();
-        const range = document.createRange();
-        range.selectNodeContents(masterEl);
-        range.collapse(false);
-        const s = window.getSelection();
-        s.removeAllRanges();
-        s.addRange(range);
-      } catch (e) {}
-    }
-
-    isRepaginating = false;
   }
 
-  function scheduleRepaginate() {
-    if (repaginateRaf) cancelAnimationFrame(repaginateRaf);
-    repaginateRaf = requestAnimationFrame(() => { repaginate(); });
+  function obterPosicaoSelecao() {
+    const selecao = window.getSelection();
+    if (selecao.rangeCount === 0) return null;
+    const range = selecao.getRangeAt(0);
+    return {
+      startContainer: range.startContainer,
+      startOffset: range.startOffset,
+      endContainer: range.endContainer,
+      endOffset: range.endOffset,
+    };
   }
 
-  async function activatePage(index) {
-    if (index === activePageIndex) return;
-    pageContents[activePageIndex] = masterEl.innerHTML;
-    activePageIndex = index;
-    await tick();
-    masterEl.innerHTML = pageContents[activePageIndex] || '<p><br></p>';
-    updateMasterOverlayPosition();
-    masterEl.focus();
+  function restaurarSelecao(posicao) {
+    if (!posicao) return;
+    if (!document.contains(posicao.startContainer)) return;
+
+    try {
+      const range = document.createRange();
+      range.setStart(posicao.startContainer, posicao.startOffset);
+      range.setEnd(posicao.endContainer, posicao.endOffset);
+      const selecao = window.getSelection();
+      selecao.removeAllRanges();
+      selecao.addRange(range);
+
+      const elementoBase = posicao.startContainer.nodeType === 3
+        ? posicao.startContainer.parentElement
+        : posicao.startContainer;
+      const conteudoPai = elementoBase.closest('.conteudo');
+      if (conteudoPai) conteudoPai.focus();
+    } catch (erro) {}
+  }
+
+  let isRebalancing = false;
+
+  async function reequilibrarDocumento() {
+    if (isRebalancing) return;
+    isRebalancing = true;
+
+    const posicaoSelecao = obterPosicaoSelecao();
+
+    for (let i = 0; i < contentEls.length; i++) {
+      const conteudo = getConteudoEl(i);
+      if (conteudo) normalizarFilhosSoltos(conteudo);
+    }
+
+    let mudouEmpurrando = true;
+    let guardaGeral = 0;
+    while (mudouEmpurrando && guardaGeral < 100) {
+      mudouEmpurrando = false;
+      for (let i = 0; i < folhas.length; i++) {
+        if (await empurrarTransbordoDaPagina(i)) mudouEmpurrando = true;
+      }
+      guardaGeral++;
+    }
+
+    let mudouPuxando = true;
+    let guardaPuxar = 0;
+    while (mudouPuxando && guardaPuxar < 100) {
+      mudouPuxando = false;
+      for (let i = 0; i < folhas.length - 1; i++) {
+        if (puxarConteudoDaProximaPagina(i)) mudouPuxando = true;
+      }
+      guardaPuxar++;
+    }
+
+    await removerPaginasVaziasNoFim();
+    restaurarSelecao(posicaoSelecao);
+
+    isRebalancing = false;
+  }
+
+  let timeoutReequilibrio;
+  function agendarReequilibrio() {
+    clearTimeout(timeoutReequilibrio);
+    timeoutReequilibrio = setTimeout(reequilibrarDocumento, 150);
+  }
+
+  function aoColar(evento) {
+    evento.preventDefault();
+    const htmlColado = evento.clipboardData.getData('text/html');
+    const textoColado = evento.clipboardData.getData('text/plain');
+
+    if (htmlColado) {
+      document.execCommand('insertHTML', false, htmlColado);
+    } else {
+      const linhas = textoColado.split(/\n+/).filter((l) => l.trim() !== '');
+      const htmlParagrafos = linhas.map((l) => '<p>' + l + '</p>').join('');
+      document.execCommand('insertHTML', false, htmlParagrafos || '<p>' + textoColado + '</p>');
+    }
+
+    dispatch('input');
+    agendarReequilibrio();
   }
 
   function handleInput() {
     dispatch('input');
-    scheduleRepaginate();
+    agendarReequilibrio();
   }
   function handleKeydown(e) {
     dispatch('keydown', e);
   }
-  function handlePaste() {
-    setTimeout(() => scheduleRepaginate(), 0);
-  }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  API pública (usada pela MainPage via bind:this)
+  // ══════════════════════════════════════════════════════════════════
   export function getContent() {
-    if (!masterEl) return '';
-    pageContents[activePageIndex] = masterEl.innerHTML;
-    return pageContents.join('<div class="page-break-marker"></div>');
+    return contentEls.map(el => el ? el.innerHTML : '').join('<div class="page-break-marker"></div>');
   }
 
-  export function setContent(html) {
+  export async function setContent(html) {
     const parts = (html || '').split('<div class="page-break-marker"></div>');
-    pageContents = parts.length ? parts : [''];
-    pages = pageContents.map((_, i) => ({ id: i }));
-    activePageIndex = 0;
-    tick().then(() => {
-      masterEl.innerHTML = pageContents[0] || '<p><br></p>';
-      updateMasterOverlayPosition();
-      scheduleRepaginate();
+    const htmls = parts.length ? parts : ['<p><br></p>'];
+    folhas = htmls.map((_, i) => ({ id: i }));
+    nextFolhaId = htmls.length;
+    await tick();
+    htmls.forEach((h, i) => {
+      const el = getConteudoEl(i);
+      if (el) el.innerHTML = h || '<p><br></p>';
     });
+    await reequilibrarDocumento();
   }
 
   export function focusEditor() {
-    masterEl?.focus();
+    contentEls[0]?.focus();
   }
 
   export function getPlainText() {
-    return pages.map((_, i) => {
-      if (i === activePageIndex) return masterEl?.innerText || '';
-      const temp = document.createElement('div');
-      temp.innerHTML = pageContents[i] || '';
-      return temp.innerText;
-    }).join('\n\n');
+    return contentEls.map(el => el ? el.innerText : '').join('\n\n');
   }
 
-  export function normalizeFontSizeMarkers(px) {
-    if (!masterEl) return;
-    const found = masterEl.querySelectorAll('font[size="7"]');
-    found.forEach(f => {
-      f.removeAttribute('size');
-      f.style.fontSize = px + 'px';
-    });
-    scheduleRepaginate();
+  export async function normalizeFontSizeMarkers(px) {
+    for (const el of contentEls) {
+      if (!el) continue;
+      const found = el.querySelectorAll('font[size="7"]');
+      found.forEach(f => {
+        f.removeAttribute('size');
+        f.style.fontSize = px + 'px';
+      });
+    }
+    await reequilibrarDocumento();
   }
 
   export function tagLinksWithHref(url) {
-    if (!masterEl) return;
     const escaped = (window.CSS && CSS.escape) ? CSS.escape(url) : url.replace(/(["\\])/g, '\\$1');
-    const anchors = masterEl.querySelectorAll('a[href="' + escaped + '"]');
-    anchors.forEach(a => {
-      a.setAttribute('target', '_blank');
-      a.setAttribute('rel', 'noopener');
-    });
+    for (const el of contentEls) {
+      if (!el) continue;
+      const anchors = el.querySelectorAll('a[href="' + escaped + '"]');
+      anchors.forEach(a => {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener');
+      });
+    }
   }
 
-  export function removeFootnoteRef(id) {
-    const ref = masterEl?.querySelector(`sup[data-footnote-id="${id}"]`);
-    if (ref) { ref.remove(); }
-    scheduleRepaginate();
+  export async function removeFootnoteRef(id) {
+    for (const el of contentEls) {
+      if (!el) continue;
+      const ref = el.querySelector(`sup[data-footnote-id="${id}"]`);
+      if (ref) { ref.remove(); break; }
+    }
+    await reequilibrarDocumento();
   }
 
-  export function insertImageAtCursor(dataUrl) {
-    focusEditor();
+  function getActiveContentEl() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      const node = sel.anchorNode;
+      const base = node && node.nodeType === 3 ? node.parentElement : node;
+      const conteudoPai = base && base.closest ? base.closest('.conteudo') : null;
+      if (conteudoPai) return conteudoPai;
+    }
+    return contentEls[0];
+  }
+
+  export async function insertImageAtCursor(dataUrl) {
+    const target = getActiveContentEl();
+    target?.focus();
     const wrapperId = 'img_' + Date.now().toString(36);
     document.execCommand('insertHTML', false,
       `<span class="doc-img-wrap doc-img-inline" data-img-id="${wrapperId}" contenteditable="false">` +
@@ -274,10 +338,11 @@
         `<span class="doc-img-handle doc-img-handle-se"></span>` +
       `</span>&nbsp;`
     );
-    scheduleRepaginate();
+    dispatch('input');
+    await reequilibrarDocumento();
   }
 
-  export function applyImageOptions(imgEl, opts) {
+  export async function applyImageOptions(imgEl, opts) {
     if (!imgEl) return;
     const wrap = imgEl.closest('.doc-img-wrap');
     if (!wrap) return;
@@ -289,18 +354,19 @@
     else if (opts.wrap === 'square-left') wrap.classList.add('doc-img-square-left');
     else if (opts.wrap === 'square-right') wrap.classList.add('doc-img-square-right');
     else wrap.classList.add('doc-img-inline');
-    scheduleRepaginate();
+    await reequilibrarDocumento();
   }
 
-  export function deleteImage(imgEl) {
+  export async function deleteImage(imgEl) {
     if (!imgEl) return;
     const wrap = imgEl.closest('.doc-img-wrap');
     wrap?.remove();
-    scheduleRepaginate();
+    await reequilibrarDocumento();
   }
 
-  export function insertTable(rows, cols) {
-    focusEditor();
+  export async function insertTable(rows, cols) {
+    const target = getActiveContentEl();
+    target?.focus();
     const tableId = 'tbl_' + Date.now().toString(36);
     let html = `<div class="doc-table-wrap" data-table-id="${tableId}">` +
       `<table class="doc-table" style="width:100%;">` +
@@ -316,9 +382,11 @@
       `<span class="doc-table-handle doc-table-handle-se" contenteditable="false"></span>` +
       `</div><p><br></p>`;
     document.execCommand('insertHTML', false, html);
-    scheduleRepaginate();
+    dispatch('input');
+    await reequilibrarDocumento();
   }
 
+  // ── Redimensionar imagens/tabelas por arrasto na alça ──────────────
   let resizingEl = null;
   let resizeStartX = 0;
   let resizeStartWidth = 0;
@@ -365,26 +433,29 @@
   function onDocPointerUp() {
     if (!resizingEl) return;
     resizingEl = null;
-    scheduleRepaginate();
+    agendarReequilibrio();
   }
 
-  onMount(() => {
-    computeFitScale();
-    resizeObserver = new ResizeObserver(() => {
-      computeFitScale();
-      updateMasterOverlayPosition();
-    });
+  function ligarEventosFolha(idx) {
+    // os handlers on:input/on:keydown/on:paste já estão no template;
+    // esta função existe só para paridade conceptual com o protótipo.
+  }
+
+  onMount(async () => {
+    ajustarZoom();
+    resizeObserver = new ResizeObserver(() => ajustarZoom());
     if (containerEl) resizeObserver.observe(containerEl);
-    window.addEventListener('orientationchange', computeFitScale);
+    window.addEventListener('orientationchange', ajustarZoom);
 
-    masterEl.innerHTML = initialContent || '<p><br></p>';
-    masterReady = true;
+    document.execCommand('defaultParagraphSeparator', false, 'p');
 
-    tick().then(() => {
-      updateMasterOverlayPosition();
-      dispatch('ready', { html: getContent() });
-      scheduleRepaginate();
-    });
+    await tick();
+    const first = getConteudoEl(0);
+    if (first) {
+      first.innerHTML = initialContent || '<p><br></p>';
+    }
+    dispatch('ready', { html: getContent() });
+    await reequilibrarDocumento();
 
     window.addEventListener('mousemove', onDocPointerMove);
     window.addEventListener('mouseup', onDocPointerUp);
@@ -393,29 +464,35 @@
   });
   onDestroy(() => {
     resizeObserver?.disconnect();
-    window.removeEventListener('orientationchange', computeFitScale);
+    window.removeEventListener('orientationchange', ajustarZoom);
     window.removeEventListener('mousemove', onDocPointerMove);
     window.removeEventListener('mouseup', onDocPointerUp);
     window.removeEventListener('touchmove', onDocPointerMove);
     window.removeEventListener('touchend', onDocPointerUp);
-    if (repaginateRaf) cancelAnimationFrame(repaginateRaf);
-    document.getElementById('__doc_scratch__')?.remove();
+    clearTimeout(timeoutReequilibrio);
   });
 </script>
 
 <div class="canvas-scroll" bind:this={containerEl} on:pointerdown={onDocPointerDown}>
   <PinchZoom bind:scale={pinchScale} minScale={1} maxScale={4} on:zoomchange>
-    <div class="pages-stack" style="transform: scale({fitScale}); transform-origin: top center;">
-      {#each pages as page, i (page.id)}
-        <div class="page-a4" bind:this={pageAEls[i]} style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px;">
-          <div class="page-body" on:click={() => i !== activePageIndex && activatePage(i)}>
-            {#if i !== activePageIndex}
-              {@html pageContents[i]}
-            {/if}
-          </div>
+    <div class="pages-stack" bind:this={stackEl} style="transform: scale({fitScale}); transform-origin: top center;">
+      {#each folhas as folha, i (folha.id)}
+        <div class="page-a4" style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px;">
+          <div
+            class="conteudo"
+            contenteditable="true"
+            bind:this={contentEls[i]}
+            on:input={handleInput}
+            on:keydown={handleKeydown}
+            on:paste={aoColar}
+            spellcheck="true"
+            role="textbox"
+            aria-multiline="true"
+            aria-label="Conteúdo do documento"
+          ></div>
           <div class="page-number">{i + 1}</div>
 
-          {#if i === pages.length - 1 && footnotes.length > 0}
+          {#if i === folhas.length - 1 && footnotes.length > 0}
             <div class="footnotes-block">
               <div class="footnotes-divider"></div>
               {#each footnotes as fn (fn.id)}
@@ -431,31 +508,6 @@
       {/each}
     </div>
   </PinchZoom>
-
-  <!-- MASTER: elemento único, permanente, NUNCA dentro do {#each}.
-       O Svelte nunca destrói nem recria isto — só o innerHTML e a
-       posição (masterTop/Left, via CSS) mudam. Sobreposto por cima da
-       folha ativa com position:absolute. -->
-  <div
-    class="editor-master"
-    contenteditable="true"
-    bind:this={masterEl}
-    on:input={handleInput}
-    on:keydown={handleKeydown}
-    on:paste={handlePaste}
-    spellcheck="true"
-    role="textbox"
-    aria-multiline="true"
-    aria-label="Conteúdo do documento"
-    style="
-      transform: scale({fitScale});
-      transform-origin: top left;
-      top: {masterTop}px;
-      left: {masterLeft}px;
-      width: {masterWidth}px;
-      min-height: {masterHeight}px;
-    "
-  ></div>
 </div>
 
 <style>
@@ -482,34 +534,30 @@
     background: #FFFFFF;
     border-radius: 2px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.16);
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
   }
-  .page-body {
+  .conteudo {
     flex: 1;
     min-height: 0;
+    width: 100%;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #1a1a1a;
+    outline: none;
     overflow: hidden;
-    font-size: 15px; line-height: 1.6; color: #1a1a1a;
     overflow-wrap: break-word;
+  }
+  .conteudo :global(p) {
+    margin: 0;
   }
   .page-number {
     position: absolute; bottom: 14px; right: 0; left: 0;
     text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
-  }
-
-  /* Master sobreposto: posicionado em absolute relativo ao
-     .canvas-scroll (que é position:relative), exatamente em cima da
-     área de conteúdo da folha ativa. */
-  .editor-master {
-    position: absolute;
-    outline: none;
-    font-size: 15px; line-height: 1.6; color: #1a1a1a;
-    overflow-wrap: break-word;
-    z-index: 10;
-    background: transparent;
   }
 
   :global(.doc-table.doc-table) { border-collapse: collapse; width: 100%; margin: 4px 0; }

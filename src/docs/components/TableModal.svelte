@@ -4,15 +4,25 @@
 
   export let visible = false;
   export let c;
-  export let customColors = [];
 
   const dispatch = createEventDispatcher();
 
-  const PRESET_COLORS = [
-    '#000000', '#3C3C43', '#8E8E93', '#F0384A',
-    '#E8720F', '#F5B700', '#1FA34A', '#0FA3A3',
-    '#2F7BF6', '#5856D6', '#8B3FE0', '#D63384',
-  ];
+  const MAX_GRID = 8;
+  let hoverRow = 2;
+  let hoverCol = 2;
+  let rowsInput = 3;
+  let colsInput = 3;
+
+  function pickCell(r, col) {
+    rowsInput = r;
+    colsInput = col;
+  }
+  function confirmInsert() {
+    dispatch('insert', { rows: Math.max(1, rowsInput), cols: Math.max(1, colsInput) });
+  }
+  function close() {
+    dispatch('close');
+  }
 
   const slide = createSlideTransition({});
   let sheetY = 100;
@@ -24,6 +34,10 @@
   else if (!visible && showSheet) closeSheet();
 
   function openSheet() {
+    rowsInput = 3;
+    colsInput = 3;
+    hoverRow = 3;
+    hoverCol = 3;
     showSheet = true;
     requestAnimationFrame(() => requestAnimationFrame(() => {
       overlayVisible = true;
@@ -34,16 +48,6 @@
     overlayVisible = false;
     slide.close();
     setTimeout(() => { showSheet = false; }, 300);
-  }
-
-  function pick(hex) {
-    dispatch('select', hex);
-  }
-  function requestAddColor() {
-    dispatch('addcolor');
-  }
-  function close() {
-    dispatch('close');
   }
 
   let sheetEl;
@@ -102,29 +106,42 @@
       on:touchend={drag.touchend}
       on:touchcancel={drag.touchend}>
       <div class="sheet-handle" style="background:{c.divider}"></div>
-      <div class="sheet-title" style="color:{c.textPrimary}">Cor do texto</div>
+      <div class="sheet-title" style="color:{c.textPrimary}">Inserir tabela</div>
     </div>
 
     <div class="sheet-body">
-      <div class="color-grid">
-        {#each PRESET_COLORS as hex}
-          <button class="color-dot" style="background:{hex}" on:click={() => pick(hex)} aria-label={hex}></button>
+      <div class="grid-preview-label" style="color:{c.textSecondary}">{rowsInput} × {colsInput}</div>
+      <div class="grid-picker">
+        {#each Array(MAX_GRID) as _, r}
+          <div class="grid-row">
+            {#each Array(MAX_GRID) as __, col}
+              <button
+                class="grid-cell"
+                class:grid-cell-active={r < rowsInput && col < colsInput}
+                style="background:{r < rowsInput && col < colsInput ? '#2F7BF6' : c.appbarBtnBg}"
+                on:click={() => pickCell(r + 1, col + 1)}
+                aria-label={`${r + 1} por ${col + 1}`}
+              ></button>
+            {/each}
+          </div>
         {/each}
       </div>
 
-      {#if customColors.length > 0}
-        <div class="section-label" style="color:{c.textSecondary}">Criadas</div>
-        <div class="color-grid">
-          {#each customColors as hex}
-            <button class="color-dot" style="background:{hex}" on:click={() => pick(hex)} aria-label={hex}></button>
-          {/each}
-        </div>
-      {/if}
+      <div class="manual-row">
+        <label class="manual-field">
+          <span style="color:{c.textSecondary}">Linhas</span>
+          <input type="number" min="1" max="30" bind:value={rowsInput} style="background:{c.appbarBtnBg};color:{c.textPrimary}" />
+        </label>
+        <label class="manual-field">
+          <span style="color:{c.textSecondary}">Colunas</span>
+          <input type="number" min="1" max="12" bind:value={colsInput} style="background:{c.appbarBtnBg};color:{c.textPrimary}" />
+        </label>
+      </div>
 
-      <button class="add-color-btn" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={requestAddColor}>
-        <span class="add-plus">+</span>
-        Adicionar cor
-      </button>
+      <div class="sheet-actions">
+        <button class="btn-secondary" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={close}>Cancelar</button>
+        <button class="btn-primary" on:click={confirmInsert}>Inserir</button>
+      </div>
     </div>
   </div>
 {/if}
@@ -148,25 +165,35 @@
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; text-align: center; }
 
   .sheet-body { padding: 8px 18px 4px; }
-  .section-label { font-size: 12px; font-weight: 600; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
-  .color-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-  .color-dot {
-    width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(127,127,127,0.18);
+  .grid-preview-label { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+
+  .grid-picker { display: flex; flex-direction: column; gap: 4px; align-items: center; margin-bottom: 18px; }
+  .grid-row { display: flex; gap: 4px; }
+  .grid-cell {
+    width: 24px; height: 24px; border-radius: 4px; border: none;
     cursor: pointer; -webkit-tap-highlight-color: transparent;
-    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
+    transition: background .1s;
   }
-  .color-dot:active { transform: scale(0.86); }
-  .add-color-btn {
-    width: 100%; margin-top: 18px; border: none; border-radius: 999px;
-    padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+  .grid-cell-active { opacity: 0.9; }
+
+  .manual-row { display: flex; gap: 12px; margin-bottom: 18px; }
+  .manual-field { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; }
+  .manual-field input {
+    border: none; border-radius: 12px; padding: 10px 12px; font-size: 15px;
+    outline: none; box-sizing: border-box; width: 100%;
+  }
+
+  .sheet-actions { display: flex; gap: 10px; padding-bottom: 4px; }
+  .btn-primary, .btn-secondary {
+    flex: 1; padding: 12px 16px; border-radius: 999px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; text-align: center;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .add-color-btn:active { transform: scale(0.97); }
-  .add-plus { font-size: 17px; font-weight: 700; line-height: 1; }
+  .btn-primary { background: #2F7BF6; color: #fff; }
+  .btn-primary:active, .btn-secondary:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
-    .overlay, .bottom-sheet, .color-dot, .add-color-btn { transition: none !important; }
+    .overlay, .bottom-sheet, .grid-cell, .btn-primary, .btn-secondary { transition: none !important; }
   }
 </style>

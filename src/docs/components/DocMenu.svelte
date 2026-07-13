@@ -1,13 +1,11 @@
-<!-- src/home/components/DocMenu.svelte -->
 <script>
   import { createEventDispatcher } from 'svelte';
   
-  // Dropdown ancorado ao botão — estilo do card branco da imagem de
-  // referência: sem overlay a escurecer o ecrã, cantos bem
-  // arredondados, ícone + label por linha, sombra suave a "flutuar".
-  // Fecha ao tocar fora (overlay transparente clicável) ou ao escolher
-  // uma opção.
+  // Popup ancorado ao botão more_vert (não mais um dropdown de canto
+  // fixo). A posição vem do MainPage, calculada a partir do
+  // getBoundingClientRect() do próprio botão.
   export let visible = false;
+  export let anchor = { top: 0, right: 0 };
   export let c;
   
   const dispatch = createEventDispatcher();
@@ -26,7 +24,7 @@
 
 {#if visible}
   <button class="anchor-overlay" on:click={() => dispatch('close')} aria-label="Fechar menu"></button>
-  <div class="anchor-menu" style="background:{c.dialogBackground}">
+  <div class="anchor-menu" style="background:{c.dialogBackground}; top:{anchor.top}px; right:{anchor.right}px;">
     {#each ITEMS as item, i}
       <button class="anchor-item" class:anchor-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/docs/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{item.icon}.svg');background:{item.danger ? '#FF3B30' : c.iconTint};width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
@@ -40,23 +38,19 @@
 {/if}
 
 <style>
-  /* Overlay transparente (não escurece o ecrã) só para capturar o
-     toque-fora-a-fechar, tal como o menu da imagem de referência. */
   .anchor-overlay {
     position: fixed; inset: 0; z-index: 80;
     background: transparent; border: none; cursor: default; width: 100%; height: 100%;
   }
   .anchor-menu {
     position: fixed;
-    top: calc(env(safe-area-inset-top,0px) + 96px);
-    right: 12px;
     min-width: 200px;
     border-radius: 18px;
     padding: 6px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.16);
     z-index: 81;
     transform-origin: top right;
-    animation: anchorPop .32s cubic-bezier(0.34, 1.4, 0.64, 1);
+    animation: anchorPop .26s cubic-bezier(0.34, 1.4, 0.64, 1);
   }
   @keyframes anchorPop {
     0% { transform: scale(0.85) translateY(-6px); opacity: 0; }

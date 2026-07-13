@@ -1,11 +1,6 @@
-<!-- src/home/components/BottomToolbar.svelte -->
 <script>
   import { createEventDispatcher } from 'svelte';
   
-  // Pílula flutuante nativa. Cada botão tem feedback tátil próprio
-  // (scale + fundo) e a barra inteira "respira" com uma leve sombra em
-  // duas camadas para parecer material físico flutuante, tal como as
-  // toolbars nativas do iOS (Notas, Pages).
   export let c;
   export let activePanel = null;
   export let canUndo = false;
@@ -38,8 +33,8 @@
       { id: 'footnote', icon: 'footnote', label: 'Nota de rodapé', panel: true },
     ],
     [
-      { id: 'insert', icon: 'image', label: 'Imagem', panel: true },
-      { id: 'table', icon: 'table', label: 'Tabela', panel: true },
+      { id: 'insert', icon: 'image', label: 'Imagem' },
+      { id: 'table', icon: 'table', label: 'Tabela' },
     ],
   ];
   
@@ -50,7 +45,7 @@
 </script>
 
 <div class="tb-wrap" style="transform: translate3d(0, -{kbOffset}px, 0);">
-  <div class="tb-pill" style="background:{c.dialogBackground}">
+  <div class="tb-pill" style="background:{c.appbarBtnBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
         <button

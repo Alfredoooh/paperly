@@ -4,15 +4,41 @@
 
   export let visible = false;
   export let c;
-  export let customColors = [];
+  export let state = { wrap: 'inline', width: 200 };
 
   const dispatch = createEventDispatcher();
 
-  const PRESET_COLORS = [
-    '#000000', '#3C3C43', '#8E8E93', '#F0384A',
-    '#E8720F', '#F5B700', '#1FA34A', '#0FA3A3',
-    '#2F7BF6', '#5856D6', '#8B3FE0', '#D63384',
+  let width = 200;
+  let wrapMode = 'inline';
+
+  $: if (visible) {
+    width = state.width || 200;
+    wrapMode = state.wrap || 'inline';
+  }
+
+  const WRAP_OPTIONS = [
+    { id: 'inline', label: 'Em linha com o texto', icon: 'wrap_inline' },
+    { id: 'square-left', label: 'Quadrado (esquerda)', icon: 'wrap_square_left' },
+    { id: 'square-right', label: 'Quadrado (direita)', icon: 'wrap_square_right' },
+    { id: 'topbottom', label: 'Acima e abaixo', icon: 'wrap_topbottom' },
+    { id: 'front', label: 'Em frente ao texto', icon: 'wrap_front' },
+    { id: 'behind', label: 'Atrás do texto', icon: 'wrap_behind' },
   ];
+
+  function setWrap(id) {
+    wrapMode = id;
+    apply();
+  }
+  function apply() {
+    dispatch('apply', { width, wrap: wrapMode });
+  }
+  function onWidthInput(e) {
+    width = Number(e.target.value);
+    apply();
+  }
+  function requestDelete() {
+    dispatch('delete');
+  }
 
   const slide = createSlideTransition({});
   let sheetY = 100;
@@ -34,13 +60,6 @@
     overlayVisible = false;
     slide.close();
     setTimeout(() => { showSheet = false; }, 300);
-  }
-
-  function pick(hex) {
-    dispatch('select', hex);
-  }
-  function requestAddColor() {
-    dispatch('addcolor');
   }
   function close() {
     dispatch('close');
@@ -102,29 +121,29 @@
       on:touchend={drag.touchend}
       on:touchcancel={drag.touchend}>
       <div class="sheet-handle" style="background:{c.divider}"></div>
-      <div class="sheet-title" style="color:{c.textPrimary}">Cor do texto</div>
+      <div class="sheet-title" style="color:{c.textPrimary}">Opções da imagem</div>
     </div>
 
     <div class="sheet-body">
-      <div class="color-grid">
-        {#each PRESET_COLORS as hex}
-          <button class="color-dot" style="background:{hex}" on:click={() => pick(hex)} aria-label={hex}></button>
+      <div class="field-label" style="color:{c.textSecondary}">Tamanho — {width}px</div>
+      <input type="range" min="40" max="760" step="1" bind:value={width} on:input={onWidthInput} class="width-slider" />
+
+      <div class="field-label" style="color:{c.textSecondary}">Disposição do texto</div>
+      <div class="wrap-grid">
+        {#each WRAP_OPTIONS as opt}
+          <button
+            class="wrap-opt"
+            class:wrap-opt-active={wrapMode === opt.id}
+            style="background:{wrapMode === opt.id ? 'rgba(47,123,246,0.14)' : c.appbarBtnBg}"
+            on:click={() => setWrap(opt.id)}
+          >
+            <span class="icon-mask" style="mask-image:url('/icons/svg/docs/{opt.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{opt.icon}.svg');background:{wrapMode === opt.id ? '#2F7BF6' : c.iconTint};width:22px;height:22px;"></span>
+            <span class="wrap-label" style="color:{wrapMode === opt.id ? '#2F7BF6' : c.textPrimary}">{opt.label}</span>
+          </button>
         {/each}
       </div>
 
-      {#if customColors.length > 0}
-        <div class="section-label" style="color:{c.textSecondary}">Criadas</div>
-        <div class="color-grid">
-          {#each customColors as hex}
-            <button class="color-dot" style="background:{hex}" on:click={() => pick(hex)} aria-label={hex}></button>
-          {/each}
-        </div>
-      {/if}
-
-      <button class="add-color-btn" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={requestAddColor}>
-        <span class="add-plus">+</span>
-        Adicionar cor
-      </button>
+      <button class="delete-btn" on:click={requestDelete}>Remover imagem</button>
     </div>
   </div>
 {/if}
@@ -142,31 +161,53 @@
     padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
     will-change: transform;
     box-shadow: 0 -4px 40px rgba(0,0,0,.16);
+    max-height: 78vh;
+    display: flex; flex-direction: column;
   }
-  .sheet-grab-zone { touch-action: none; }
+  .sheet-grab-zone { touch-action: none; flex-shrink: 0; }
   .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; }
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; text-align: center; }
 
-  .sheet-body { padding: 8px 18px 4px; }
-  .section-label { font-size: 12px; font-weight: 600; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
-  .color-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-  .color-dot {
-    width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(127,127,127,0.18);
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  .sheet-body { padding: 8px 18px 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .field-label { font-size: 12px; font-weight: 600; margin: 14px 0 10px; text-transform: uppercase; letter-spacing: .04em; }
+
+  .width-slider {
+    width: 100%; height: 34px; -webkit-appearance: none; appearance: none;
+    background: transparent; margin: 0 0 4px;
+  }
+  .width-slider::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px; background: rgba(127,127,127,0.28);
+  }
+  .width-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: #2F7BF6; margin-top: -9px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  .wrap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .wrap-opt {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    border: none; border-radius: 14px; padding: 12px 8px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .color-dot:active { transform: scale(0.86); }
-  .add-color-btn {
-    width: 100%; margin-top: 18px; border: none; border-radius: 999px;
+  .wrap-opt:active { transform: scale(0.96); }
+  .wrap-label { font-size: 11px; font-weight: 600; text-align: center; line-height: 1.3; }
+  .icon-mask {
+    display: block; mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+  }
+
+  .delete-btn {
+    width: 100%; margin: 18px 0 4px; border: none; border-radius: 999px;
     padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(255,59,48,0.12); color: #FF3B30;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .add-color-btn:active { transform: scale(0.97); }
-  .add-plus { font-size: 17px; font-weight: 700; line-height: 1; }
+  .delete-btn:active { transform: scale(0.97); }
 
   @media (prefers-reduced-motion: reduce) {
-    .overlay, .bottom-sheet, .color-dot, .add-color-btn { transition: none !important; }
+    .overlay, .bottom-sheet, .wrap-opt, .delete-btn { transition: none !important; }
   }
 </style>

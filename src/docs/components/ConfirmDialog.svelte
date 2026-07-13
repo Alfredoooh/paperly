@@ -1,10 +1,6 @@
-<!-- src/home/components/ConfirmDialog.svelte -->
 <script>
   import { createEventDispatcher } from 'svelte';
   
-  // Confirmação de apagar documento — cópia exata do padrão
-  // logout-dialog do SettingsPage (overlay a escurecer + scale-in
-  // centrado), reutilizado aqui para consistência entre os dois ecrãs.
   export let visible = false;
   export let c;
   export let message = '';

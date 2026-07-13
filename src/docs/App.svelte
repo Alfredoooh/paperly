@@ -6,13 +6,12 @@
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
   import MainPage from './pages/MainPage.svelte';
-  import SettingsPage from './pages/SettingsPage.svelte';
 
   const APP_ID = 'docs';
   const APP_TITLE = 'Nexa Docs';
   const APP_ICON = '/icons/svg/docs.svg';
   const BASE = '/docs/';
-  const VALID_ROUTES = ['settings'];
+  const VALID_ROUTES = [];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 
   let route = 'main';
@@ -60,7 +59,6 @@
       return;
     }
     if (to === 'home') { dispatch('nav', { to: 'home' }); return; }
-    if (to === 'settings') { route = 'settings'; resourceId = null; router.navigate('settings'); return; }
     if (to === 'main' || to === APP_ID) { route = 'main'; resourceId = null; router.navigate('main'); return; }
     if (to === 'resource' && data?.id) {
       route = 'main';
@@ -74,8 +72,6 @@
 {#if ready}
   {#if route === 'main'}
     <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
-  {:else if route === 'settings'}
-    <SettingsPage {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
   {/if}
 {/if}
 

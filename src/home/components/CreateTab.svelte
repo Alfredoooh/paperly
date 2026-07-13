@@ -42,9 +42,8 @@
     return APP_CONTAINER_COLORS[app.id] || FALLBACK_COLOR;
   }
 
-  // Saudação rotativa: escolhida UMA vez ao montar. O nome do
-  // utilizador NÃO faz parte destas frases — fica numa linha própria
-  // por cima, sempre com exclamação (ex.: "Alfredo!").
+  // Saudação rotativa: escolhida UMA vez ao montar. O nome fica numa
+  // linha própria, sempre com exclamação.
   const GREETINGS_MANHA = [
     'O que deseja criar esta manhã?',
     'Pronto para criar algo novo?',
@@ -90,6 +89,7 @@
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
 
   function openApp(app) {
+    try { navigator.vibrate && navigator.vibrate(7); } catch (e) {}
     if (app.id === 'ai') {
       try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
     }
@@ -117,7 +117,7 @@
 
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
      avatar). O título "Criar" só aparece quando o header fica sólido
-     com o scroll. -->
+     com o scroll, com linha divisória fina. -->
 <div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:visible={isSolid}>{isSolid ? title : ''}</h1>
@@ -142,8 +142,7 @@
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
 
-    <!-- Bloco de saudação: nome numa linha (sempre com "!"), saudação
-         rotativa por baixo, ambos na fonte importada. -->
+    <!-- Bloco de saudação: nome + frase, ambos na fonte importada. -->
     <div class="hero-greeting-block" style="opacity:{1 - heroProgress}">
       <p class="hero-greeting-name">{userName}!</p>
       <p class="hero-greeting-text">{greetingText}</p>
@@ -157,7 +156,7 @@
 
   <div class="apps-grid">
     {#each platformApps as app}
-      <button class="app-item" on:click={() => openApp(app)}>
+      <button class="app-item native-tap" on:click={() => openApp(app)}>
         <span class="app-icon-wrap" style="background:{containerColor(app)}">
           <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
         </span>
@@ -168,9 +167,6 @@
 </div>
 
 <style>
-  /* Fonte importada do próprio projeto. Nome de família escolhido
-     para referência interna — ajusta 'BeautyDisplay' se preferires
-     outro nome, o que importa é o caminho do ficheiro. */
   @font-face {
     font-family: 'BeautyDisplay';
     src: url('/fonts/beauty/font_1.ttf') format('truetype');
@@ -188,19 +184,23 @@
     background: transparent;
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
-    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .3s cubic-bezier(0.16,1,0.3,1);
+    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .3s cubic-bezier(0.16,1,0.3,1), border-color .3s cubic-bezier(0.16,1,0.3,1);
     pointer-events: none;
     contain: layout style paint;
     overflow: hidden;
+    border-bottom: 1px solid transparent;
   }
   .create-header.in {
     opacity: 1;
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
   }
+  /* Sólido mais escuro que --drawer-bg puro, com linha divisória fina
+     por baixo, ao estilo appbar nativo iOS/Android. */
   .create-header.solid {
-    background: var(--drawer-bg);
-    box-shadow: 0 1px 8px rgba(0,0,0,0.12);
+    background: color-mix(in srgb, var(--drawer-bg) 92%, black 8%);
+    border-bottom-color: var(--divider, rgba(127,127,127,0.18));
+    box-shadow: 0 1px 6px rgba(0,0,0,0.10);
   }
   .create-header-inner {
     display: flex;
@@ -315,7 +315,6 @@
     transition: opacity .05s linear;
   }
 
-  /* Bloco de saudação: nome + frase, ambos na fonte importada. */
   .hero-greeting-block {
     position: absolute;
     left: 20px;
@@ -324,20 +323,21 @@
     transition: opacity .2s linear;
     pointer-events: none;
   }
+  /* Saudação aumentada mais uma vez: 32px -> 38px. */
   .hero-greeting-name {
     margin: 0 0 4px;
     font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 32px;
+    font-size: 38px;
     font-weight: 800;
-    letter-spacing: -0.4px;
-    line-height: 1.1;
+    letter-spacing: -0.5px;
+    line-height: 1.08;
     color: #fff;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    text-shadow: 0 2px 14px rgba(0,0,0,0.5);
   }
   .hero-greeting-text {
     margin: 0;
     font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 20px;
+    font-size: 23px;
     font-weight: 600;
     letter-spacing: -0.2px;
     line-height: 1.25;
@@ -398,6 +398,7 @@
     cursor: pointer;
     font: inherit;
     color: var(--drawer-text);
+    -webkit-tap-highlight-color: transparent;
   }
   .app-icon-wrap {
     width: 64px;
@@ -420,8 +421,13 @@
     mask-position: center;
     -webkit-mask-position: center;
   }
-  .app-item:active .app-icon-wrap {
-    transform: scale(0.88);
+  /* Tap "nativo": ícone encolhe com spring, label esbate levemente —
+     o mesmo tipo de resposta tátil visual do resto da app. */
+  .native-tap:active .app-icon-wrap {
+    transform: scale(0.86);
+  }
+  .native-tap:active .app-label {
+    opacity: 0.6;
   }
   .app-label {
     font-size: 12px;
@@ -434,6 +440,7 @@
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    transition: opacity .16s cubic-bezier(0.16,1,0.3,1);
   }
 
   .icon-mask {

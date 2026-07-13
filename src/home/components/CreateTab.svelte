@@ -42,25 +42,26 @@
     return APP_CONTAINER_COLORS[app.id] || FALLBACK_COLOR;
   }
 
-  // Saudação rotativa: escolhida UMA vez ao montar, vive sobre a foto
-  // da hero — NUNCA no appbar.
+  // Saudação rotativa: escolhida UMA vez ao montar. O nome do
+  // utilizador NÃO faz parte destas frases — fica numa linha própria
+  // por cima, sempre com exclamação (ex.: "Alfredo!").
   const GREETINGS_MANHA = [
     'O que deseja criar esta manhã?',
-    'Bom dia! Pronto para criar algo novo?',
+    'Pronto para criar algo novo?',
     'Uma nova manhã, uma nova ideia.',
     'Vamos começar o dia a criar?',
     'Que tal criar algo esta manhã?',
   ];
   const GREETINGS_TARDE = [
     'O que deseja criar esta tarde?',
-    'Boa tarde! O que vamos criar?',
+    'O que vamos criar?',
     'Estás pronto para a próxima criação?',
     'Uma tarde perfeita para criar.',
     'Que ideia vamos dar vida esta tarde?',
   ];
   const GREETINGS_NOITE = [
     'O que deseja criar esta noite?',
-    'Boa noite! Ainda com energia para criar?',
+    'Ainda com energia para criar?',
     'A noite é uma boa altura para criar.',
     'Estás pronto para a próxima criação?',
     'Que tal terminar o dia a criar algo?',
@@ -135,16 +136,18 @@
   <div class="hero-bg">
     <!-- Camada 1: a foto em si -->
     <div class="hero-photo" style="background-image:url('/images/createbg/img.jpg')"></div>
-    <!-- Camada 2: gradiente ESTÁTICO, agora mais suave — começa mais
-         tarde e escurece menos, para a foto respirar mais. -->
+    <!-- Camada 2: gradiente ESTÁTICO, suave — a foto respira mais. -->
     <div class="hero-static-fade"></div>
     <!-- Camada 3: cobre a imagem por completo conforme o utilizador
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
 
-    <!-- Saudação rotativa: agora com o peso visual de um título hero
-         (maior, mais forte), não um subtítulo discreto. -->
-    <p class="hero-greeting" style="opacity:{1 - heroProgress}">{greetingText}</p>
+    <!-- Bloco de saudação: nome numa linha (sempre com "!"), saudação
+         rotativa por baixo, ambos na fonte importada. -->
+    <div class="hero-greeting-block" style="opacity:{1 - heroProgress}">
+      <p class="hero-greeting-name">{userName}!</p>
+      <p class="hero-greeting-text">{greetingText}</p>
+    </div>
   </div>
 
   <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
@@ -165,6 +168,17 @@
 </div>
 
 <style>
+  /* Fonte importada do próprio projeto. Nome de família escolhido
+     para referência interna — ajusta 'BeautyDisplay' se preferires
+     outro nome, o que importa é o caminho do ficheiro. */
+  @font-face {
+    font-family: 'BeautyDisplay';
+    src: url('/fonts/beauty/font_1.ttf') format('truetype');
+    font-weight: 400 800;
+    font-style: normal;
+    font-display: swap;
+  }
+
   /* ---------- Header próprio do Create ---------- */
   .create-header {
     position: fixed;
@@ -280,9 +294,6 @@
     background-repeat: no-repeat;
   }
 
-  /* Gradiente suavizado: começa mais tarde (55% em vez de 35%) e o
-     ponto mais escuro é mais claro (35% em vez de 55% de mistura),
-     para a foto ficar visível por mais tempo e não "carregada". */
   .hero-static-fade {
     position: absolute;
     inset: 0;
@@ -304,23 +315,34 @@
     transition: opacity .05s linear;
   }
 
-  /* Saudação agora com peso de título hero: maior, mais peso de
-     fonte, sombra mais discreta (a foto já está mais clara por si
-     só, não precisa de tanta sombra para o texto se destacar). */
-  .hero-greeting {
+  /* Bloco de saudação: nome + frase, ambos na fonte importada. */
+  .hero-greeting-block {
     position: absolute;
     left: 20px;
     right: 20px;
-    bottom: 44px;
-    margin: 0;
-    font-size: 27px;
-    font-weight: 800;
-    letter-spacing: -0.4px;
-    line-height: 1.15;
-    color: #fff;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    bottom: 40px;
     transition: opacity .2s linear;
     pointer-events: none;
+  }
+  .hero-greeting-name {
+    margin: 0 0 4px;
+    font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    line-height: 1.1;
+    color: #fff;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  }
+  .hero-greeting-text {
+    margin: 0;
+    font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.45);
   }
 
   .search-bar {

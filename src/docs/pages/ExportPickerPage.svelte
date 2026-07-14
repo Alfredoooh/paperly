@@ -2,43 +2,29 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
+  import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
 
+  export let isDark = false;
   export let docName = '';
   export let mode = 'export'; // 'export' | 'share'
-  export let getHtml = () => ''; // função que o MainPage passa para obter o HTML atual do documento na hora de confirmar (evita re-serializar HTML grande cedo demais)
+  export let getHtml = () => '';
 
   const dispatch = createEventDispatcher();
+  $: c = getThemeColors(isDark);
 
-  // Mesma primitiva de spring usada nos bottom-sheets (ColorModal, TableModal,
-  // etc.), aqui aplicada como slide horizontal de página cheia — entra da
-  // direita (x: 100 -> 0), tal como as outras rotas internas (Profile/Settings).
   const slide = createSlideTransition({});
   let pageX = 100;
   const unsubscribe = slide.subscribe((v) => { pageX = v; });
 
-  let selectedFormat = 'docx'; // 'docx' | 'pdf'
+  let selectedFormat = 'docx';
   let currentPath = '';
   let entries = [];
   let loading = true;
   let permissionNeeded = false;
   let exporting = false;
+  let historyStack = [];
 
-  let historyStack = []; // caminhos visitados, para o botão voltar interno navegar sem sair da página
-
-  // ══════════════════════════════════════════════════════════════════
-  //  EXPORT ASSÍNCRONO
-  //
-  //  window.AndroidStorage.exportDocument era chamado como se fosse
-  //  síncrono (com await na Promise resolvida pelo valor de retorno),
-  //  mas o lado Kotlin bloqueava a própria UI thread à espera de si
-  //  mesmo (runOnUiThread + latch.await() na mesma thread) — um
-  //  deadlock que fazia a chamada nunca responder. Agora o Kotlin
-  //  devolve de imediato e avisa via
-  //  window.onNexaExportResult(requestId, resultJson) quando o
-  //  ficheiro estiver pronto; aqui resolvemos a Promise certa através
-  //  de um mapa de requestId -> resolver.
-  // ══════════════════════════════════════════════════════════════════
   let exportResolvers = new Map();
   let exportRequestId = 0;
 
@@ -60,9 +46,7 @@
     };
   });
 
-  onDestroy(() => {
-    delete window.onNexaExportResult;
-  });
+  onDestroy(() => { delete window.onNexaExportResult; });
 
   onMount(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => slide.open()));
@@ -77,18 +61,12 @@
     window.removeEventListener('popstate', handlePopState);
   });
 
-  function handlePopState() {
-    closePage(false);
-  }
+  function handlePopState() { closePage(false); }
 
   function closePage(shouldPopHistory = true) {
     slide.close();
-    setTimeout(() => {
-      dispatch('close');
-    }, 300);
-    if (shouldPopHistory) {
-      history.back();
-    }
+    setTimeout(() => dispatch('close'), 300);
+    if (shouldPopHistory) history.back();
   }
 
   async function checkPermissionAndLoad() {
@@ -108,9 +86,6 @@
 
   function requestPermission() {
     window.AndroidStorage.requestPermission();
-    // A Activity relança onResume ao voltar das Definições; o WebApp
-    // reage a isso escutando visibilitychange, para verificar de novo
-    // sem precisar que o utilizador toque em nada.
   }
 
   function handleVisibilityChange() {
@@ -155,10 +130,7 @@
   }
 
   function goBackFolder() {
-    if (historyStack.length <= 1) {
-      closePage();
-      return;
-    }
+    if (historyStack.length <= 1) { closePage(); return; }
     historyStack = historyStack.slice(0, -1);
     loadPath(historyStack[historyStack.length - 1]);
   }
@@ -184,10 +156,6 @@
     }
   }
 
-  function selectFormat(format) {
-    selectedFormat = format;
-  }
-
   async function confirmExport() {
     if (exporting) return;
     exporting = true;
@@ -196,10 +164,8 @@
       const safeName = docName.replace(/[^\w\-]+/g, '_') || 'documento';
       const fileName = `${safeName}.${selectedFormat}`;
       const targetPath = `${currentPath}/${fileName}`;
-
       const resultRaw = await exportDocumentAsync(html, targetPath, selectedFormat, mode);
       const result = JSON.parse(resultRaw);
-
       if (result.ok) {
         showToast(mode === 'share' ? 'Documento partilhado' : `Exportado para ${currentPath}`);
         closePage();
@@ -214,17 +180,28 @@
   }
 </script>
 
-<div class="root" style="transform: translate3d({pageX}%, 0, 0);">
+<!-- fundo: c.background via style inline — é página fixed, não herda nada -->
+<div class="root" style="background:{c.background};transform:translate3d({pageX}%,0,0);">
 
-  <div class="appbar">
+  <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" on:click={goBackFolder} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');width:20px;height:20px;"></span>
+      <span class="icon-mask" style="
+        mask-image:url('/icons/svg/back_arrow.svg');
+        -webkit-mask-image:url('/icons/svg/back_arrow.svg');
+        background:{c.iconTint};
+        width:20px;height:20px;
+      "></span>
     </button>
-    <div class="appbar-title">
+    <div class="appbar-title" style="color:{c.textPrimary}">
       {mode === 'share' ? 'Partilhar' : 'Exportar'} "{docName}"
     </div>
     <button class="appbar-btn" on:click={() => closePage()} aria-label="Fechar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;"></span>
+      <span class="icon-mask" style="
+        mask-image:url('/icons/svg/close.svg');
+        -webkit-mask-image:url('/icons/svg/close.svg');
+        background:{c.iconTint};
+        width:16px;height:16px;
+      "></span>
     </button>
   </div>
 
@@ -233,35 +210,27 @@
       <div class="permission-text">
         Para exportar o documento diretamente para uma pasta do teu telemóvel, é preciso autorizar o acesso ao armazenamento.
       </div>
-      <button class="primary-btn" on:click={requestPermission}>
-        Autorizar acesso
-      </button>
+      <button class="primary-btn" on:click={requestPermission}>Autorizar acesso</button>
     </div>
   {:else}
+
+    <!-- chips de formato — usam variáveis CSS como o TemplatesTab -->
     <div class="format-row">
       <button
         class="format-chip"
         class:format-chip-active={selectedFormat === 'docx'}
-        on:click={() => selectFormat('docx')}
-      >
-        Word (.docx)
-      </button>
+        on:click={() => { selectedFormat = 'docx'; }}
+      >Word (.docx)</button>
       <button
         class="format-chip"
         class:format-chip-active={selectedFormat === 'pdf'}
-        on:click={() => selectFormat('pdf')}
-      >
-        PDF (.pdf)
-      </button>
+        on:click={() => { selectedFormat = 'pdf'; }}
+      >PDF (.pdf)</button>
     </div>
 
-    <div class="path-row">
-      {currentPath}
-    </div>
+    <div class="path-row">{currentPath}</div>
 
-    <button class="new-folder-btn" on:click={toggleNewFolder}>
-      + Nova pasta
-    </button>
+    <button class="new-folder-btn" on:click={toggleNewFolder}>+ Nova pasta</button>
 
     {#if showNewFolderInput}
       <div class="new-folder-form">
@@ -283,8 +252,14 @@
       {:else}
         {#each entries as folder (folder.path)}
           <button class="folder-row" on:click={() => openFolder(folder)}>
-            <img src="/icons/svg/docs/color_svg/folder.svg" alt="" class="folder-icon" width="24" height="24" />
-            <span class="folder-name">{folder.name}</span>
+            <img
+              src="/icons/svg/docs/color_svg/folder.svg"
+              alt=""
+              class="folder-icon"
+              width="24"
+              height="24"
+            />
+            <span class="folder-name" style="color:{c.textPrimary}">{folder.name}</span>
           </button>
         {/each}
       {/if}
@@ -292,11 +267,7 @@
 
     <div class="confirm-bar">
       <button class="confirm-btn" on:click={confirmExport} disabled={exporting}>
-        {#if exporting}
-          A gerar…
-        {:else}
-          {mode === 'share' ? 'Guardar e partilhar aqui' : 'Exportar para esta pasta'}
-        {/if}
+        {exporting ? 'A gerar…' : (mode === 'share' ? 'Guardar e partilhar aqui' : 'Exportar para esta pasta')}
       </button>
     </div>
   {/if}
@@ -310,122 +281,136 @@
     display: flex;
     flex-direction: column;
     will-change: transform;
-    background: var(--surface-page);
-    color: var(--drawer-text);
+    /* fundo definido via style inline com c.background — não aqui */
   }
 
+  /* ── appbar ── */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: 52px 12px 12px; flex-shrink: 0;
-    border-bottom: 0.5px solid var(--border-soft);
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
-    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    /* fundo do botão — mesmo padrão do TemplatesTab: var do sistema */
     background: var(--surface-apps-tab);
+    box-shadow: 0 1px 3px var(--drawer-shadow);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .appbar-btn:active { transform: scale(0.88); }
   .icon-mask {
     display: block;
-    background: var(--icon-strong);
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
   }
   .appbar-title {
-    flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 700;
+    flex: 1; min-width: 0; text-align: center;
+    font-size: 15px; font-weight: 700;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    color: var(--drawer-text);
   }
 
+  /* ── permission gate ── */
   .permission-gate {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
     padding: 32px; gap: 20px; text-align: center;
   }
-  .permission-text { font-size: 14px; line-height: 1.5; color: var(--drawer-text-secondary); }
+  .permission-text {
+    font-size: 14px; line-height: 1.5;
+    color: var(--drawer-text-secondary);
+  }
   .primary-btn {
     border: none; border-radius: 14px; padding: 14px 28px;
-    background: #2F7BF6;
-    color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: #2F7BF6; color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .primary-btn:active { transform: scale(0.96); }
 
-  .format-row { display: flex; gap: 8px; padding: 4px 16px 12px; }
+  /* ── format chips — mesmo padrão visual que doc-card/img-card do TemplatesTab ── */
+  .format-row { display: flex; gap: 8px; padding: 12px 16px; }
   .format-chip {
-    flex: 1; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
-    transition: background .16s ease, color .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    flex: 1; border: none; border-radius: 12px; padding: 12px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    /* estado inativo: mesma superfície dos cards do TemplatesTab */
     background: var(--surface-apps-tab);
     color: var(--drawer-text);
     box-shadow: 0 1px 4px var(--drawer-shadow);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .format-chip:active { transform: scale(0.96); }
+  /* estado ativo: accent azul, exatamente como doc-card:active usa --row-active */
   .format-chip-active {
     background: #2F7BF6 !important;
     color: #fff !important;
+    box-shadow: 0 2px 8px rgba(47,123,246,0.35) !important;
   }
 
+  /* ── path ── */
   .path-row {
-    padding: 0 16px 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--drawer-text-secondary);
+    padding: 0 16px 4px;
+    font-size: 12px; color: var(--drawer-text-secondary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
+  /* ── nova pasta ── */
   .new-folder-btn {
-    background: none; border: none; text-align: left; padding: 0 16px 8px;
-    font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    color: #2F7BF6;
+    background: none; border: none; text-align: left;
+    padding: 4px 16px 10px;
+    font-size: 14px; font-weight: 600; color: #2F7BF6;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
-
   .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; }
   .new-folder-input {
-    flex: 1; border: none; border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none;
+    flex: 1; border: none; border-radius: 10px;
+    padding: 10px 12px; font-size: 14px; outline: none;
     background: var(--surface-apps-tab);
     color: var(--drawer-text);
   }
   .new-folder-confirm {
-    background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 8px;
-    color: #2F7BF6;
+    background: none; border: none;
+    font-size: 14px; font-weight: 700; color: #2F7BF6;
+    cursor: pointer; padding: 0 8px;
   }
 
+  /* ── lista de pastas ── */
   .folder-list { flex: 1; overflow-y: auto; padding: 0 8px; }
   .folder-row {
     width: 100%; display: flex; align-items: center; gap: 12px;
-    background: none; border: none; padding: 14px 12px; text-align: left; cursor: pointer;
+    background: none; border: none;
+    padding: 13px 12px; text-align: left; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     border-radius: 14px;
+    /* mesmo padrão de transição do img-card / doc-card do TemplatesTab */
     transition: background .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .folder-row:active {
     background: var(--row-active);
     transform: scale(0.98);
   }
-  .folder-icon {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-  }
+  .folder-icon { flex-shrink: 0; width: 24px; height: 24px; }
   .folder-name {
     font-size: 15px;
-    color: var(--drawer-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .state-msg {
+    text-align: center; padding: 40px 16px;
+    font-size: 14px; color: var(--drawer-text-secondary);
   }
 
-  .state-msg { text-align: center; padding: 40px 16px; font-size: 14px; color: var(--drawer-text-secondary); }
-
-  .confirm-bar { padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px); }
+  /* ── botão confirmar ── */
+  .confirm-bar {
+    padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    flex-shrink: 0;
+  }
   .confirm-btn {
     width: 100%; border: none; border-radius: 14px; padding: 15px;
-    background: #2F7BF6;
-    color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: #2F7BF6; color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .confirm-btn:active:not(:disabled) { transform: scale(0.97); }

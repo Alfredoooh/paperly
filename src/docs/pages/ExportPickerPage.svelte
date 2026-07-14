@@ -245,7 +245,7 @@
       <button
         class="format-chip"
         class:format-chip-active={selectedFormat === 'docx'}
-        style={selectedFormat === 'docx' ? 'background:#2F7BF6;color:#fff' : `background:${c.appbarBtnBg};color:${c.textPrimary}`}
+        style={selectedFormat === 'docx' ? 'background:#2F7BF6;color:#fff' : ''}
         on:click={() => selectFormat('docx')}
       >
         Word (.docx)
@@ -253,14 +253,14 @@
       <button
         class="format-chip"
         class:format-chip-active={selectedFormat === 'pdf'}
-        style={selectedFormat === 'pdf' ? 'background:#2F7BF6;color:#fff' : `background:${c.appbarBtnBg};color:${c.textPrimary}`}
+        style={selectedFormat === 'pdf' ? 'background:#2F7BF6;color:#fff' : ''}
         on:click={() => selectFormat('pdf')}
       >
         PDF (.pdf)
       </button>
     </div>
 
-    <div class="path-row" style="color:{c.textSecondary}">
+    <div class="path-row">
       {currentPath}
     </div>
 
@@ -272,7 +272,6 @@
       <div class="new-folder-form">
         <input
           class="new-folder-input"
-          style="background:{c.appbarBtnBg};color:{c.textPrimary}"
           placeholder="Nome da pasta"
           bind:value={newFolderName}
           on:keydown={(e) => e.key === 'Enter' && confirmNewFolder()}
@@ -283,14 +282,14 @@
 
     <div class="folder-list">
       {#if loading}
-        <div class="state-msg" style="color:{c.textSecondary}">A carregar…</div>
+        <div class="state-msg">A carregar…</div>
       {:else if entries.length === 0}
-        <div class="state-msg" style="color:{c.textSecondary}">Pasta vazia</div>
+        <div class="state-msg">Pasta vazia</div>
       {:else}
         {#each entries as folder (folder.path)}
           <button class="folder-row" on:click={() => openFolder(folder)}>
-            <span class="folder-icon">📁</span>
-            <span class="folder-name" style="color:{c.textPrimary}">{folder.name}</span>
+            <img src="/icons/svg/docs/color_svg/folder.svg" alt="" class="folder-icon" width="24" height="24" />
+            <span class="folder-name">{folder.name}</span>
           </button>
         {/each}
       {/if}
@@ -326,7 +325,9 @@
     width: 36px; height: 36px; border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .appbar-btn:active { transform: scale(0.88); }
   .appbar-title {
     flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 700;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -336,21 +337,29 @@
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 32px; gap: 20px; text-align: center;
   }
-  .permission-text { font-size: 14px; line-height: 1.5; }
+  .permission-text { font-size: 14px; line-height: 1.5; color: var(--drawer-text-secondary); }
   .primary-btn {
     border: none; border-radius: 14px; padding: 14px 28px;
     color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .primary-btn:active { transform: scale(0.96); }
 
   .format-row { display: flex; gap: 8px; padding: 4px 16px 12px; }
   .format-chip {
     flex: 1; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
-    cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .16s;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    background: var(--surface-apps-tab);
+    color: var(--drawer-text);
+    box-shadow: 0 1px 4px var(--drawer-shadow);
   }
+  .format-chip:active { transform: scale(0.96); }
 
   .path-row {
     padding: 0 16px 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--drawer-text-secondary);
   }
 
   .new-folder-btn {
@@ -361,6 +370,8 @@
   .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; }
   .new-folder-input {
     flex: 1; border: none; border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none;
+    background: var(--surface-apps-tab);
+    color: var(--drawer-text);
   }
   .new-folder-confirm {
     background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 8px;
@@ -371,16 +382,34 @@
     width: 100%; display: flex; align-items: center; gap: 12px;
     background: none; border: none; padding: 14px 12px; text-align: left; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    border-radius: 14px;
+    transition: background .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .folder-icon { font-size: 18px; }
-  .folder-name { font-size: 15px; }
+  .folder-row:active {
+    background: var(--row-active);
+    transform: scale(0.98);
+  }
+  .folder-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+  }
+  .folder-name {
+    font-size: 15px;
+    color: var(--drawer-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-  .state-msg { text-align: center; padding: 40px 16px; font-size: 14px; }
+  .state-msg { text-align: center; padding: 40px 16px; font-size: 14px; color: var(--drawer-text-secondary); }
 
   .confirm-bar { padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px); }
   .confirm-btn {
     width: 100%; border: none; border-radius: 14px; padding: 15px;
     color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .confirm-btn:active:not(:disabled) { transform: scale(0.97); }
   .confirm-btn:disabled { opacity: 0.6; }
 </style>

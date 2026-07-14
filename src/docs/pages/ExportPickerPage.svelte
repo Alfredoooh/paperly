@@ -2,16 +2,13 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
-  import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
 
-  export let isDark = false;
   export let docName = '';
   export let mode = 'export'; // 'export' | 'share'
   export let getHtml = () => ''; // função que o MainPage passa para obter o HTML atual do documento na hora de confirmar (evita re-serializar HTML grande cedo demais)
 
   const dispatch = createEventDispatcher();
-  $: c = getThemeColors(isDark);
 
   // Mesma primitiva de spring usada nos bottom-sheets (ColorModal, TableModal,
   // etc.), aqui aplicada como slide horizontal de página cheia — entra da
@@ -217,26 +214,26 @@
   }
 </script>
 
-<div class="root" style="background:{c.background};color:{c.textPrimary};transform: translate3d({pageX}%, 0, 0);">
+<div class="root" style="transform: translate3d({pageX}%, 0, 0);">
 
-  <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBackFolder} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  <div class="appbar">
+    <button class="appbar-btn" on:click={goBackFolder} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');width:20px;height:20px;"></span>
     </button>
-    <div class="appbar-title" style="color:{c.textPrimary}">
+    <div class="appbar-title">
       {mode === 'share' ? 'Partilhar' : 'Exportar'} "{docName}"
     </div>
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => closePage()} aria-label="Fechar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.iconTint};width:16px;height:16px;"></span>
+    <button class="appbar-btn" on:click={() => closePage()} aria-label="Fechar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:16px;height:16px;"></span>
     </button>
   </div>
 
   {#if permissionNeeded}
     <div class="permission-gate">
-      <div class="permission-text" style="color:{c.textSecondary}">
+      <div class="permission-text">
         Para exportar o documento diretamente para uma pasta do teu telemóvel, é preciso autorizar o acesso ao armazenamento.
       </div>
-      <button class="primary-btn" style="background:#2F7BF6" on:click={requestPermission}>
+      <button class="primary-btn" on:click={requestPermission}>
         Autorizar acesso
       </button>
     </div>
@@ -245,7 +242,6 @@
       <button
         class="format-chip"
         class:format-chip-active={selectedFormat === 'docx'}
-        style={selectedFormat === 'docx' ? 'background:#2F7BF6;color:#fff' : ''}
         on:click={() => selectFormat('docx')}
       >
         Word (.docx)
@@ -253,7 +249,6 @@
       <button
         class="format-chip"
         class:format-chip-active={selectedFormat === 'pdf'}
-        style={selectedFormat === 'pdf' ? 'background:#2F7BF6;color:#fff' : ''}
         on:click={() => selectFormat('pdf')}
       >
         PDF (.pdf)
@@ -264,7 +259,7 @@
       {currentPath}
     </div>
 
-    <button class="new-folder-btn" style="color:#2F7BF6" on:click={toggleNewFolder}>
+    <button class="new-folder-btn" on:click={toggleNewFolder}>
       + Nova pasta
     </button>
 
@@ -276,7 +271,7 @@
           bind:value={newFolderName}
           on:keydown={(e) => e.key === 'Enter' && confirmNewFolder()}
         />
-        <button class="new-folder-confirm" style="color:#2F7BF6" on:click={confirmNewFolder}>Criar</button>
+        <button class="new-folder-confirm" on:click={confirmNewFolder}>Criar</button>
       </div>
     {/if}
 
@@ -296,7 +291,7 @@
     </div>
 
     <div class="confirm-bar">
-      <button class="confirm-btn" style="background:#2F7BF6" on:click={confirmExport} disabled={exporting}>
+      <button class="confirm-btn" on:click={confirmExport} disabled={exporting}>
         {#if exporting}
           A gerar…
         {:else}
@@ -315,22 +310,37 @@
     display: flex;
     flex-direction: column;
     will-change: transform;
+    background: var(--surface-page);
+    color: var(--drawer-text);
   }
 
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: 52px 12px 12px; flex-shrink: 0;
+    border-bottom: 0.5px solid var(--border-soft);
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    background: var(--surface-apps-tab);
   }
   .appbar-btn:active { transform: scale(0.88); }
+  .icon-mask {
+    display: block;
+    background: var(--icon-strong);
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
+  }
   .appbar-title {
     flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 700;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--drawer-text);
   }
 
   .permission-gate {
@@ -340,6 +350,7 @@
   .permission-text { font-size: 14px; line-height: 1.5; color: var(--drawer-text-secondary); }
   .primary-btn {
     border: none; border-radius: 14px; padding: 14px 28px;
+    background: #2F7BF6;
     color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
@@ -349,12 +360,16 @@
   .format-chip {
     flex: 1; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
     cursor: pointer; -webkit-tap-highlight-color: transparent;
-    transition: background .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    transition: background .16s ease, color .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
     background: var(--surface-apps-tab);
     color: var(--drawer-text);
     box-shadow: 0 1px 4px var(--drawer-shadow);
   }
   .format-chip:active { transform: scale(0.96); }
+  .format-chip-active {
+    background: #2F7BF6 !important;
+    color: #fff !important;
+  }
 
   .path-row {
     padding: 0 16px 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
@@ -365,6 +380,7 @@
   .new-folder-btn {
     background: none; border: none; text-align: left; padding: 0 16px 8px;
     font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    color: #2F7BF6;
   }
 
   .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; }
@@ -375,6 +391,7 @@
   }
   .new-folder-confirm {
     background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 8px;
+    color: #2F7BF6;
   }
 
   .folder-list { flex: 1; overflow-y: auto; padding: 0 8px; }
@@ -407,6 +424,7 @@
   .confirm-bar { padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px); }
   .confirm-btn {
     width: 100%; border: none; border-radius: 14px; padding: 15px;
+    background: #2F7BF6;
     color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }

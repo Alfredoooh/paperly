@@ -13,6 +13,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import ImageOptionsModal from '../components/ImageOptionsModal.svelte';
   import TableModal from '../components/TableModal.svelte';
+  import ExportPickerPage from './ExportPickerPage.svelte';
 
   export let isDark = false;
   export let user = null;
@@ -413,20 +414,20 @@
   // ══════════════════════════════════════════════════════════════════
   //  KEYBOARD AVOIDING — v2
   //
-  //  Problema da versão anterior: fixedRootHeight = window.innerHeight
-  //  era capturado imediatamente no onMount, antes do layout assentar
-  //  (status bar / barra de navegação / primeiro paint), e o html/body
-  //  não estavam travados — então o próprio documento podia ser
-  //  comprimido pelo teclado por baixo do .root, arrastando o appbar
-  //  junto mesmo com altura "fixa" no elemento errado.
+  //  Problema da v1: fixedRootHeight = window.innerHeight era capturado
+  //  imediatamente no onMount, antes do layout assentar (status bar /
+  //  barra de navegação / primeiro paint), e html/body não estavam
+  //  travados — então o próprio documento podia ser comprimido pelo
+  //  teclado por baixo do .root, arrastando o appbar junto mesmo com
+  //  altura "fixa" no elemento errado.
   //
   //  Correção: (1) trava html/body com position:fixed;inset:0 também,
-  //  não só o .root; (2) usa visualViewport.height (não innerHeight)
-  //  como fonte da altura fixa, porque é o valor que existe ANTES do
-  //  teclado abrir; (3) espera 2 frames antes de capturar, para não
-  //  travar um valor lido cedo demais; (4) recalcula em orientationchange,
-  //  porque travar para sempre só faz sentido enquanto a orientação
-  //  não muda.
+  //  não só o .root (ver :global no <style> abaixo); (2) usa
+  //  visualViewport.height (não innerHeight) como fonte da altura fixa,
+  //  porque é o valor que existe ANTES do teclado abrir; (3) espera 2
+  //  frames antes de capturar, para não travar um valor lido cedo
+  //  demais; (4) recalcula em orientationchange, porque travar para
+  //  sempre só faz sentido enquanto a orientação não muda.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
@@ -532,25 +533,27 @@
     }
   }
 
-  async function shareDoc() {
-    const text = docPageComp ? docPageComp.getPlainText() : '';
-    if (navigator.share) {
-      try { await navigator.share({ title: docName, text }); } catch (e) {}
-    } else {
-      showToast('Partilha não suportada neste dispositivo');
-    }
-  }
+  // ══════════════════════════════════════════════════════════════════
+  //  EXPORTAÇÃO / PARTILHA — via ExportPickerPage (página cheia, com
+  //  pushState, dentro do próprio WebApp). Não chama mais o Android
+  //  diretamente daqui — abre a página, que por sua vez fala com
+  //  window.AndroidStorage quando o utilizador confirma.
+  // ══════════════════════════════════════════════════════════════════
+  let exportPickerOpen = false;
+  let exportPickerMode = 'export'; // 'export' | 'share'
 
   function exportDoc() {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(docName)}</title></head><body>${getEditorHTML()}</body></html>`;
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = docName.replace(/[^\w\-]+/g, '_') + '.html';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Documento exportado');
+    exportPickerMode = 'export';
+    exportPickerOpen = true;
+  }
+
+  function shareDoc() {
+    exportPickerMode = 'share';
+    exportPickerOpen = true;
+  }
+
+  function closeExportPicker() {
+    exportPickerOpen = false;
   }
 
   let showDeleteConfirm = false;
@@ -692,6 +695,16 @@
   />
 
   <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
+
+  {#if exportPickerOpen}
+    <ExportPickerPage
+      {isDark}
+      {docName}
+      mode={exportPickerMode}
+      getHtml={getEditorHTML}
+      on:close={closeExportPicker}
+    />
+  {/if}
 </div>
 
 <style>

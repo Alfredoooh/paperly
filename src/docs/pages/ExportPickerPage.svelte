@@ -29,6 +29,44 @@
 
   let historyStack = []; // caminhos visitados, para o botão voltar interno navegar sem sair da página
 
+  // ══════════════════════════════════════════════════════════════════
+  //  EXPORT ASSÍNCRONO
+  //
+  //  window.AndroidStorage.exportDocument era chamado como se fosse
+  //  síncrono (com await na Promise resolvida pelo valor de retorno),
+  //  mas o lado Kotlin bloqueava a própria UI thread à espera de si
+  //  mesmo (runOnUiThread + latch.await() na mesma thread) — um
+  //  deadlock que fazia a chamada nunca responder. Agora o Kotlin
+  //  devolve de imediato e avisa via
+  //  window.onNexaExportResult(requestId, resultJson) quando o
+  //  ficheiro estiver pronto; aqui resolvemos a Promise certa através
+  //  de um mapa de requestId -> resolver.
+  // ══════════════════════════════════════════════════════════════════
+  let exportResolvers = new Map();
+  let exportRequestId = 0;
+
+  function exportDocumentAsync(html, targetPath, format, mode) {
+    return new Promise((resolve) => {
+      const requestId = ++exportRequestId;
+      exportResolvers.set(requestId, resolve);
+      window.AndroidStorage.exportDocument(requestId, html, targetPath, format, mode);
+    });
+  }
+
+  onMount(() => {
+    window.onNexaExportResult = (requestId, resultRaw) => {
+      const resolver = exportResolvers.get(requestId);
+      if (resolver) {
+        exportResolvers.delete(requestId);
+        resolver(resultRaw);
+      }
+    };
+  });
+
+  onDestroy(() => {
+    delete window.onNexaExportResult;
+  });
+
   onMount(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => slide.open()));
     window.addEventListener('popstate', handlePopState);
@@ -162,7 +200,7 @@
       const fileName = `${safeName}.${selectedFormat}`;
       const targetPath = `${currentPath}/${fileName}`;
 
-      const resultRaw = await window.AndroidStorage.exportDocument(html, targetPath, selectedFormat, mode);
+      const resultRaw = await exportDocumentAsync(html, targetPath, selectedFormat, mode);
       const result = JSON.parse(resultRaw);
 
       if (result.ok) {

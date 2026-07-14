@@ -421,13 +421,22 @@
   //  teclado por baixo do .root, arrastando o appbar junto mesmo com
   //  altura "fixa" no elemento errado.
   //
-  //  Correção: (1) trava html/body com position:fixed;inset:0 também,
-  //  não só o .root (ver :global no <style> abaixo); (2) usa
+  //  Correção v2: (1) trava html/body com position:fixed;inset:0
+  //  também, não só o .root (ver :global no <style> abaixo); (2) usa
   //  visualViewport.height (não innerHeight) como fonte da altura fixa,
   //  porque é o valor que existe ANTES do teclado abrir; (3) espera 2
   //  frames antes de capturar, para não travar um valor lido cedo
-  //  demais; (4) recalcula em orientationchange, porque travar para
-  //  sempre só faz sentido enquanto a orientação não muda.
+  //  demais; (4) recalcula em orientationchange.
+  //
+  //  Correção v3 (esta): a v2 travava a altura do .root, mas a appbar
+  //  continuava a ser um filho normal do flex column .root — e por
+  //  isso ainda ficava sujeita a qualquer resize que o WebView nativo
+  //  do Android aplicasse à window real quando o teclado abria (antes
+  //  do --app-vh calculado no JS ter tempo de reagir). A appbar passa
+  //  agora a position:fixed própria, ancorada ao top:0 do ecrã real —
+  //  exatamente a mesma blindagem que a BottomToolbar já tinha no
+  //  fundo — por isso já não "sobe" nunca, independentemente do que o
+  //  teclado faça ao layout do WebView.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
@@ -578,10 +587,9 @@
 
 <div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary};">
 
-  <!-- Appbar: filho normal do flex column .root, cuja altura está
-       travada via --app-vh desde o mount (2 frames depois, para
-       garantir que o layout já assentou). Nunca leva transform,
-       nunca leva kbOffset. -->
+  <!-- Appbar: position:fixed própria, ancorada ao top:0 do ecrã real —
+       igual à BottomToolbar no fundo. Já não é filho sujeito ao fluxo
+       flex do .root, por isso não "sobe" mais quando o teclado abre. -->
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -604,8 +612,9 @@
     </button>
   </div>
 
-  <!-- Área de conteúdo: absorve o encolhimento visual do viewport
-       (overflow:hidden), mas o .root pai nunca muda de tamanho. -->
+  <!-- Área de conteúdo: padding-top compensa a appbar agora fixed
+       (que saiu do fluxo do documento), e overflow:hidden absorve o
+       encolhimento visual do viewport quando o teclado abre. -->
   <div class="canvas-area">
     <DocPage
       bind:this={docPageComp}
@@ -731,7 +740,10 @@
     display: flex; align-items: center; gap: 10px;
     padding: 52px 12px 12px; flex-shrink: 0;
     background: inherit;
-    position: relative;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
     z-index: 50;
   }
   .appbar-btn {
@@ -754,6 +766,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding-top: 100px;
   }
 
   .icon-mask {

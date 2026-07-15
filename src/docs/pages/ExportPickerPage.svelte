@@ -9,6 +9,10 @@
   export let docName = '';
   export let mode = 'export'; // 'export' | 'share'
   export let getHtml = () => '';
+  // Vem do App.svelte (docs) — mesma "regra de ouro" do home: avisa o
+  // router.bindPopState para ignorar o popstate enquanto nós próprios
+  // o tratamos, em vez de inventar um sentinela paralelo.
+  export let setSuppressRouterPopstate = () => {};
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -25,65 +29,43 @@
   let exporting = false;
 
   // ══════════════════════════════════════════════════════════════════
-  //  NAVEGAÇÃO DE PASTAS — 100% LOCAL, SEM TOCAR NO HISTORY DO BROWSER.
-  //
-  //  Tentativa anterior usava history.pushState/popstate por pasta.
-  //  Bug real: o router.js do App.svelte (docs) TAMBÉM escuta popstate
-  //  globalmente (router.bindPopState), e não sabe nada sobre os
-  //  estados "nexaExportPicker" — os dois handlers competem no MESMO
-  //  evento popstate, e o router acabava por ganhar/interferir,
-  //  fazendo a página saltar direto para o MainPage em vez de recuar
-  //  uma pasta, e cortando a animação a meio (dois donos de transform
-  //  no mesmo frame).
-  //
-  //  Correção: a pilha de pastas fica só em memória (folderStack).
-  //  O ÚNICO uso do history aqui é para capturar o botão físico do
-  //  Android / gesto de voltar: mantemos SEMPRE um único estado
-  //  sentinela empurrado enquanto a página está aberta. Ao receber
-  //  esse popstate, decidimos localmente (recuar pasta ou fechar a
-  //  página) e, se ainda faltar recuar pastas, RE-EMPURRAMOS
-  //  imediatamente o mesmo sentinela — assim o router nunca vê mais
-  //  do que um único par push/pop por página, nunca um por pasta.
+  //  NAVEGAÇÃO DE PASTAS — cada pasta aberta empurra um estado real de
+  //  history (mesma técnica do search/preview do home: pushState com
+  //  hash próprio). O onPopState local trata o pop, avisando
+  //  suppressRouterPopstate antes/depois, exatamente como
+  //  closeSearchVisual/closePreviewVisual fazem no home.
   // ══════════════════════════════════════════════════════════════════
   let folderStack = []; // caminhos já visitados nesta sessão da página
-  let sentinelPushed = false;
 
-  function pushSentinel() {
-    if (sentinelPushed) return;
-    sentinelPushed = true;
-    history.pushState({ nexaExportPickerSentinel: true }, '', location.href);
+  function pushFolderState(depth) {
+    const currentUrl = window.location.pathname + window.location.search;
+    history.pushState({ nexaExportPicker: true, depth }, '', currentUrl + '#export-picker');
   }
 
-  function popSentinelSilently() {
-    // usado quando a PRÓPRIA página decide fechar (ex: export concluído):
-    // remove o sentinela sem passar pelo handler de popstate, para o
-    // router não ver um pop "órfão" depois da página já ter sido destruída.
-    if (!sentinelPushed) return;
-    sentinelPushed = false;
-    window.removeEventListener('popstate', onPopState);
-    history.back();
-  }
+  function onPopState() {
+    const state = history.state;
+    // Só reagimos se o estado para onde voltámos NÃO é mais um nosso
+    // (ou seja, alguém — botão físico do Android, gesto do Chrome, ou
+    // o nosso próprio history.back() — nos tirou da pilha da Export).
+    if (state && state.nexaExportPicker !== undefined) return;
 
-  function onPopState(e) {
-    // Só nos interessa reagir quando o estado ATUAL (para onde o
-    // browser voltou) já não é o nosso sentinela — ou seja, o
-    // utilizador (ou o botão físico do Android) pediu para voltar.
-    if (history.state && history.state.nexaExportPickerSentinel) return;
-
-    sentinelPushed = false;
+    setSuppressRouterPopstate(true);
 
     if (folderStack.length > 1) {
       // ainda há pastas para trás: consome uma, recarrega, e
-      // devolve o sentinela — impede que o pop chegue ao router.
+      // empurra de novo um estado da Export para continuar a
+      // capturar o próximo pop no mesmo nível.
       folderStack = folderStack.slice(0, -1);
       loadPath(folderStack[folderStack.length - 1]);
-      pushSentinel();
+      pushFolderState(folderStack.length - 1);
     } else {
       // já estávamos na raiz: fecho real da página.
       window.removeEventListener('popstate', onPopState);
       slide.close();
       setTimeout(() => dispatch('close'), 300);
     }
+
+    setSuppressRouterPopstate(false);
   }
 
   let exportResolvers = new Map();
@@ -116,7 +98,7 @@
   onMount(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => slide.open()));
     window.addEventListener('popstate', onPopState);
-    pushSentinel();
+    pushFolderState(0);
     checkPermissionAndLoad();
   });
 
@@ -127,19 +109,18 @@
   });
 
   // Chamado pelo botão de voltar DENTRO da página e pelo fluxo de
-  // exportação concluída — nunca fecha nada visualmente aqui, só
-  // decide recuar pasta ou sair, usando a MESMA lógica local do
-  // onPopState (sem depender do history para isso).
+  // exportação concluída. NUNCA fecha/recua nada visualmente aqui —
+  // só dispara history.back(), que onPopState acima vai apanhar.
   function closePage() {
-    if (folderStack.length > 1) {
-      folderStack = folderStack.slice(0, -1);
-      loadPath(folderStack[folderStack.length - 1]);
-      return;
+    if (history.state && history.state.nexaExportPicker !== undefined) {
+      history.back();
+    } else {
+      // fallback defensivo, caso o estado já tenha sido consumido de
+      // alguma forma externa.
+      window.removeEventListener('popstate', onPopState);
+      slide.close();
+      setTimeout(() => dispatch('close'), 300);
     }
-    window.removeEventListener('popstate', onPopState);
-    popSentinelSilently();
-    slide.close();
-    setTimeout(() => dispatch('close'), 300);
   }
 
   function goBackFolder() {
@@ -205,6 +186,7 @@
   function openFolder(folder) {
     buzz();
     folderStack = [...folderStack, folder.path];
+    pushFolderState(folderStack.length - 1);
     loadPath(folder.path);
   }
 
@@ -242,10 +224,12 @@
       const result = JSON.parse(resultRaw);
       if (result.ok) {
         showToast(mode === 'share' ? 'Documento partilhado' : `Exportado para ${currentPath}`);
-        // fecho real após export concluído: recua até sair da página
-        // por completo, ignorando pastas intermédias.
-        folderStack = folderStack.slice(0, 1);
-        closePage();
+        // fecho real após export concluído: volta de vez, ignorando
+        // quantas pastas tenhamos empilhado.
+        window.removeEventListener('popstate', onPopState);
+        history.go(-(folderStack.length));
+        slide.close();
+        setTimeout(() => dispatch('close'), 300);
       } else {
         showToast(result.error || 'Não foi possível gerar o documento');
       }
@@ -362,6 +346,8 @@
     display: flex;
     flex-direction: column;
     will-change: transform;
+    overflow: hidden;
+    contain: layout style paint;
   }
 
   .appbar {

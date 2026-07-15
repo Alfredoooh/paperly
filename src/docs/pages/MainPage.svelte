@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
+  import { createBackRecoilTransition } from '../../home/lib/nav-transition.js';
 
   import DocPage from '../components/DocPage.svelte';
   import DocMenu from '../components/DocMenu.svelte';
@@ -21,6 +22,7 @@
   export let appTitle = 'Nexa Docs';
   export let appId = 'docs';
   export let iconPath = '/icons/svg/docs/docs.svg';
+  export let setSuppressRouterPopstate = () => {};
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -411,33 +413,6 @@
     else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDING — v2
-  //
-  //  Problema da v1: fixedRootHeight = window.innerHeight era capturado
-  //  imediatamente no onMount, antes do layout assentar (status bar /
-  //  barra de navegação / primeiro paint), e html/body não estavam
-  //  travados — então o próprio documento podia ser comprimido pelo
-  //  teclado por baixo do .root, arrastando o appbar junto mesmo com
-  //  altura "fixa" no elemento errado.
-  //
-  //  Correção v2: (1) trava html/body com position:fixed;inset:0
-  //  também, não só o .root (ver :global no <style> abaixo); (2) usa
-  //  visualViewport.height (não innerHeight) como fonte da altura fixa,
-  //  porque é o valor que existe ANTES do teclado abrir; (3) espera 2
-  //  frames antes de capturar, para não travar um valor lido cedo
-  //  demais; (4) recalcula em orientationchange.
-  //
-  //  Correção v3 (esta): a v2 travava a altura do .root, mas a appbar
-  //  continuava a ser um filho normal do flex column .root — e por
-  //  isso ainda ficava sujeita a qualquer resize que o WebView nativo
-  //  do Android aplicasse à window real quando o teclado abria (antes
-  //  do --app-vh calculado no JS ter tempo de reagir). A appbar passa
-  //  agora a position:fixed própria, ancorada ao top:0 do ecrã real —
-  //  exatamente a mesma blindagem que a BottomToolbar já tinha no
-  //  fundo — por isso já não "sobe" nunca, independentemente do que o
-  //  teclado faça ao layout do WebView.
-  // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
   let rootEl;
@@ -484,6 +459,24 @@
     window.addEventListener('orientationchange', handleOrientationChange);
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  PUSH EFFECT do fundo quando a ExportPickerPage entra por cima —
+  //  mesmo motor spring do home (createBackRecoilTransition). Valor
+  //  mais discreto que o -28% do shell do home (-8%), porque aqui é a
+  //  tela do documento inteira que recua, não um shell com tabs/drawer.
+  // ══════════════════════════════════════════════════════════════════
+  const backRecoil = createBackRecoilTransition();
+  let rootRecoilValue = 0; // 0..1
+  const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
+
+  let lastExportPushedState = false;
+  $: if (exportPickerOpen !== lastExportPushedState) {
+    lastExportPushedState = exportPickerOpen;
+    if (exportPickerOpen) backRecoil.recoil();
+    else backRecoil.reset();
+  }
+  $: rootRecoilTranslate = -8 * rootRecoilValue; // %
+
   onDestroy(() => {
     if (vvRef) {
       vvRef.removeEventListener('resize', scheduleKbUpdate);
@@ -494,6 +487,8 @@
     clearTimeout(orientationTimeout);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
+    unsubscribeBackRecoil?.();
+    backRecoil.destroy?.();
   });
 
   let showDocMenu = false;
@@ -542,12 +537,6 @@
     }
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  EXPORTAÇÃO / PARTILHA — via ExportPickerPage (página cheia, com
-  //  pushState, dentro do próprio WebApp). Não chama mais o Android
-  //  diretamente daqui — abre a página, que por sua vez fala com
-  //  window.AndroidStorage quando o utilizador confirma.
-  // ══════════════════════════════════════════════════════════════════
   let exportPickerOpen = false;
   let exportPickerMode = 'export'; // 'export' | 'share'
 
@@ -585,11 +574,16 @@
   }
 </script>
 
-<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary};">
+<div
+  class="root"
+  bind:this={rootEl}
+  style="
+    background:{c.background};
+    color:{c.textPrimary};
+    transform: translate3d({rootRecoilTranslate}%, 0, 0);
+  "
+>
 
-  <!-- Appbar: position:fixed própria, ancorada ao top:0 do ecrã real —
-       igual à BottomToolbar no fundo. Já não é filho sujeito ao fluxo
-       flex do .root, por isso não "sobe" mais quando o teclado abre. -->
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -612,9 +606,6 @@
     </button>
   </div>
 
-  <!-- Área de conteúdo: padding-top compensa a appbar agora fixed
-       (que saiu do fluxo do documento), e overflow:hidden absorve o
-       encolhimento visual do viewport quando o teclado abre. -->
   <div class="canvas-area">
     <DocPage
       bind:this={docPageComp}
@@ -628,8 +619,6 @@
     />
   </div>
 
-  <!-- Só a bottom toolbar reage ao teclado (position:fixed própria,
-       translate3d com kbOffset). -->
   <BottomToolbar
     {c}
     {activePanel}
@@ -704,17 +693,18 @@
   />
 
   <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
-
-  {#if exportPickerOpen}
-    <ExportPickerPage
-      {isDark}
-      {docName}
-      mode={exportPickerMode}
-      getHtml={getEditorHTML}
-      on:close={closeExportPicker}
-    />
-  {/if}
 </div>
+
+{#if exportPickerOpen}
+  <ExportPickerPage
+    {isDark}
+    {docName}
+    mode={exportPickerMode}
+    getHtml={getEditorHTML}
+    {setSuppressRouterPopstate}
+    on:close={closeExportPicker}
+  />
+{/if}
 
 <style>
   :global(html), :global(body) {
@@ -734,6 +724,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    contain: layout style paint;
+    will-change: transform;
   }
 
   .appbar {

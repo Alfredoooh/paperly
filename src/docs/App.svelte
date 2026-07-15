@@ -22,6 +22,16 @@
 
   const dispatch = createEventDispatcher();
 
+  // ══════════════════════════════════════════════════════════════════
+  //  MESMA "REGRA DE OURO" do App.svelte do home: qualquer overlay
+  //  full-screen próprio (aqui, a ExportPickerPage) que precise reagir
+  //  ao popstate do botão físico/gesto do Android seta esta flag antes
+  //  de tratar o pop, para o router.bindPopState ignorar esse evento
+  //  em vez de tentar reagir a uma rota que não mudou de facto.
+  // ══════════════════════════════════════════════════════════════════
+  let suppressRouterPopstate = false;
+  function setSuppressRouterPopstate(v) { suppressRouterPopstate = v; }
+
   onMount(() => {
     user = requireAuth();
     if (!user) return;
@@ -38,6 +48,7 @@
     ready = true;
 
     const unbind = router.bindPopState((r, nf, rid) => {
+      if (suppressRouterPopstate) return;
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
       resourceId = rid;
@@ -71,7 +82,16 @@
 
 {#if ready}
   {#if route === 'main'}
-    <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
+    <MainPage
+      {isDark}
+      {user}
+      {resourceId}
+      appTitle={APP_TITLE}
+      appId={APP_ID}
+      iconPath={APP_ICON}
+      {setSuppressRouterPopstate}
+      on:nav={handleNav}
+    />
   {/if}
 {/if}
 

@@ -6,6 +6,7 @@
   export let canUndo = false;
   export let canRedo = false;
   export let kbOffset = 0;
+  export let visible = false;
   
   const dispatch = createEventDispatcher();
   
@@ -44,8 +45,14 @@
   }
 </script>
 
-<div class="tb-wrap" style="transform: translate3d(0, -{kbOffset}px, 0);">
-  <div class="tb-pill" style="background:{c.appbarBtnBg}">
+<div
+  class="tb-wrap"
+  class:tb-hidden={!visible}
+  style="transform: translate3d(0, {visible ? -kbOffset : 40}px, 0);"
+>
+  <!-- Sólido, sem blur: branco puro no tema claro (c.toolbarSolidBg),
+       superfície elevada no escuro — nunca transparente sobre o papel. -->
+  <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
         <button
@@ -75,22 +82,26 @@
     display: flex; justify-content: center;
     padding: 0 12px calc(env(safe-area-inset-bottom,0px) + 14px);
     pointer-events: none;
-    transition: transform .16s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
     z-index: 40;
+    opacity: 1;
+  }
+  .tb-wrap.tb-hidden {
+    opacity: 0;
+    pointer-events: none;
   }
   .tb-pill {
     pointer-events: auto;
     display: flex; align-items: center; gap: 1px;
     padding: 5px 6px;
     border-radius: 999px;
+    /* Sólido de verdade: sem backdrop-filter, sem alpha. A separação
+       do papel vem só da sombra abaixo. */
     box-shadow:
-      0 0.5px 0 rgba(255,255,255,0.5) inset,
-      0 1px 3px rgba(0,0,0,0.06),
+      0 1px 3px rgba(0,0,0,0.10),
       0 10px 28px rgba(0,0,0,0.16);
     overflow-x: auto; -webkit-overflow-scrolling: touch;
     max-width: 100%;
-    backdrop-filter: blur(20px) saturate(1.6);
-    -webkit-backdrop-filter: blur(20px) saturate(1.6);
   }
   .tb-pill::-webkit-scrollbar { display: none; }
   .tb-btn {
@@ -110,5 +121,9 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
     flex-shrink: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tb-wrap { transition: none !important; }
   }
 </style>

@@ -8,6 +8,7 @@
   import DocPage from '../components/DocPage.svelte';
   import DocMenu from '../components/DocMenu.svelte';
   import BottomToolbar from '../components/BottomToolbar.svelte';
+  import CreationToolsBar from '../components/CreationToolsBar.svelte';
   import ColorModal from '../components/ColorModal.svelte';
   import ColorPickerModal from '../components/ColorPickerModal.svelte';
   import FormatModal from '../components/FormatModal.svelte';
@@ -213,6 +214,28 @@
   let imageOptionsOpen = false;
   let tableModalOpen = false;
 
+  // ══════════════════════════════════════════════════════════════════
+  //  ESTADO DE EDIÇÃO — controla qual dos DOIS bottom bars aparece.
+  //  isEditing = false (padrão): CreationToolsBar visível (modelos,
+  //  formas, ferramentas). Ao tocar no papel -> isEditing = true,
+  //  BottomToolbar (formatação) aparece. O botão check.svg no appbar
+  //  fecha a edição manualmente sem precisar de blur natural do
+  //  contenteditable.
+  // ══════════════════════════════════════════════════════════════════
+  let isEditing = false;
+
+  function handlePageFocus() {
+    if (!isEditing) isEditing = true;
+  }
+
+  function confirmDoneEditing() {
+    buzz();
+    docPageComp && docPageComp.blurEditor();
+    docPageComp && docPageComp.deselectFloat();
+    activePanel = null;
+    isEditing = false;
+  }
+
   function handleToolbarAction(id) {
     buzz();
     if (id === 'undo') { undo(); return; }
@@ -226,6 +249,19 @@
     if (id === 'insert') { triggerImagePicker(); return; }
     if (id === 'table') { tableModalOpen = true; return; }
     activePanel = id;
+  }
+
+  function handleCreationToolAction(id) {
+    buzz();
+    // Estas ações também levam a isEditing = true, porque tocar em
+    // "Imagem" ou "Tabela" a partir da barra de criação insere
+    // conteúdo na página atual e o utilizador passa a estar "dentro"
+    // do documento, tal como tocar diretamente no papel.
+    if (id === 'insert') { isEditing = true; triggerImagePicker(); return; }
+    if (id === 'table') { isEditing = true; tableModalOpen = true; return; }
+    if (id === 'templates') { showToast('Modelos em breve'); return; }
+    if (id === 'shapes') { showToast('Formas em breve'); return; }
+    if (id === 'tools') { showToast('Ferramentas em breve'); return; }
   }
 
   function closeFormatModal() {
@@ -260,30 +296,31 @@
     e.target.value = '';
   }
 
-  let editingImageEl = null;
-  let editingImageState = { wrap: 'inline', width: 200 };
+  // editingImageTarget = { pageIndex, objId } — objeto flutuante em edição
+  let editingImageTarget = null;
+  let editingImageState = { wrap: 'front', width: 200 };
   function handleImageRequestEdit(e) {
-    editingImageEl = e.detail.el;
+    editingImageTarget = { pageIndex: e.detail.pageIndex, objId: e.detail.objId };
     editingImageState = e.detail.state;
     imageOptionsOpen = true;
   }
   function applyImageOptions(e) {
-    docPageComp && docPageComp.applyImageOptions(editingImageEl, e.detail);
+    docPageComp && docPageComp.applyImageOptions(editingImageTarget, e.detail);
     imageOptionsOpen = false;
-    editingImageEl = null;
+    editingImageTarget = null;
     scheduleSave();
     pushHistory(true);
   }
   function deleteEditingImage() {
-    docPageComp && docPageComp.deleteImage(editingImageEl);
+    docPageComp && docPageComp.deleteImage(editingImageTarget);
     imageOptionsOpen = false;
-    editingImageEl = null;
+    editingImageTarget = null;
     scheduleSave();
     pushHistory(true);
   }
   function closeImageOptions() {
     imageOptionsOpen = false;
-    editingImageEl = null;
+    editingImageTarget = null;
   }
 
   function insertTable(e) {
@@ -460,10 +497,32 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
+  //  NAVEGAÇÃO DE PÁGINA POR BOTÕES (appbar) — substitui completamente
+  //  qualquer gesto de scroll/zoom para trocar de folha. Não altera
+  //  dados nem zoom: só troca qual folha tem display:flex no DocPage.
+  // ══════════════════════════════════════════════════════════════════
+  let activePageIndex = 0;
+  let totalPages = 1;
+
+  function handlePageFocusFromChild(e) {
+    activePageIndex = e.detail;
+    handlePageFocus();
+  }
+
+  function goPrevPage() {
+    if (activePageIndex <= 0) return;
+    buzz();
+    activePageIndex -= 1;
+  }
+  function goNextPage() {
+    if (activePageIndex >= totalPages - 1) return;
+    buzz();
+    activePageIndex += 1;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
   //  PUSH EFFECT do fundo quando a ExportPickerPage entra por cima —
-  //  mesmo motor spring do home (createBackRecoilTransition). Valor
-  //  mais discreto que o -28% do shell do home (-8%), porque aqui é a
-  //  tela do documento inteira que recua, não um shell com tabs/drawer.
+  //  mesmo motor spring do home (createBackRecoilTransition).
   // ══════════════════════════════════════════════════════════════════
   const backRecoil = createBackRecoilTransition();
   let rootRecoilValue = 0; // 0..1
@@ -584,10 +643,20 @@
   "
 >
 
-  <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
+  <!-- APPBAR TOTALMENTE FIXO — position:fixed, altura fixa, nunca
+       recalcula com o conteúdo do editor. O "pulo" anterior vinha do
+       padding-top da .canvas-area mudando; agora .canvas-area tem
+       contain:strict e a altura do appbar nunca depende do que
+       acontece dentro do papel. -->
+  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider}">
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
+
+    <button class="appbar-btn appbar-btn-page" style="background:{c.appbarBtnBg}" disabled={activePageIndex <= 0} on:click={goPrevPage} aria-label="Página anterior">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_left.svg');-webkit-mask-image:url('/icons/svg/chevron_left.svg');background:{c.iconTint};width:18px;height:18px;opacity:{activePageIndex <= 0 ? 0.32 : 1};"></span>
+    </button>
+
     <div class="appbar-center">
       <input
         class="doc-name-input"
@@ -599,25 +668,50 @@
       />
       <span class="save-state" style="color:{c.textSecondary}">
         {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
+        · Página {activePageIndex + 1}/{totalPages}
       </span>
     </div>
+
+    <button class="appbar-btn appbar-btn-page" style="background:{c.appbarBtnBg}" disabled={activePageIndex >= totalPages - 1} on:click={goNextPage} aria-label="Página seguinte">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');background:{c.iconTint};width:18px;height:18px;opacity:{activePageIndex >= totalPages - 1 ? 0.32 : 1};"></span>
+    </button>
+
+    {#if isEditing}
+      <button class="appbar-btn appbar-btn-check" style="background:{c.appbarBtnBg}" on:click={confirmDoneEditing} aria-label="Concluir edição">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:#2F7BF6;width:20px;height:20px;"></span>
+      </button>
+    {/if}
+
     <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
       <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
   </div>
 
-  <div class="canvas-area">
+  <!-- Área do papel: fundo "mais fraco" que o branco puro do resto do
+       app, para o papel branco se destacar por contraste — só
+       relevante no tema claro; no escuro usa a superfície de fundo
+       normal do editor. -->
+  <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
       bind:this={docPageComp}
       {initialContent}
       {footnotes}
+      bind:activePageIndex
       on:ready={handleDocReady}
       on:input={handleInput}
       on:keydown={(e) => handleKeydown(e.detail)}
       on:removefootnote={(e) => removeFootnote(e.detail)}
       on:imagerequestedit={handleImageRequestEdit}
+      on:pagefocus={handlePageFocusFromChild}
     />
   </div>
+
+  <CreationToolsBar
+    {c}
+    visible={!isEditing}
+    {kbOffset}
+    on:action={(e) => handleCreationToolAction(e.detail)}
+  />
 
   <BottomToolbar
     {c}
@@ -625,6 +719,7 @@
     {canUndo}
     {canRedo}
     {kbOffset}
+    visible={isEditing}
     on:action={(e) => handleToolbarAction(e.detail)}
   />
 
@@ -728,15 +823,21 @@
     will-change: transform;
   }
 
+  /* APPBAR: altura fixa e nunca recalculada. contain:strict garante
+     que nada dentro do appbar (input do nome, contador de página)
+     pode alterar a altura ou disparar reflow no resto da árvore —
+     isso é o que eliminava o "pulo" ao colar/selecionar texto, que
+     na verdade vinha do canvas-area recomputando padding-top. */
   .appbar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 52px 12px 12px; flex-shrink: 0;
-    background: inherit;
+    display: flex; align-items: center; gap: 8px;
+    padding: 52px 10px 12px; flex-shrink: 0;
     position: fixed;
     left: 0;
     right: 0;
     top: 0;
+    height: 100px;
     z-index: 50;
+    contain: strict;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -745,13 +846,19 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
   .appbar-btn:active { opacity: .7; transform: scale(0.94); }
+  .appbar-btn:disabled { cursor: default; }
+  .appbar-btn:disabled:active { opacity: 1; transform: none; }
+  .appbar-btn-page { width: 32px; height: 32px; }
+  .appbar-btn-check { width: 36px; height: 36px; }
   .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
   .doc-name-input {
-    width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;
+    width: 100%; max-width: 200px; text-align: center; font-size: 16px; font-weight: 700;
     border: none; background: transparent; outline: none; padding: 0;
   }
-  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; }
+  .save-state { font-size: 10.5px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
 
+  /* Área do papel: fundo próprio, contain:strict para nunca vazar
+     reflow para o appbar acima. */
   .canvas-area {
     flex: 1;
     min-height: 0;
@@ -759,6 +866,7 @@
     display: flex;
     flex-direction: column;
     padding-top: 100px;
+    contain: strict;
   }
 
   .icon-mask {

@@ -10,6 +10,9 @@ export const lightColors = {
   authBtnBg: '#2F7BF6', authBtnText: '#FFFFFF', authInputFill: '#F2F2F7',
   appbarBtnBg: '#E8E8E8', primary: '#2F7BF6',
   appbarSurface: 'rgba(255,255,255,0.72)',
+  docCanvasBg: '#F2F2F5', // branco mais fraco atrás do papel — papel branco se destaca
+  creationBarBg: '#FFFFFF', // branco puro — bottom bar de modelos/formas
+  toolbarSolidBg: '#FFFFFF', // branco puro — toolbar de formatação
 };
 
 export const darkColors = {
@@ -24,6 +27,9 @@ export const darkColors = {
   authBtnBg: '#2F7BF6', authBtnText: '#FFFFFF', authInputFill: '#2C2C2E',
   appbarBtnBg: '#2C2C2E', primary: '#2F7BF6',
   appbarSurface: 'rgba(15,15,15,0.72)',
+  docCanvasBg: '#0F0F0F',// ou a superfície de fundo padrão que já usas
+  creationBarBg: '#1F1F1F',
+  toolbarSolidBg: '#1F1F1F',
 };
 
 export function getThemeColors(isDark) {

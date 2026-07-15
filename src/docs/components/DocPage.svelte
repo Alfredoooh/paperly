@@ -1,21 +1,21 @@
 <script>
-  import PinchZoom from '../widgets/PinchZoom.svelte';
   import { onMount, onDestroy, tick } from 'svelte';
   import { createEventDispatcher } from 'svelte';
 
   export let initialContent = '';
   export let footnotes = [];
+  export let activePageIndex = 0; // controlado pelo pai via botões prev/next no appbar
 
   const dispatch = createEventDispatcher();
 
   // ══════════════════════════════════════════════════════════════════
-  //  MOTOR DE PAGINAÇÃO — portado diretamente do protótipo HTML puro
-  //  fornecido (múltiplas divs contenteditable reais, uma por folha;
-  //  reequilíbrio por empurrar/puxar elementos DOM entre folhas). Isto
-  //  substitui a abordagem anterior de "master único" que quebrava
-  //  sempre que o Svelte recriava nodes do {#each}. Aqui cada folha é
-  //  o seu próprio contenteditable real e permanece assim — nada é
-  //  movido por JS para dentro de nodes geridos pelo Svelte.
+  //  MOTOR DE PAGINAÇÃO — inalterado na lógica de reequilíbrio.
+  //  A única mudança estrutural é que agora só a folha em
+  //  activePageIndex fica visível (display:flex); as restantes
+  //  continuam montadas no DOM com display:none, porque o motor de
+  //  empurrar/puxar overflow precisa medir scrollHeight/clientHeight
+  //  de TODAS as folhas para funcionar (display:none preserva layout
+  //  interno quando reexibido, ao contrário de visibility ou opacity).
   // ══════════════════════════════════════════════════════════════════
 
   const PAGE_W = 794;
@@ -26,8 +26,6 @@
   let containerEl;
   let stackEl;
   let fitScale = 1;
-  let pinchScale = 1;
-  let resizeObserver;
 
   function ajustarZoom() {
     if (!containerEl) return;
@@ -36,10 +34,6 @@
     fitScale = escala > 0 && isFinite(escala) ? escala : 1;
   }
 
-  // Cada folha é: { id, contentEl } — contentEl é a div contenteditable
-  // real daquela folha, criada e mantida diretamente pelo Svelte via
-  // bind:this num {#each}, nunca movida entre folhas por appendChild
-  // cruzado (só os FILHOS de dentro do contenteditable são movidos).
   let folhas = [{ id: 0 }];
   let contentEls = [];
   let nextFolhaId = 1;
@@ -147,6 +141,7 @@
       if (conteudo && conteudo.children.length === 0) {
         folhas = folhas.slice(0, i);
         contentEls = contentEls.slice(0, i);
+        if (activePageIndex > i - 1) activePageIndex = Math.max(0, i - 1);
         await tick();
       } else {
         break;
@@ -255,6 +250,10 @@
   function handleKeydown(e) {
     dispatch('keydown', e);
   }
+  function handleFocusPagina(i) {
+    if (activePageIndex !== i) activePageIndex = i;
+    dispatch('pagefocus', i);
+  }
 
   // ══════════════════════════════════════════════════════════════════
   //  API pública (usada pela MainPage via bind:this)
@@ -268,6 +267,7 @@
     const htmls = parts.length ? parts : ['<p><br></p>'];
     folhas = htmls.map((_, i) => ({ id: i }));
     nextFolhaId = htmls.length;
+    activePageIndex = 0;
     await tick();
     htmls.forEach((h, i) => {
       const el = getConteudoEl(i);
@@ -277,7 +277,16 @@
   }
 
   export function focusEditor() {
-    contentEls[0]?.focus();
+    contentEls[activePageIndex]?.focus();
+  }
+
+  export function blurEditor() {
+    const active = document.activeElement;
+    if (active && active.classList && active.classList.contains('conteudo')) {
+      active.blur();
+    }
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
   }
 
   export function getPlainText() {
@@ -325,126 +334,214 @@
       const conteudoPai = base && base.closest ? base.closest('.conteudo') : null;
       if (conteudoPai) return conteudoPai;
     }
-    return contentEls[0];
+    return contentEls[activePageIndex] || contentEls[0];
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  IMAGENS EM CANVAS LIVRE (estilo Canva) — cada imagem inserida
+  //  vira um objeto flutuante independente do fluxo de texto, com
+  //  posição (x,y), tamanho (w,h) e ângulo (deg) próprios, guardado
+  //  por página em floatingObjects[pageIndex] = [ {id,x,y,w,h,deg,src} ].
+  //  O objeto vive como filho posicionado ABSOLUTAMENTE dentro de
+  //  .page-a4 (que é position:relative), FORA da div .conteudo — ou
+  //  seja, nunca entra no contenteditable, nunca é tocado pelo motor
+  //  de reequilíbrio de parágrafos, e nunca "pula" o cursor de texto.
+  // ══════════════════════════════════════════════════════════════════
+
+  let floatingObjects = [[]]; // um array por folha
+  let nextFloatId = 1;
+  let selectedFloatId = null; // { pageIndex, objId } achatado em string "pageIndex:objId"
+
+  function ensureFloatingArrayFor(pageIndex) {
+    while (floatingObjects.length <= pageIndex) {
+      floatingObjects = [...floatingObjects, []];
+    }
   }
 
   export async function insertImageAtCursor(dataUrl) {
-    const target = getActiveContentEl();
-    target?.focus();
-    const wrapperId = 'img_' + Date.now().toString(36);
-    document.execCommand('insertHTML', false,
-      `<span class="doc-img-wrap doc-img-inline" data-img-id="${wrapperId}" contenteditable="false">` +
-        `<img src="${dataUrl}" style="width:220px;" draggable="false" />` +
-        `<span class="doc-img-handle doc-img-handle-se"></span>` +
-      `</span>&nbsp;`
-    );
-    dispatch('input');
-    await reequilibrarDocumento();
+    const pageIndex = activePageIndex;
+    ensureFloatingArrayFor(pageIndex);
+
+    const img = new Image();
+    img.onload = () => {
+      const naturalRatio = img.naturalWidth / img.naturalHeight || 1;
+      const w = Math.min(320, PAGE_W - PAGE_PAD_X * 2);
+      const h = w / naturalRatio;
+      const id = nextFloatId++;
+      const obj = {
+        id,
+        src: dataUrl,
+        x: (PAGE_W - w) / 2,
+        y: (PAGE_H - h) / 2,
+        w,
+        h,
+        deg: 0,
+        z: 'front', // 'front' | 'behind'
+      };
+      floatingObjects[pageIndex] = [...floatingObjects[pageIndex], obj];
+      floatingObjects = floatingObjects;
+      selectFloat(pageIndex, id);
+      dispatch('input');
+    };
+    img.src = dataUrl;
   }
 
-  export async function applyImageOptions(imgEl, opts) {
-    if (!imgEl) return;
-    const wrap = imgEl.closest('.doc-img-wrap');
-    if (!wrap) return;
-    imgEl.style.width = opts.width + 'px';
-    wrap.classList.remove('doc-img-inline', 'doc-img-front', 'doc-img-behind', 'doc-img-topbottom', 'doc-img-square-left', 'doc-img-square-right');
-    if (opts.wrap === 'front') wrap.classList.add('doc-img-front');
-    else if (opts.wrap === 'behind') wrap.classList.add('doc-img-behind');
-    else if (opts.wrap === 'topbottom') wrap.classList.add('doc-img-topbottom');
-    else if (opts.wrap === 'square-left') wrap.classList.add('doc-img-square-left');
-    else if (opts.wrap === 'square-right') wrap.classList.add('doc-img-square-right');
-    else wrap.classList.add('doc-img-inline');
-    await reequilibrarDocumento();
-  }
-
-  export async function deleteImage(imgEl) {
-    if (!imgEl) return;
-    const wrap = imgEl.closest('.doc-img-wrap');
-    wrap?.remove();
-    await reequilibrarDocumento();
-  }
-
-  export async function insertTable(rows, cols) {
-    const target = getActiveContentEl();
-    target?.focus();
-    const tableId = 'tbl_' + Date.now().toString(36);
-    let html = `<div class="doc-table-wrap" data-table-id="${tableId}">` +
-      `<table class="doc-table" style="width:100%;">` +
-      `<colgroup>${'<col style="width:' + (100 / cols).toFixed(3) + '%;">'.repeat(cols)}</colgroup><tbody>`;
-    for (let r = 0; r < rows; r++) {
-      html += '<tr>';
-      for (let cIdx = 0; cIdx < cols; cIdx++) {
-        html += '<td contenteditable="true">&nbsp;</td>';
-      }
-      html += '</tr>';
-    }
-    html += '</tbody></table>' +
-      `<span class="doc-table-handle doc-table-handle-se" contenteditable="false"></span>` +
-      `</div><p><br></p>`;
-    document.execCommand('insertHTML', false, html);
-    dispatch('input');
-    await reequilibrarDocumento();
-  }
-
-  // ── Redimensionar imagens/tabelas por arrasto na alça ──────────────
-  let resizingEl = null;
-  let resizeStartX = 0;
-  let resizeStartWidth = 0;
-
-  function onDocPointerDown(e) {
-    const handle = e.target.closest('.doc-img-handle, .doc-table-handle');
-    if (handle) {
-      const wrap = handle.closest('.doc-img-wrap, .doc-table-wrap');
-      if (!wrap) return;
-      resizingEl = wrap.classList.contains('doc-table-wrap') ? wrap.querySelector('table') : wrap.querySelector('img');
-      resizeStartX = (e.touches ? e.touches[0].clientX : e.clientX);
-      resizeStartWidth = resizingEl.getBoundingClientRect().width;
-      e.preventDefault();
-      return;
-    }
-    const img = e.target.closest('.doc-img-wrap img');
-    if (img) {
+  function selectFloat(pageIndex, objId) {
+    selectedFloatId = `${pageIndex}:${objId}`;
+    const obj = floatingObjects[pageIndex]?.find(o => o.id === objId);
+    if (obj) {
       dispatch('imagerequestedit', {
-        el: img,
-        state: {
-          width: Math.round(img.getBoundingClientRect().width),
-          wrap: currentWrapMode(img.closest('.doc-img-wrap')),
-        },
+        pageIndex,
+        objId,
+        state: { width: Math.round(obj.w), height: Math.round(obj.h), rotation: obj.deg, wrap: obj.z },
       });
     }
   }
-  function currentWrapMode(wrap) {
-    if (!wrap) return 'inline';
-    if (wrap.classList.contains('doc-img-front')) return 'front';
-    if (wrap.classList.contains('doc-img-behind')) return 'behind';
-    if (wrap.classList.contains('doc-img-topbottom')) return 'topbottom';
-    if (wrap.classList.contains('doc-img-square-left')) return 'square-left';
-    if (wrap.classList.contains('doc-img-square-right')) return 'square-right';
-    return 'inline';
-  }
-  function onDocPointerMove(e) {
-    if (!resizingEl) return;
-    const x = (e.touches ? e.touches[0].clientX : e.clientX);
-    const delta = (x - resizeStartX) / (fitScale * pinchScale || 1);
-    const newWidth = Math.max(40, Math.round(resizeStartWidth + delta));
-    resizingEl.style.width = newWidth + 'px';
-    e.preventDefault();
-  }
-  function onDocPointerUp() {
-    if (!resizingEl) return;
-    resizingEl = null;
-    agendarReequilibrio();
+
+  export function deselectFloat() {
+    selectedFloatId = null;
   }
 
-  function ligarEventosFolha(idx) {
-    // os handlers on:input/on:keydown/on:paste já estão no template;
-    // esta função existe só para paridade conceptual com o protótipo.
+  export async function applyImageOptions(target, opts) {
+    // target = { pageIndex, objId } vindo do evento imagerequestedit
+    if (!target) return;
+    const { pageIndex, objId } = target;
+    const list = floatingObjects[pageIndex];
+    if (!list) return;
+    const obj = list.find(o => o.id === objId);
+    if (!obj) return;
+
+    if (typeof opts.width === 'number') {
+      const ratio = obj.h / obj.w;
+      obj.w = opts.width;
+      obj.h = opts.width * ratio;
+    }
+    if (opts.wrap) obj.z = opts.wrap;
+
+    floatingObjects[pageIndex] = [...list];
+    floatingObjects = floatingObjects;
+    dispatch('input');
+  }
+
+  export async function deleteImage(target) {
+    if (!target) return;
+    const { pageIndex, objId } = target;
+    const list = floatingObjects[pageIndex];
+    if (!list) return;
+    floatingObjects[pageIndex] = list.filter(o => o.id !== objId);
+    floatingObjects = floatingObjects;
+    selectedFloatId = null;
+    dispatch('input');
+  }
+
+  // ── Arrastar / redimensionar / rodar por gesto direto no objeto ──
+  let gesture = null;
+  // gesture = { mode:'move'|'resize'|'rotate', pageIndex, objId, startX, startY,
+  //             startObjX, startObjY, startObjW, startObjH, startObjDeg,
+  //             centerX, centerY, startAngle, aspectRatio }
+
+  function pointerXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function startMove(e, pageIndex, objId) {
+    e.stopPropagation();
+    e.preventDefault();
+    selectFloat(pageIndex, objId);
+    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
+    const p = pointerXY(e);
+    gesture = {
+      mode: 'move', pageIndex, objId,
+      startX: p.x, startY: p.y,
+      startObjX: obj.x, startObjY: obj.y,
+    };
+  }
+
+  function startResize(e, pageIndex, objId) {
+    e.stopPropagation();
+    e.preventDefault();
+    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
+    const p = pointerXY(e);
+    gesture = {
+      mode: 'resize', pageIndex, objId,
+      startX: p.x, startY: p.y,
+      startObjW: obj.w, startObjH: obj.h,
+      startObjX: obj.x, startObjY: obj.y,
+      aspectRatio: obj.w / obj.h,
+    };
+  }
+
+  function startRotate(e, pageIndex, objId) {
+    e.stopPropagation();
+    e.preventDefault();
+    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
+    const pageEl = getConteudoEl(pageIndex)?.closest('.page-a4');
+    if (!pageEl) return;
+    const rect = pageEl.getBoundingClientRect();
+    const scaleFactor = fitScale || 1;
+    const centerX = rect.left + (obj.x + obj.w / 2) * scaleFactor;
+    const centerY = rect.top + (obj.y + obj.h / 2) * scaleFactor;
+    const p = pointerXY(e);
+    const startAngle = Math.atan2(p.y - centerY, p.x - centerX) * (180 / Math.PI);
+    gesture = {
+      mode: 'rotate', pageIndex, objId,
+      centerX, centerY, startAngle,
+      startObjDeg: obj.deg,
+    };
+  }
+
+  function onGestureMove(e) {
+    if (!gesture) return;
+    const p = pointerXY(e);
+    const list = floatingObjects[gesture.pageIndex];
+    const obj = list?.find(o => o.id === gesture.objId);
+    if (!obj) return;
+    const scaleFactor = fitScale || 1;
+
+    if (gesture.mode === 'move') {
+      const dx = (p.x - gesture.startX) / scaleFactor;
+      const dy = (p.y - gesture.startY) / scaleFactor;
+      obj.x = gesture.startObjX + dx;
+      obj.y = gesture.startObjY + dy;
+    } else if (gesture.mode === 'resize') {
+      const dx = (p.x - gesture.startX) / scaleFactor;
+      let newW = Math.max(32, gesture.startObjW + dx);
+      let newH = newW / gesture.aspectRatio;
+      obj.w = newW;
+      obj.h = newH;
+    } else if (gesture.mode === 'rotate') {
+      const angleNow = Math.atan2(p.y - gesture.centerY, p.x - gesture.centerX) * (180 / Math.PI);
+      const delta = angleNow - gesture.startAngle;
+      obj.deg = gesture.startObjDeg + delta;
+    }
+
+    floatingObjects[gesture.pageIndex] = [...list];
+    floatingObjects = floatingObjects;
+    e.preventDefault();
+  }
+
+  function onGestureEnd() {
+    if (!gesture) return;
+    gesture = null;
+    dispatch('input');
+    agendarReequilibrio.call ? null : null;
+  }
+
+  function onPageBackgroundTap(pageIndex) {
+    handleFocusPagina(pageIndex);
+    if (selectedFloatId && selectedFloatId.startsWith(pageIndex + ':')) {
+      selectedFloatId = null;
+    }
+  }
+
+  export function currentTargetFor(pageIndex, objId) {
+    return { pageIndex, objId };
   }
 
   onMount(async () => {
     ajustarZoom();
-    resizeObserver = new ResizeObserver(() => ajustarZoom());
-    if (containerEl) resizeObserver.observe(containerEl);
+    window.addEventListener('resize', ajustarZoom);
     window.addEventListener('orientationchange', ajustarZoom);
 
     document.execCommand('defaultParagraphSeparator', false, 'p');
@@ -457,57 +554,97 @@
     dispatch('ready', { html: getContent() });
     await reequilibrarDocumento();
 
-    window.addEventListener('mousemove', onDocPointerMove);
-    window.addEventListener('mouseup', onDocPointerUp);
-    window.addEventListener('touchmove', onDocPointerMove, { passive: false });
-    window.addEventListener('touchend', onDocPointerUp);
+    window.addEventListener('mousemove', onGestureMove);
+    window.addEventListener('mouseup', onGestureEnd);
+    window.addEventListener('touchmove', onGestureMove, { passive: false });
+    window.addEventListener('touchend', onGestureEnd);
   });
   onDestroy(() => {
-    resizeObserver?.disconnect();
+    window.removeEventListener('resize', ajustarZoom);
     window.removeEventListener('orientationchange', ajustarZoom);
-    window.removeEventListener('mousemove', onDocPointerMove);
-    window.removeEventListener('mouseup', onDocPointerUp);
-    window.removeEventListener('touchmove', onDocPointerMove);
-    window.removeEventListener('touchend', onDocPointerUp);
+    window.removeEventListener('mousemove', onGestureMove);
+    window.removeEventListener('mouseup', onGestureEnd);
+    window.removeEventListener('touchmove', onGestureMove);
+    window.removeEventListener('touchend', onGestureEnd);
     clearTimeout(timeoutReequilibrio);
   });
 </script>
 
-<div class="canvas-scroll" bind:this={containerEl} on:pointerdown={onDocPointerDown}>
-  <PinchZoom bind:scale={pinchScale} minScale={1} maxScale={4} on:zoomchange>
-    <div class="pages-stack" bind:this={stackEl} style="transform: scale({fitScale}); transform-origin: top center;">
-      {#each folhas as folha, i (folha.id)}
-        <div class="page-a4" style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px;">
-          <div
-            class="conteudo"
-            contenteditable="true"
-            bind:this={contentEls[i]}
-            on:input={handleInput}
-            on:keydown={handleKeydown}
-            on:paste={aoColar}
-            spellcheck="true"
-            role="textbox"
-            aria-multiline="true"
-            aria-label="Conteúdo do documento"
-          ></div>
-          <div class="page-number">{i + 1}</div>
+<!--
+  SEM PinchZoom: o zoom de dois dedos foi removido de propósito porque
+  colidia com o scroll/gestos das folhas. A navegação entre páginas
+  agora é 100% por botões (prev/next no appbar do MainPage), então
+  aqui só existe display:flex/display:none por folha — determinístico,
+  sem gestos, sem conflito de touch-action.
+-->
+<div class="canvas-scroll" bind:this={containerEl}>
+  <div class="pages-stack" bind:this={stackEl}>
+    {#each folhas as folha, i (folha.id)}
+      <div
+        class="page-a4"
+        class:page-active={i === activePageIndex}
+        style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px; transform: scale({fitScale}); display:{i === activePageIndex ? 'flex' : 'none'};"
+      >
+        <div
+          class="conteudo"
+          contenteditable="true"
+          bind:this={contentEls[i]}
+          on:input={handleInput}
+          on:keydown={handleKeydown}
+          on:paste={aoColar}
+          on:focus={() => handleFocusPagina(i)}
+          on:pointerdown={() => onPageBackgroundTap(i)}
+          spellcheck="true"
+          role="textbox"
+          aria-multiline="true"
+          aria-label="Conteúdo do documento"
+        ></div>
 
-          {#if i === folhas.length - 1 && footnotes.length > 0}
-            <div class="footnotes-block">
-              <div class="footnotes-divider"></div>
-              {#each footnotes as fn (fn.id)}
-                <div class="footnote-line">
-                  <span class="footnote-num">{fn.num}.</span>
-                  <span class="footnote-text">{fn.text}</span>
-                  <button class="footnote-remove" on:click={() => dispatch('removefootnote', fn.id)} aria-label="Remover nota">×</button>
-                </div>
-              {/each}
+        <!-- Camada de objetos flutuantes (imagens em canvas livre),
+             fora do contenteditable — nunca interfere com o cursor. -->
+        {#if floatingObjects[i]}
+          {#each floatingObjects[i] as obj (obj.id)}
+            <div
+              class="float-obj"
+              class:float-behind={obj.z === 'behind'}
+              class:float-selected={selectedFloatId === `${i}:${obj.id}`}
+              style="left:{obj.x}px; top:{obj.y}px; width:{obj.w}px; height:{obj.h}px; transform: rotate({obj.deg}deg);"
+              on:pointerdown={(e) => startMove(e, i, obj.id)}
+              on:touchstart={(e) => startMove(e, i, obj.id)}
+            >
+              <img src={obj.src} draggable="false" alt="" class="float-img" />
+              {#if selectedFloatId === `${i}:${obj.id}`}
+                <div class="float-handle float-handle-resize"
+                  on:pointerdown={(e) => startResize(e, i, obj.id)}
+                  on:touchstart={(e) => startResize(e, i, obj.id)}
+                ></div>
+                <div class="float-rotate-line"></div>
+                <div class="float-handle float-handle-rotate"
+                  on:pointerdown={(e) => startRotate(e, i, obj.id)}
+                  on:touchstart={(e) => startRotate(e, i, obj.id)}
+                ></div>
+              {/if}
             </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  </PinchZoom>
+          {/each}
+        {/if}
+
+        <div class="page-number">{i + 1}</div>
+
+        {#if i === folhas.length - 1 && footnotes.length > 0}
+          <div class="footnotes-block">
+            <div class="footnotes-divider"></div>
+            {#each footnotes as fn (fn.id)}
+              <div class="footnote-line">
+                <span class="footnote-num">{fn.num}.</span>
+                <span class="footnote-text">{fn.text}</span>
+                <button class="footnote-remove" on:click={() => dispatch('removefootnote', fn.id)} aria-label="Remover nota">×</button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
 </div>
 
 <style>
@@ -515,31 +652,28 @@
     position: relative;
     flex: 1;
     width: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     padding: 24px 0 120px;
     display: flex;
     flex-direction: column;
     align-items: center;
     background: transparent;
-    -webkit-overflow-scrolling: touch;
   }
   .pages-stack {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 28px;
   }
   .page-a4 {
     background: #FFFFFF;
     border-radius: 2px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.16);
     box-sizing: border-box;
-    display: flex;
     flex-direction: column;
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
+    transform-origin: top center;
   }
   .conteudo {
     flex: 1;
@@ -551,6 +685,8 @@
     outline: none;
     overflow: hidden;
     overflow-wrap: break-word;
+    position: relative;
+    z-index: 1;
   }
   .conteudo :global(p) {
     margin: 0;
@@ -558,6 +694,65 @@
   .page-number {
     position: absolute; bottom: 14px; right: 0; left: 0;
     text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── Objetos flutuantes (canvas livre) ───────────────────────── */
+  .float-obj {
+    position: absolute;
+    cursor: grab;
+    touch-action: none;
+    z-index: 5;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .float-obj.float-behind {
+    z-index: 0;
+  }
+  .float-obj:active {
+    cursor: grabbing;
+  }
+  .float-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: fill;
+    pointer-events: none;
+    border-radius: 2px;
+  }
+  .float-obj.float-selected {
+    outline: 1.5px solid #2F7BF6;
+    outline-offset: 2px;
+  }
+  .float-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #2F7BF6;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    touch-action: none;
+  }
+  .float-handle-resize {
+    right: -8px;
+    bottom: -8px;
+    cursor: nwse-resize;
+  }
+  .float-rotate-line {
+    position: absolute;
+    left: 50%;
+    top: -28px;
+    width: 1.5px;
+    height: 26px;
+    background: #2F7BF6;
+    transform: translateX(-50%);
+  }
+  .float-handle-rotate {
+    left: 50%;
+    top: -36px;
+    transform: translateX(-50%);
+    cursor: grab;
   }
 
   :global(.doc-table.doc-table) { border-collapse: collapse; width: 100%; margin: 4px 0; }
@@ -569,25 +764,10 @@
   }
   :global(.doc-table-handle-se) { right: -7px; bottom: -7px; cursor: nwse-resize; }
 
-  :global(.doc-img-wrap) { position: relative; display: inline-block; line-height: 0; }
-  :global(.doc-img-wrap img) { max-width: 100%; height: auto; border-radius: 4px; display: block; }
-  :global(.doc-img-handle) {
-    position: absolute; width: 14px; height: 14px; background: #2F7BF6; border: 2px solid #fff;
-    border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); touch-action: none;
-  }
-  :global(.doc-img-handle-se) { right: -7px; bottom: -7px; cursor: nwse-resize; }
-
-  :global(.doc-img-inline) { display: inline-block; vertical-align: middle; float: none; }
-  :global(.doc-img-square-left) { float: left; margin: 4px 14px 8px 0; }
-  :global(.doc-img-square-right) { float: right; margin: 4px 0 8px 14px; }
-  :global(.doc-img-topbottom) { display: block; float: none; margin: 10px auto; clear: both; }
-  :global(.doc-img-front) { position: relative; z-index: 5; float: none; }
-  :global(.doc-img-behind) { position: relative; z-index: 0; opacity: 0.95; float: none; }
-
   :global(a) { color: #2F7BF6; text-decoration: underline; }
   :global(.footnote-ref) { color: #2F7BF6; cursor: default; }
 
-  .footnotes-block { margin-top: 24px; flex-shrink: 0; }
+  .footnotes-block { margin-top: 24px; flex-shrink: 0; position: relative; z-index: 1; }
   .footnotes-divider { width: 120px; height: 1px; background: #d0d0d0; margin-bottom: 10px; }
   .footnote-line { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: #555; margin-bottom: 4px; }
   .footnote-num { font-weight: 700; flex-shrink: 0; }

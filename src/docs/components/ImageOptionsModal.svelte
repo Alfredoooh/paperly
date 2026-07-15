@@ -4,28 +4,26 @@
 
   export let visible = false;
   export let c;
-  export let state = { wrap: 'inline', width: 200 };
+  export let state = { width: 200, height: 120, rotation: 0, wrap: 'front' };
 
   const dispatch = createEventDispatcher();
 
   let width = 200;
-  let wrapMode = 'inline';
+  let rotationLabel = 0;
+  let wrapMode = 'front';
 
   $: if (visible) {
     width = state.width || 200;
-    wrapMode = state.wrap || 'inline';
+    rotationLabel = Math.round(((state.rotation || 0) % 360 + 360) % 360);
+    wrapMode = state.wrap || 'front';
   }
 
-  const WRAP_OPTIONS = [
-    { id: 'inline', label: 'Em linha com o texto', icon: 'wrap_inline' },
-    { id: 'square-left', label: 'Quadrado (esquerda)', icon: 'wrap_square_left' },
-    { id: 'square-right', label: 'Quadrado (direita)', icon: 'wrap_square_right' },
-    { id: 'topbottom', label: 'Acima e abaixo', icon: 'wrap_topbottom' },
+  const LAYER_OPTIONS = [
     { id: 'front', label: 'Em frente ao texto', icon: 'wrap_front' },
     { id: 'behind', label: 'Atrás do texto', icon: 'wrap_behind' },
   ];
 
-  function setWrap(id) {
+  function setLayer(id) {
     wrapMode = id;
     apply();
   }
@@ -128,14 +126,17 @@
       <div class="field-label" style="color:{c.textSecondary}">Tamanho — {width}px</div>
       <input type="range" min="40" max="760" step="1" bind:value={width} on:input={onWidthInput} class="width-slider" />
 
-      <div class="field-label" style="color:{c.textSecondary}">Disposição do texto</div>
+      <div class="field-label" style="color:{c.textSecondary}">Rotação — {rotationLabel}°</div>
+      <div class="rotation-hint" style="color:{c.textSecondary}">Arrasta a alça acima da imagem para rodar livremente.</div>
+
+      <div class="field-label" style="color:{c.textSecondary}">Camada</div>
       <div class="wrap-grid">
-        {#each WRAP_OPTIONS as opt}
+        {#each LAYER_OPTIONS as opt}
           <button
             class="wrap-opt"
             class:wrap-opt-active={wrapMode === opt.id}
             style="background:{wrapMode === opt.id ? 'rgba(47,123,246,0.14)' : c.appbarBtnBg}"
-            on:click={() => setWrap(opt.id)}
+            on:click={() => setLayer(opt.id)}
           >
             <span class="icon-mask" style="mask-image:url('/icons/svg/docs/{opt.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{opt.icon}.svg');background:{wrapMode === opt.id ? '#2F7BF6' : c.iconTint};width:22px;height:22px;"></span>
             <span class="wrap-label" style="color:{wrapMode === opt.id ? '#2F7BF6' : c.textPrimary}">{opt.label}</span>
@@ -170,6 +171,7 @@
 
   .sheet-body { padding: 8px 18px 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .field-label { font-size: 12px; font-weight: 600; margin: 14px 0 10px; text-transform: uppercase; letter-spacing: .04em; }
+  .rotation-hint { font-size: 12px; font-weight: 500; margin: -4px 0 14px; opacity: 0.8; }
 
   .width-slider {
     width: 100%; height: 34px; -webkit-appearance: none; appearance: none;

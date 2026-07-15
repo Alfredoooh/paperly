@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
+  import { createBackRecoilTransition } from '../../home/lib/nav-transition.js';
 
   import DocPage from '../components/DocPage.svelte';
   import DocMenu from '../components/DocMenu.svelte';
@@ -484,6 +485,24 @@
     window.addEventListener('orientationchange', handleOrientationChange);
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  PUSH EFFECT do fundo (.root) quando a ExportPickerPage entra por
+  //  cima — mesmo motor spring via rAF do home (createBackRecoilTransition),
+  //  nunca uma CSS transition a competir com o transform da própria
+  //  ExportPickerPage no mesmo frame.
+  // ══════════════════════════════════════════════════════════════════
+  const backRecoil = createBackRecoilTransition();
+  let rootRecoilValue = 0; // 0..1
+  const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
+
+  let lastExportPushedState = false;
+  $: if (exportPickerOpen !== lastExportPushedState) {
+    lastExportPushedState = exportPickerOpen;
+    if (exportPickerOpen) backRecoil.recoil();
+    else backRecoil.reset();
+  }
+  $: rootRecoilTranslate = -28 * rootRecoilValue; // %
+
   onDestroy(() => {
     if (vvRef) {
       vvRef.removeEventListener('resize', scheduleKbUpdate);
@@ -494,6 +513,8 @@
     clearTimeout(orientationTimeout);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
+    unsubscribeBackRecoil?.();
+    backRecoil.destroy?.();
   });
 
   let showDocMenu = false;
@@ -585,7 +606,16 @@
   }
 </script>
 
-<div class="root" bind:this={rootEl} style="background:{c.background};color:{c.textPrimary};">
+<div
+  class="root"
+  bind:this={rootEl}
+  style="
+    background:{c.background};
+    color:{c.textPrimary};
+    transform: translate3d({rootRecoilTranslate}%, 0, 0);
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+  "
+>
 
   <!-- Appbar: position:fixed própria, ancorada ao top:0 do ecrã real —
        igual à BottomToolbar no fundo. Já não é filho sujeito ao fluxo

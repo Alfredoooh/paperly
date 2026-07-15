@@ -24,9 +24,67 @@
   let permissionNeeded = false;
   let exporting = false;
 
-  // historyStack espelha os estados empilhados no history do browser:
-  // um por pasta aberta. O topo é sempre a pasta atual.
-  let historyStack = [];
+  // ══════════════════════════════════════════════════════════════════
+  //  NAVEGAÇÃO DE PASTAS — 100% LOCAL, SEM TOCAR NO HISTORY DO BROWSER.
+  //
+  //  Tentativa anterior usava history.pushState/popstate por pasta.
+  //  Bug real: o router.js do App.svelte (docs) TAMBÉM escuta popstate
+  //  globalmente (router.bindPopState), e não sabe nada sobre os
+  //  estados "nexaExportPicker" — os dois handlers competem no MESMO
+  //  evento popstate, e o router acabava por ganhar/interferir,
+  //  fazendo a página saltar direto para o MainPage em vez de recuar
+  //  uma pasta, e cortando a animação a meio (dois donos de transform
+  //  no mesmo frame).
+  //
+  //  Correção: a pilha de pastas fica só em memória (folderStack).
+  //  O ÚNICO uso do history aqui é para capturar o botão físico do
+  //  Android / gesto de voltar: mantemos SEMPRE um único estado
+  //  sentinela empurrado enquanto a página está aberta. Ao receber
+  //  esse popstate, decidimos localmente (recuar pasta ou fechar a
+  //  página) e, se ainda faltar recuar pastas, RE-EMPURRAMOS
+  //  imediatamente o mesmo sentinela — assim o router nunca vê mais
+  //  do que um único par push/pop por página, nunca um por pasta.
+  // ══════════════════════════════════════════════════════════════════
+  let folderStack = []; // caminhos já visitados nesta sessão da página
+  let sentinelPushed = false;
+
+  function pushSentinel() {
+    if (sentinelPushed) return;
+    sentinelPushed = true;
+    history.pushState({ nexaExportPickerSentinel: true }, '', location.href);
+  }
+
+  function popSentinelSilently() {
+    // usado quando a PRÓPRIA página decide fechar (ex: export concluído):
+    // remove o sentinela sem passar pelo handler de popstate, para o
+    // router não ver um pop "órfão" depois da página já ter sido destruída.
+    if (!sentinelPushed) return;
+    sentinelPushed = false;
+    window.removeEventListener('popstate', onPopState);
+    history.back();
+  }
+
+  function onPopState(e) {
+    // Só nos interessa reagir quando o estado ATUAL (para onde o
+    // browser voltou) já não é o nosso sentinela — ou seja, o
+    // utilizador (ou o botão físico do Android) pediu para voltar.
+    if (history.state && history.state.nexaExportPickerSentinel) return;
+
+    sentinelPushed = false;
+
+    if (folderStack.length > 1) {
+      // ainda há pastas para trás: consome uma, recarrega, e
+      // devolve o sentinela — impede que o pop chegue ao router.
+      folderStack = folderStack.slice(0, -1);
+      loadPath(folderStack[folderStack.length - 1]);
+      pushSentinel();
+    } else {
+      // já estávamos na raiz: fecho real da página.
+      window.removeEventListener('popstate', onPopState);
+      slide.close();
+      setTimeout(() => dispatch('close'), 300);
+    }
+  }
 
   let exportResolvers = new Map();
   let exportRequestId = 0;
@@ -57,14 +115,8 @@
 
   onMount(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => slide.open()));
-    // ESTADO-RAIZ desta página: nexaExportPicker:true, depth:0.
-    // Cada pasta aberta empurra um novo estado por cima com depth
-    // crescente — exatamente a mesma "REGRA DE OURO" do search/preview
-    // no App.svelte do home: o history real é a fonte de verdade, e o
-    // fecho/recuo visual NUNCA é antecipado por quem chama close/back,
-    // só acontece dentro de onPopState.
-    history.pushState({ nexaExportPicker: true, depth: 0 }, '', location.href);
     window.addEventListener('popstate', onPopState);
+    pushSentinel();
     checkPermissionAndLoad();
   });
 
@@ -74,43 +126,25 @@
     window.removeEventListener('popstate', onPopState);
   });
 
-  // ------------------------------------------------------------------
-  // Fonte ÚNICA de verdade para navegar/fechar. Dispara tanto quando o
-  // botão de voltar DENTRO da página chama history.back(), como quando
-  // o botão físico do Android ou o gesto do Chrome disparam popstate
-  // diretamente — os dois caminhos caem exatamente aqui, sem qualquer
-  // fecho/recuo antecipado fora deste handler.
-  // ------------------------------------------------------------------
-  function onPopState() {
-    const state = history.state;
-    const depth = (state && state.nexaExportPicker) ? state.depth : -1;
-
-    if (depth >= 1 && historyStack.length > 1) {
-      // ainda estamos dentro de uma subpasta: recua uma pasta e
-      // recarrega — o pop já aconteceu sozinho, não tocamos no history.
-      historyStack = historyStack.slice(0, -1);
-      loadPath(historyStack[historyStack.length - 1]);
-    } else {
-      // saímos do estado-raiz desta página (depth 0 ou nenhum estado
-      // nosso): fecho visual real, e só agora.
-      slide.close();
-      setTimeout(() => dispatch('close'), 300);
-    }
-  }
-
   // Chamado pelo botão de voltar DENTRO da página e pelo fluxo de
-  // exportação concluída. NUNCA fecha nada visualmente aqui — só
-  // dispara history.back(), que o onPopState acima vai apanhar.
+  // exportação concluída — nunca fecha nada visualmente aqui, só
+  // decide recuar pasta ou sair, usando a MESMA lógica local do
+  // onPopState (sem depender do history para isso).
   function closePage() {
-    history.back();
+    if (folderStack.length > 1) {
+      folderStack = folderStack.slice(0, -1);
+      loadPath(folderStack[folderStack.length - 1]);
+      return;
+    }
+    window.removeEventListener('popstate', onPopState);
+    popSentinelSilently();
+    slide.close();
+    setTimeout(() => dispatch('close'), 300);
   }
 
   function goBackFolder() {
     buzz();
-    // history.back() tanto para recuar uma pasta como para sair da
-    // página de vez: onPopState decide qual dos dois com base na
-    // depth do estado para onde voltámos. Um único caminho, sempre.
-    history.back();
+    closePage();
   }
 
   async function checkPermissionAndLoad() {
@@ -148,7 +182,7 @@
     try {
       const rootPath = window.AndroidStorage.getRootPath();
       await loadPath(rootPath);
-      historyStack = [rootPath];
+      folderStack = [rootPath];
     } finally {
       loading = false;
     }
@@ -170,15 +204,7 @@
 
   function openFolder(folder) {
     buzz();
-    historyStack = [...historyStack, folder.path];
-    // um novo estado por pasta aberta, com depth = índice na pilha —
-    // é isto que faz o botão físico do Android disparar um popstate
-    // por nível de pasta em vez de saltar logo para fora da página.
-    history.pushState(
-      { nexaExportPicker: true, depth: historyStack.length - 1 },
-      '',
-      location.href
-    );
+    folderStack = [...folderStack, folder.path];
     loadPath(folder.path);
   }
 
@@ -216,6 +242,9 @@
       const result = JSON.parse(resultRaw);
       if (result.ok) {
         showToast(mode === 'share' ? 'Documento partilhado' : `Exportado para ${currentPath}`);
+        // fecho real após export concluído: recua até sair da página
+        // por completo, ignorando pastas intermédias.
+        folderStack = folderStack.slice(0, 1);
         closePage();
       } else {
         showToast(result.error || 'Não foi possível gerar o documento');
@@ -230,7 +259,6 @@
   $: formatIndex = selectedFormat === 'docx' ? 0 : 1;
 </script>
 
-<!-- fundo: c.background via style inline — é página fixed, não herda nada -->
 <div class="root" style="background:{c.background};transform:translate3d({pageX}%,0,0);">
 
   <div class="appbar">

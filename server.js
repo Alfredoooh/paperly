@@ -1,121 +1,112 @@
-import fs from "fs";
+import express from "express";
+import cors from "cors";
 import path from "path";
-import https from "https";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { getLlama, LlamaChatSession } from "node-llama-cpp";
 
-const MODEL_DIR = path.join(process.cwd(), "models");
-const MODEL_FILE = path.join(MODEL_DIR, "qwen2.5-0.5b-instruct-q4_k_m.gguf");
-const MODEL_URL =
-  "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true";
-const MIN_EXPECTED_BYTES = 300 * 1024 * 1024; // 300MB - abaixo disso é lixo/erro
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MODEL_PATH = path.join(
+  __dirname,
+  "models",
+  "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+);
 
-function download(url, dest, redirectCount = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirectCount > 10) {
-      reject(new Error("Muitos redirecionamentos ao baixar o modelo"));
-      return;
-    }
-    
-    const file = fs.createWriteStream(dest);
-    
-    https
-      .get(url, { headers: { "User-Agent": "node-download-script" } }, (response) => {
-        if (
-          response.statusCode >= 300 &&
-          response.statusCode < 400 &&
-          response.headers.location
-        ) {
-          file.close();
-          fs.unlinkSync(dest);
-          download(response.headers.location, dest, redirectCount + 1)
-            .then(resolve)
-            .catch(reject);
-          return;
-        }
-        
-        if (response.statusCode !== 200) {
-          file.close();
-          fs.unlinkSync(dest);
-          reject(
-            new Error(
-              `Falha ao baixar modelo: HTTP ${response.statusCode} - ${response.statusMessage}`
-            )
-          );
-          return;
-        }
-        
-        const totalBytes = parseInt(response.headers["content-length"] || "0", 10);
-        console.log(`Content-Length informado pelo servidor: ${totalBytes} bytes`);
-        
-        let downloadedBytes = 0;
-        let lastPercent = -1;
-        
-        response.on("data", (chunk) => {
-          downloadedBytes += chunk.length;
-          if (totalBytes > 0) {
-            const percent = Math.floor((downloadedBytes / totalBytes) * 100);
-            if (percent !== lastPercent && percent % 10 === 0) {
-              lastPercent = percent;
-              console.log(`Download do modelo: ${percent}% (${downloadedBytes} bytes)`);
-            }
-          }
-        });
-        
-        response.pipe(file);
-        
-        file.on("finish", () => {
-          file.close(() => resolve(downloadedBytes));
-        });
-      })
-      .on("error", (err) => {
-        file.close();
-        if (fs.existsSync(dest)) fs.unlinkSync(dest);
-        reject(err);
-      });
+const PORT = process.env.PORT || 3000;
+
+let llama = null;
+let model = null;
+let context = null;
+let isBusy = false;
+
+async function initModel() {
+  if (!fs.existsSync(MODEL_PATH)) {
+    throw new Error(
+      `Modelo não encontrado em ${MODEL_PATH}. Rode "npm run download-model" primeiro.`
+    );
+  }
+
+  console.log("Carregando modelo na memória...");
+  llama = await getLlama();
+
+  model = await llama.loadModel({
+    modelPath: MODEL_PATH,
+  });
+
+  // contextSize baixo de propósito: cada token de contexto consome RAM.
+  // 512MB é MUITO pouco, então mantemos o contexto pequeno.
+  context = await model.createContext({
+    contextSize: 512,
+  });
+
+  console.log("Modelo carregado e pronto.");
+}
+
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: "1mb" }));
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    modelLoaded: model !== null,
+    busy: isBusy,
+  });
+});
+
+app.post("/chat", async (req, res) => {
+  const { message } = req.body;
+
+  if (!message || typeof message !== "string") {
+    return res.status(400).json({ error: "Campo 'message' é obrigatório." });
+  }
+
+  if (!model || !context) {
+    return res.status(503).json({ error: "Modelo ainda não carregado." });
+  }
+
+  // Só processa uma requisição por vez: em 512MB não há margem
+  // para geração concorrente.
+  if (isBusy) {
+    return res
+      .status(429)
+      .json({ error: "Servidor ocupado processando outra mensagem. Tente novamente em instantes." });
+  }
+
+  isBusy = true;
+
+  try {
+    const session = new LlamaChatSession({
+      contextSequence: context.getSequence(),
+      systemPrompt:
+        "Você é um assistente virtual direto e objetivo. Responda em português de forma breve.",
+    });
+
+    const response = await session.prompt(message, {
+      maxTokens: 200,
+      temperature: 0.7,
+    });
+
+    res.json({ response });
+  } catch (err) {
+    console.error("Erro na geração:", err);
+    res.status(500).json({ error: "Erro ao gerar resposta.", details: err.message });
+  } finally {
+    isBusy = false;
+  }
+});
+
+async function start() {
+  try {
+    await initModel();
+  } catch (err) {
+    console.error("Falha ao inicializar modelo:", err.message);
+    console.error("O servidor vai subir, mas /chat retornará erro 503 até o modelo carregar.");
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
   });
 }
 
-async function main() {
-  if (!fs.existsSync(MODEL_DIR)) {
-    fs.mkdirSync(MODEL_DIR, { recursive: true });
-  }
-  
-  if (fs.existsSync(MODEL_FILE)) {
-    const stats = fs.statSync(MODEL_FILE);
-    if (stats.size >= MIN_EXPECTED_BYTES) {
-      console.log(`Modelo já existe e parece válido (${stats.size} bytes). Pulando download.`);
-      return;
-    } else {
-      console.log(`Arquivo existente é muito pequeno (${stats.size} bytes). Baixando novamente.`);
-      fs.unlinkSync(MODEL_FILE);
-    }
-  }
-  
-  console.log("Baixando modelo Qwen2.5-0.5B-Instruct (Q4_K_M, ~400MB)...");
-  console.log(`URL: ${MODEL_URL}`);
-  
-  try {
-    const downloadedBytes = await download(MODEL_URL, MODEL_FILE);
-    
-    const stats = fs.statSync(MODEL_FILE);
-    if (stats.size < MIN_EXPECTED_BYTES) {
-      console.error(
-        `ERRO: arquivo baixado tem apenas ${stats.size} bytes, esperado pelo menos ${MIN_EXPECTED_BYTES} bytes.`
-      );
-      console.error("Isso geralmente significa que a URL retornou uma página de erro em vez do modelo.");
-      
-      // Mostra o conteúdo pra facilitar diagnóstico (se for texto/JSON de erro)
-      const preview = fs.readFileSync(MODEL_FILE, "utf-8").slice(0, 500);
-      console.error("Conteúdo recebido (preview):", preview);
-      
-      fs.unlinkSync(MODEL_FILE);
-      process.exit(1);
-    }
-    
-    console.log("Download concluído e validado:", MODEL_FILE, `(${stats.size} bytes)`);
-  } catch (err) {
-    console.error("Erro ao baixar o modelo:", err.message);
-    process.exit(1);
-  }
-}
-
-main();
+start();

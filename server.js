@@ -33,13 +33,24 @@ async function initModel() {
     modelPath: MODEL_PATH,
   });
 
-  // contextSize baixo de propósito: cada token de contexto consome RAM.
-  // 512MB é MUITO pouco, então mantemos o contexto pequeno.
+  // Reduzido ao mínimo viável: contexto pequeno = menos KV cache = menos RAM.
+  // Em 512MB, cada token de contexto extra custa caro.
   context = await model.createContext({
-    contextSize: 512,
+    contextSize: 256,
+    batchSize: 128,
   });
 
   console.log("Modelo carregado e pronto.");
+  logMemoryUsage("após carregar modelo");
+}
+
+function logMemoryUsage(label) {
+  const mem = process.memoryUsage();
+  console.log(
+    `[memória ${label}] rss=${(mem.rss / 1024 / 1024).toFixed(1)}MB ` +
+      `heapUsed=${(mem.heapUsed / 1024 / 1024).toFixed(1)}MB ` +
+      `external=${(mem.external / 1024 / 1024).toFixed(1)}MB`
+  );
 }
 
 const app = express();
@@ -47,10 +58,12 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (req, res) => {
+  logMemoryUsage("health check");
   res.json({
     status: "ok",
     modelLoaded: model !== null,
     busy: isBusy,
+    memory: process.memoryUsage(),
   });
 });
 
@@ -65,8 +78,6 @@ app.post("/chat", async (req, res) => {
     return res.status(503).json({ error: "Modelo ainda não carregado." });
   }
 
-  // Só processa uma requisição por vez: em 512MB não há margem
-  // para geração concorrente.
   if (isBusy) {
     return res
       .status(429)
@@ -74,24 +85,50 @@ app.post("/chat", async (req, res) => {
   }
 
   isBusy = true;
+  logMemoryUsage("antes da geração");
+
+  let session = null;
+  let sequence = null;
 
   try {
-    const session = new LlamaChatSession({
-      contextSequence: context.getSequence(),
+    // Cria uma sequência nova a cada request e libera no final,
+    // em vez de reusar uma sessão de longa duração que acumula estado.
+    sequence = context.getSequence();
+
+    session = new LlamaChatSession({
+      contextSequence: sequence,
       systemPrompt:
         "Você é um assistente virtual direto e objetivo. Responda em português de forma breve.",
     });
 
     const response = await session.prompt(message, {
-      maxTokens: 200,
+      maxTokens: 100,
       temperature: 0.7,
     });
 
+    logMemoryUsage("depois da geração");
     res.json({ response });
   } catch (err) {
-    console.error("Erro na geração:", err);
-    res.status(500).json({ error: "Erro ao gerar resposta.", details: err.message });
+    console.error("Erro na geração - detalhes completos:");
+    console.error("Nome:", err.name);
+    console.error("Mensagem:", err.message);
+    console.error("Stack:", err.stack);
+    logMemoryUsage("no momento do erro");
+
+    res.status(500).json({
+      error: "Erro ao gerar resposta.",
+      details: err.message,
+      name: err.name,
+    });
   } finally {
+    // Libera a sequência explicitamente pra tentar recuperar memória
+    try {
+      if (sequence) {
+        sequence.dispose();
+      }
+    } catch (disposeErr) {
+      console.error("Erro ao liberar sequência:", disposeErr.message);
+    }
     isBusy = false;
   }
 });

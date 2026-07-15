@@ -245,13 +245,39 @@
     display: flex;
     align-items: stretch;
     justify-content: space-around;
-    background: rgba(var(--header-glass-rgb), 0.92);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-top: 0.5px solid var(--border-soft);
+
+    /* SÓLIDO: sem transparência, sem blur. Cor opaca real, não RGBA. */
+    background: var(--surface-elevated, #17181c);
+    background-clip: padding-box;
+
+    /* Separação do conteúdo por sombra, não por blur/transparência. */
+    box-shadow:
+      0 -1px 0 0 var(--border-soft),
+      0 -8px 24px -12px rgba(0, 0, 0, 0.35);
+
+    border-top: none;
     padding: 8px 6px calc(env(safe-area-inset-bottom, 0px) + 8px);
     contain: layout paint style;
     touch-action: pan-y;
+
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Camada extra opaca atrás da nav, cobrindo qualquer área de
+     overscroll/rubber-band do WebView para nunca revelar o conteúdo
+     por trás da barra (comum em Android quando o usuário arrasta
+     a página além do limite). */
+  .tab-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -40px;
+    height: 40px;
+    background: var(--surface-elevated, #17181c);
+    z-index: -1;
   }
 
   .tab-indicator {
@@ -261,12 +287,26 @@
     height: calc(100% - 14px - env(safe-area-inset-bottom, 0px));
     border-radius: 999px;
     background: var(--row-active);
+    background-image: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--row-active) 100%, white 6%) 0%,
+      var(--row-active) 100%
+    );
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
     pointer-events: none;
     will-change: transform;
   }
   /* sem transition aqui de propósito: a posição é 100% controlada pelo
      loop de rAF (spring), então CSS transition entraria em conflito e
      causaria o "engasgo" que gera sensação de travamento. */
+
+  .tab-indicator.dragging {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
 
   .tab-btn {
     position: relative;
@@ -284,6 +324,8 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .tab-btn.bounce {

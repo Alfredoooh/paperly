@@ -117,11 +117,12 @@
 
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
      avatar). O título "Criar" só aparece quando o header fica sólido
-     com o scroll, com linha divisória fina. -->
+     com o scroll — sólido = idêntico ao fundo do app, sem linha
+     divisória, sem sombra, nos dois temas. -->
 <div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:visible={isSolid}>{isSolid ? title : ''}</h1>
-    <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">
+    <button class="profile-btn pulse-tap" class:solid={isSolid} on:click={handleMenu} aria-label="Perfil">
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="profile-img" />
       {:else}
@@ -184,23 +185,28 @@
     background: transparent;
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
-    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .3s cubic-bezier(0.16,1,0.3,1), border-color .3s cubic-bezier(0.16,1,0.3,1);
+    transition:
+      opacity .42s cubic-bezier(0.32, 0.72, 0, 1),
+      transform .42s cubic-bezier(0.32, 0.72, 0, 1),
+      background .28s cubic-bezier(0.32, 0.72, 0, 1);
     pointer-events: none;
     contain: layout style paint;
     overflow: hidden;
-    border-bottom: 1px solid transparent;
+    /* sem border-bottom: a separação nunca existiu por linha, e agora
+       nem por sombra — o header sólido é literalmente o mesmo tom do
+       corpo, então não precisa de nenhuma fronteira visual. */
   }
   .create-header.in {
     opacity: 1;
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
   }
-  /* Sólido mais escuro que --drawer-bg puro, com linha divisória fina
-     por baixo, ao estilo appbar nativo iOS/Android. */
+  /* Sólido = idêntico ao fundo do app, no claro e no escuro. Sem
+     color-mix, sem preto misturado, sem sombra, sem borda — o header
+     "desaparece" por ser o mesmo plano do conteúdo, como appbar
+     nativo que soma o safe-area ao scroll em vez de flutuar por cima. */
   .create-header.solid {
-    background: color-mix(in srgb, var(--drawer-bg) 92%, black 8%);
-    border-bottom-color: var(--divider, rgba(127,127,127,0.18));
-    box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+    background: var(--app-bg);
   }
   .create-header-inner {
     display: flex;
@@ -225,7 +231,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     opacity: 0;
-    transition: opacity .2s cubic-bezier(0.16,1,0.3,1);
+    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .create-header-title.visible {
     opacity: 1;
@@ -244,12 +250,28 @@
     padding: 0;
     overflow: hidden;
     box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    transition:
+      background .28s cubic-bezier(0.32, 0.72, 0, 1),
+      box-shadow .28s cubic-bezier(0.32, 0.72, 0, 1),
+      transform .16s cubic-bezier(0.34,1.56,0.64,1);
     margin-left: auto;
   }
+  /* Sobre a hero photo o botão tem fundo translúcido claro pra
+     destacar-se da imagem. Assim que o header fica sólido (mesmo tom
+     do corpo), esse fundo translúcido pareceria uma mancha solta —
+     então ele passa a usar a superfície elevada real do tema. */
+  .profile-btn.solid {
+    background: var(--row-active, rgba(127,127,127,0.12));
+    box-shadow: none;
+  }
   .profile-btn:active {
-    background: rgba(255,255,255,0.26);
     transform: scale(0.9);
+  }
+  .profile-btn:not(.solid):active {
+    background: rgba(255,255,255,0.26);
+  }
+  .profile-btn.solid:active {
+    background: var(--row-hover, rgba(127,127,127,0.2));
   }
   .profile-img {
     width: 100%;
@@ -268,7 +290,8 @@
     color: #fff;
   }
   @media (hover:hover) and (pointer:fine) {
-    .profile-btn:hover { background: rgba(255,255,255,0.24); }
+    .profile-btn:not(.solid):hover { background: rgba(255,255,255,0.24); }
+    .profile-btn.solid:hover { background: var(--row-hover, rgba(127,127,127,0.2)); }
   }
   @media (min-width: 720px) {
     .create-header-inner { max-width:760px; }

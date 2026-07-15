@@ -246,11 +246,12 @@
     align-items: stretch;
     justify-content: space-around;
 
-    /* SÓLIDO: sem transparência, sem blur. Cor opaca real, não RGBA. */
-    background: var(--surface-elevated, #17181c);
+    /* SÓLIDO: mesma variável de sempre (--header-glass-rgb), mas
+       sem alpha nenhum — 100% opaco, e troca com o tema igual antes. */
+    background: rgb(var(--header-glass-rgb));
     background-clip: padding-box;
 
-    /* Separação do conteúdo por sombra, não por blur/transparência. */
+    /* Separação do conteúdo por sombra/borda reais, não por blur. */
     box-shadow:
       0 -1px 0 0 var(--border-soft),
       0 -8px 24px -12px rgba(0, 0, 0, 0.35);
@@ -265,10 +266,8 @@
     -webkit-touch-callout: none;
   }
 
-  /* Camada extra opaca atrás da nav, cobrindo qualquer área de
-     overscroll/rubber-band do WebView para nunca revelar o conteúdo
-     por trás da barra (comum em Android quando o usuário arrasta
-     a página além do limite). */
+  /* Camada extra opaca atrás da nav, cobrindo qualquer overscroll/
+     rubber-band do WebView, pra nunca revelar o conteúdo por trás. */
   .tab-bar::after {
     content: '';
     position: absolute;
@@ -276,7 +275,7 @@
     right: 0;
     bottom: -40px;
     height: 40px;
-    background: var(--surface-elevated, #17181c);
+    background: rgb(var(--header-glass-rgb));
     z-index: -1;
   }
 

@@ -23,10 +23,17 @@
   let loading = true;
   let permissionNeeded = false;
   let exporting = false;
+
+  // historyStack espelha os estados empilhados no history do browser:
+  // um por pasta aberta. O topo é sempre a pasta atual.
   let historyStack = [];
 
   let exportResolvers = new Map();
   let exportRequestId = 0;
+
+  function buzz() {
+    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+  }
 
   function exportDocumentAsync(html, targetPath, format, mode) {
     return new Promise((resolve) => {
@@ -50,23 +57,60 @@
 
   onMount(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => slide.open()));
-    window.addEventListener('popstate', handlePopState);
-    history.pushState({ nexaExportPicker: true }, '', location.href);
+    // ESTADO-RAIZ desta página: nexaExportPicker:true, depth:0.
+    // Cada pasta aberta empurra um novo estado por cima com depth
+    // crescente — exatamente a mesma "REGRA DE OURO" do search/preview
+    // no App.svelte do home: o history real é a fonte de verdade, e o
+    // fecho/recuo visual NUNCA é antecipado por quem chama close/back,
+    // só acontece dentro de onPopState.
+    history.pushState({ nexaExportPicker: true, depth: 0 }, '', location.href);
+    window.addEventListener('popstate', onPopState);
     checkPermissionAndLoad();
   });
 
   onDestroy(() => {
     unsubscribe?.();
     slide.destroy();
-    window.removeEventListener('popstate', handlePopState);
+    window.removeEventListener('popstate', onPopState);
   });
 
-  function handlePopState() { closePage(false); }
+  // ------------------------------------------------------------------
+  // Fonte ÚNICA de verdade para navegar/fechar. Dispara tanto quando o
+  // botão de voltar DENTRO da página chama history.back(), como quando
+  // o botão físico do Android ou o gesto do Chrome disparam popstate
+  // diretamente — os dois caminhos caem exatamente aqui, sem qualquer
+  // fecho/recuo antecipado fora deste handler.
+  // ------------------------------------------------------------------
+  function onPopState() {
+    const state = history.state;
+    const depth = (state && state.nexaExportPicker) ? state.depth : -1;
 
-  function closePage(shouldPopHistory = true) {
-    slide.close();
-    setTimeout(() => dispatch('close'), 300);
-    if (shouldPopHistory) history.back();
+    if (depth >= 1 && historyStack.length > 1) {
+      // ainda estamos dentro de uma subpasta: recua uma pasta e
+      // recarrega — o pop já aconteceu sozinho, não tocamos no history.
+      historyStack = historyStack.slice(0, -1);
+      loadPath(historyStack[historyStack.length - 1]);
+    } else {
+      // saímos do estado-raiz desta página (depth 0 ou nenhum estado
+      // nosso): fecho visual real, e só agora.
+      slide.close();
+      setTimeout(() => dispatch('close'), 300);
+    }
+  }
+
+  // Chamado pelo botão de voltar DENTRO da página e pelo fluxo de
+  // exportação concluída. NUNCA fecha nada visualmente aqui — só
+  // dispara history.back(), que o onPopState acima vai apanhar.
+  function closePage() {
+    history.back();
+  }
+
+  function goBackFolder() {
+    buzz();
+    // history.back() tanto para recuar uma pasta como para sair da
+    // página de vez: onPopState decide qual dos dois com base na
+    // depth do estado para onde voltámos. Um único caminho, sempre.
+    history.back();
   }
 
   async function checkPermissionAndLoad() {
@@ -125,20 +169,24 @@
   }
 
   function openFolder(folder) {
+    buzz();
     historyStack = [...historyStack, folder.path];
+    // um novo estado por pasta aberta, com depth = índice na pilha —
+    // é isto que faz o botão físico do Android disparar um popstate
+    // por nível de pasta em vez de saltar logo para fora da página.
+    history.pushState(
+      { nexaExportPicker: true, depth: historyStack.length - 1 },
+      '',
+      location.href
+    );
     loadPath(folder.path);
-  }
-
-  function goBackFolder() {
-    if (historyStack.length <= 1) { closePage(); return; }
-    historyStack = historyStack.slice(0, -1);
-    loadPath(historyStack[historyStack.length - 1]);
   }
 
   let showNewFolderInput = false;
   let newFolderName = '';
 
   function toggleNewFolder() {
+    buzz();
     showNewFolderInput = !showNewFolderInput;
     newFolderName = '';
   }
@@ -178,57 +226,55 @@
       exporting = false;
     }
   }
+
+  $: formatIndex = selectedFormat === 'docx' ? 0 : 1;
 </script>
 
 <!-- fundo: c.background via style inline — é página fixed, não herda nada -->
 <div class="root" style="background:{c.background};transform:translate3d({pageX}%,0,0);">
 
-  <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
-    <button class="appbar-btn" on:click={goBackFolder} aria-label="Voltar">
+  <div class="appbar">
+    <button class="appbar-btn pulse-tap" on:click={goBackFolder} aria-label="Voltar">
       <span class="icon-mask" style="
-        mask-image:url('/icons/svg/back_arrow.svg');
-        -webkit-mask-image:url('/icons/svg/back_arrow.svg');
+        mask-image:url('/icons/svg/arrow_left.svg');
+        -webkit-mask-image:url('/icons/svg/arrow_left.svg');
         background:{c.iconTint};
-        width:20px;height:20px;
       "></span>
     </button>
     <div class="appbar-title" style="color:{c.textPrimary}">
       {mode === 'share' ? 'Partilhar' : 'Exportar'} "{docName}"
     </div>
-    <button class="appbar-btn" on:click={() => closePage()} aria-label="Fechar">
-      <span class="icon-mask" style="
-        mask-image:url('/icons/svg/close.svg');
-        -webkit-mask-image:url('/icons/svg/close.svg');
-        background:{c.iconTint};
-        width:16px;height:16px;
-      "></span>
-    </button>
+    <span class="appbar-spacer"></span>
   </div>
 
   {#if permissionNeeded}
     <div class="permission-gate">
-      <div class="permission-text">
+      <div class="permission-text" style="color:{c.textSecondary}">
         Para exportar o documento diretamente para uma pasta do teu telemóvel, é preciso autorizar o acesso ao armazenamento.
       </div>
-      <button class="primary-btn" on:click={requestPermission}>Autorizar acesso</button>
+      <button class="primary-btn pulse-tap" on:click={requestPermission}>Autorizar acesso</button>
     </div>
   {:else}
 
-    <!-- chips de formato — usam variáveis CSS como o TemplatesTab -->
-    <div class="format-row">
+    <div class="segmented" style="--count:2">
+      <div class="segmented-thumb" style="--index:{formatIndex}"></div>
       <button
-        class="format-chip"
-        class:format-chip-active={selectedFormat === 'docx'}
-        on:click={() => { selectedFormat = 'docx'; }}
-      >Word (.docx)</button>
+        class="segmented-opt"
+        class:active={selectedFormat === 'docx'}
+        on:click={() => { buzz(); selectedFormat = 'docx'; }}
+      >
+        <span class="segmented-opt-label">Word (.docx)</span>
+      </button>
       <button
-        class="format-chip"
-        class:format-chip-active={selectedFormat === 'pdf'}
-        on:click={() => { selectedFormat = 'pdf'; }}
-      >PDF (.pdf)</button>
+        class="segmented-opt"
+        class:active={selectedFormat === 'pdf'}
+        on:click={() => { buzz(); selectedFormat = 'pdf'; }}
+      >
+        <span class="segmented-opt-label">PDF (.pdf)</span>
+      </button>
     </div>
 
-    <div class="path-row">{currentPath}</div>
+    <div class="path-row" style="color:{c.textSecondary}">{currentPath}</div>
 
     <button class="new-folder-btn" on:click={toggleNewFolder}>+ Nova pasta</button>
 
@@ -246,9 +292,16 @@
 
     <div class="folder-list">
       {#if loading}
-        <div class="state-msg">A carregar…</div>
+        <div class="folder-list-inner">
+          {#each Array(5) as _}
+            <div class="skeleton-row">
+              <div class="skeleton-icon"></div>
+              <div class="skeleton-line"></div>
+            </div>
+          {/each}
+        </div>
       {:else if entries.length === 0}
-        <div class="state-msg">Pasta vazia</div>
+        <div class="state-msg" style="color:{c.textSecondary}">Pasta vazia</div>
       {:else}
         {#each entries as folder (folder.path)}
           <button class="folder-row" on:click={() => openFolder(folder)}>
@@ -266,7 +319,7 @@
     </div>
 
     <div class="confirm-bar">
-      <button class="confirm-btn" on:click={confirmExport} disabled={exporting}>
+      <button class="confirm-btn pulse-tap" on:click={confirmExport} disabled={exporting}>
         {exporting ? 'A gerar…' : (mode === 'share' ? 'Guardar e partilhar aqui' : 'Exportar para esta pasta')}
       </button>
     </div>
@@ -281,111 +334,195 @@
     display: flex;
     flex-direction: column;
     will-change: transform;
-    /* fundo definido via style inline com c.background — não aqui */
   }
 
-  /* ── appbar ── */
   .appbar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 52px 12px 12px; flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;
+    flex-shrink: 0;
   }
   .appbar-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
-    /* fundo do botão — mesmo padrão do TemplatesTab: var do sistema */
-    background: var(--surface-apps-tab);
-    box-shadow: 0 1px 3px var(--drawer-shadow);
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--btn-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .appbar-btn:active { transform: scale(0.88); }
+  .appbar-btn:active {
+    background: var(--btn-bg-active);
+    transform: scale(0.88);
+  }
   .icon-mask {
     display: block;
-    mask-size: contain; -webkit-mask-size: contain;
-    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center;
+    width: 18px;
+    height: 18px;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
   }
   .appbar-title {
-    flex: 1; min-width: 0; text-align: center;
-    font-size: 15px; font-weight: 700;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .appbar-spacer {
+    width: 36px;
+    flex-shrink: 0;
   }
 
-  /* ── permission gate ── */
   .permission-gate {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 32px; gap: 20px; text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    gap: 20px;
+    text-align: center;
   }
   .permission-text {
-    font-size: 14px; line-height: 1.5;
-    color: var(--drawer-text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
   }
   .primary-btn {
-    border: none; border-radius: 14px; padding: 14px 28px;
-    background: #2F7BF6; color: #fff;
-    font-size: 15px; font-weight: 600; cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    border: none;
+    border-radius: 999px;
+    padding: 14px 28px;
+    background: var(--accent-primary, #2F7BF6);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
   }
-  .primary-btn:active { transform: scale(0.96); }
 
-  /* ── format chips — mesmo padrão visual que doc-card/img-card do TemplatesTab ── */
-  .format-row { display: flex; gap: 8px; padding: 12px 16px; }
-  .format-chip {
-    flex: 1; border: none; border-radius: 12px; padding: 12px;
-    font-size: 14px; font-weight: 600; cursor: pointer;
+  .segmented {
+    position: relative;
+    display: flex;
+    margin: 4px 16px 0;
+    background: var(--btn-bg);
+    border-radius: 999px;
+    padding: 4px;
+  }
+  .segmented-thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 8px) / var(--count));
+    height: calc(100% - 8px);
+    border-radius: 999px;
+    background: var(--btn-solid-bg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.12);
+    transform: translateX(calc(var(--index) * 100%));
+    transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .segmented-opt {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+    border-radius: 999px;
     -webkit-tap-highlight-color: transparent;
-    /* estado inativo: mesma superfície dos cards do TemplatesTab */
-    background: var(--surface-apps-tab);
-    color: var(--drawer-text);
-    box-shadow: 0 1px 4px var(--drawer-shadow);
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .format-chip:active { transform: scale(0.96); }
-  /* estado ativo: accent azul, exatamente como doc-card:active usa --row-active */
-  .format-chip-active {
-    background: #2F7BF6 !important;
-    color: #fff !important;
-    box-shadow: 0 2px 8px rgba(47,123,246,0.35) !important;
+  .segmented-opt-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    transition: color .22s ease, transform .3s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .segmented-opt.active .segmented-opt-label {
+    color: var(--btn-solid-text);
+    transform: scale(1.04);
+  }
+  .segmented-opt:active .segmented-opt-label {
+    transform: scale(0.92);
   }
 
-  /* ── path ── */
   .path-row {
-    padding: 0 16px 4px;
-    font-size: 12px; color: var(--drawer-text-secondary);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 10px 16px 4px;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  /* ── nova pasta ── */
   .new-folder-btn {
-    background: none; border: none; text-align: left;
+    background: none;
+    border: none;
+    text-align: left;
     padding: 4px 16px 10px;
-    font-size: 14px; font-weight: 600; color: #2F7BF6;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-primary, #2F7BF6);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; }
+  .new-folder-form {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 12px;
+  }
   .new-folder-input {
-    flex: 1; border: none; border-radius: 10px;
-    padding: 10px 12px; font-size: 14px; outline: none;
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14px;
+    outline: none;
     background: var(--surface-apps-tab);
     color: var(--drawer-text);
   }
   .new-folder-confirm {
-    background: none; border: none;
-    font-size: 14px; font-weight: 700; color: #2F7BF6;
-    cursor: pointer; padding: 0 8px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-primary, #2F7BF6);
+    cursor: pointer;
+    padding: 0 8px;
   }
 
-  /* ── lista de pastas ── */
-  .folder-list { flex: 1; overflow-y: auto; padding: 0 8px; }
+  .folder-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 8px;
+  }
   .folder-row {
-    width: 100%; display: flex; align-items: center; gap: 12px;
-    background: none; border: none;
-    padding: 13px 12px; text-align: left; cursor: pointer;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: none;
+    border: none;
+    padding: 13px 12px;
+    text-align: left;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    border-radius: 14px;
-    /* mesmo padrão de transição do img-card / doc-card do TemplatesTab */
+    border-radius: 16px;
     transition: background .16s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .folder-row:active {
@@ -395,24 +532,59 @@
   .folder-icon { flex-shrink: 0; width: 24px; height: 24px; }
   .folder-name {
     font-size: 15px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .state-msg {
-    text-align: center; padding: 40px 16px;
-    font-size: 14px; color: var(--drawer-text-secondary);
+    text-align: center;
+    padding: 40px 16px;
+    font-size: 14px;
   }
 
-  /* ── botão confirmar ── */
+  .folder-list-inner { display: flex; flex-direction: column; gap: 4px; padding: 8px 4px; }
+  .skeleton-row { display: flex; align-items: center; gap: 12px; padding: 13px 12px; }
+  .skeleton-icon, .skeleton-line {
+    background: linear-gradient(
+      100deg,
+      var(--border-faint) 30%,
+      var(--border-soft) 50%,
+      var(--border-faint) 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.3s ease-in-out infinite;
+  }
+  .skeleton-icon { width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; }
+  .skeleton-line { flex: 1; height: 14px; border-radius: 7px; max-width: 60%; }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
   .confirm-bar {
     padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
     flex-shrink: 0;
   }
   .confirm-btn {
-    width: 100%; border: none; border-radius: 14px; padding: 15px;
-    background: #2F7BF6; color: #fff;
-    font-size: 15px; font-weight: 600; cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 15px;
+    background: var(--accent-primary, #2F7BF6);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
   }
-  .confirm-btn:active:not(:disabled) { transform: scale(0.97); }
   .confirm-btn:disabled { opacity: 0.6; }
+
+  .pulse-tap {
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
+  }
+  .pulse-tap:active { transform: scale(0.96); opacity: .82; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segmented-thumb, .segmented-opt-label, .pulse-tap { transition: none !important; }
+  }
 </style>

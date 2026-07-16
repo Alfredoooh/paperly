@@ -31,11 +31,6 @@
   let contentEls = [];
   let nextFolhaId = 1;
 
-  // Mantém o pai (MainPage) sempre informado de quantas folhas
-  // realmente existem — isto é o que faltava antes: os botões de
-  // página no appbar comparavam contra um totalPages que nunca era
-  // atualizado, então ficavam presos em "1/1" mesmo com 5 páginas
-  // de texto já criadas por trás.
   $: totalPages = folhas.length;
 
   function criarFolha() {
@@ -178,6 +173,7 @@
         : posicao.startContainer;
       const conteudoPai = elementoBase.closest('.conteudo');
       if (conteudoPai) {
+        debugLog('restaurarSelecao: vai chamar .focus()');
         try { conteudoPai.focus({ preventScroll: true }); }
         catch (e) { conteudoPai.focus(); }
       }
@@ -189,6 +185,7 @@
   async function reequilibrarDocumento() {
     if (isRebalancing) return;
     isRebalancing = true;
+    debugLog('reequilibrarDocumento: INÍCIO');
 
     const posicaoSelecao = obterPosicaoSelecao();
 
@@ -220,12 +217,14 @@
     await removerPaginasVaziasNoFim();
     restaurarSelecao(posicaoSelecao);
 
+    debugLog('reequilibrarDocumento: FIM');
     isRebalancing = false;
   }
 
   let timeoutReequilibrio;
   function agendarReequilibrio() {
     clearTimeout(timeoutReequilibrio);
+    debugLog('agendarReequilibrio: timeout (re)agendado a 150ms');
     timeoutReequilibrio = setTimeout(reequilibrarDocumento, 150);
   }
 
@@ -246,7 +245,8 @@
     agendarReequilibrio();
   }
 
-  function handleInput() {
+  function handleInput(e) {
+    debugLog(`input event: inputType=${e?.inputType || '?'} data=${JSON.stringify(e?.data || '')}`);
     dispatch('input');
     agendarReequilibrio();
   }
@@ -254,27 +254,6 @@
     dispatch('keydown', e);
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  FIX (appbar saltando/sumindo no 2º toque no texto):
-  //  Ao tocar diretamente num .conteudo (foco NATIVO do browser, não
-  //  via focusEditor() programático), o motor do WebView corre o seu
-  //  próprio scroll-into-view para trazer o ponto do cursor para uma
-  //  posição "visível" acima do teclado. Com windowSoftInputMode=
-  //  adjustNothing no HomeActivity, é a página quem faz esse scroll
-  //  sozinha — e nalguns WebViews Android esse scroll automático,
-  //  ocorrendo com elementos position:fixed na árvore (a appbar), faz
-  //  o compositor desalinhar o fixed momentaneamente, lendo-se como o
-  //  appbar "subindo e desaparecendo".
-  //
-  //  focusEditor() já usava { preventScroll:true }, mas isso só cobre
-  //  chamadas programáticas a .focus() — não cobre o toque direto do
-  //  utilizador, que é um foco nativo do browser. Por isso este
-  //  handler de 'focus' captura a posição de scroll do container
-  //  (.canvas-scroll) IMEDIATAMENTE antes do motor poder mexer nela,
-  //  e reimpõe essa posição em dois frames seguintes — o suficiente
-  //  para cobrir tanto o scroll síncrono quanto o assíncrono que
-  //  alguns motores fazem um frame depois do foco.
-  // ══════════════════════════════════════════════════════════════════
   function travarScrollNoFoco() {
     if (!containerEl) return;
     const scrollTravado = containerEl.scrollTop;
@@ -291,14 +270,12 @@
   }
 
   function handleFocusPagina(i) {
+    debugLog(`focus na página ${i}`);
     travarScrollNoFoco();
     if (activePageIndex !== i) activePageIndex = i;
     dispatch('pagefocus', i);
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  API pública (usada pela MainPage via bind:this)
-  // ══════════════════════════════════════════════════════════════════
   export function getContent() {
     return contentEls.map(el => el ? el.innerHTML : '').join('<div class="page-break-marker"></div>');
   }
@@ -410,11 +387,6 @@
     agendarReequilibrio();
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  Objetos flutuantes (imagens em canvas livre) — gestos diretos:
-  //  pointerdown para mover, handles próprios para redimensionar e
-  //  rodar. Tudo fora do fluxo do contenteditable.
-  // ══════════════════════════════════════════════════════════════════
   let floatingObjects = {};
   let selectedFloatId = null;
   let nextFloatId = 1;
@@ -423,13 +395,7 @@
     return floatingObjects[pageIndex] || [];
   }
 
-  function onPageBackgroundTap(pageIndex) {
-    if (selectedFloatId && selectedFloatId.startsWith(pageIndex + ':')) {
-      // clique fora de um objeto selecionado na mesma página: mantém
-      // seleção se o alvo do evento for o próprio objeto (tratado no
-      // startMove); aqui só chega para toques fora de qualquer objeto.
-    }
-  }
+  function onPageBackgroundTap(pageIndex) {}
 
   export function deselectFloat() {
     selectedFloatId = null;
@@ -540,6 +506,34 @@
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  PAINEL DE DEBUG — TEMPORÁRIO
+  //  Um pequeno log visual, sempre por cima de tudo, para vermos os
+  //  eventos reais a acontecer no momento do salto sem precisar de
+  //  computador nenhum. Remove-se assim que identificarmos a causa.
+  // ══════════════════════════════════════════════════════════════════
+  let debugLines = [];
+  let debugPanelEl;
+  function debugLog(msg) {
+    const t = performance.now().toFixed(0);
+    debugLines = [...debugLines.slice(-11), `${t}ms  ${msg}`];
+    if (debugPanelEl) {
+      debugPanelEl.textContent = debugLines.join('\n');
+      debugPanelEl.scrollTop = debugPanelEl.scrollHeight;
+    }
+  }
+  let debugRafId = null;
+  function debugTick() {
+    if (debugPanelEl && containerEl) {
+      const appbarEl = document.querySelector('.appbar, .nexa-static-appbar');
+      const appbarTop = appbarEl ? appbarEl.getBoundingClientRect().top : 'N/A';
+      const line2 = `scrollTop=${containerEl.scrollTop} appbarTop=${appbarTop} isRebalancing=${isRebalancing}`;
+      const el2 = document.getElementById('nexaDebugLive');
+      if (el2) el2.textContent = line2;
+    }
+    debugRafId = requestAnimationFrame(debugTick);
+  }
+
   onMount(async () => {
     ajustarZoom();
     window.addEventListener('resize', ajustarZoom);
@@ -559,6 +553,8 @@
     window.addEventListener('mouseup', onGestureEnd);
     window.addEventListener('touchmove', onGestureMove, { passive: false });
     window.addEventListener('touchend', onGestureEnd);
+
+    debugRafId = requestAnimationFrame(debugTick);
   });
   onDestroy(() => {
     window.removeEventListener('resize', ajustarZoom);
@@ -568,17 +564,10 @@
     window.removeEventListener('touchmove', onGestureMove);
     window.removeEventListener('touchend', onGestureEnd);
     clearTimeout(timeoutReequilibrio);
+    if (debugRafId) cancelAnimationFrame(debugRafId);
   });
 </script>
 
-<!--
-  Voltou ao esquema empilhado original: TODAS as folhas ficam
-  visíveis dentro de .pages-stack, com scroll vertical contínuo
-  controlado por .canvas-scroll (overflow-y:auto) + PinchZoom para
-  zoom de dois dedos / pan quando ampliado. Isto é exatamente como
-  era desde o início — sem display:none nem visibility:hidden por
-  folha, porque isso nunca foi necessário para nada.
--->
 <div class="canvas-scroll" bind:this={containerEl}>
   <PinchZoom bind:scale={pinchScale} minScale={1} maxScale={4} on:zoomchange>
     <div class="pages-stack" bind:this={stackEl} style="transform: scale({fitScale}); transform-origin: top center;">
@@ -602,8 +591,6 @@
             aria-label="Conteúdo do documento"
           ></div>
 
-          <!-- Camada de objetos flutuantes (imagens em canvas livre),
-               fora do contenteditable — nunca interfere com o cursor. -->
           {#if floatingObjects[i]}
             {#each floatingObjects[i] as obj (obj.id)}
               <div
@@ -648,6 +635,12 @@
       {/each}
     </div>
   </PinchZoom>
+</div>
+
+<!-- PAINEL DE DEBUG — remover depois de encontrarmos a causa -->
+<div id="nexaDebugPanel" style="position:fixed; left:4px; right:4px; bottom:4px; max-height:150px; overflow-y:auto; background:rgba(0,0,0,0.88); color:#0f0; font-size:9px; font-family:monospace; z-index:999999; padding:4px; border-radius:6px; pointer-events:none; white-space:pre-wrap; line-height:1.3;">
+  <div id="nexaDebugLive" style="color:#0ff; margin-bottom:2px;"></div>
+  <div bind:this={debugPanelEl}></div>
 </div>
 
 <style>
@@ -707,7 +700,6 @@
     z-index: 1;
   }
 
-  /* ── Objetos flutuantes (canvas livre) ───────────────────────── */
   .float-obj {
     position: absolute;
     cursor: grab;

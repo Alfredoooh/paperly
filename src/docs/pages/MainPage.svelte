@@ -549,46 +549,35 @@
 </script>
 
 <!-- Camada de fundo (MainPage) — recua quando Export abre -->
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
+  <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
+    <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  </button>
+
+  <div class="appbar-center">
+    <input
+      class="doc-name-input"
+      style="color:{c.textPrimary}"
+      value={docName}
+      on:input={handleNameInput}
+      on:blur={handleNameBlur}
+      aria-label="Nome do documento"
+    />
+    <span class="save-state" style="color:{c.textSecondary}">
+      {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
+    </span>
+  </div>
+
+  <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+    <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  </button>
+</div>
+
 <div
   class="root"
   bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
-  <!--
-    APPBAR: agora 100% estático em relação a isEditing. Não tem
-    nenhum {#if}, nenhuma classe condicional, nenhum atributo que
-    dependa do estado de edição — só o nome do documento, o estado de
-    gravação e os dois botões que sempre existiram (voltar, mais
-    opções). É isto que elimina de vez o "subir" ao tocar na folha:
-    antes, o botão de check aparecia/desaparecia AQUI DENTRO conforme
-    isEditing mudava, o que forçava o appbar a recalcular o próprio
-    conteúdo interno a cada toque. Agora ele nunca re-renderiza nada
-    por causa de isEditing.
-  -->
-  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider}">
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
-
-    <div class="appbar-center">
-      <input
-        class="doc-name-input"
-        style="color:{c.textPrimary}"
-        value={docName}
-        on:input={handleNameInput}
-        on:blur={handleNameBlur}
-        aria-label="Nome do documento"
-      />
-      <span class="save-state" style="color:{c.textSecondary}">
-        {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-      </span>
-    </div>
-
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
-  </div>
-
   <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
       bind:this={docPageComp}
@@ -719,21 +708,22 @@
     flex-direction: column;
     overflow: hidden;
     contain: layout style paint;
-    will-change: transform;
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* APPBAR: sem nenhuma dependência de isEditing. Altura e conteúdo
-     fixos sempre — isto é o que garante que nunca "sobe" ou treme ao
-     tocar na folha. */
+  /* APPBAR: fica fora da root para não sofrer com transform/zoom
+     do editor nem com o teclado mobile. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
-    padding: 52px 12px 12px; flex-shrink: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
+    flex-shrink: 0;
     position: fixed;
     left: 0; right: 0; top: 0;
     height: 100px;
-    z-index: 50;
-    contain: strict;
+    z-index: 999;
+    contain: paint;
+    transform: translateZ(0);
+    pointer-events: auto;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;

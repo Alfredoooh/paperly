@@ -21,6 +21,13 @@ export const TABS = [
     iconFilled: '/icons/svg/create_filled.svg',
   },
   {
+    id: 'projects',
+    label: 'Projetos',
+    title: 'Projetos',
+    icon: '/icons/svg/projects.svg',
+    iconFilled: '/icons/svg/projects_filled.svg',
+  },
+  {
     id: 'templates',
     label: 'Templates',
     title: 'Templates',

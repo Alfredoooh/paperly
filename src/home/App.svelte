@@ -13,7 +13,8 @@
   import BottomTabBar from './components/BottomTabBar.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
   import CreateTab from './components/CreateTab.svelte';
-    import TemplatesTab from './components/TemplatesTab.svelte';
+  import ProjectsTab from './components/ProjectsTab.svelte';
+  import TemplatesTab from './components/TemplatesTab.svelte';
   import ToolsTab from './components/ToolsTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
@@ -24,7 +25,7 @@
   const dispatch = createEventDispatcher();
 
   const BASE = '/home/';
-  const VALID_ROUTES = ['templates', 'tools'];
+  const VALID_ROUTES = ['projects', 'templates', 'tools'];
   // 'create' é o rootRoute real do router — a rota raiz '/home/' resolve
   // sempre para 'create', tanto no parseCurrentRoute() como no navigate().
   const router = createRouter(BASE, VALID_ROUTES, 'create');
@@ -301,10 +302,10 @@
       }
       closeDrawerVisual();
       setTimeout(() => {
-        dispatch('nav', { to: 'profilelens', data: { path: '/profilelens/' } });
+        dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
       }, 320); // espelha exatamente a duração de closeDrawerVisual()
     } else {
-      dispatch('nav', { to: 'profilelens', data: { path: '/profilelens/' } });
+      dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
     }
   }
 
@@ -518,6 +519,8 @@
         onOpenSearch={openSearch}
         onOpenApp={navigateToApp}
       />
+    {:else if activeTab === 'projects'}
+      <ProjectsTab />
     {:else if activeTab === 'templates'}
       <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
     {:else if activeTab === 'tools'}

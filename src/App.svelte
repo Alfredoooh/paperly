@@ -7,6 +7,8 @@
   import AnalyticsApp from './analytics/App.svelte';
   import AuthApp from './auth/App.svelte';
   import CalendarApp from './calendar/App.svelte';
+  import ProjectsApp from './projects/App.svelte';
+  import ProfileApp from './profile/App.svelte';
   import DrawApp from './draw/App.svelte';
   import DocsApp from './docs/App.svelte';
   import DriveApp from './drive/App.svelte';
@@ -27,6 +29,8 @@
     analytics: { component: AnalyticsApp, path: '/analytics/' },
     auth: { component: AuthApp, path: '/auth/' },
     calendar: { component: CalendarApp, path: '/calendar/' },
+    projects: { component: ProjectsApp, path: '/projects/' },
+    profile: { component: ProfileApp, path: '/profile/' },
     docs: { component: DocsApp, path: '/docs/' },
     draw: { component: DrawApp, path: '/draw/' },
     drive: { component: DriveApp, path: '/drive/' },
@@ -67,25 +71,26 @@
 
   // FIX (bug: 404 intermitente ao "voltar"):
   // O home tem o SEU PRÓPRIO router interno (BASE '/home/', com
-  // VALID_ROUTES ['templates','tools']) — quando o utilizador muda de
-  // tab dentro do home, a URL passa a ser '/home/templates/' ou
-  // '/home/tools/' (pushState feito pelo router do PRÓPRIO home, sem o
-  // App.svelte raiz saber disso, porque pushState não dispara popstate).
+  // VALID_ROUTES ['projects','templates','tools']) — quando o
+  // utilizador muda de tab dentro do home, a URL passa a ser
+  // '/home/projects/', '/home/templates/' ou '/home/tools/' (pushState
+  // feito pelo router do PRÓPRIO home, sem o App.svelte raiz saber
+  // disso, porque pushState não dispara popstate).
   //
   // Isto sozinho não causava problema — até o utilizador abrir outra
-  // app a partir daí e depois carregar em "voltar": o browser recua
-  // para essa entrada '/home/templates/' ou '/home/tools/', o onPopState
-  // do raiz corre pathToAppId() sobre ela, e ANTES desta correção
-  // isHomePath() só reconhecia o path EXATO '/home/' ou '/home' —
-  // qualquer sub-rota caía no 'seg' não encontrado em APP_IDS (que
-  // nunca inclui 'home', de propósito, ver comentário acima) e devolvia
-  // 'notfound', disparando window.location.replace('/404/') — um reload
-  // inteiro da página.
+  // app a partir daí (ex.: tocar no avatar estando na tab Projetos) e
+  // depois carregar em "voltar": o browser recua para essa entrada
+  // '/home/projects/', o onPopState do raiz corre pathToAppId() sobre
+  // ela, e ANTES desta correção isHomePath() só reconhecia o path
+  // EXATO '/home/' ou '/home' — qualquer sub-rota caía no 'seg' não
+  // encontrado em APP_IDS (que nunca inclui 'home', de propósito, ver
+  // comentário acima) e devolvia 'notfound', disparando
+  // window.location.replace('/404/') — um reload inteiro da página.
   //
   // Isto explica por que o 404 era "às vezes": só acontecia quando a
-  // tab ativa do home, no momento de abrir outra app, não era a inicial
-  // ('create'). Agora isHomePath() reconhece QUALQUER path que comece
-  // por '/home/' (ou seja exatamente '/home', sem barra) como
+  // tab ativa do home, no momento de abrir outra app, não era a
+  // inicial ('create'). Agora isHomePath() reconhece QUALQUER path que
+  // comece por '/home/' (ou seja exatamente '/home', sem barra) como
   // pertencendo ao home — exatamente o mesmo tratamento por PREFIXO já
   // usado abaixo para '/404' e '/auth', só que antes faltava aqui.
   function isHomePath(pathname) {

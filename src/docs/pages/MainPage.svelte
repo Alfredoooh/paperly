@@ -384,18 +384,12 @@
   let kbOffset = 0;
   let kbUpdateRaf = null;
   let rootEl;
-  let fixedRootHeight = 0;
+  let vvRef = null;
 
-  function applyFixedHeight() {
-    const vv = window.visualViewport;
-    const h = vv ? vv.height : window.innerHeight;
-    fixedRootHeight = Math.round(h);
-    document.documentElement.style.setProperty('--app-vh', fixedRootHeight + 'px');
-  }
   function computeKbOffset() {
     const vv = window.visualViewport;
     if (!vv) { kbOffset = 0; return; }
-    const overlap = fixedRootHeight - (vv.height + vv.offsetTop);
+    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
   }
   function scheduleKbUpdate() {
@@ -403,23 +397,14 @@
     kbUpdateRaf = requestAnimationFrame(computeKbOffset);
   }
 
-  let vvRef = null;
-  let orientationTimeout;
-
-  function handleOrientationChange() {
-    clearTimeout(orientationTimeout);
-    orientationTimeout = setTimeout(applyFixedHeight, 300);
-  }
-
   function setupKeyboardAvoidance() {
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      applyFixedHeight();
+    requestAnimationFrame(() => {
+      computeKbOffset();
       vvRef = window.visualViewport;
       if (!vvRef) return;
       vvRef.addEventListener('resize', scheduleKbUpdate);
       vvRef.addEventListener('scroll', scheduleKbUpdate);
-    }));
-    window.addEventListener('orientationchange', handleOrientationChange);
+    });
   }
 
   // activePageIndex/totalPages continuam a existir (o DocPage ainda
@@ -483,9 +468,7 @@
       vvRef.removeEventListener('resize', scheduleKbUpdate);
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
-    window.removeEventListener('orientationchange', handleOrientationChange);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
-    clearTimeout(orientationTimeout);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();
@@ -702,12 +685,13 @@
   .root {
     position: fixed;
     left: 0; right: 0; top: 0;
-    height: var(--app-vh, 100dvh);
+    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     contain: layout style paint;
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+    overscroll-behavior: none;
   }
 
   /* APPBAR: fica fora da root para não sofrer com transform/zoom
@@ -719,9 +703,10 @@
     position: fixed;
     left: 0; right: 0; top: 0;
     height: 100px;
-    z-index: 999;
+    z-index: 9999;
     contain: paint;
-    transform: translateZ(0);
+    transform: translate3d(0,0,0);
+    will-change: transform;
     pointer-events: auto;
   }
   .appbar-btn {

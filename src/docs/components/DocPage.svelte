@@ -659,6 +659,8 @@
     align-items: center;
     background: transparent;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    touch-action: pan-y;
   }
   .pages-stack {
     display: flex;
@@ -689,6 +691,9 @@
     overflow-wrap: break-word;
     position: relative;
     z-index: 1;
+    scroll-margin-top: 120px;
+    -webkit-user-select: text;
+    user-select: text;
   }
   .conteudo :global(p) {
     margin: 0;

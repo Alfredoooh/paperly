@@ -43,11 +43,9 @@
 
   function clampPan() {
     if (!containerEl) return;
-
     const rect = containerEl.getBoundingClientRect();
     const maxOffsetX = rect.width * 0.5 * (scale - 1) + rect.width * 0.15;
     const maxOffsetY = rect.height * 0.5 * (scale - 1) + rect.height * 0.15;
-
     panX = Math.min(maxOffsetX, Math.max(-maxOffsetX, panX));
     panY = Math.min(maxOffsetY, Math.max(-maxOffsetY, panY));
   }

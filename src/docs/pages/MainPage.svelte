@@ -68,8 +68,6 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
-  onMount(() => { setupKeyboardAvoidance(); });
-
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
   function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
   function focusEditor() { docPageComp && docPageComp.focusEditor(); }
@@ -381,32 +379,6 @@
     else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
   }
 
-  let kbOffset = 0;
-  let kbUpdateRaf = null;
-  let rootEl;
-  let vvRef = null;
-
-  function computeKbOffset() {
-    const vv = window.visualViewport;
-    if (!vv) { kbOffset = 0; return; }
-    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
-    kbOffset = overlap > 40 ? Math.round(overlap) : 0;
-  }
-  function scheduleKbUpdate() {
-    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
-    kbUpdateRaf = requestAnimationFrame(computeKbOffset);
-  }
-
-  function setupKeyboardAvoidance() {
-    requestAnimationFrame(() => {
-      computeKbOffset();
-      vvRef = window.visualViewport;
-      if (!vvRef) return;
-      vvRef.addEventListener('resize', scheduleKbUpdate);
-      vvRef.addEventListener('scroll', scheduleKbUpdate);
-    });
-  }
-
   // activePageIndex/totalPages continuam a existir (o DocPage ainda
   // os expõe e usa-os internamente para saber onde inserir imagem/
   // tabela), mas os botões de navegação por página saíram do appbar —
@@ -464,11 +436,6 @@
   $: mainTransformStyle = `transform: translate3d(${mainRecoilTranslate}%, 0, 0) scale(${mainRecoilScale});`;
 
   onDestroy(() => {
-    if (vvRef) {
-      vvRef.removeEventListener('resize', scheduleKbUpdate);
-      vvRef.removeEventListener('scroll', scheduleKbUpdate);
-    }
-    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();
@@ -558,7 +525,6 @@
 
 <div
   class="root"
-  bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
   <div class="canvas-area" style="background:{c.docCanvasBg}">
@@ -588,7 +554,6 @@
     {activePanel}
     {canUndo}
     {canRedo}
-    {kbOffset}
     visible={isEditing}
     on:action={(e) => handleToolbarAction(e.detail)}
   />

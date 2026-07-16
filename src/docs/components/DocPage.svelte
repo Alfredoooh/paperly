@@ -172,15 +172,6 @@
       const selecao = window.getSelection();
       selecao.removeAllRanges();
       selecao.addRange(range);
-
-      const elementoBase = posicao.startContainer.nodeType === 3
-        ? posicao.startContainer.parentElement
-        : posicao.startContainer;
-      const conteudoPai = elementoBase.closest('.conteudo');
-      if (conteudoPai) {
-        try { conteudoPai.focus({ preventScroll: true }); }
-        catch (e) { conteudoPai.focus(); }
-      }
     } catch (erro) {}
   }
 
@@ -691,7 +682,6 @@
     overflow-wrap: break-word;
     position: relative;
     z-index: 1;
-    scroll-margin-top: 120px;
     -webkit-user-select: text;
     user-select: text;
   }
@@ -795,7 +785,6 @@
   overflow-wrap: break-word;
   position: relative;
   z-index: 1;
-  scroll-margin-top: 120px;
   -webkit-user-select: text;
   user-select: text;
   touch-action: manipulation;

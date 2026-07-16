@@ -1,4 +1,5 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { createEventDispatcher } from 'svelte';
   
   export let c;
@@ -9,6 +10,43 @@
   export let visible = false;
   
   const dispatch = createEventDispatcher();
+
+  let internalKbOffset = 0;
+  let rafId = null;
+  let vvRef = null;
+
+  function computeKbOffset() {
+    const vv = window.visualViewport;
+    if (!vv) {
+      internalKbOffset = 0;
+      return;
+    }
+    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
+    internalKbOffset = overlap > 40 ? Math.round(overlap) : 0;
+  }
+
+  function scheduleKbUpdate() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(computeKbOffset);
+  }
+
+  onMount(() => {
+    requestAnimationFrame(() => {
+      computeKbOffset();
+      vvRef = window.visualViewport;
+      if (!vvRef) return;
+      vvRef.addEventListener('resize', scheduleKbUpdate);
+      vvRef.addEventListener('scroll', scheduleKbUpdate);
+    });
+  });
+
+  onDestroy(() => {
+    if (vvRef) {
+      vvRef.removeEventListener('resize', scheduleKbUpdate);
+      vvRef.removeEventListener('scroll', scheduleKbUpdate);
+    }
+    if (rafId) cancelAnimationFrame(rafId);
+  });
   
   const GROUPS = [
     [
@@ -55,14 +93,8 @@
 <div
   class="tb-wrap"
   class:tb-hidden={!visible}
-  style="transform: translate3d(0, {visible ? -kbOffset : 40}px, 0);"
+  style="transform: translate3d(0, {visible ? -(Math.max(kbOffset, internalKbOffset)) : 40}px, 0);"
 >
-  <!--
-    A pill de formatação encolheu (padding menor, gap menor) para
-    abrir espaço ao FAB de concluir edição, que agora fica FORA da
-    pill, à direita, como um círculo próprio — é para lá que foi o
-    botão de check que antes vivia no appbar.
-  -->
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
@@ -109,9 +141,6 @@
     opacity: 0;
     pointer-events: none;
   }
-  /* Pill encurtada: padding e gap reduzidos, e agora tem um max-width
-     próprio (em vez de ocupar toda a largura livre) para deixar
-     espaço fixo e reservado ao FAB ao lado. */
   .tb-pill {
     pointer-events: auto;
     display: flex; align-items: center; gap: 1px;
@@ -137,8 +166,6 @@
   .tb-active { background: rgba(47,123,246,0.16); }
   .tb-divider { width: 1px; height: 18px; margin: 0 3px; flex-shrink: 0; }
 
-  /* FAB circular de concluir edição — fora da pill, sempre visível,
-     nunca faz parte do scroll horizontal dos ícones de formatação. */
   .tb-fab {
     pointer-events: auto;
     width: 46px; height: 46px; border: none; border-radius: 50%;

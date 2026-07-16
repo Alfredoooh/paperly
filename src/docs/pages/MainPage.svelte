@@ -588,18 +588,18 @@
 
   <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
-      bind:this={docPageComp}
-      {initialContent}
-      {footnotes}
-      bind:activePageIndex
-      on:ready={handleDocReady}
-      on:input={handleInput}
-      on:keydown={(e) => handleKeydown(e.detail)}
-      on:removefootnote={(e) => removeFootnote(e.detail)}
-      on:imagerequestedit={handleImageRequestEdit}
-      on:pagefocus={handlePageFocusFromChild}
-      on:totalpages={(e) => { totalPages = e.detail; }}
-    />
+  bind:this={docPageComp}
+  {initialContent}
+  {footnotes}
+  bind:activePageIndex
+  bind:totalPages
+  on:ready={handleDocReady}
+  on:input={handleInput}
+  on:keydown={(e) => handleKeydown(e.detail)}
+  on:removefootnote={(e) => removeFootnote(e.detail)}
+  on:imagerequestedit={handleImageRequestEdit}
+  on:pagefocus={handlePageFocusFromChild}
+/>
   </div>
 
   <CreationToolsBar

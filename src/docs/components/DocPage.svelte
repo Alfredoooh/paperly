@@ -5,30 +5,10 @@
 
   export let initialContent = '';
   export let footnotes = [];
-  export let activePageIndex = 0; // controlado pelo pai via botões prev/next no appbar
+  export let activePageIndex = 0; // ainda existe (usado p/ saber onde inserir imagem/tabela)
+  export let totalPages = 1; // NOVO: bindable, espelha folhas.length para o pai
 
   const dispatch = createEventDispatcher();
-
-  // ══════════════════════════════════════════════════════════════════
-  //  MOTOR DE PAGINAÇÃO — inalterado. A navegação entre páginas passou
-  //  a ser por botões (prev/next no appbar), mas isso NUNCA exigiu
-  //  remover o PinchZoom: o pan de 1 dedo dele só age quando scale >
-  //  minScale (já em zoom), então não competia com nada. Erro meu na
-  //  resposta anterior ter tirado — devolvido tal como estava.
-  //
-  //  O bug real de "parou de criar folhas" era outro: as folhas
-  //  não-ativas estavam com display:none, e um elemento display:none
-  //  tem clientHeight/scrollHeight = 0 (o browser não calcula layout
-  //  para ele). O motor de empurrar overflow compara scrollHeight >
-  //  clientHeight — com os dois em 0 essa comparação nunca é verdadeira,
-  //  então o texto nunca transbordava para a próxima página.
-  //
-  //  Correção: folhas não-ativas usam visibility:hidden + saem do
-  //  fluxo via position:absolute + deslocadas para fora da área visível.
-  //  Isso mantém layout real (clientHeight/scrollHeight corretos, o
-  //  motor volta a funcionar) sem aparecer na tela nem ocupar espaço
-  //  na pilha visual.
-  // ══════════════════════════════════════════════════════════════════
 
   const PAGE_W = 794;
   const PAGE_H = 1123;
@@ -50,6 +30,13 @@
   let folhas = [{ id: 0 }];
   let contentEls = [];
   let nextFolhaId = 1;
+
+  // Mantém o pai (MainPage) sempre informado de quantas folhas
+  // realmente existem — isto é o que faltava antes: os botões de
+  // página no appbar comparavam contra um totalPages que nunca era
+  // atualizado, então ficavam presos em "1/1" mesmo com 5 páginas
+  // de texto já criadas por trás.
+  $: totalPages = folhas.length;
 
   function criarFolha() {
     const id = nextFolhaId++;
@@ -574,22 +561,20 @@
   });
 </script>
 
+<!--
+  Voltou ao esquema empilhado original: TODAS as folhas ficam
+  visíveis dentro de .pages-stack, com scroll vertical contínuo
+  controlado por .canvas-scroll (overflow-y:auto) + PinchZoom para
+  zoom de dois dedos / pan quando ampliado. Isto é exatamente como
+  era desde o início — sem display:none nem visibility:hidden por
+  folha, porque isso nunca foi necessário para nada.
+-->
 <div class="canvas-scroll" bind:this={containerEl}>
   <PinchZoom bind:scale={pinchScale} minScale={1} maxScale={4} on:zoomchange>
     <div class="pages-stack" bind:this={stackEl} style="transform: scale({fitScale}); transform-origin: top center;">
       {#each folhas as folha, i (folha.id)}
-        <!--
-          Folhas não-ativas: visibility:hidden + position:absolute
-          fora da área visível (top:-99999px). Isto MANTÉM o layout
-          real calculado pelo browser (clientHeight/scrollHeight
-          corretos), ao contrário de display:none — é exatamente por
-          isso que o motor de paginação volta a funcionar. A folha
-          ativa usa position:relative normal, dentro do fluxo da
-          pilha, para ocupar o espaço visível de sempre.
-        -->
         <div
           class="page-a4"
-          class:page-active={i === activePageIndex}
           style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px;"
         >
           <div
@@ -607,7 +592,8 @@
             aria-label="Conteúdo do documento"
           ></div>
 
-          <!-- Camada de objetos flutuantes (imagens em canvas livre) -->
+          <!-- Camada de objetos flutuantes (imagens em canvas livre),
+               fora do contenteditable — nunca interfere com o cursor. -->
           {#if floatingObjects[i]}
             {#each floatingObjects[i] as obj (obj.id)}
               <div
@@ -682,19 +668,8 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    position: absolute;
-    top: -99999px;
-    left: -99999px;
-    visibility: hidden;
-    overflow: hidden;
-  }
-  /* Folha ativa: sai do "limbo" e volta ao fluxo normal da pilha
-     visual, ocupando o espaço real na tela. */
-  .page-a4.page-active {
     position: relative;
-    top: 0;
-    left: 0;
-    visibility: visible;
+    overflow: hidden;
   }
   .conteudo {
     flex: 1;

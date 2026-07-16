@@ -1,12 +1,34 @@
 <script>
+  import PinchZoom from '../widgets/PinchZoom.svelte';
   import { onMount, onDestroy, tick } from 'svelte';
   import { createEventDispatcher } from 'svelte';
 
   export let initialContent = '';
   export let footnotes = [];
-  export let activePageIndex = 0;
+  export let activePageIndex = 0; // controlado pelo pai via botões prev/next no appbar
 
   const dispatch = createEventDispatcher();
+
+  // ══════════════════════════════════════════════════════════════════
+  //  MOTOR DE PAGINAÇÃO — inalterado. A navegação entre páginas passou
+  //  a ser por botões (prev/next no appbar), mas isso NUNCA exigiu
+  //  remover o PinchZoom: o pan de 1 dedo dele só age quando scale >
+  //  minScale (já em zoom), então não competia com nada. Erro meu na
+  //  resposta anterior ter tirado — devolvido tal como estava.
+  //
+  //  O bug real de "parou de criar folhas" era outro: as folhas
+  //  não-ativas estavam com display:none, e um elemento display:none
+  //  tem clientHeight/scrollHeight = 0 (o browser não calcula layout
+  //  para ele). O motor de empurrar overflow compara scrollHeight >
+  //  clientHeight — com os dois em 0 essa comparação nunca é verdadeira,
+  //  então o texto nunca transbordava para a próxima página.
+  //
+  //  Correção: folhas não-ativas usam visibility:hidden + saem do
+  //  fluxo via position:absolute + deslocadas para fora da área visível.
+  //  Isso mantém layout real (clientHeight/scrollHeight corretos, o
+  //  motor volta a funcionar) sem aparecer na tela nem ocupar espaço
+  //  na pilha visual.
+  // ══════════════════════════════════════════════════════════════════
 
   const PAGE_W = 794;
   const PAGE_H = 1123;
@@ -16,6 +38,7 @@
   let containerEl;
   let stackEl;
   let fitScale = 1;
+  let pinchScale = 1;
 
   function ajustarZoom() {
     if (!containerEl) return;
@@ -59,7 +82,9 @@
   }
 
   async function obterOuCriarProximaPagina(idxAtual) {
-    if (idxAtual + 1 < folhas.length) return idxAtual + 1;
+    if (idxAtual + 1 < folhas.length) {
+      return idxAtual + 1;
+    }
     criarFolha();
     await tick();
     return idxAtual + 1;
@@ -102,6 +127,7 @@
 
     while (proximaConteudo.firstElementChild && guarda < 500) {
       const candidato = proximaConteudo.firstElementChild;
+
       conteudo.appendChild(candidato);
       const causaOverflow = conteudo.scrollHeight > conteudo.clientHeight + 1;
 
@@ -115,6 +141,7 @@
       } else {
         puxouAlgo = true;
       }
+
       guarda++;
     }
 
@@ -150,6 +177,7 @@
   function restaurarSelecao(posicao) {
     if (!posicao) return;
     if (!document.contains(posicao.startContainer)) return;
+
     try {
       const range = document.createRange();
       range.setStart(posicao.startContainer, posicao.startOffset);
@@ -157,6 +185,7 @@
       const selecao = window.getSelection();
       selecao.removeAllRanges();
       selecao.addRange(range);
+
       const elementoBase = posicao.startContainer.nodeType === 3
         ? posicao.startContainer.parentElement
         : posicao.startContainer;
@@ -201,7 +230,6 @@
     await removerPaginasVaziasNoFim();
     restaurarSelecao(posicaoSelecao);
 
-    dispatch('totalpages', folhas.length);
     isRebalancing = false;
   }
 
@@ -323,11 +351,19 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  IMAGENS EM CANVAS LIVRE
+  //  IMAGENS EM CANVAS LIVRE (estilo Canva) — cada imagem inserida
+  //  vira um objeto flutuante independente do fluxo de texto, com
+  //  posição (x,y), tamanho (w,h) e ângulo (deg) próprios, guardado
+  //  por página em floatingObjects[pageIndex] = [ {id,x,y,w,h,deg,src} ].
+  //  O objeto vive como filho posicionado ABSOLUTAMENTE dentro de
+  //  .page-a4 (que é position:relative), FORA da div .conteudo — ou
+  //  seja, nunca entra no contenteditable, nunca é tocado pelo motor
+  //  de reequilíbrio de parágrafos, e nunca "pula" o cursor de texto.
   // ══════════════════════════════════════════════════════════════════
-  let floatingObjects = [[]];
+
+  let floatingObjects = [[]]; // um array por folha
   let nextFloatId = 1;
-  let selectedFloatId = null;
+  let selectedFloatId = null; // "pageIndex:objId"
 
   function ensureFloatingArrayFor(pageIndex) {
     while (floatingObjects.length <= pageIndex) {
@@ -350,14 +386,14 @@
         src: dataUrl,
         x: (PAGE_W - w) / 2,
         y: (PAGE_H - h) / 2,
-        w, h,
+        w,
+        h,
         deg: 0,
-        z: 'front',
+        z: 'front', // 'front' | 'behind'
       };
       floatingObjects[pageIndex] = [...floatingObjects[pageIndex], obj];
       floatingObjects = floatingObjects;
-      // seleciona sem abrir modal — gestos tratam tudo
-      selectedFloatId = `${pageIndex}:${id}`;
+      selectFloat(pageIndex, id);
       dispatch('input');
     };
     img.src = dataUrl;
@@ -365,23 +401,18 @@
 
   function selectFloat(pageIndex, objId) {
     selectedFloatId = `${pageIndex}:${objId}`;
-    // dispatch removido — sem modal, sem imagerequestedit automático
-    // O MainPage abre o LayersModal se o utilizador tocar numa imagem
-    // já selecionada (segundo toque)
+    const obj = floatingObjects[pageIndex]?.find(o => o.id === objId);
+    if (obj) {
+      dispatch('imagerequestedit', {
+        pageIndex,
+        objId,
+        state: { width: Math.round(obj.w), height: Math.round(obj.h), rotation: obj.deg, wrap: obj.z },
+      });
+    }
   }
 
   export function deselectFloat() {
     selectedFloatId = null;
-  }
-
-  // Novo: para o LayersModal selecionar uma camada pelo id
-  export function selectFloatById(pageIndex, objId) {
-    selectedFloatId = `${pageIndex}:${objId}`;
-  }
-
-  // Novo: para o MainPage listar as imagens da folha atual
-  export function getFloatingObjectsForPage(pageIndex) {
-    return floatingObjects[pageIndex] || [];
   }
 
   export async function applyImageOptions(target, opts) {
@@ -391,12 +422,14 @@
     if (!list) return;
     const obj = list.find(o => o.id === objId);
     if (!obj) return;
+
     if (typeof opts.width === 'number') {
       const ratio = obj.h / obj.w;
       obj.w = opts.width;
       obj.h = opts.width * ratio;
     }
     if (opts.wrap) obj.z = opts.wrap;
+
     floatingObjects[pageIndex] = [...list];
     floatingObjects = floatingObjects;
     dispatch('input');
@@ -413,7 +446,7 @@
     dispatch('input');
   }
 
-  // ── Arrastar / redimensionar / rodar por gesto direto ──
+  // ── Arrastar / redimensionar / rodar por gesto direto no objeto ──
   let gesture = null;
 
   function pointerXY(e) {
@@ -455,7 +488,7 @@
     const pageEl = getConteudoEl(pageIndex)?.closest('.page-a4');
     if (!pageEl) return;
     const rect = pageEl.getBoundingClientRect();
-    const scaleFactor = fitScale || 1;
+    const scaleFactor = (fitScale || 1) * (pinchScale || 1);
     const centerX = rect.left + (obj.x + obj.w / 2) * scaleFactor;
     const centerY = rect.top + (obj.y + obj.h / 2) * scaleFactor;
     const p = pointerXY(e);
@@ -473,7 +506,7 @@
     const list = floatingObjects[gesture.pageIndex];
     const obj = list?.find(o => o.id === gesture.objId);
     if (!obj) return;
-    const scaleFactor = fitScale || 1;
+    const scaleFactor = (fitScale || 1) * (pinchScale || 1);
 
     if (gesture.mode === 'move') {
       const dx = (p.x - gesture.startX) / scaleFactor;
@@ -510,10 +543,6 @@
     }
   }
 
-  export function currentTargetFor(pageIndex, objId) {
-    return { pageIndex, objId };
-  }
-
   onMount(async () => {
     ajustarZoom();
     window.addEventListener('resize', ajustarZoom);
@@ -534,7 +563,6 @@
     window.addEventListener('touchmove', onGestureMove, { passive: false });
     window.addEventListener('touchend', onGestureEnd);
   });
-
   onDestroy(() => {
     window.removeEventListener('resize', ajustarZoom);
     window.removeEventListener('orientationchange', ajustarZoom);
@@ -546,79 +574,84 @@
   });
 </script>
 
-<!--
-  SEM PinchZoom: o zoom de dois dedos foi removido de propósito porque
-  colidia com o scroll/gestos das folhas. A navegação entre páginas
-  agora é 100% por botões (prev/next no appbar do MainPage), então
-  aqui só existe display:flex/display:none por folha — determinístico,
-  sem gestos, sem conflito de touch-action.
--->
 <div class="canvas-scroll" bind:this={containerEl}>
-  <div class="pages-stack" bind:this={stackEl}>
-    {#each folhas as folha, i (folha.id)}
-      <div
-        class="page-a4"
-        class:page-active={i === activePageIndex}
-        style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px; transform: scale({fitScale}); display:{i === activePageIndex ? 'flex' : 'none'};"
-      >
+  <PinchZoom bind:scale={pinchScale} minScale={1} maxScale={4} on:zoomchange>
+    <div class="pages-stack" bind:this={stackEl} style="transform: scale({fitScale}); transform-origin: top center;">
+      {#each folhas as folha, i (folha.id)}
+        <!--
+          Folhas não-ativas: visibility:hidden + position:absolute
+          fora da área visível (top:-99999px). Isto MANTÉM o layout
+          real calculado pelo browser (clientHeight/scrollHeight
+          corretos), ao contrário de display:none — é exatamente por
+          isso que o motor de paginação volta a funcionar. A folha
+          ativa usa position:relative normal, dentro do fluxo da
+          pilha, para ocupar o espaço visível de sempre.
+        -->
         <div
-          class="conteudo"
-          contenteditable="true"
-          bind:this={contentEls[i]}
-          on:input={handleInput}
-          on:keydown={handleKeydown}
-          on:paste={aoColar}
-          on:focus={() => handleFocusPagina(i)}
-          on:pointerdown={() => onPageBackgroundTap(i)}
-          spellcheck="true"
-          role="textbox"
-          aria-multiline="true"
-          aria-label="Conteúdo do documento"
-        ></div>
+          class="page-a4"
+          class:page-active={i === activePageIndex}
+          style="width:{PAGE_W}px; height:{PAGE_H}px; padding:{PAGE_PAD_Y}px {PAGE_PAD_X}px;"
+        >
+          <div
+            class="conteudo"
+            contenteditable="true"
+            bind:this={contentEls[i]}
+            on:input={handleInput}
+            on:keydown={handleKeydown}
+            on:paste={aoColar}
+            on:focus={() => handleFocusPagina(i)}
+            on:pointerdown={() => onPageBackgroundTap(i)}
+            spellcheck="true"
+            role="textbox"
+            aria-multiline="true"
+            aria-label="Conteúdo do documento"
+          ></div>
 
-        {#if floatingObjects[i]}
-          {#each floatingObjects[i] as obj (obj.id)}
-            <div
-              class="float-obj"
-              class:float-behind={obj.z === 'behind'}
-              class:float-selected={selectedFloatId === `${i}:${obj.id}`}
-              style="left:{obj.x}px; top:{obj.y}px; width:{obj.w}px; height:{obj.h}px; transform: rotate({obj.deg}deg);"
-              on:pointerdown={(e) => startMove(e, i, obj.id)}
-              on:touchstart={(e) => startMove(e, i, obj.id)}
-            >
-              <img src={obj.src} draggable="false" alt="" class="float-img" />
-              {#if selectedFloatId === `${i}:${obj.id}`}
-                <div class="float-handle float-handle-resize"
-                  on:pointerdown={(e) => startResize(e, i, obj.id)}
-                  on:touchstart={(e) => startResize(e, i, obj.id)}
-                ></div>
-                <div class="float-rotate-line"></div>
-                <div class="float-handle float-handle-rotate"
-                  on:pointerdown={(e) => startRotate(e, i, obj.id)}
-                  on:touchstart={(e) => startRotate(e, i, obj.id)}
-                ></div>
-              {/if}
-            </div>
-          {/each}
-        {/if}
-
-        <div class="page-number">{i + 1}</div>
-
-        {#if i === folhas.length - 1 && footnotes.length > 0}
-          <div class="footnotes-block">
-            <div class="footnotes-divider"></div>
-            {#each footnotes as fn (fn.id)}
-              <div class="footnote-line">
-                <span class="footnote-num">{fn.num}.</span>
-                <span class="footnote-text">{fn.text}</span>
-                <button class="footnote-remove" on:click={() => dispatch('removefootnote', fn.id)} aria-label="Remover nota">×</button>
+          <!-- Camada de objetos flutuantes (imagens em canvas livre) -->
+          {#if floatingObjects[i]}
+            {#each floatingObjects[i] as obj (obj.id)}
+              <div
+                class="float-obj"
+                class:float-behind={obj.z === 'behind'}
+                class:float-selected={selectedFloatId === `${i}:${obj.id}`}
+                style="left:{obj.x}px; top:{obj.y}px; width:{obj.w}px; height:{obj.h}px; transform: rotate({obj.deg}deg);"
+                on:pointerdown={(e) => startMove(e, i, obj.id)}
+                on:touchstart={(e) => startMove(e, i, obj.id)}
+              >
+                <img src={obj.src} draggable="false" alt="" class="float-img" />
+                {#if selectedFloatId === `${i}:${obj.id}`}
+                  <div class="float-handle float-handle-resize"
+                    on:pointerdown={(e) => startResize(e, i, obj.id)}
+                    on:touchstart={(e) => startResize(e, i, obj.id)}
+                  ></div>
+                  <div class="float-rotate-line"></div>
+                  <div class="float-handle float-handle-rotate"
+                    on:pointerdown={(e) => startRotate(e, i, obj.id)}
+                    on:touchstart={(e) => startRotate(e, i, obj.id)}
+                  ></div>
+                {/if}
               </div>
             {/each}
-          </div>
-        {/if}
-      </div>
-    {/each}
-  </div>
+          {/if}
+
+          <div class="page-number">{i + 1}</div>
+
+          {#if i === folhas.length - 1 && footnotes.length > 0}
+            <div class="footnotes-block">
+              <div class="footnotes-divider"></div>
+              {#each footnotes as fn (fn.id)}
+                <div class="footnote-line">
+                  <span class="footnote-num">{fn.num}.</span>
+                  <span class="footnote-text">{fn.text}</span>
+                  <button class="footnote-remove" on:click={() => dispatch('removefootnote', fn.id)} aria-label="Remover nota">×</button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  </PinchZoom>
 </div>
 
 <style>
@@ -626,28 +659,42 @@
     position: relative;
     flex: 1;
     width: 100%;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px 0 120px;
     display: flex;
     flex-direction: column;
     align-items: center;
     background: transparent;
+    -webkit-overflow-scrolling: touch;
   }
   .pages-stack {
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 28px;
   }
   .page-a4 {
     background: #FFFFFF;
     border-radius: 2px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.16);
     box-sizing: border-box;
+    display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    position: relative;
+    position: absolute;
+    top: -99999px;
+    left: -99999px;
+    visibility: hidden;
     overflow: hidden;
-    transform-origin: top center;
+  }
+  /* Folha ativa: sai do "limbo" e volta ao fluxo normal da pilha
+     visual, ocupando o espaço real na tela. */
+  .page-a4.page-active {
+    position: relative;
+    top: 0;
+    left: 0;
+    visibility: visible;
   }
   .conteudo {
     flex: 1;
@@ -662,13 +709,16 @@
     position: relative;
     z-index: 1;
   }
-  .conteudo :global(p) { margin: 0; }
+  .conteudo :global(p) {
+    margin: 0;
+  }
   .page-number {
     position: absolute; bottom: 14px; right: 0; left: 0;
     text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
     z-index: 1;
   }
 
+  /* ── Objetos flutuantes (canvas livre) ───────────────────────── */
   .float-obj {
     position: absolute;
     cursor: grab;
@@ -677,12 +727,19 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  .float-obj.float-behind { z-index: 0; }
-  .float-obj:active { cursor: grabbing; }
+  .float-obj.float-behind {
+    z-index: 0;
+  }
+  .float-obj:active {
+    cursor: grabbing;
+  }
   .float-img {
-    width: 100%; height: 100%;
-    display: block; object-fit: fill;
-    pointer-events: none; border-radius: 2px;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: fill;
+    pointer-events: none;
+    border-radius: 2px;
   }
   .float-obj.float-selected {
     outline: 1.5px solid #2F7BF6;
@@ -690,7 +747,8 @@
   }
   .float-handle {
     position: absolute;
-    width: 16px; height: 16px;
+    width: 16px;
+    height: 16px;
     background: #2F7BF6;
     border: 2px solid #fff;
     border-radius: 50%;
@@ -698,18 +756,22 @@
     touch-action: none;
   }
   .float-handle-resize {
-    right: -8px; bottom: -8px;
+    right: -8px;
+    bottom: -8px;
     cursor: nwse-resize;
   }
   .float-rotate-line {
     position: absolute;
-    left: 50%; top: -28px;
-    width: 1.5px; height: 26px;
+    left: 50%;
+    top: -28px;
+    width: 1.5px;
+    height: 26px;
     background: #2F7BF6;
     transform: translateX(-50%);
   }
   .float-handle-rotate {
-    left: 50%; top: -36px;
+    left: 50%;
+    top: -36px;
     transform: translateX(-50%);
     cursor: grab;
   }

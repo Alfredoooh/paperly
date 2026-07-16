@@ -253,7 +253,45 @@
   function handleKeydown(e) {
     dispatch('keydown', e);
   }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  FIX (appbar saltando/sumindo no 2º toque no texto):
+  //  Ao tocar diretamente num .conteudo (foco NATIVO do browser, não
+  //  via focusEditor() programático), o motor do WebView corre o seu
+  //  próprio scroll-into-view para trazer o ponto do cursor para uma
+  //  posição "visível" acima do teclado. Com windowSoftInputMode=
+  //  adjustNothing no HomeActivity, é a página quem faz esse scroll
+  //  sozinha — e nalguns WebViews Android esse scroll automático,
+  //  ocorrendo com elementos position:fixed na árvore (a appbar), faz
+  //  o compositor desalinhar o fixed momentaneamente, lendo-se como o
+  //  appbar "subindo e desaparecendo".
+  //
+  //  focusEditor() já usava { preventScroll:true }, mas isso só cobre
+  //  chamadas programáticas a .focus() — não cobre o toque direto do
+  //  utilizador, que é um foco nativo do browser. Por isso este
+  //  handler de 'focus' captura a posição de scroll do container
+  //  (.canvas-scroll) IMEDIATAMENTE antes do motor poder mexer nela,
+  //  e reimpõe essa posição em dois frames seguintes — o suficiente
+  //  para cobrir tanto o scroll síncrono quanto o assíncrono que
+  //  alguns motores fazem um frame depois do foco.
+  // ══════════════════════════════════════════════════════════════════
+  function travarScrollNoFoco() {
+    if (!containerEl) return;
+    const scrollTravado = containerEl.scrollTop;
+    requestAnimationFrame(() => {
+      if (containerEl && containerEl.scrollTop !== scrollTravado) {
+        containerEl.scrollTop = scrollTravado;
+      }
+      requestAnimationFrame(() => {
+        if (containerEl && containerEl.scrollTop !== scrollTravado) {
+          containerEl.scrollTop = scrollTravado;
+        }
+      });
+    });
+  }
+
   function handleFocusPagina(i) {
+    travarScrollNoFoco();
     if (activePageIndex !== i) activePageIndex = i;
     dispatch('pagefocus', i);
   }
@@ -340,67 +378,56 @@
       const conteudoPai = base && base.closest ? base.closest('.conteudo') : null;
       if (conteudoPai) return conteudoPai;
     }
-    return contentEls[activePageIndex] || contentEls[0];
+    return contentEls[activePageIndex] || null;
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  IMAGENS EM CANVAS LIVRE (estilo Canva) — cada imagem inserida
-  //  vira um objeto flutuante independente do fluxo de texto, com
-  //  posição (x,y), tamanho (w,h) e ângulo (deg) próprios, guardado
-  //  por página em floatingObjects[pageIndex] = [ {id,x,y,w,h,deg,src} ].
-  //  O objeto vive como filho posicionado ABSOLUTAMENTE dentro de
-  //  .page-a4 (que é position:relative), FORA da div .conteudo — ou
-  //  seja, nunca entra no contenteditable, nunca é tocado pelo motor
-  //  de reequilíbrio de parágrafos, e nunca "pula" o cursor de texto.
-  // ══════════════════════════════════════════════════════════════════
+  export function insertImageAtCursor(dataUrl) {
+    const el = getActiveContentEl();
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    document.execCommand('insertImage', false, dataUrl);
+    dispatch('input');
+    agendarReequilibrio();
+  }
 
-  let floatingObjects = [[]]; // um array por folha
-  let nextFloatId = 1;
-  let selectedFloatId = null; // "pageIndex:objId"
+  export function insertTable(rows, cols) {
+    const el = getActiveContentEl();
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
 
-  function ensureFloatingArrayFor(pageIndex) {
-    while (floatingObjects.length <= pageIndex) {
-      floatingObjects = [...floatingObjects, []];
+    let tableHtml = '<div class="doc-table-wrap"><table class="doc-table doc-table"><tbody>';
+    for (let r = 0; r < rows; r++) {
+      tableHtml += '<tr>';
+      for (let cIdx = 0; cIdx < cols; cIdx++) {
+        tableHtml += '<td><br></td>';
+      }
+      tableHtml += '</tr>';
     }
+    tableHtml += '</tbody></table></div><p><br></p>';
+
+    document.execCommand('insertHTML', false, tableHtml);
+    dispatch('input');
+    agendarReequilibrio();
   }
 
-  export async function insertImageAtCursor(dataUrl) {
-    const pageIndex = activePageIndex;
-    ensureFloatingArrayFor(pageIndex);
+  // ══════════════════════════════════════════════════════════════════
+  //  Objetos flutuantes (imagens em canvas livre) — gestos diretos:
+  //  pointerdown para mover, handles próprios para redimensionar e
+  //  rodar. Tudo fora do fluxo do contenteditable.
+  // ══════════════════════════════════════════════════════════════════
+  let floatingObjects = {};
+  let selectedFloatId = null;
+  let nextFloatId = 1;
 
-    const img = new Image();
-    img.onload = () => {
-      const naturalRatio = img.naturalWidth / img.naturalHeight || 1;
-      const w = Math.min(320, PAGE_W - PAGE_PAD_X * 2);
-      const h = w / naturalRatio;
-      const id = nextFloatId++;
-      const obj = {
-        id,
-        src: dataUrl,
-        x: (PAGE_W - w) / 2,
-        y: (PAGE_H - h) / 2,
-        w,
-        h,
-        deg: 0,
-        z: 'front', // 'front' | 'behind'
-      };
-      floatingObjects[pageIndex] = [...floatingObjects[pageIndex], obj];
-      floatingObjects = floatingObjects;
-      selectFloat(pageIndex, id);
-      dispatch('input');
-    };
-    img.src = dataUrl;
+  export function getFloatingObjectsForPage(pageIndex) {
+    return floatingObjects[pageIndex] || [];
   }
 
-  function selectFloat(pageIndex, objId) {
-    selectedFloatId = `${pageIndex}:${objId}`;
-    const obj = floatingObjects[pageIndex]?.find(o => o.id === objId);
-    if (obj) {
-      dispatch('imagerequestedit', {
-        pageIndex,
-        objId,
-        state: { width: Math.round(obj.w), height: Math.round(obj.h), rotation: obj.deg, wrap: obj.z },
-      });
+  function onPageBackgroundTap(pageIndex) {
+    if (selectedFloatId && selectedFloatId.startsWith(pageIndex + ':')) {
+      // clique fora de um objeto selecionado na mesma página: mantém
+      // seleção se o alvo do evento for o próprio objeto (tratado no
+      // startMove); aqui só chega para toques fora de qualquer objeto.
     }
   }
 
@@ -408,128 +435,105 @@
     selectedFloatId = null;
   }
 
-  export async function applyImageOptions(target, opts) {
-    if (!target) return;
-    const { pageIndex, objId } = target;
-    const list = floatingObjects[pageIndex];
-    if (!list) return;
-    const obj = list.find(o => o.id === objId);
-    if (!obj) return;
-
-    if (typeof opts.width === 'number') {
-      const ratio = obj.h / obj.w;
-      obj.w = opts.width;
-      obj.h = opts.width * ratio;
-    }
-    if (opts.wrap) obj.z = opts.wrap;
-
-    floatingObjects[pageIndex] = [...list];
-    floatingObjects = floatingObjects;
-    dispatch('input');
+  export function selectFloatById(pageIndex, objId) {
+    selectedFloatId = `${pageIndex}:${objId}`;
   }
 
-  export async function deleteImage(target) {
-    if (!target) return;
-    const { pageIndex, objId } = target;
-    const list = floatingObjects[pageIndex];
-    if (!list) return;
-    floatingObjects[pageIndex] = list.filter(o => o.id !== objId);
-    floatingObjects = floatingObjects;
-    selectedFloatId = null;
-    dispatch('input');
+  export function deleteImage({ pageIndex, objId }) {
+    const list = floatingObjects[pageIndex] || [];
+    floatingObjects = { ...floatingObjects, [pageIndex]: list.filter(o => o.id !== objId) };
+    if (selectedFloatId === `${pageIndex}:${objId}`) selectedFloatId = null;
   }
 
-  // ── Arrastar / redimensionar / rodar por gesto direto no objeto ──
-  let gesture = null;
-
-  function pointerXY(e) {
-    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    return { x: e.clientX, y: e.clientY };
-  }
+  let gestureState = null;
 
   function startMove(e, pageIndex, objId) {
     e.stopPropagation();
-    e.preventDefault();
-    selectFloat(pageIndex, objId);
-    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
-    const p = pointerXY(e);
-    gesture = {
-      mode: 'move', pageIndex, objId,
-      startX: p.x, startY: p.y,
-      startObjX: obj.x, startObjY: obj.y,
+    selectedFloatId = `${pageIndex}:${objId}`;
+    const obj = (floatingObjects[pageIndex] || []).find(o => o.id === objId);
+    if (!obj) return;
+    const point = e.touches ? e.touches[0] : e;
+    gestureState = {
+      type: 'move', pageIndex, objId,
+      startX: point.clientX, startY: point.clientY,
+      origX: obj.x, origY: obj.y,
     };
   }
 
   function startResize(e, pageIndex, objId) {
     e.stopPropagation();
-    e.preventDefault();
-    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
-    const p = pointerXY(e);
-    gesture = {
-      mode: 'resize', pageIndex, objId,
-      startX: p.x, startY: p.y,
-      startObjW: obj.w, startObjH: obj.h,
-      startObjX: obj.x, startObjY: obj.y,
-      aspectRatio: obj.w / obj.h,
+    const obj = (floatingObjects[pageIndex] || []).find(o => o.id === objId);
+    if (!obj) return;
+    const point = e.touches ? e.touches[0] : e;
+    gestureState = {
+      type: 'resize', pageIndex, objId,
+      startX: point.clientX, startY: point.clientY,
+      origW: obj.w, origH: obj.h,
     };
   }
 
   function startRotate(e, pageIndex, objId) {
     e.stopPropagation();
-    e.preventDefault();
-    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
-    const pageEl = getConteudoEl(pageIndex)?.closest('.page-a4');
-    if (!pageEl) return;
-    const rect = pageEl.getBoundingClientRect();
-    const scaleFactor = (fitScale || 1) * (pinchScale || 1);
-    const centerX = rect.left + (obj.x + obj.w / 2) * scaleFactor;
-    const centerY = rect.top + (obj.y + obj.h / 2) * scaleFactor;
-    const p = pointerXY(e);
-    const startAngle = Math.atan2(p.y - centerY, p.x - centerX) * (180 / Math.PI);
-    gesture = {
-      mode: 'rotate', pageIndex, objId,
-      centerX, centerY, startAngle,
-      startObjDeg: obj.deg,
+    const obj = (floatingObjects[pageIndex] || []).find(o => o.id === objId);
+    if (!obj) return;
+    const point = e.touches ? e.touches[0] : e;
+    gestureState = {
+      type: 'rotate', pageIndex, objId,
+      startX: point.clientX, startY: point.clientY,
+      origDeg: obj.deg,
+    };
+  }
+
+  function updateFloatObj(pageIndex, objId, patch) {
+    const list = floatingObjects[pageIndex] || [];
+    floatingObjects = {
+      ...floatingObjects,
+      [pageIndex]: list.map(o => o.id === objId ? { ...o, ...patch } : o),
     };
   }
 
   function onGestureMove(e) {
-    if (!gesture) return;
-    const p = pointerXY(e);
-    const list = floatingObjects[gesture.pageIndex];
-    const obj = list?.find(o => o.id === gesture.objId);
-    if (!obj) return;
-    const scaleFactor = (fitScale || 1) * (pinchScale || 1);
+    if (!gestureState) return;
+    const point = e.touches ? e.touches[0] : e;
+    if (e.touches) e.preventDefault();
+    const dx = (point.clientX - gestureState.startX) / (fitScale * pinchScale);
+    const dy = (point.clientY - gestureState.startY) / (fitScale * pinchScale);
 
-    if (gesture.mode === 'move') {
-      const dx = (p.x - gesture.startX) / scaleFactor;
-      const dy = (p.y - gesture.startY) / scaleFactor;
-      obj.x = gesture.startObjX + dx;
-      obj.y = gesture.startObjY + dy;
-    } else if (gesture.mode === 'resize') {
-      const dx = (p.x - gesture.startX) / scaleFactor;
-      let newW = Math.max(32, gesture.startObjW + dx);
-      let newH = newW / gesture.aspectRatio;
-      obj.w = newW;
-      obj.h = newH;
-    } else if (gesture.mode === 'rotate') {
-      const angleNow = Math.atan2(p.y - gesture.centerY, p.x - gesture.centerX) * (180 / Math.PI);
-      const delta = angleNow - gesture.startAngle;
-      obj.deg = gesture.startObjDeg + delta;
+    if (gestureState.type === 'move') {
+      updateFloatObj(gestureState.pageIndex, gestureState.objId, {
+        x: gestureState.origX + dx,
+        y: gestureState.origY + dy,
+      });
+    } else if (gestureState.type === 'resize') {
+      updateFloatObj(gestureState.pageIndex, gestureState.objId, {
+        w: Math.max(24, gestureState.origW + dx),
+        h: Math.max(24, gestureState.origH + dy),
+      });
+    } else if (gestureState.type === 'rotate') {
+      const deg = gestureState.origDeg + (dx * 0.5);
+      updateFloatObj(gestureState.pageIndex, gestureState.objId, { deg });
     }
-
-    floatingObjects[gesture.pageIndex] = [...list];
-    floatingObjects = floatingObjects;
-    e.preventDefault();
   }
 
   function onGestureEnd() {
-    if (!gesture) return;
-    gesture = null;
-    dispatch('input');
+    gestureState = null;
   }
 
-  function onPageBackgroundTap(pageIndex) {
+  export function insertFloatImageAtCenter(dataUrl, pageIndex) {
+    const id = nextFloatId++;
+    const list = floatingObjects[pageIndex] || [];
+    floatingObjects = {
+      ...floatingObjects,
+      [pageIndex]: [...list, {
+        id, src: dataUrl,
+        x: PAGE_W / 2 - 100, y: PAGE_H / 2 - 100,
+        w: 200, h: 200, deg: 0, z: 'front',
+      }],
+    };
+    selectedFloatId = `${pageIndex}:${id}`;
+  }
+
+  function handlePageFocusFromTap(pageIndex) {
     handleFocusPagina(pageIndex);
     if (selectedFloatId && selectedFloatId.startsWith(pageIndex + ':')) {
       selectedFloatId = null;
@@ -691,7 +695,6 @@
     overflow-wrap: break-word;
     position: relative;
     z-index: 1;
-    scroll-margin-top: 120px;
     -webkit-user-select: text;
     user-select: text;
   }

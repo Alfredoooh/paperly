@@ -71,14 +71,12 @@
   onMount(() => {
     setupKeyboardAvoidance();
     document.addEventListener('focusin', lockViewport, true);
-    // NOTA: o listener de 'selectionchange' que existia aqui foi
-    // removido de propósito. Ele disparava a CADA tecla premida
-    // dentro do contenteditable (selectionchange dispara em todo
-    // movimento de cursor), o que recomputava kbOffset e reescrevia
-    // a CSS var --kb-offset constantemente enquanto se escrevia —
-    // essa era uma das causas dos saltos do appbar/canvas durante a
-    // digitação. 'focusin' sozinho já é suficiente para detetar a
-    // entrada em qualquer campo editável.
+    // NOTA: o listener de 'selectionchange' que existia aqui antes foi
+    // removido de propósito — disparava a cada tecla premida dentro
+    // do contenteditable (selectionchange dispara em todo movimento
+    // de cursor), recomputando kbOffset constantemente durante a
+    // digitação. 'focusin' sozinho já basta para detetar entrada em
+    // qualquer campo editável.
   });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
@@ -402,19 +400,6 @@
   }
 
   function computeKbOffset() {
-    // FIX (appbar/canvas saltando com o teclado):
-    // window.innerHeight NÃO encolhe quando o teclado abre (ao
-    // contrário de 100dvh, que em WebViews Android costuma encolher
-    // sozinho assim que o teclado aparece). Ao fixar --app-vh a
-    // partir de innerHeight aqui, garantimos que o layout inteiro
-    // (via calc(var(--app-vh)) no #app/.root) tem UMA ÚNICA fonte de
-    // verdade para a sua altura — deixa de haver o dvh nativo do
-    // browser a encolher o container AO MESMO TEMPO que o nosso
-    // próprio kbOffset desloca a bottom bar. Antes, essas duas coisas
-    // aconteciam em instantes ligeiramente diferentes e é isso que
-    // lia-se como o appbar "subindo e pulando".
-    document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
-
     const vv = window.visualViewport;
     if (!vv) {
       kbOffset = 0;
@@ -578,8 +563,16 @@
   }
 </script>
 
-<!-- Camada de fundo (MainPage) — recua quando Export abre -->
-<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
+<!-- Camada de fundo (MainPage) — recua quando Export abre.
+     A appbar agora esconde-se enquanto o Export está aberto: sem
+     isso ela ficava sempre sólida/branca por cima do overlay escuro
+     do ExportPickerPage, porque vive fora do fluxo de transform do
+     .root e nunca sabia que havia um overlay por cima dela. -->
+<div
+  class="appbar"
+  class:appbar-hidden={exportPickerOpen}
+  style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;"
+>
   <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
     <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
@@ -733,7 +726,7 @@
   .root {
     position: fixed;
     left: 0; right: 0; top: 0;
-    height: calc(var(--app-vh, 100vh));
+    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -744,7 +737,9 @@
   }
 
   /* APPBAR: fica fora da root para não sofrer com transform/zoom
-     do editor nem com o teclado mobile. */
+     do editor nem com o teclado mobile. appbar-hidden esconde-a
+     enquanto o ExportPickerPage está aberto por cima — antes ela
+     ficava sempre visível e sólida por cima do overlay escuro. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
@@ -758,6 +753,12 @@
     will-change: auto;
     overflow-anchor: none;
     pointer-events: auto;
+    transition: opacity .2s ease, visibility .2s ease;
+  }
+  .appbar.appbar-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;

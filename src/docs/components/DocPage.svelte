@@ -783,5 +783,22 @@
     border: none; background: transparent; color: #999; font-size: 14px; line-height: 1; cursor: pointer;
     padding: 0 2px; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
   }
+  .conteudo {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  outline: none;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  position: relative;
+  z-index: 1;
+  scroll-margin-top: 120px;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+}
   .footnote-remove:active { color: #F0384A; }
 </style>

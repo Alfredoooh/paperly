@@ -178,8 +178,7 @@
         : posicao.startContainer;
       const conteudoPai = elementoBase.closest('.conteudo');
       if (conteudoPai) {
-        try { conteudoPai.focus({ preventScroll: true }); }
-        catch (e) { conteudoPai.focus(); }
+        try { conteudoPai.focus({ preventScroll: true }); } catch (e) { conteudoPai.focus(); }
       }
     } catch (erro) {}
   }
@@ -282,8 +281,7 @@
   export function focusEditor() {
     const el = contentEls[activePageIndex];
     if (!el) return;
-    try { el.focus({ preventScroll: true }); }
-    catch (e) { el.focus(); }
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
   }
 
   export function blurEditor() {
@@ -694,6 +692,7 @@
     scroll-margin-top: 120px;
     -webkit-user-select: text;
     user-select: text;
+    touch-action: manipulation;
   }
   .conteudo :global(p) {
     margin: 0;

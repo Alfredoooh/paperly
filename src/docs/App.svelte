@@ -103,19 +103,12 @@
     margin:0;
     padding:0;
     overflow:hidden;
-    position:relative;
-    min-height:100dvh;
+    position:fixed;
+    inset:0;
     width:100%;
+    height:100vh;
     font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition:background-color .3s ease, color .3s ease;
   }
-  :global(#app) {
-    width:100%;
-    height:calc(var(--app-vh, 100vh));
-    display:flex;
-    flex-direction:column;
-    position:fixed;
-    inset:0;
-    overflow:hidden;
-  }
+  :global(#app) { width:100%; height:100vh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
 </style>

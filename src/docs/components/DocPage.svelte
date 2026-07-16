@@ -31,6 +31,11 @@
   let contentEls = [];
   let nextFolhaId = 1;
 
+  // Mantém o pai (MainPage) sempre informado de quantas folhas
+  // realmente existem — isto é o que faltava antes: os botões de
+  // página no appbar comparavam contra um totalPages que nunca era
+  // atualizado, então ficavam presos em "1/1" mesmo com 5 páginas
+  // de texto já criadas por trás.
   $: totalPages = folhas.length;
 
   function criarFolha() {
@@ -173,7 +178,6 @@
         : posicao.startContainer;
       const conteudoPai = elementoBase.closest('.conteudo');
       if (conteudoPai) {
-        debugLog('restaurarSelecao: vai chamar .focus()');
         try { conteudoPai.focus({ preventScroll: true }); }
         catch (e) { conteudoPai.focus(); }
       }
@@ -185,7 +189,6 @@
   async function reequilibrarDocumento() {
     if (isRebalancing) return;
     isRebalancing = true;
-    debugLog('reequilibrarDocumento: INÍCIO');
 
     const posicaoSelecao = obterPosicaoSelecao();
 
@@ -217,14 +220,12 @@
     await removerPaginasVaziasNoFim();
     restaurarSelecao(posicaoSelecao);
 
-    debugLog('reequilibrarDocumento: FIM');
     isRebalancing = false;
   }
 
   let timeoutReequilibrio;
   function agendarReequilibrio() {
     clearTimeout(timeoutReequilibrio);
-    debugLog('agendarReequilibrio: timeout (re)agendado a 150ms');
     timeoutReequilibrio = setTimeout(reequilibrarDocumento, 150);
   }
 
@@ -245,37 +246,21 @@
     agendarReequilibrio();
   }
 
-  function handleInput(e) {
-    debugLog(`input event: inputType=${e?.inputType || '?'} data=${JSON.stringify(e?.data || '')}`);
+  function handleInput() {
     dispatch('input');
     agendarReequilibrio();
   }
   function handleKeydown(e) {
     dispatch('keydown', e);
   }
-
-  function travarScrollNoFoco() {
-    if (!containerEl) return;
-    const scrollTravado = containerEl.scrollTop;
-    requestAnimationFrame(() => {
-      if (containerEl && containerEl.scrollTop !== scrollTravado) {
-        containerEl.scrollTop = scrollTravado;
-      }
-      requestAnimationFrame(() => {
-        if (containerEl && containerEl.scrollTop !== scrollTravado) {
-          containerEl.scrollTop = scrollTravado;
-        }
-      });
-    });
-  }
-
   function handleFocusPagina(i) {
-    debugLog(`focus na página ${i}`);
-    travarScrollNoFoco();
     if (activePageIndex !== i) activePageIndex = i;
     dispatch('pagefocus', i);
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  API pública (usada pela MainPage via bind:this)
+  // ══════════════════════════════════════════════════════════════════
   export function getContent() {
     return contentEls.map(el => el ? el.innerHTML : '').join('<div class="page-break-marker"></div>');
   }
@@ -355,183 +340,200 @@
       const conteudoPai = base && base.closest ? base.closest('.conteudo') : null;
       if (conteudoPai) return conteudoPai;
     }
-    return contentEls[activePageIndex] || null;
+    return contentEls[activePageIndex] || contentEls[0];
   }
 
-  export function insertImageAtCursor(dataUrl) {
-    const el = getActiveContentEl();
-    if (!el) return;
-    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
-    document.execCommand('insertImage', false, dataUrl);
-    dispatch('input');
-    agendarReequilibrio();
-  }
+  // ══════════════════════════════════════════════════════════════════
+  //  IMAGENS EM CANVAS LIVRE (estilo Canva) — cada imagem inserida
+  //  vira um objeto flutuante independente do fluxo de texto, com
+  //  posição (x,y), tamanho (w,h) e ângulo (deg) próprios, guardado
+  //  por página em floatingObjects[pageIndex] = [ {id,x,y,w,h,deg,src} ].
+  //  O objeto vive como filho posicionado ABSOLUTAMENTE dentro de
+  //  .page-a4 (que é position:relative), FORA da div .conteudo — ou
+  //  seja, nunca entra no contenteditable, nunca é tocado pelo motor
+  //  de reequilíbrio de parágrafos, e nunca "pula" o cursor de texto.
+  // ══════════════════════════════════════════════════════════════════
 
-  export function insertTable(rows, cols) {
-    const el = getActiveContentEl();
-    if (!el) return;
-    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
-
-    let tableHtml = '<div class="doc-table-wrap"><table class="doc-table doc-table"><tbody>';
-    for (let r = 0; r < rows; r++) {
-      tableHtml += '<tr>';
-      for (let cIdx = 0; cIdx < cols; cIdx++) {
-        tableHtml += '<td><br></td>';
-      }
-      tableHtml += '</tr>';
-    }
-    tableHtml += '</tbody></table></div><p><br></p>';
-
-    document.execCommand('insertHTML', false, tableHtml);
-    dispatch('input');
-    agendarReequilibrio();
-  }
-
-  let floatingObjects = {};
-  let selectedFloatId = null;
+  let floatingObjects = [[]]; // um array por folha
   let nextFloatId = 1;
+  let selectedFloatId = null; // "pageIndex:objId"
 
-  export function getFloatingObjectsForPage(pageIndex) {
-    return floatingObjects[pageIndex] || [];
+  function ensureFloatingArrayFor(pageIndex) {
+    while (floatingObjects.length <= pageIndex) {
+      floatingObjects = [...floatingObjects, []];
+    }
   }
 
-  function onPageBackgroundTap(pageIndex) {}
+  export async function insertImageAtCursor(dataUrl) {
+    const pageIndex = activePageIndex;
+    ensureFloatingArrayFor(pageIndex);
+
+    const img = new Image();
+    img.onload = () => {
+      const naturalRatio = img.naturalWidth / img.naturalHeight || 1;
+      const w = Math.min(320, PAGE_W - PAGE_PAD_X * 2);
+      const h = w / naturalRatio;
+      const id = nextFloatId++;
+      const obj = {
+        id,
+        src: dataUrl,
+        x: (PAGE_W - w) / 2,
+        y: (PAGE_H - h) / 2,
+        w,
+        h,
+        deg: 0,
+        z: 'front', // 'front' | 'behind'
+      };
+      floatingObjects[pageIndex] = [...floatingObjects[pageIndex], obj];
+      floatingObjects = floatingObjects;
+      selectFloat(pageIndex, id);
+      dispatch('input');
+    };
+    img.src = dataUrl;
+  }
+
+  function selectFloat(pageIndex, objId) {
+    selectedFloatId = `${pageIndex}:${objId}`;
+    const obj = floatingObjects[pageIndex]?.find(o => o.id === objId);
+    if (obj) {
+      dispatch('imagerequestedit', {
+        pageIndex,
+        objId,
+        state: { width: Math.round(obj.w), height: Math.round(obj.h), rotation: obj.deg, wrap: obj.z },
+      });
+    }
+  }
 
   export function deselectFloat() {
     selectedFloatId = null;
   }
 
-  export function selectFloatById(pageIndex, objId) {
-    selectedFloatId = `${pageIndex}:${objId}`;
+  export async function applyImageOptions(target, opts) {
+    if (!target) return;
+    const { pageIndex, objId } = target;
+    const list = floatingObjects[pageIndex];
+    if (!list) return;
+    const obj = list.find(o => o.id === objId);
+    if (!obj) return;
+
+    if (typeof opts.width === 'number') {
+      const ratio = obj.h / obj.w;
+      obj.w = opts.width;
+      obj.h = opts.width * ratio;
+    }
+    if (opts.wrap) obj.z = opts.wrap;
+
+    floatingObjects[pageIndex] = [...list];
+    floatingObjects = floatingObjects;
+    dispatch('input');
   }
 
-  export function deleteImage({ pageIndex, objId }) {
-    const list = floatingObjects[pageIndex] || [];
-    floatingObjects = { ...floatingObjects, [pageIndex]: list.filter(o => o.id !== objId) };
-    if (selectedFloatId === `${pageIndex}:${objId}`) selectedFloatId = null;
+  export async function deleteImage(target) {
+    if (!target) return;
+    const { pageIndex, objId } = target;
+    const list = floatingObjects[pageIndex];
+    if (!list) return;
+    floatingObjects[pageIndex] = list.filter(o => o.id !== objId);
+    floatingObjects = floatingObjects;
+    selectedFloatId = null;
+    dispatch('input');
   }
 
-  let gestureState = null;
+  // ── Arrastar / redimensionar / rodar por gesto direto no objeto ──
+  let gesture = null;
+
+  function pointerXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
 
   function startMove(e, pageIndex, objId) {
     e.stopPropagation();
-    selectedFloatId = `${pageIndex}:${objId}`;
-    const obj = (floatingObjects[pageIndex] || []).find(o => o.id === objId);
-    if (!obj) return;
-    const point = e.touches ? e.touches[0] : e;
-    gestureState = {
-      type: 'move', pageIndex, objId,
-      startX: point.clientX, startY: point.clientY,
-      origX: obj.x, origY: obj.y,
+    e.preventDefault();
+    selectFloat(pageIndex, objId);
+    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
+    const p = pointerXY(e);
+    gesture = {
+      mode: 'move', pageIndex, objId,
+      startX: p.x, startY: p.y,
+      startObjX: obj.x, startObjY: obj.y,
     };
   }
 
   function startResize(e, pageIndex, objId) {
     e.stopPropagation();
-    const obj = (floatingObjects[pageIndex] || []).find(o => o.id === objId);
-    if (!obj) return;
-    const point = e.touches ? e.touches[0] : e;
-    gestureState = {
-      type: 'resize', pageIndex, objId,
-      startX: point.clientX, startY: point.clientY,
-      origW: obj.w, origH: obj.h,
+    e.preventDefault();
+    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
+    const p = pointerXY(e);
+    gesture = {
+      mode: 'resize', pageIndex, objId,
+      startX: p.x, startY: p.y,
+      startObjW: obj.w, startObjH: obj.h,
+      startObjX: obj.x, startObjY: obj.y,
+      aspectRatio: obj.w / obj.h,
     };
   }
 
   function startRotate(e, pageIndex, objId) {
     e.stopPropagation();
-    const obj = (floatingObjects[pageIndex] || []).find(o => o.id === objId);
-    if (!obj) return;
-    const point = e.touches ? e.touches[0] : e;
-    gestureState = {
-      type: 'rotate', pageIndex, objId,
-      startX: point.clientX, startY: point.clientY,
-      origDeg: obj.deg,
-    };
-  }
-
-  function updateFloatObj(pageIndex, objId, patch) {
-    const list = floatingObjects[pageIndex] || [];
-    floatingObjects = {
-      ...floatingObjects,
-      [pageIndex]: list.map(o => o.id === objId ? { ...o, ...patch } : o),
+    e.preventDefault();
+    const obj = floatingObjects[pageIndex].find(o => o.id === objId);
+    const pageEl = getConteudoEl(pageIndex)?.closest('.page-a4');
+    if (!pageEl) return;
+    const rect = pageEl.getBoundingClientRect();
+    const scaleFactor = (fitScale || 1) * (pinchScale || 1);
+    const centerX = rect.left + (obj.x + obj.w / 2) * scaleFactor;
+    const centerY = rect.top + (obj.y + obj.h / 2) * scaleFactor;
+    const p = pointerXY(e);
+    const startAngle = Math.atan2(p.y - centerY, p.x - centerX) * (180 / Math.PI);
+    gesture = {
+      mode: 'rotate', pageIndex, objId,
+      centerX, centerY, startAngle,
+      startObjDeg: obj.deg,
     };
   }
 
   function onGestureMove(e) {
-    if (!gestureState) return;
-    const point = e.touches ? e.touches[0] : e;
-    if (e.touches) e.preventDefault();
-    const dx = (point.clientX - gestureState.startX) / (fitScale * pinchScale);
-    const dy = (point.clientY - gestureState.startY) / (fitScale * pinchScale);
+    if (!gesture) return;
+    const p = pointerXY(e);
+    const list = floatingObjects[gesture.pageIndex];
+    const obj = list?.find(o => o.id === gesture.objId);
+    if (!obj) return;
+    const scaleFactor = (fitScale || 1) * (pinchScale || 1);
 
-    if (gestureState.type === 'move') {
-      updateFloatObj(gestureState.pageIndex, gestureState.objId, {
-        x: gestureState.origX + dx,
-        y: gestureState.origY + dy,
-      });
-    } else if (gestureState.type === 'resize') {
-      updateFloatObj(gestureState.pageIndex, gestureState.objId, {
-        w: Math.max(24, gestureState.origW + dx),
-        h: Math.max(24, gestureState.origH + dy),
-      });
-    } else if (gestureState.type === 'rotate') {
-      const deg = gestureState.origDeg + (dx * 0.5);
-      updateFloatObj(gestureState.pageIndex, gestureState.objId, { deg });
+    if (gesture.mode === 'move') {
+      const dx = (p.x - gesture.startX) / scaleFactor;
+      const dy = (p.y - gesture.startY) / scaleFactor;
+      obj.x = gesture.startObjX + dx;
+      obj.y = gesture.startObjY + dy;
+    } else if (gesture.mode === 'resize') {
+      const dx = (p.x - gesture.startX) / scaleFactor;
+      let newW = Math.max(32, gesture.startObjW + dx);
+      let newH = newW / gesture.aspectRatio;
+      obj.w = newW;
+      obj.h = newH;
+    } else if (gesture.mode === 'rotate') {
+      const angleNow = Math.atan2(p.y - gesture.centerY, p.x - gesture.centerX) * (180 / Math.PI);
+      const delta = angleNow - gesture.startAngle;
+      obj.deg = gesture.startObjDeg + delta;
     }
+
+    floatingObjects[gesture.pageIndex] = [...list];
+    floatingObjects = floatingObjects;
+    e.preventDefault();
   }
 
   function onGestureEnd() {
-    gestureState = null;
+    if (!gesture) return;
+    gesture = null;
+    dispatch('input');
   }
 
-  export function insertFloatImageAtCenter(dataUrl, pageIndex) {
-    const id = nextFloatId++;
-    const list = floatingObjects[pageIndex] || [];
-    floatingObjects = {
-      ...floatingObjects,
-      [pageIndex]: [...list, {
-        id, src: dataUrl,
-        x: PAGE_W / 2 - 100, y: PAGE_H / 2 - 100,
-        w: 200, h: 200, deg: 0, z: 'front',
-      }],
-    };
-    selectedFloatId = `${pageIndex}:${id}`;
-  }
-
-  function handlePageFocusFromTap(pageIndex) {
+  function onPageBackgroundTap(pageIndex) {
     handleFocusPagina(pageIndex);
     if (selectedFloatId && selectedFloatId.startsWith(pageIndex + ':')) {
       selectedFloatId = null;
     }
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  //  PAINEL DE DEBUG — TEMPORÁRIO
-  //  Um pequeno log visual, sempre por cima de tudo, para vermos os
-  //  eventos reais a acontecer no momento do salto sem precisar de
-  //  computador nenhum. Remove-se assim que identificarmos a causa.
-  // ══════════════════════════════════════════════════════════════════
-  let debugLines = [];
-  let debugPanelEl;
-  function debugLog(msg) {
-    const t = performance.now().toFixed(0);
-    debugLines = [...debugLines.slice(-11), `${t}ms  ${msg}`];
-    if (debugPanelEl) {
-      debugPanelEl.textContent = debugLines.join('\n');
-      debugPanelEl.scrollTop = debugPanelEl.scrollHeight;
-    }
-  }
-  let debugRafId = null;
-  function debugTick() {
-    if (debugPanelEl && containerEl) {
-      const appbarEl = document.querySelector('.appbar, .nexa-static-appbar');
-      const appbarTop = appbarEl ? appbarEl.getBoundingClientRect().top : 'N/A';
-      const line2 = `scrollTop=${containerEl.scrollTop} appbarTop=${appbarTop} isRebalancing=${isRebalancing}`;
-      const el2 = document.getElementById('nexaDebugLive');
-      if (el2) el2.textContent = line2;
-    }
-    debugRafId = requestAnimationFrame(debugTick);
   }
 
   onMount(async () => {
@@ -553,8 +555,6 @@
     window.addEventListener('mouseup', onGestureEnd);
     window.addEventListener('touchmove', onGestureMove, { passive: false });
     window.addEventListener('touchend', onGestureEnd);
-
-    debugRafId = requestAnimationFrame(debugTick);
   });
   onDestroy(() => {
     window.removeEventListener('resize', ajustarZoom);
@@ -564,10 +564,17 @@
     window.removeEventListener('touchmove', onGestureMove);
     window.removeEventListener('touchend', onGestureEnd);
     clearTimeout(timeoutReequilibrio);
-    if (debugRafId) cancelAnimationFrame(debugRafId);
   });
 </script>
 
+<!--
+  Voltou ao esquema empilhado original: TODAS as folhas ficam
+  visíveis dentro de .pages-stack, com scroll vertical contínuo
+  controlado por .canvas-scroll (overflow-y:auto) + PinchZoom para
+  zoom de dois dedos / pan quando ampliado. Isto é exatamente como
+  era desde o início — sem display:none nem visibility:hidden por
+  folha, porque isso nunca foi necessário para nada.
+-->
 <div class="canvas-scroll" bind:this={containerEl}>
   <PinchZoom bind:scale={pinchScale} minScale={1} maxScale={4} on:zoomchange>
     <div class="pages-stack" bind:this={stackEl} style="transform: scale({fitScale}); transform-origin: top center;">
@@ -583,7 +590,7 @@
             on:input={handleInput}
             on:keydown={handleKeydown}
             on:paste={aoColar}
-            on:focus={() => { handleFocusPagina(i); }}
+            on:focus={() => handleFocusPagina(i)}
             on:pointerdown={() => onPageBackgroundTap(i)}
             spellcheck="true"
             role="textbox"
@@ -591,6 +598,8 @@
             aria-label="Conteúdo do documento"
           ></div>
 
+          <!-- Camada de objetos flutuantes (imagens em canvas livre),
+               fora do contenteditable — nunca interfere com o cursor. -->
           {#if floatingObjects[i]}
             {#each floatingObjects[i] as obj (obj.id)}
               <div
@@ -635,12 +644,6 @@
       {/each}
     </div>
   </PinchZoom>
-</div>
-
-<!-- PAINEL DE DEBUG — remover depois de encontrarmos a causa -->
-<div id="nexaDebugPanel" style="position:fixed; left:4px; right:4px; bottom:4px; max-height:150px; overflow-y:auto; background:rgba(0,0,0,0.88); color:#0f0; font-size:9px; font-family:monospace; z-index:999999; padding:4px; border-radius:6px; pointer-events:none; white-space:pre-wrap; line-height:1.3;">
-  <div id="nexaDebugLive" style="color:#0ff; margin-bottom:2px;"></div>
-  <div bind:this={debugPanelEl}></div>
 </div>
 
 <style>
@@ -688,6 +691,7 @@
     overflow-wrap: break-word;
     position: relative;
     z-index: 1;
+    scroll-margin-top: 120px;
     -webkit-user-select: text;
     user-select: text;
   }
@@ -700,6 +704,7 @@
     z-index: 1;
   }
 
+  /* ── Objetos flutuantes (canvas livre) ───────────────────────── */
   .float-obj {
     position: absolute;
     cursor: grab;

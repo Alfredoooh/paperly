@@ -68,16 +68,7 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
-  onMount(() => {
-    setupKeyboardAvoidance();
-    document.addEventListener('focusin', lockViewport, true);
-    // NOTA: o listener de 'selectionchange' que existia aqui antes foi
-    // removido de propósito — disparava a cada tecla premida dentro
-    // do contenteditable (selectionchange dispara em todo movimento
-    // de cursor), recomputando kbOffset constantemente durante a
-    // digitação. 'focusin' sozinho já basta para detetar entrada em
-    // qualquer campo editável.
-  });
+  onMount(() => { setupKeyboardAvoidance(); });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
   function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
@@ -395,20 +386,11 @@
   let rootEl;
   let vvRef = null;
 
-  function syncViewportVars() {
-    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
-  }
-
   function computeKbOffset() {
     const vv = window.visualViewport;
-    if (!vv) {
-      kbOffset = 0;
-      syncViewportVars();
-      return;
-    }
+    if (!vv) { kbOffset = 0; return; }
     const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
-    syncViewportVars();
   }
   function scheduleKbUpdate() {
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
@@ -423,19 +405,6 @@
       vvRef.addEventListener('resize', scheduleKbUpdate);
       vvRef.addEventListener('scroll', scheduleKbUpdate);
     });
-  }
-
-  function lockViewport() {
-    const active = document.activeElement;
-    const tag = active?.tagName?.toLowerCase?.() || '';
-    const isEditable = !!active && (
-      active.classList?.contains('conteudo') ||
-      active.isContentEditable ||
-      tag === 'input' ||
-      tag === 'textarea'
-    );
-    if (!isEditable) return;
-    computeKbOffset();
   }
 
   // activePageIndex/totalPages continuam a existir (o DocPage ainda
@@ -499,7 +468,6 @@
       vvRef.removeEventListener('resize', scheduleKbUpdate);
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
-    document.removeEventListener('focusin', lockViewport, true);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
@@ -563,16 +531,8 @@
   }
 </script>
 
-<!-- Camada de fundo (MainPage) — recua quando Export abre.
-     A appbar agora esconde-se enquanto o Export está aberto: sem
-     isso ela ficava sempre sólida/branca por cima do overlay escuro
-     do ExportPickerPage, porque vive fora do fluxo de transform do
-     .root e nunca sabia que havia um overlay por cima dela. -->
-<div
-  class="appbar"
-  class:appbar-hidden={exportPickerOpen}
-  style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;"
->
+<!-- Camada de fundo (MainPage) — recua quando Export abre -->
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
   <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
     <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
@@ -715,12 +675,11 @@
 
 <style>
   :global(html), :global(body) {
-    width: 100%;
     height: 100%;
     overflow: hidden;
-    overflow-anchor: none;
     overscroll-behavior: none;
-    position: relative;
+    position: fixed;
+    inset: 0;
   }
 
   .root {
@@ -730,16 +689,13 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    overflow-anchor: none;
     contain: layout style paint;
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     overscroll-behavior: none;
   }
 
   /* APPBAR: fica fora da root para não sofrer com transform/zoom
-     do editor nem com o teclado mobile. appbar-hidden esconde-a
-     enquanto o ExportPickerPage está aberto por cima — antes ela
-     ficava sempre visível e sólida por cima do overlay escuro. */
+     do editor nem com o teclado mobile. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
@@ -749,16 +705,9 @@
     height: 100px;
     z-index: 9999;
     contain: paint;
-    transform: none;
-    will-change: auto;
-    overflow-anchor: none;
+    transform: translate3d(0,0,0);
+    will-change: transform;
     pointer-events: auto;
-    transition: opacity .2s ease, visibility .2s ease;
-  }
-  .appbar.appbar-hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -778,7 +727,6 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    overflow-anchor: none;
     display: flex;
     flex-direction: column;
     padding-top: 100px;

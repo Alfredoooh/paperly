@@ -68,7 +68,7 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
-  onMount(() => { setupKeyboardAvoidance(); });
+  onMount(() => { setupKeyboardAvoidance(); document.addEventListener('focusin', lockViewport, true); document.addEventListener('selectionchange', lockViewport, true); });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
   function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
@@ -385,12 +385,27 @@
   let kbUpdateRaf = null;
   let rootEl;
   let vvRef = null;
+  let vvTop = 0;
+
+  function syncViewportVars() {
+    const vv = window.visualViewport;
+    const top = vv ? Math.max(0, Math.round(vv.offsetTop || 0)) : 0;
+    vvTop = top;
+    document.documentElement.style.setProperty('--vv-top', `${top}px`);
+    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
+  }
 
   function computeKbOffset() {
     const vv = window.visualViewport;
-    if (!vv) { kbOffset = 0; return; }
+    if (!vv) {
+      kbOffset = 0;
+      vvTop = 0;
+      syncViewportVars();
+      return;
+    }
     const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
+    syncViewportVars();
   }
   function scheduleKbUpdate() {
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
@@ -405,6 +420,20 @@
       vvRef.addEventListener('resize', scheduleKbUpdate);
       vvRef.addEventListener('scroll', scheduleKbUpdate);
     });
+  }
+
+  function lockViewport() {
+    const active = document.activeElement;
+    const tag = active?.tagName?.toLowerCase?.() || '';
+    const isEditable = !!active && (
+      active.classList?.contains('conteudo') ||
+      active.isContentEditable ||
+      tag === 'input' ||
+      tag === 'textarea'
+    );
+    if (!isEditable) return;
+    window.scrollTo(0, 0);
+    computeKbOffset();
   }
 
   // activePageIndex/totalPages continuam a existir (o DocPage ainda
@@ -468,6 +497,8 @@
       vvRef.removeEventListener('resize', scheduleKbUpdate);
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
+    document.removeEventListener('focusin', lockViewport, true);
+    document.removeEventListener('selectionchange', lockViewport, true);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
@@ -532,15 +563,20 @@
 </script>
 
 <!-- Camada de fundo (MainPage) — recua quando Export abre -->
-<header class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translate3d(0,0,0);backface-visibility:hidden;">
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
   <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
     <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
 
   <div class="appbar-center">
-    <div class="doc-name-display" style="color:{c.textPrimary}" aria-label="Nome do documento">
-      {docName}
-    </div>
+    <input
+      class="doc-name-input"
+      style="color:{c.textPrimary}"
+      value={docName}
+      on:input={handleNameInput}
+      on:blur={handleNameBlur}
+      aria-label="Nome do documento"
+    />
     <span class="save-state" style="color:{c.textSecondary}">
       {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
     </span>
@@ -549,7 +585,7 @@
   <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
     <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
-</header>
+</div>
 
 <div
   class="root"
@@ -670,11 +706,11 @@
 
 <style>
   :global(html), :global(body) {
+    width: 100%;
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
-    position: fixed;
-    inset: 0;
+    position: relative;
   }
 
   .root {
@@ -700,13 +736,9 @@
     height: 100px;
     z-index: 9999;
     contain: paint;
-    transform: translate3d(0,0,0) !important;
+    transform: translate3d(0, calc(var(--vv-top, 0px) * -1), 0);
     will-change: transform;
     pointer-events: auto;
-    touch-action: manipulation;
-    user-select: none;
-    -webkit-user-select: none;
-    overscroll-behavior: none;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -715,14 +747,12 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
   .appbar-btn:active { opacity: .7; transform: scale(0.94); }
-  .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .doc-name-display {
+  .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+  .doc-name-input {
     width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;
-    line-height: 1.2; padding: 0; margin: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    pointer-events: none;
+    border: none; background: transparent; outline: none; padding: 0;
   }
-  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; pointer-events: none; }
+  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
 
   .canvas-area {
     flex: 1;
@@ -731,7 +761,7 @@
     display: flex;
     flex-direction: column;
     padding-top: 100px;
-    contain: layout paint size;
+    contain: strict;
   }
 
   .icon-mask {

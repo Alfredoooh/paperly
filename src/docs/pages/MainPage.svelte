@@ -385,13 +385,8 @@
   let kbUpdateRaf = null;
   let rootEl;
   let vvRef = null;
-  let vvTop = 0;
 
   function syncViewportVars() {
-    const vv = window.visualViewport;
-    const top = vv ? Math.max(0, Math.round(vv.offsetTop || 0)) : 0;
-    vvTop = top;
-    document.documentElement.style.setProperty('--vv-top', `${top}px`);
     document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
   }
 
@@ -399,7 +394,6 @@
     const vv = window.visualViewport;
     if (!vv) {
       kbOffset = 0;
-      vvTop = 0;
       syncViewportVars();
       return;
     }
@@ -432,7 +426,6 @@
       tag === 'textarea'
     );
     if (!isEditable) return;
-    window.scrollTo(0, 0);
     computeKbOffset();
   }
 
@@ -563,7 +556,7 @@
 </script>
 
 <!-- Camada de fundo (MainPage) — recua quando Export abre -->
-<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
   <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
     <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
@@ -709,6 +702,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    overflow-anchor: none;
     overscroll-behavior: none;
     position: relative;
   }
@@ -720,6 +714,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    overflow-anchor: none;
     contain: layout style paint;
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     overscroll-behavior: none;
@@ -736,8 +731,9 @@
     height: 100px;
     z-index: 9999;
     contain: paint;
-    transform: translate3d(0, calc(var(--vv-top, 0px) * -1), 0);
-    will-change: transform;
+    transform: none;
+    will-change: auto;
+    overflow-anchor: none;
     pointer-events: auto;
   }
   .appbar-btn {
@@ -758,6 +754,7 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    overflow-anchor: none;
     display: flex;
     flex-direction: column;
     padding-top: 100px;

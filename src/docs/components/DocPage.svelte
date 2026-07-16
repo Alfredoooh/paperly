@@ -180,7 +180,6 @@
       if (conteudoPai) {
         try { conteudoPai.focus({ preventScroll: true }); }
         catch (e) { conteudoPai.focus(); }
-        try { conteudoPai.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
       }
     } catch (erro) {}
   }
@@ -285,7 +284,6 @@
     if (!el) return;
     try { el.focus({ preventScroll: true }); }
     catch (e) { el.focus(); }
-    try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
   }
 
   export function blurEditor() {
@@ -592,7 +590,7 @@
             on:input={handleInput}
             on:keydown={handleKeydown}
             on:paste={aoColar}
-            on:focus={() => { handleFocusPagina(i); try { contentEls[i]?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }}
+            on:focus={() => { handleFocusPagina(i); }}
             on:pointerdown={() => onPageBackgroundTap(i)}
             spellcheck="true"
             role="textbox"

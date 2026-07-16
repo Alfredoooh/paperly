@@ -4,19 +4,9 @@
 
   export let initialContent = '';
   export let footnotes = [];
-  export let activePageIndex = 0; // controlado pelo pai via botões prev/next no appbar
+  export let activePageIndex = 0;
 
   const dispatch = createEventDispatcher();
-
-  // ══════════════════════════════════════════════════════════════════
-  //  MOTOR DE PAGINAÇÃO — inalterado na lógica de reequilíbrio.
-  //  A única mudança estrutural é que agora só a folha em
-  //  activePageIndex fica visível (display:flex); as restantes
-  //  continuam montadas no DOM com display:none, porque o motor de
-  //  empurrar/puxar overflow precisa medir scrollHeight/clientHeight
-  //  de TODAS as folhas para funcionar (display:none preserva layout
-  //  interno quando reexibido, ao contrário de visibility ou opacity).
-  // ══════════════════════════════════════════════════════════════════
 
   const PAGE_W = 794;
   const PAGE_H = 1123;
@@ -69,9 +59,7 @@
   }
 
   async function obterOuCriarProximaPagina(idxAtual) {
-    if (idxAtual + 1 < folhas.length) {
-      return idxAtual + 1;
-    }
+    if (idxAtual + 1 < folhas.length) return idxAtual + 1;
     criarFolha();
     await tick();
     return idxAtual + 1;
@@ -114,7 +102,6 @@
 
     while (proximaConteudo.firstElementChild && guarda < 500) {
       const candidato = proximaConteudo.firstElementChild;
-
       conteudo.appendChild(candidato);
       const causaOverflow = conteudo.scrollHeight > conteudo.clientHeight + 1;
 
@@ -128,7 +115,6 @@
       } else {
         puxouAlgo = true;
       }
-
       guarda++;
     }
 
@@ -164,7 +150,6 @@
   function restaurarSelecao(posicao) {
     if (!posicao) return;
     if (!document.contains(posicao.startContainer)) return;
-
     try {
       const range = document.createRange();
       range.setStart(posicao.startContainer, posicao.startOffset);
@@ -172,7 +157,6 @@
       const selecao = window.getSelection();
       selecao.removeAllRanges();
       selecao.addRange(range);
-
       const elementoBase = posicao.startContainer.nodeType === 3
         ? posicao.startContainer.parentElement
         : posicao.startContainer;
@@ -217,6 +201,7 @@
     await removerPaginasVaziasNoFim();
     restaurarSelecao(posicaoSelecao);
 
+    dispatch('totalpages', folhas.length);
     isRebalancing = false;
   }
 
@@ -338,19 +323,11 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  IMAGENS EM CANVAS LIVRE (estilo Canva) — cada imagem inserida
-  //  vira um objeto flutuante independente do fluxo de texto, com
-  //  posição (x,y), tamanho (w,h) e ângulo (deg) próprios, guardado
-  //  por página em floatingObjects[pageIndex] = [ {id,x,y,w,h,deg,src} ].
-  //  O objeto vive como filho posicionado ABSOLUTAMENTE dentro de
-  //  .page-a4 (que é position:relative), FORA da div .conteudo — ou
-  //  seja, nunca entra no contenteditable, nunca é tocado pelo motor
-  //  de reequilíbrio de parágrafos, e nunca "pula" o cursor de texto.
+  //  IMAGENS EM CANVAS LIVRE
   // ══════════════════════════════════════════════════════════════════
-
-  let floatingObjects = [[]]; // um array por folha
+  let floatingObjects = [[]];
   let nextFloatId = 1;
-  let selectedFloatId = null; // { pageIndex, objId } achatado em string "pageIndex:objId"
+  let selectedFloatId = null;
 
   function ensureFloatingArrayFor(pageIndex) {
     while (floatingObjects.length <= pageIndex) {
@@ -373,14 +350,14 @@
         src: dataUrl,
         x: (PAGE_W - w) / 2,
         y: (PAGE_H - h) / 2,
-        w,
-        h,
+        w, h,
         deg: 0,
-        z: 'front', // 'front' | 'behind'
+        z: 'front',
       };
       floatingObjects[pageIndex] = [...floatingObjects[pageIndex], obj];
       floatingObjects = floatingObjects;
-      selectFloat(pageIndex, id);
+      // seleciona sem abrir modal — gestos tratam tudo
+      selectedFloatId = `${pageIndex}:${id}`;
       dispatch('input');
     };
     img.src = dataUrl;
@@ -388,36 +365,38 @@
 
   function selectFloat(pageIndex, objId) {
     selectedFloatId = `${pageIndex}:${objId}`;
-    const obj = floatingObjects[pageIndex]?.find(o => o.id === objId);
-    if (obj) {
-      dispatch('imagerequestedit', {
-        pageIndex,
-        objId,
-        state: { width: Math.round(obj.w), height: Math.round(obj.h), rotation: obj.deg, wrap: obj.z },
-      });
-    }
+    // dispatch removido — sem modal, sem imagerequestedit automático
+    // O MainPage abre o LayersModal se o utilizador tocar numa imagem
+    // já selecionada (segundo toque)
   }
 
   export function deselectFloat() {
     selectedFloatId = null;
   }
 
+  // Novo: para o LayersModal selecionar uma camada pelo id
+  export function selectFloatById(pageIndex, objId) {
+    selectedFloatId = `${pageIndex}:${objId}`;
+  }
+
+  // Novo: para o MainPage listar as imagens da folha atual
+  export function getFloatingObjectsForPage(pageIndex) {
+    return floatingObjects[pageIndex] || [];
+  }
+
   export async function applyImageOptions(target, opts) {
-    // target = { pageIndex, objId } vindo do evento imagerequestedit
     if (!target) return;
     const { pageIndex, objId } = target;
     const list = floatingObjects[pageIndex];
     if (!list) return;
     const obj = list.find(o => o.id === objId);
     if (!obj) return;
-
     if (typeof opts.width === 'number') {
       const ratio = obj.h / obj.w;
       obj.w = opts.width;
       obj.h = opts.width * ratio;
     }
     if (opts.wrap) obj.z = opts.wrap;
-
     floatingObjects[pageIndex] = [...list];
     floatingObjects = floatingObjects;
     dispatch('input');
@@ -434,11 +413,8 @@
     dispatch('input');
   }
 
-  // ── Arrastar / redimensionar / rodar por gesto direto no objeto ──
+  // ── Arrastar / redimensionar / rodar por gesto direto ──
   let gesture = null;
-  // gesture = { mode:'move'|'resize'|'rotate', pageIndex, objId, startX, startY,
-  //             startObjX, startObjY, startObjW, startObjH, startObjDeg,
-  //             centerX, centerY, startAngle, aspectRatio }
 
   function pointerXY(e) {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -525,7 +501,6 @@
     if (!gesture) return;
     gesture = null;
     dispatch('input');
-    agendarReequilibrio.call ? null : null;
   }
 
   function onPageBackgroundTap(pageIndex) {
@@ -559,6 +534,7 @@
     window.addEventListener('touchmove', onGestureMove, { passive: false });
     window.addEventListener('touchend', onGestureEnd);
   });
+
   onDestroy(() => {
     window.removeEventListener('resize', ajustarZoom);
     window.removeEventListener('orientationchange', ajustarZoom);
@@ -600,8 +576,6 @@
           aria-label="Conteúdo do documento"
         ></div>
 
-        <!-- Camada de objetos flutuantes (imagens em canvas livre),
-             fora do contenteditable — nunca interfere com o cursor. -->
         {#if floatingObjects[i]}
           {#each floatingObjects[i] as obj (obj.id)}
             <div
@@ -688,16 +662,13 @@
     position: relative;
     z-index: 1;
   }
-  .conteudo :global(p) {
-    margin: 0;
-  }
+  .conteudo :global(p) { margin: 0; }
   .page-number {
     position: absolute; bottom: 14px; right: 0; left: 0;
     text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
     z-index: 1;
   }
 
-  /* ── Objetos flutuantes (canvas livre) ───────────────────────── */
   .float-obj {
     position: absolute;
     cursor: grab;
@@ -706,19 +677,12 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  .float-obj.float-behind {
-    z-index: 0;
-  }
-  .float-obj:active {
-    cursor: grabbing;
-  }
+  .float-obj.float-behind { z-index: 0; }
+  .float-obj:active { cursor: grabbing; }
   .float-img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: fill;
-    pointer-events: none;
-    border-radius: 2px;
+    width: 100%; height: 100%;
+    display: block; object-fit: fill;
+    pointer-events: none; border-radius: 2px;
   }
   .float-obj.float-selected {
     outline: 1.5px solid #2F7BF6;
@@ -726,8 +690,7 @@
   }
   .float-handle {
     position: absolute;
-    width: 16px;
-    height: 16px;
+    width: 16px; height: 16px;
     background: #2F7BF6;
     border: 2px solid #fff;
     border-radius: 50%;
@@ -735,22 +698,18 @@
     touch-action: none;
   }
   .float-handle-resize {
-    right: -8px;
-    bottom: -8px;
+    right: -8px; bottom: -8px;
     cursor: nwse-resize;
   }
   .float-rotate-line {
     position: absolute;
-    left: 50%;
-    top: -28px;
-    width: 1.5px;
-    height: 26px;
+    left: 50%; top: -28px;
+    width: 1.5px; height: 26px;
     background: #2F7BF6;
     transform: translateX(-50%);
   }
   .float-handle-rotate {
-    left: 50%;
-    top: -36px;
+    left: 50%; top: -36px;
     transform: translateX(-50%);
     cursor: grab;
   }

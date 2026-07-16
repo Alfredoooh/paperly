@@ -37,6 +37,9 @@
       { id: 'insert', icon: 'image', label: 'Imagem' },
       { id: 'table', icon: 'table', label: 'Tabela' },
     ],
+    [
+      { id: 'layers', icon: 'layers', label: 'Camadas', panel: true },
+    ],
   ];
   
   function press(item) {
@@ -50,8 +53,6 @@
   class:tb-hidden={!visible}
   style="transform: translate3d(0, {visible ? -kbOffset : 40}px, 0);"
 >
-  <!-- Sólido, sem blur: branco puro no tema claro (c.toolbarSolidBg),
-       superfície elevada no escuro — nunca transparente sobre o papel. -->
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
@@ -95,8 +96,6 @@
     display: flex; align-items: center; gap: 1px;
     padding: 5px 6px;
     border-radius: 999px;
-    /* Sólido de verdade: sem backdrop-filter, sem alpha. A separação
-       do papel vem só da sombra abaixo. */
     box-shadow:
       0 1px 3px rgba(0,0,0,0.10),
       0 10px 28px rgba(0,0,0,0.16);

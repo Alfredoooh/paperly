@@ -3,7 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
   import { showToast } from '$shared/utils.js';
-  import { createBackRecoilTransition } from '../../home/lib/nav-transition.js';
+  import { createBackRecoilTransition, createSlideTransition } from '../../home/lib/nav-transition.js';
 
   import DocPage from '../components/DocPage.svelte';
   import DocMenu from '../components/DocMenu.svelte';
@@ -13,8 +13,8 @@
   import ColorPickerModal from '../components/ColorPickerModal.svelte';
   import FormatModal from '../components/FormatModal.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
-  import ImageOptionsModal from '../components/ImageOptionsModal.svelte';
   import TableModal from '../components/TableModal.svelte';
+  import LayersModal from '../components/LayersModal.svelte';
   import ExportPickerPage from './ExportPickerPage.svelte';
 
   export let isDark = false;
@@ -35,7 +35,7 @@
   let docName = 'Documento sem título';
   let docId = resourceId || null;
   let saveTimeout;
-  let savedState = 'saved'; // 'saved' | 'saving' | 'dirty'
+  let savedState = 'saved';
 
   function loadOrCreateDoc() {
     if (resourceId) {
@@ -60,55 +60,33 @@
     try {
       const raw = localStorage.getItem(CUSTOM_COLORS_KEY);
       return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }
   let customColors = loadCustomColors();
 
   function persistCustomColors() {
-    try {
-      localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors));
-    } catch (e) {}
+    try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
-  onMount(() => {
-    setupKeyboardAvoidance();
-  });
+  onMount(() => { setupKeyboardAvoidance(); });
 
-  function getEditorHTML() {
-    return docPageComp ? docPageComp.getContent() : '';
-  }
-  function setEditorHTML(html) {
-    docPageComp && docPageComp.setContent(html);
-  }
-  function focusEditor() {
-    docPageComp && docPageComp.focusEditor();
-  }
+  function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
+  function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
+  function focusEditor() { docPageComp && docPageComp.focusEditor(); }
 
   function persist() {
     savedState = 'saving';
-    const payload = {
-      name: docName,
-      content: getEditorHTML(),
-      updatedAt: Date.now(),
-    };
+    const payload = { name: docName, content: getEditorHTML(), updatedAt: Date.now() };
     try {
       localStorage.setItem(STORAGE_PREFIX + docId, JSON.stringify(payload));
       const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
       const index = indexRaw ? JSON.parse(indexRaw) : [];
       const existing = index.find(d => d.id === docId);
-      if (existing) {
-        existing.name = docName;
-        existing.updatedAt = payload.updatedAt;
-      } else {
-        index.push({ id: docId, name: docName, updatedAt: payload.updatedAt });
-      }
+      if (existing) { existing.name = docName; existing.updatedAt = payload.updatedAt; }
+      else index.push({ id: docId, name: docName, updatedAt: payload.updatedAt });
       localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
       savedState = 'saved';
-    } catch (e) {
-      savedState = 'dirty';
-    }
+    } catch (e) { savedState = 'dirty'; }
   }
 
   function scheduleSave() {
@@ -117,15 +95,9 @@
     saveTimeout = setTimeout(persist, 700);
   }
 
-  function handleInput() {
-    scheduleSave();
-    pushHistory();
-  }
+  function handleInput() { scheduleSave(); pushHistory(); }
 
-  function handleNameInput(e) {
-    docName = e.target.value;
-    scheduleSave();
-  }
+  function handleNameInput(e) { docName = e.target.value; scheduleSave(); }
   function handleNameBlur(e) {
     if (!docName || !docName.trim()) {
       docName = 'Documento sem título';
@@ -145,7 +117,6 @@
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
 
-  // --- Histórico próprio de undo/redo ---
   let historyStack = [];
   let historyIndex = -1;
   let isRestoringHistory = false;
@@ -164,19 +135,12 @@
 
   function pushHistory(immediate = false) {
     if (isRestoringHistory) return;
-    if (immediate) {
-      clearTimeout(historyDebounce);
-      snapshotNow();
-      return;
-    }
+    if (immediate) { clearTimeout(historyDebounce); snapshotNow(); return; }
     clearTimeout(historyDebounce);
     historyDebounce = setTimeout(snapshotNow, 350);
   }
 
-  function initHistory(html) {
-    historyStack = [html || ''];
-    historyIndex = 0;
-  }
+  function initHistory(html) { historyStack = [html || '']; historyIndex = 0; }
 
   async function undo() {
     if (historyIndex <= 0) return;
@@ -203,30 +167,35 @@
   $: canUndo = historyIndex > 0;
   $: canRedo = historyIndex < historyStack.length - 1;
 
-  function handleDocReady(e) {
-    initHistory(e.detail?.html || '');
-  }
+  function handleDocReady(e) { initHistory(e.detail?.html || ''); }
 
-  // --- Estado dos modals ---
   let activePanel = null;
   let colorModalOpen = false;
   let colorPickerOpen = false;
-  let imageOptionsOpen = false;
   let tableModalOpen = false;
+  let layersModalOpen = false;
+
+  // ── Estado das camadas da folha atual ─────────────────────────────
+  let currentPageLayers = [];
+
+  function refreshLayers() {
+    if (!docPageComp) { currentPageLayers = []; return; }
+    const objs = docPageComp.getFloatingObjectsForPage(activePageIndex) || [];
+    currentPageLayers = objs.map((o, i) => ({
+      id: `${activePageIndex}:${o.id}`,
+      pageIndex: activePageIndex,
+      objId: o.id,
+      type: 'image',
+      label: `Imagem ${i + 1}`,
+    }));
+  }
 
   // ══════════════════════════════════════════════════════════════════
-  //  ESTADO DE EDIÇÃO — controla qual dos DOIS bottom bars aparece.
-  //  isEditing = false (padrão): CreationToolsBar visível (modelos,
-  //  formas, ferramentas). Ao tocar no papel -> isEditing = true,
-  //  BottomToolbar (formatação) aparece. O botão check.svg no appbar
-  //  fecha a edição manualmente sem precisar de blur natural do
-  //  contenteditable.
+  //  ESTADO DE EDIÇÃO
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
-  function handlePageFocus() {
-    if (!isEditing) isEditing = true;
-  }
+  function handlePageFocus() { if (!isEditing) isEditing = true; }
 
   function confirmDoneEditing() {
     buzz();
@@ -248,15 +217,12 @@
     if (id === 'footnote') { openFootnotePanel(); return; }
     if (id === 'insert') { triggerImagePicker(); return; }
     if (id === 'table') { tableModalOpen = true; return; }
+    if (id === 'layers') { refreshLayers(); layersModalOpen = true; return; }
     activePanel = id;
   }
 
   function handleCreationToolAction(id) {
     buzz();
-    // Estas ações também levam a isEditing = true, porque tocar em
-    // "Imagem" ou "Tabela" a partir da barra de criação insere
-    // conteúdo na página atual e o utilizador passa a estar "dentro"
-    // do documento, tal como tocar diretamente no papel.
     if (id === 'insert') { isEditing = true; triggerImagePicker(); return; }
     if (id === 'table') { isEditing = true; tableModalOpen = true; return; }
     if (id === 'templates') { showToast('Modelos em breve'); return; }
@@ -264,14 +230,9 @@
     if (id === 'tools') { showToast('Ferramentas em breve'); return; }
   }
 
-  function closeFormatModal() {
-    activePanel = null;
-  }
+  function closeFormatModal() { activePanel = null; }
 
-  function setFont(value) {
-    exec('fontName', value);
-    activePanel = null;
-  }
+  function setFont(value) { exec('fontName', value); activePanel = null; }
   function setSize(px) {
     focusEditor();
     document.execCommand('fontSize', false, '7');
@@ -296,31 +257,28 @@
     e.target.value = '';
   }
 
-  // editingImageTarget = { pageIndex, objId } — objeto flutuante em edição
-  let editingImageTarget = null;
-  let editingImageState = { wrap: 'front', width: 200 };
+  // Imagem: sem modal — gestos diretos no DocPage tratam tudo.
+  // Ao tocar numa imagem já selecionada abre o painel de camadas
+  // para o utilizador poder apagá-la se quiser.
   function handleImageRequestEdit(e) {
-    editingImageTarget = { pageIndex: e.detail.pageIndex, objId: e.detail.objId };
-    editingImageState = e.detail.state;
-    imageOptionsOpen = true;
+    refreshLayers();
+    layersModalOpen = true;
   }
-  function applyImageOptions(e) {
-    docPageComp && docPageComp.applyImageOptions(editingImageTarget, e.detail);
-    imageOptionsOpen = false;
-    editingImageTarget = null;
+
+  function handleLayerSelect(e) {
+    // seleciona a camada no DocPage
+    const [pageIndexStr, objIdStr] = String(e.detail).split(':');
+    docPageComp && docPageComp.selectFloatById(Number(pageIndexStr), Number(objIdStr));
+    layersModalOpen = false;
+  }
+
+  function handleLayerDelete(e) {
+    const [pageIndexStr, objIdStr] = String(e.detail).split(':');
+    docPageComp && docPageComp.deleteImage({ pageIndex: Number(pageIndexStr), objId: Number(objIdStr) });
     scheduleSave();
     pushHistory(true);
-  }
-  function deleteEditingImage() {
-    docPageComp && docPageComp.deleteImage(editingImageTarget);
-    imageOptionsOpen = false;
-    editingImageTarget = null;
-    scheduleSave();
-    pushHistory(true);
-  }
-  function closeImageOptions() {
-    imageOptionsOpen = false;
-    editingImageTarget = null;
+    refreshLayers();
+    if (currentPageLayers.length === 0) layersModalOpen = false;
   }
 
   function insertTable(e) {
@@ -331,26 +289,14 @@
     pushHistory(true);
   }
 
-  function selectColor(hex) {
-    exec('foreColor', hex);
-    colorModalOpen = false;
-  }
-  function requestAddColor() {
-    colorModalOpen = false;
-    colorPickerOpen = true;
-  }
+  function selectColor(hex) { exec('foreColor', hex); colorModalOpen = false; }
+  function requestAddColor() { colorModalOpen = false; colorPickerOpen = true; }
   function confirmCustomColor(hex) {
-    if (!customColors.includes(hex)) {
-      customColors = [...customColors, hex];
-      persistCustomColors();
-    }
+    if (!customColors.includes(hex)) { customColors = [...customColors, hex]; persistCustomColors(); }
     colorPickerOpen = false;
     colorModalOpen = true;
   }
-  function cancelCustomColor() {
-    colorPickerOpen = false;
-    colorModalOpen = true;
-  }
+  function cancelCustomColor() { colorPickerOpen = false; colorModalOpen = true; }
 
   let linkUrlDraft = '';
   let savedSelectionRange = null;
@@ -360,9 +306,7 @@
     const sel = window.getSelection();
     if (sel && sel.rangeCount && !sel.isCollapsed) {
       savedSelectionRange = sel.getRangeAt(0).cloneRange();
-    } else {
-      savedSelectionRange = null;
-    }
+    } else { savedSelectionRange = null; }
     linkUrlDraft = '';
     activePanel = 'link';
   }
@@ -385,36 +329,22 @@
       document.execCommand('createLink', false, url);
       docPageComp && docPageComp.tagLinksWithHref(url);
     }
-    scheduleSave();
-    pushHistory(true);
-    linkUrlDraft = '';
-    savedSelectionRange = null;
-    activePanel = null;
+    scheduleSave(); pushHistory(true);
+    linkUrlDraft = ''; savedSelectionRange = null; activePanel = null;
   }
   function removeLink() {
-    focusEditor();
-    restoreSelection();
+    focusEditor(); restoreSelection();
     document.execCommand('unlink');
-    scheduleSave();
-    pushHistory(true);
-    activePanel = null;
+    scheduleSave(); pushHistory(true); activePanel = null;
   }
-  function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-  function escapeAttr(str) {
-    return escapeHtml(str).replace(/"/g, '&quot;');
-  }
+  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escapeAttr(str) { return escapeHtml(str).replace(/"/g,'&quot;'); }
 
   let footnotes = [];
   let footnoteDraft = '';
   let footnoteCounter = 0;
 
-  function openFootnotePanel() {
-    focusEditor();
-    footnoteDraft = '';
-    activePanel = 'footnote';
-  }
+  function openFootnotePanel() { focusEditor(); footnoteDraft = ''; activePanel = 'footnote'; }
   function confirmInsertFootnote() {
     const text = footnoteDraft.trim();
     if (!text) return;
@@ -425,22 +355,17 @@
     footnotes = [...footnotes, { id: noteId, num, text }];
     document.execCommand('insertHTML', false,
       `<sup class="footnote-ref" data-footnote-id="${noteId}">${num}</sup>`);
-    scheduleSave();
-    pushHistory(true);
-    footnoteDraft = '';
-    activePanel = null;
+    scheduleSave(); pushHistory(true);
+    footnoteDraft = ''; activePanel = null;
   }
   function removeFootnote(id) {
     footnotes = footnotes.filter(f => f.id !== id);
     docPageComp && docPageComp.removeFootnoteRef(id);
-    scheduleSave();
-    pushHistory(true);
+    scheduleSave(); pushHistory(true);
   }
 
   let fileInputEl;
-  function triggerImagePicker() {
-    fileInputEl?.click();
-  }
+  function triggerImagePicker() { fileInputEl?.click(); }
 
   function handleKeydown(e) {
     const mod = e.metaKey || e.ctrlKey;
@@ -461,7 +386,6 @@
     fixedRootHeight = Math.round(h);
     document.documentElement.style.setProperty('--app-vh', fixedRootHeight + 'px');
   }
-
   function computeKbOffset() {
     const vv = window.visualViewport;
     if (!vv) { kbOffset = 0; return; }
@@ -482,59 +406,70 @@
   }
 
   function setupKeyboardAvoidance() {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        applyFixedHeight();
-
-        vvRef = window.visualViewport;
-        if (!vvRef) return;
-        vvRef.addEventListener('resize', scheduleKbUpdate);
-        vvRef.addEventListener('scroll', scheduleKbUpdate);
-      });
-    });
-
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      applyFixedHeight();
+      vvRef = window.visualViewport;
+      if (!vvRef) return;
+      vvRef.addEventListener('resize', scheduleKbUpdate);
+      vvRef.addEventListener('scroll', scheduleKbUpdate);
+    }));
     window.addEventListener('orientationchange', handleOrientationChange);
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  NAVEGAÇÃO DE PÁGINA POR BOTÕES (appbar) — substitui completamente
-  //  qualquer gesto de scroll/zoom para trocar de folha. Não altera
-  //  dados nem zoom: só troca qual folha tem display:flex no DocPage.
-  // ══════════════════════════════════════════════════════════════════
   let activePageIndex = 0;
   let totalPages = 1;
 
-  function handlePageFocusFromChild(e) {
-    activePageIndex = e.detail;
-    handlePageFocus();
-  }
+  function handlePageFocusFromChild(e) { activePageIndex = e.detail; handlePageFocus(); }
 
-  function goPrevPage() {
-    if (activePageIndex <= 0) return;
-    buzz();
-    activePageIndex -= 1;
-  }
-  function goNextPage() {
-    if (activePageIndex >= totalPages - 1) return;
-    buzz();
-    activePageIndex += 1;
-  }
+  function goPrevPage() { if (activePageIndex <= 0) return; buzz(); activePageIndex -= 1; }
+  function goNextPage() { if (activePageIndex >= totalPages - 1) return; buzz(); activePageIndex += 1; }
 
   // ══════════════════════════════════════════════════════════════════
-  //  PUSH EFFECT do fundo quando a ExportPickerPage entra por cima —
-  //  mesmo motor spring do home (createBackRecoilTransition).
+  //  ANIMAÇÃO EXPORT — mainRecoil (fundo recua) + exportSlide (overlay
+  //  entra da direita), EXACTAMENTE o mesmo padrão do profile/home.
+  //  Dois springs independentes, nunca o mesmo valor.
   // ══════════════════════════════════════════════════════════════════
-  const backRecoil = createBackRecoilTransition();
-  let rootRecoilValue = 0; // 0..1
-  const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
+  const mainRecoil = createBackRecoilTransition();
+  let mainRecoilValue = 0;
+  const unsubscribeMainRecoil = mainRecoil.subscribe((v) => { mainRecoilValue = v; });
 
-  let lastExportPushedState = false;
-  $: if (exportPickerOpen !== lastExportPushedState) {
-    lastExportPushedState = exportPickerOpen;
-    if (exportPickerOpen) backRecoil.recoil();
-    else backRecoil.reset();
+  const exportSlide = createSlideTransition({});
+  let exportSlideX = 100;
+  const unsubscribeExportSlide = exportSlide.subscribe((v) => { exportSlideX = v; });
+
+  let exportPickerOpen = false;
+  let exportPickerVisible = false; // controla montagem
+  let exportPickerMode = 'export';
+  let exportNavToken = 0;
+
+  function openExport(mode) {
+    exportPickerMode = mode;
+    exportNavToken += 1;
+    const token = exportNavToken;
+    exportPickerVisible = true;
+    exportPickerOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (exportNavToken !== token) return;
+      exportSlide.open();
+      mainRecoil.recoil();
+    }));
   }
-  $: rootRecoilTranslate = -8 * rootRecoilValue; // %
+
+  function closeExportPicker() {
+    exportNavToken += 1;
+    const token = exportNavToken;
+    exportSlide.close();
+    mainRecoil.reset();
+    setTimeout(() => {
+      if (exportNavToken !== token) return;
+      exportPickerOpen = false;
+      exportPickerVisible = false;
+    }, 340);
+  }
+
+  $: mainRecoilTranslate = -8 * mainRecoilValue;
+  $: mainRecoilScale = 1 - 0.02 * mainRecoilValue;
+  $: mainTransformStyle = `transform: translate3d(${mainRecoilTranslate}%, 0, 0) scale(${mainRecoilScale});`;
 
   onDestroy(() => {
     if (vvRef) {
@@ -546,8 +481,10 @@
     clearTimeout(orientationTimeout);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
-    unsubscribeBackRecoil?.();
-    backRecoil.destroy?.();
+    unsubscribeMainRecoil?.();
+    unsubscribeExportSlide?.();
+    mainRecoil.destroy?.();
+    exportSlide.destroy?.();
   });
 
   let showDocMenu = false;
@@ -558,23 +495,18 @@
     buzz();
     if (docMenuBtnEl) {
       const r = docMenuBtnEl.getBoundingClientRect();
-      docMenuAnchor = {
-        top: r.bottom + 8,
-        right: Math.max(8, window.innerWidth - r.right),
-      };
+      docMenuAnchor = { top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) };
     }
     showDocMenu = true;
   }
-  function closeDocMenu() {
-    showDocMenu = false;
-  }
+  function closeDocMenu() { showDocMenu = false; }
 
   function handleDocMenuSelect(e) {
     const id = e.detail;
     showDocMenu = false;
     if (id === 'duplicate') duplicateDoc();
-    else if (id === 'share') shareDoc();
-    else if (id === 'export') exportDoc();
+    else if (id === 'share') openExport('share');
+    else if (id === 'export') openExport('export');
     else if (id === 'delete') askDeleteDoc();
   }
 
@@ -591,63 +523,30 @@
       index.push({ id: newId, name: payload.name, updatedAt: payload.updatedAt });
       localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
       showToast('Documento duplicado');
-    } catch (e) {
-      showToast('Não foi possível duplicar');
-    }
-  }
-
-  let exportPickerOpen = false;
-  let exportPickerMode = 'export'; // 'export' | 'share'
-
-  function exportDoc() {
-    exportPickerMode = 'export';
-    exportPickerOpen = true;
-  }
-
-  function shareDoc() {
-    exportPickerMode = 'share';
-    exportPickerOpen = true;
-  }
-
-  function closeExportPicker() {
-    exportPickerOpen = false;
+    } catch (e) { showToast('Não foi possível duplicar'); }
   }
 
   let showDeleteConfirm = false;
-  function askDeleteDoc() {
-    showDeleteConfirm = true;
-  }
-  function cancelDeleteDoc() {
-    showDeleteConfirm = false;
-  }
+  function askDeleteDoc() { showDeleteConfirm = true; }
+  function cancelDeleteDoc() { showDeleteConfirm = false; }
   function confirmDeleteDoc() {
     try {
       localStorage.removeItem(STORAGE_PREFIX + docId);
       const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
       const index = indexRaw ? JSON.parse(indexRaw) : [];
-      const filtered = index.filter(d => d.id !== docId);
-      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(filtered));
+      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index.filter(d => d.id !== docId)));
     } catch (e) {}
     showDeleteConfirm = false;
     dispatch('nav', { to: 'home' });
   }
 </script>
 
+<!-- Camada de fundo (MainPage) — recua quando Export abre -->
 <div
   class="root"
   bind:this={rootEl}
-  style="
-    background:{c.background};
-    color:{c.textPrimary};
-    transform: translate3d({rootRecoilTranslate}%, 0, 0);
-  "
+  style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
-
-  <!-- APPBAR TOTALMENTE FIXO — position:fixed, altura fixa, nunca
-       recalcula com o conteúdo do editor. O "pulo" anterior vinha do
-       padding-top da .canvas-area mudando; agora .canvas-area tem
-       contain:strict e a altura do appbar nunca depende do que
-       acontece dentro do papel. -->
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -687,10 +586,6 @@
     </button>
   </div>
 
-  <!-- Área do papel: fundo "mais fraco" que o branco puro do resto do
-       app, para o papel branco se destacar por contraste — só
-       relevante no tema claro; no escuro usa a superfície de fundo
-       normal do editor. -->
   <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
       bind:this={docPageComp}
@@ -703,6 +598,7 @@
       on:removefootnote={(e) => removeFootnote(e.detail)}
       on:imagerequestedit={handleImageRequestEdit}
       on:pagefocus={handlePageFocusFromChild}
+      on:totalpages={(e) => { totalPages = e.detail; }}
     />
   </div>
 
@@ -762,20 +658,20 @@
     on:cancel={cancelCustomColor}
   />
 
-  <ImageOptionsModal
-    visible={imageOptionsOpen}
-    {c}
-    state={editingImageState}
-    on:apply={applyImageOptions}
-    on:delete={deleteEditingImage}
-    on:close={closeImageOptions}
-  />
-
   <TableModal
     visible={tableModalOpen}
     {c}
     on:close={() => tableModalOpen = false}
     on:insert={insertTable}
+  />
+
+  <LayersModal
+    visible={layersModalOpen}
+    {c}
+    layers={currentPageLayers}
+    on:close={() => layersModalOpen = false}
+    on:select={handleLayerSelect}
+    on:delete={handleLayerDelete}
   />
 
   <ConfirmDialog
@@ -790,8 +686,10 @@
   <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
 </div>
 
-{#if exportPickerOpen}
+<!-- Camada de overlay (ExportPickerPage) — desliza da direita por cima -->
+{#if exportPickerVisible}
   <ExportPickerPage
+    slideX={exportSlideX}
     {isDark}
     {docName}
     mode={exportPickerMode}
@@ -812,29 +710,22 @@
 
   .root {
     position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
+    left: 0; right: 0; top: 0;
     height: var(--app-vh, 100dvh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     contain: layout style paint;
     will-change: transform;
+    /* transition da camada de fundo — igual ao profile */
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* APPBAR: altura fixa e nunca recalculada. contain:strict garante
-     que nada dentro do appbar (input do nome, contador de página)
-     pode alterar a altura ou disparar reflow no resto da árvore —
-     isso é o que eliminava o "pulo" ao colar/selecionar texto, que
-     na verdade vinha do canvas-area recomputando padding-top. */
   .appbar {
     display: flex; align-items: center; gap: 8px;
     padding: 52px 10px 12px; flex-shrink: 0;
     position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
+    left: 0; right: 0; top: 0;
     height: 100px;
     z-index: 50;
     contain: strict;
@@ -857,8 +748,6 @@
   }
   .save-state { font-size: 10.5px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
 
-  /* Área do papel: fundo próprio, contain:strict para nunca vazar
-     reflow para o appbar acima. */
   .canvas-area {
     flex: 1;
     min-height: 0;

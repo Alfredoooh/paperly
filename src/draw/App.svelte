@@ -1,6 +1,5 @@
 <script>
   export let pushed = false;
-  // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
@@ -8,10 +7,10 @@
   import MainPage from './pages/MainPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
 
-  const APP_ID = 'tasks';
-  const APP_TITLE = 'Nexa Tasks';
-  const APP_ICON = '/icons/svg/tasks.svg';
-  const BASE = '/tasks/';
+  const APP_ID = 'draw';
+  const APP_TITLE = 'Nexa Draw';
+  const APP_ICON = '/icons/svg/apps/draw.svg';
+  const BASE = '/draw/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 

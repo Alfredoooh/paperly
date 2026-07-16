@@ -7,18 +7,17 @@
   import AnalyticsApp from './analytics/App.svelte';
   import AuthApp from './auth/App.svelte';
   import CalendarApp from './calendar/App.svelte';
-  import ChatApp from './chat/App.svelte';
+  import DrawApp from './draw/App.svelte';
   import DocsApp from './docs/App.svelte';
   import DriveApp from './drive/App.svelte';
+  import ImageApp from './image/App.svelte';
+  import MailApp from './mail/App.svelte';
   import FormsApp from './forms/App.svelte';
-  import NotesApp from './notes/App.svelte';
   import NotFoundApp from './notfound/App.svelte';
-  import ProfileApp from './profile/App.svelte';
+  import NotesApp from './notes/App.svelte';
   import ProfileLensApp from './profilelens/App.svelte';
-  import ProjectsApp from './projects/App.svelte';
   import SheetsApp from './sheets/App.svelte';
   import SlidesApp from './slides/App.svelte';
-  import TasksApp from './tasks/App.svelte';
   import WhiteboardApp from './whiteboard/App.svelte';
   import WikiApp from './wiki/App.svelte';
 
@@ -28,18 +27,17 @@
     analytics: { component: AnalyticsApp, path: '/analytics/' },
     auth: { component: AuthApp, path: '/auth/' },
     calendar: { component: CalendarApp, path: '/calendar/' },
-    chat: { component: ChatApp, path: '/chat/' },
     docs: { component: DocsApp, path: '/docs/' },
+    draw: { component: DrawApp, path: '/draw/' },
     drive: { component: DriveApp, path: '/drive/' },
     forms: { component: FormsApp, path: '/forms/' },
-    notes: { component: NotesApp, path: '/notes/' },
+    image: { component: ImageApp, path: '/image/' },
+    mail: { component: MailApp, path: '/mail/' },
     notfound: { component: NotFoundApp, path: '/404/' },
-    profile: { component: ProfileApp, path: '/profile/' },
+    notes: { component: NotesApp, path: '/notes/' },
     profilelens: { component: ProfileLensApp, path: '/profilelens/' },
-    projects: { component: ProjectsApp, path: '/projects/' },
     sheets: { component: SheetsApp, path: '/sheets/' },
     slides: { component: SlidesApp, path: '/slides/' },
-    tasks: { component: TasksApp, path: '/tasks/' },
     whiteboard: { component: WhiteboardApp, path: '/whiteboard/' },
     wiki: { component: WikiApp, path: '/wiki/' },
   };
@@ -69,26 +67,25 @@
 
   // FIX (bug: 404 intermitente ao "voltar"):
   // O home tem o SEU PRÓPRIO router interno (BASE '/home/', com
-  // VALID_ROUTES ['projects','templates','tools']) — quando o
-  // utilizador muda de tab dentro do home, a URL passa a ser
-  // '/home/projects/', '/home/templates/' ou '/home/tools/' (pushState
-  // feito pelo router do PRÓPRIO home, sem o App.svelte raiz saber
-  // disso, porque pushState não dispara popstate).
+  // VALID_ROUTES ['templates','tools']) — quando o utilizador muda de
+  // tab dentro do home, a URL passa a ser '/home/templates/' ou
+  // '/home/tools/' (pushState feito pelo router do PRÓPRIO home, sem o
+  // App.svelte raiz saber disso, porque pushState não dispara popstate).
   //
   // Isto sozinho não causava problema — até o utilizador abrir outra
-  // app a partir daí (ex.: tocar no avatar estando na tab Projetos) e
-  // depois carregar em "voltar": o browser recua para essa entrada
-  // '/home/projects/', o onPopState do raiz corre pathToAppId() sobre
-  // ela, e ANTES desta correção isHomePath() só reconhecia o path
-  // EXATO '/home/' ou '/home' — qualquer sub-rota caía no 'seg' não
-  // encontrado em APP_IDS (que nunca inclui 'home', de propósito, ver
-  // comentário acima) e devolvia 'notfound', disparando
-  // window.location.replace('/404/') — um reload inteiro da página.
+  // app a partir daí e depois carregar em "voltar": o browser recua
+  // para essa entrada '/home/templates/' ou '/home/tools/', o onPopState
+  // do raiz corre pathToAppId() sobre ela, e ANTES desta correção
+  // isHomePath() só reconhecia o path EXATO '/home/' ou '/home' —
+  // qualquer sub-rota caía no 'seg' não encontrado em APP_IDS (que
+  // nunca inclui 'home', de propósito, ver comentário acima) e devolvia
+  // 'notfound', disparando window.location.replace('/404/') — um reload
+  // inteiro da página.
   //
   // Isto explica por que o 404 era "às vezes": só acontecia quando a
-  // tab ativa do home, no momento de abrir outra app, não era a
-  // inicial ('create'). Agora isHomePath() reconhece QUALQUER path que
-  // comece por '/home/' (ou seja exatamente '/home', sem barra) como
+  // tab ativa do home, no momento de abrir outra app, não era a inicial
+  // ('create'). Agora isHomePath() reconhece QUALQUER path que comece
+  // por '/home/' (ou seja exatamente '/home', sem barra) como
   // pertencendo ao home — exatamente o mesmo tratamento por PREFIXO já
   // usado abaixo para '/404' e '/auth', só que antes faltava aqui.
   function isHomePath(pathname) {

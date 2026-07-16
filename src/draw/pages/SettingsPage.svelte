@@ -5,7 +5,7 @@
 
   export let isDark = false;
   export let user = null;
-  export let appTitle = 'Nexa Tasks';
+  export let appTitle = 'Nexa Draw';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);

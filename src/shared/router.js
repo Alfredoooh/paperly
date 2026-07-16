@@ -3,7 +3,7 @@
 // fixa (ex: '/ai/'). As sub-rotas dentro do app (ex: 'settings', 'widgets')
 // mapeiam para URLs reais tipo /ai/settings/, /ai/widgets/.
 // Também suporta um segmento dinâmico de recurso (ex: um UUID de
-// conversa/documento), tipo /chat/508285b4-88a2-4939-9529-cdd0adf4f4d1/.
+// recurso/documento), tipo /ai/508285b4-88a2-4939-9529-cdd0adf4f4d1/.
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

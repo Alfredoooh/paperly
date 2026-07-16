@@ -26,11 +26,8 @@
     slides:       '#E8720F', // laranja
     drive:        '#8B3FE0', // roxo
     calendar:     '#1FA34A', // verde
-    chat:         '#12A8D6', // azul-ciano
-    tasks:        '#B0B0B8', // cinza
     notes:        '#C2410C', // laranja-terracota
     forms:        '#E0405F', // vermelho-rosado
-    projects:     '#9333EA', // roxo-violeta
     wiki:         '#4A5FE0', // índigo
     whiteboard:   '#0D9488', // teal-escuro
     analytics:    '#84CC16', // lima

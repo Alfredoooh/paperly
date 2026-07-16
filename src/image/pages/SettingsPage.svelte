@@ -5,7 +5,7 @@
 
   export let isDark = false;
   export let user = null;
-  export let appTitle = 'Nexa Chat';
+  export let appTitle = 'Nexa Image';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);

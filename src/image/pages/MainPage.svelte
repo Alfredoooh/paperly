@@ -5,9 +5,9 @@
 
   export let isDark = false;
   export let user = null;
-  export let appTitle = 'Nexa Projects';
-  export let appId = 'projects';
-  export let iconPath = '/icons/svg/projects.svg';
+  export let appTitle = 'Nexa Image';
+  export let appId = 'image';
+  export let iconPath = '/icons/svg/apps/image.svg';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -17,9 +17,9 @@
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
 
   const actions = [
-    { label: 'Novo',     hint: 'Criar um novo item', action: () => showToast('Em breve') },
+    { label: 'Novo', hint: 'Criar um novo item', action: () => showToast('Em breve') },
     { label: 'Recentes', hint: 'Aceder aos últimos ficheiros', action: () => showToast('Em breve') },
-    { label: 'Modelos',  hint: 'Explorar modelos', action: () => showToast('Em breve') },
+    { label: 'Modelos', hint: 'Explorar modelos', action: () => showToast('Em breve') },
   ];
 </script>
 

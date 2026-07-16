@@ -1,6 +1,5 @@
 <script>
   export let pushed = false;
-  // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
@@ -8,14 +7,15 @@
   import MainPage from './pages/MainPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
 
-  const APP_ID = 'chat';
-  const APP_TITLE = 'Nexa Chat';
-  const APP_ICON = '/icons/svg/chat.svg';
-  const BASE = '/chat/';
+  const APP_ID = 'mail';
+  const APP_TITLE = 'Nexa Mail';
+  const APP_ICON = '/icons/svg/apps/mail.svg';
+  const BASE = '/mail/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 
   let route = 'main';
+  let resourceId = null;
   let user = null;
   let isDark = false;
   let ready = false;
@@ -30,15 +30,17 @@
     isDark = t === 'dark';
     syncTheme(isDark);
 
-    const { route: initialRoute, notFound } = router.parseCurrentRoute();
+    const { route: initialRoute, resourceId: initialResourceId, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
     route = initialRoute;
-    router.navigate(route, { replace: true });
+    resourceId = initialResourceId;
+    if (!resourceId) router.navigate(route, { replace: true });
     ready = true;
 
-    const unbind = router.bindPopState((r, nf) => {
+    const unbind = router.bindPopState((r, nf, rid) => {
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
+      resourceId = rid;
     });
 
     return unbind;
@@ -57,14 +59,20 @@
       return;
     }
     if (to === 'home') { dispatch('nav', { to: 'home' }); return; }
-    if (to === 'settings') { route = 'settings'; router.navigate('settings'); return; }
-    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); return; }
+    if (to === 'settings') { route = 'settings'; resourceId = null; router.navigate('settings'); return; }
+    if (to === 'main' || to === APP_ID) { route = 'main'; resourceId = null; router.navigate('main'); return; }
+    if (to === 'resource' && data?.id) {
+      route = 'main';
+      resourceId = data.id;
+      router.navigateToResource(data.id);
+      return;
+    }
   }
 </script>
 
 {#if ready}
   {#if route === 'main'}
-    <MainPage {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
+    <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
   {:else if route === 'settings'}
     <SettingsPage {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
   {/if}

@@ -5,7 +5,7 @@
 
   export let isDark = false;
   export let user = null;
-  export let appTitle = 'Nexa Projects';
+  export let appTitle = 'Nexa Mail';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);

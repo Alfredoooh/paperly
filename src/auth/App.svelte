@@ -42,7 +42,7 @@
     const { to, data } = e.detail;
     if (to === 'register') { route = 'register'; router.navigate('register'); return; }
     if (to === 'login') { route = 'login'; router.navigate('login'); return; }
-    if (to === 'home' || to === 'chat') {
+    if (to === 'home') {
       if (data?.user) localStorage.setItem('nexa_user', JSON.stringify(data.user));
       dispatch('nav', { to: 'home' });
     }

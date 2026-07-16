@@ -68,7 +68,18 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
-  onMount(() => { setupKeyboardAvoidance(); document.addEventListener('focusin', lockViewport, true); document.addEventListener('selectionchange', lockViewport, true); });
+  onMount(() => {
+    setupKeyboardAvoidance();
+    document.addEventListener('focusin', lockViewport, true);
+    // NOTA: o listener de 'selectionchange' que existia aqui foi
+    // removido de propósito. Ele disparava a CADA tecla premida
+    // dentro do contenteditable (selectionchange dispara em todo
+    // movimento de cursor), o que recomputava kbOffset e reescrevia
+    // a CSS var --kb-offset constantemente enquanto se escrevia —
+    // essa era uma das causas dos saltos do appbar/canvas durante a
+    // digitação. 'focusin' sozinho já é suficiente para detetar a
+    // entrada em qualquer campo editável.
+  });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
   function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
@@ -391,6 +402,19 @@
   }
 
   function computeKbOffset() {
+    // FIX (appbar/canvas saltando com o teclado):
+    // window.innerHeight NÃO encolhe quando o teclado abre (ao
+    // contrário de 100dvh, que em WebViews Android costuma encolher
+    // sozinho assim que o teclado aparece). Ao fixar --app-vh a
+    // partir de innerHeight aqui, garantimos que o layout inteiro
+    // (via calc(var(--app-vh)) no #app/.root) tem UMA ÚNICA fonte de
+    // verdade para a sua altura — deixa de haver o dvh nativo do
+    // browser a encolher o container AO MESMO TEMPO que o nosso
+    // próprio kbOffset desloca a bottom bar. Antes, essas duas coisas
+    // aconteciam em instantes ligeiramente diferentes e é isso que
+    // lia-se como o appbar "subindo e pulando".
+    document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
+
     const vv = window.visualViewport;
     if (!vv) {
       kbOffset = 0;
@@ -491,7 +515,6 @@
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
     document.removeEventListener('focusin', lockViewport, true);
-    document.removeEventListener('selectionchange', lockViewport, true);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
@@ -710,7 +733,7 @@
   .root {
     position: fixed;
     left: 0; right: 0; top: 0;
-    height: 100%;
+    height: calc(var(--app-vh, 100vh));
     display: flex;
     flex-direction: column;
     overflow: hidden;

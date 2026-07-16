@@ -532,20 +532,15 @@
 </script>
 
 <!-- Camada de fundo (MainPage) — recua quando Export abre -->
-<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
+<header class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translate3d(0,0,0);backface-visibility:hidden;">
   <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
     <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
 
   <div class="appbar-center">
-    <input
-      class="doc-name-input"
-      style="color:{c.textPrimary}"
-      value={docName}
-      on:input={handleNameInput}
-      on:blur={handleNameBlur}
-      aria-label="Nome do documento"
-    />
+    <div class="doc-name-display" style="color:{c.textPrimary}" aria-label="Nome do documento">
+      {docName}
+    </div>
     <span class="save-state" style="color:{c.textSecondary}">
       {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
     </span>
@@ -554,7 +549,7 @@
   <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
     <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
-</div>
+</header>
 
 <div
   class="root"
@@ -705,9 +700,13 @@
     height: 100px;
     z-index: 9999;
     contain: paint;
-    transform: translate3d(0,0,0);
+    transform: translate3d(0,0,0) !important;
     will-change: transform;
     pointer-events: auto;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -716,12 +715,14 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
   .appbar-btn:active { opacity: .7; transform: scale(0.94); }
-  .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
-  .doc-name-input {
+  .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .doc-name-display {
     width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;
-    border: none; background: transparent; outline: none; padding: 0;
+    line-height: 1.2; padding: 0; margin: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    pointer-events: none;
   }
-  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
+  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; pointer-events: none; }
 
   .canvas-area {
     flex: 1;
@@ -730,7 +731,7 @@
     display: flex;
     flex-direction: column;
     padding-top: 100px;
-    contain: strict;
+    contain: layout paint size;
   }
 
   .icon-mask {

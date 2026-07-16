@@ -192,11 +192,7 @@
 
   // ══════════════════════════════════════════════════════════════════
   //  ESTADO DE EDIÇÃO — isEditing controla qual bottom bar aparece.
-  //  IMPORTANTE: nada relacionado a isEditing entra no appbar. O
-  //  botão de concluir edição (check) agora vive no BottomToolbar,
-  //  como um FAB circular à parte da pill — assim o appbar nunca tem
-  //  nenhum {#if} nem classe condicional a isEditing, e não recalcula
-  //  nada internamente quando o utilizador toca na folha.
+  //  O appbar (agora fora do .root) nunca depende disto.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -263,16 +259,12 @@
     e.target.value = '';
   }
 
-  // Imagem: sem modal — gestos diretos no DocPage tratam tudo.
-  // Ao tocar numa imagem já selecionada abre o painel de camadas
-  // para o utilizador poder apagá-la se quiser.
   function handleImageRequestEdit(e) {
     refreshLayers();
     layersModalOpen = true;
   }
 
   function handleLayerSelect(e) {
-    // seleciona a camada no DocPage
     const [pageIndexStr, objIdStr] = String(e.detail).split(':');
     docPageComp && docPageComp.selectFloatById(Number(pageIndexStr), Number(objIdStr));
     layersModalOpen = false;
@@ -422,10 +414,6 @@
     window.addEventListener('orientationchange', handleOrientationChange);
   }
 
-  // activePageIndex/totalPages continuam a existir (o DocPage ainda
-  // os expõe e usa-os internamente para saber onde inserir imagem/
-  // tabela), mas os botões de navegação por página saíram do appbar —
-  // a navegação volta a ser 100% por scroll vertical contínuo.
   let activePageIndex = 0;
   let totalPages = 1;
 
@@ -433,8 +421,8 @@
 
   // ══════════════════════════════════════════════════════════════════
   //  ANIMAÇÃO EXPORT — mainRecoil (fundo recua) + exportSlide (overlay
-  //  entra da direita), EXACTAMENTE o mesmo padrão do profile/home.
-  //  Dois springs independentes, nunca o mesmo valor.
+  //  entra da direita). Note: isto agora só transforma o CONTEÚDO
+  //  (.content-shell), nunca o appbar, que ficou de fora deste bloco.
   // ══════════════════════════════════════════════════════════════════
   const mainRecoil = createBackRecoilTransition();
   let mainRecoilValue = 0;
@@ -445,7 +433,7 @@
   const unsubscribeExportSlide = exportSlide.subscribe((v) => { exportSlideX = v; });
 
   let exportPickerOpen = false;
-  let exportPickerVisible = false; // controla montagem
+  let exportPickerVisible = false;
   let exportPickerMode = 'export';
   let exportNavToken = 0;
 
@@ -548,47 +536,60 @@
   }
 </script>
 
-<!-- Camada de fundo (MainPage) — recua quando Export abre -->
+<!--
+  ══════════════════════════════════════════════════════════════════
+  APPBAR — elemento TOTALMENTE INDEPENDENTE, irmão de .content-shell,
+  fora de QUALQUER div que tenha transform/contain/will-change.
+
+  Isto é a causa raiz corrigida: antes, o appbar vivia DENTRO de
+  <div class="root">, e .root tinha transform (para o recuo do
+  Export) + contain:layout. Um ancestral com transform OU contain
+  cria um novo "containing block" para descendentes position:fixed —
+  ou seja, o appbar NUNCA esteve realmente fixo à janela; estava
+  fixo relativamente ao .root. Quando o teclado abria e o
+  --app-vh/visualViewport encolhia, ou quando o .root recuava para
+  o Export, o appbar era arrastado junto, porque o seu referencial
+  inteiro dependia do pai.
+
+  Agora o appbar é escrito ANTES do .content-shell, como irmão direto
+  no root do componente, sem nenhum ancestral com transform/contain
+  entre ele e a raiz real do documento. position:fixed aqui é fixo
+  de verdade, à viewport do browser — não depende de .root, não
+  depende de isEditing, não depende do teclado, não depende de nada.
+  ══════════════════════════════════════════════════════════════════
+-->
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider}">
+  <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
+    <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  </button>
+
+  <div class="appbar-center">
+    <input
+      class="doc-name-input"
+      style="color:{c.textPrimary}"
+      value={docName}
+      on:input={handleNameInput}
+      on:blur={handleNameBlur}
+      aria-label="Nome do documento"
+    />
+    <span class="save-state" style="color:{c.textSecondary}">
+      {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
+    </span>
+  </div>
+
+  <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+    <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  </button>
+</div>
+
+<!-- Camada de conteúdo (MainPage) — recua quando Export abre.
+     O appbar acima NÃO está dentro desta div, e portanto nunca é
+     afetado pelo transform/contain que ela sofre. -->
 <div
-  class="root"
+  class="content-shell"
   bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
-  <!--
-    APPBAR: agora 100% estático em relação a isEditing. Não tem
-    nenhum {#if}, nenhuma classe condicional, nenhum atributo que
-    dependa do estado de edição — só o nome do documento, o estado de
-    gravação e os dois botões que sempre existiram (voltar, mais
-    opções). É isto que elimina de vez o "subir" ao tocar na folha:
-    antes, o botão de check aparecia/desaparecia AQUI DENTRO conforme
-    isEditing mudava, o que forçava o appbar a recalcular o próprio
-    conteúdo interno a cada toque. Agora ele nunca re-renderiza nada
-    por causa de isEditing.
-  -->
-  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider}">
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
-
-    <div class="appbar-center">
-      <input
-        class="doc-name-input"
-        style="color:{c.textPrimary}"
-        value={docName}
-        on:input={handleNameInput}
-        on:blur={handleNameBlur}
-        aria-label="Nome do documento"
-      />
-      <span class="save-state" style="color:{c.textSecondary}">
-        {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-      </span>
-    </div>
-
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
-  </div>
-
   <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
       bind:this={docPageComp}
@@ -711,29 +712,19 @@
     inset: 0;
   }
 
-  .root {
-    position: fixed;
-    left: 0; right: 0; top: 0;
-    height: var(--app-vh, 100dvh);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    contain: layout style paint;
-    will-change: transform;
-    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  /* APPBAR: sem nenhuma dependência de isEditing. Altura e conteúdo
-     fixos sempre — isto é o que garante que nunca "sobe" ou treme ao
-     tocar na folha. */
+  /* APPBAR: fixo à viewport real do documento. Sem transform, sem
+     contain, sem will-change — nada aqui que crie containing block
+     próprio, e nenhum ancestral entre ele e a raiz tem essas
+     propriedades. Isto é o que o torna verdadeiramente imune a
+     redimensionamentos de teclado e a qualquer animação do
+     content-shell. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: 52px 12px 12px; flex-shrink: 0;
     position: fixed;
     left: 0; right: 0; top: 0;
     height: 100px;
-    z-index: 50;
-    contain: strict;
+    z-index: 100;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -748,6 +739,21 @@
     border: none; background: transparent; outline: none; padding: 0;
   }
   .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
+
+  /* content-shell: era .root. Continua a ter transform (para o
+     recuo do Export) e contain, mas agora isso NUNCA afeta o appbar,
+     porque o appbar não é mais descendente desta div. */
+  .content-shell {
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    height: var(--app-vh, 100dvh);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    contain: layout style paint;
+    will-change: transform;
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+  }
 
   .canvas-area {
     flex: 1;

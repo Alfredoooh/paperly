@@ -3,7 +3,6 @@
 
   export let c;
   export let visible = true;
-  export let kbOffset = 0;
 
   const dispatch = createEventDispatcher();
 
@@ -40,7 +39,7 @@
 <div
   class="ctb-wrap"
   class:ctb-hidden={!visible}
-  style="transform: translate3d(0, {visible ? -kbOffset : 40}px, 0); background:{c.creationBarBg};"
+  style="background:{c.creationBarBg};"
 >
   {#each TOOLS as item}
     <button
@@ -75,7 +74,7 @@
        mais baixa, mais próxima de uma tab bar nativa. */
     padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px);
     box-shadow: 0 -1px 0 0 rgba(127,127,127,0.14);
-    transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
     opacity: 1;
   }
   .ctb-wrap.ctb-hidden {

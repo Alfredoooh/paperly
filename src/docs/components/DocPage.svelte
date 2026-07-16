@@ -177,7 +177,10 @@
         ? posicao.startContainer.parentElement
         : posicao.startContainer;
       const conteudoPai = elementoBase.closest('.conteudo');
-      if (conteudoPai) conteudoPai.focus();
+      if (conteudoPai) {
+        try { conteudoPai.focus({ preventScroll: true }); }
+        catch (e) { conteudoPai.focus(); }
+      }
     } catch (erro) {}
   }
 
@@ -277,7 +280,10 @@
   }
 
   export function focusEditor() {
-    contentEls[activePageIndex]?.focus();
+    const el = contentEls[activePageIndex];
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); }
+    catch (e) { el.focus(); }
   }
 
   export function blurEditor() {

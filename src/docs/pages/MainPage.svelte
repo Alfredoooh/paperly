@@ -597,7 +597,6 @@
   <CreationToolsBar
     {c}
     visible={!isEditing}
-    {kbOffset}
     on:action={(e) => handleCreationToolAction(e.detail)}
   />
 

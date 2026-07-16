@@ -32,6 +32,24 @@
   let singlePanStartY = 0;
   let isSinglePanning = false;
 
+  // ══════════════════════════════════════════════════════════════════
+  //  touch-action DINÂMICO — este era o bug real do "não desliza
+  //  verticalmente": o CSS tinha touch-action:none FIXO no
+  //  .pinch-root, o que diz ao browser "nunca trates nenhum toque
+  //  aqui, eu (JS) controlo tudo" — independentemente de estar ou não
+  //  a fazer pinch/pan naquele momento. Isso bloqueava o scroll
+  //  nativo do .canvas-scroll (que é o pai) mesmo com 1 dedo parado,
+  //  sem gesto nenhum em curso.
+  //
+  //  Correção: quando scale está na base (sem zoom aplicado), o touch
+  //  action passa a ser "pan-y" — o browser fica livre para rolar
+  //  verticalmente com 1 dedo, exatamente como antes de existir este
+  //  widget. Só quando já se está ampliado (scale > minScale) é que
+  //  voltamos a "none", porque aí sim precisamos de capturar nós
+  //  mesmos o pan de 1 dedo dentro da folha ampliada.
+  // ══════════════════════════════════════════════════════════════════
+  $: touchActionValue = scale > minScale + 0.01 ? 'none' : 'pan-y';
+
   function dist(a, b) {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
@@ -55,6 +73,16 @@
 
   function onPointerDown(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Com 1 dedo só e sem zoom ativo, não capturamos o ponteiro nem
+    // interceptamos nada — deixamos o browser tratar o gesto como
+    // scroll nativo (é isso que touch-action:pan-y já garante, mas
+    // reforçamos aqui não fazendo setPointerCapture/preventDefault
+    // neste caso, para não competir de forma nenhuma com o scroll).
+    if (pointers.size === 0 && scale <= minScale + 0.01) {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      return;
+    }
+
     containerEl?.setPointerCapture?.(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -104,6 +132,9 @@
       clampPan();
       e.preventDefault();
     }
+    // Se nem isPinching nem isSinglePanning estiverem ativos (caso do
+    // dedo único sem zoom), não chamamos preventDefault nenhum — o
+    // scroll nativo do pai continua a acontecer livremente.
   }
 
   function settleToBaseIfClose() {
@@ -147,6 +178,7 @@
 <div
   class="pinch-root"
   bind:this={containerEl}
+  style="touch-action: {touchActionValue};"
   on:pointerdown={onPointerDown}
   on:pointermove={onPointerMove}
   on:pointerup={onPointerUp}
@@ -167,7 +199,9 @@
     width: 100%;
     height: 100%;
     overflow: visible;
-    touch-action: none;
+    /* touch-action agora vem via style inline dinâmico (touchActionValue),
+       não fixo aqui — era o valor fixo "none" que bloqueava o scroll
+       vertical mesmo sem zoom nenhum ativo. */
     display: flex;
     align-items: flex-start;
     justify-content: center;

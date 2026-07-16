@@ -46,6 +46,10 @@
     if (item.disabled && item.disabled()) return;
     dispatch('action', item.id);
   }
+
+  function pressDone() {
+    dispatch('action', 'done');
+  }
 </script>
 
 <div
@@ -53,6 +57,12 @@
   class:tb-hidden={!visible}
   style="transform: translate3d(0, {visible ? -kbOffset : 40}px, 0);"
 >
+  <!--
+    A pill de formatação encolheu (padding menor, gap menor) para
+    abrir espaço ao FAB de concluir edição, que agora fica FORA da
+    pill, à direita, como um círculo próprio — é para lá que foi o
+    botão de check que antes vivia no appbar.
+  -->
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
@@ -65,7 +75,7 @@
         >
           <span
             class="icon-mask"
-            style="mask-image:url('/icons/svg/docs/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{item.icon}.svg');background:{c.iconTint};width:19px;height:19px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+            style="mask-image:url('/icons/svg/docs/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{item.icon}.svg');background:{c.iconTint};width:18px;height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
           ></span>
         </button>
       {/each}
@@ -74,13 +84,21 @@
       {/if}
     {/each}
   </div>
+
+  <button class="tb-fab" style="background:#2F7BF6" on:click={pressDone} aria-label="Concluir edição">
+    <span
+      class="icon-mask"
+      style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:#FFFFFF;width:20px;height:20px;"
+    ></span>
+  </button>
 </div>
 
 <style>
   .tb-wrap {
     position: fixed;
     left: 0; right: 0; bottom: 0;
-    display: flex; justify-content: center;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px;
     padding: 0 12px calc(env(safe-area-inset-bottom,0px) + 14px);
     pointer-events: none;
     transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
@@ -91,20 +109,24 @@
     opacity: 0;
     pointer-events: none;
   }
+  /* Pill encurtada: padding e gap reduzidos, e agora tem um max-width
+     próprio (em vez de ocupar toda a largura livre) para deixar
+     espaço fixo e reservado ao FAB ao lado. */
   .tb-pill {
     pointer-events: auto;
     display: flex; align-items: center; gap: 1px;
-    padding: 5px 6px;
+    padding: 4px 5px;
     border-radius: 999px;
     box-shadow:
       0 1px 3px rgba(0,0,0,0.10),
       0 10px 28px rgba(0,0,0,0.16);
     overflow-x: auto; -webkit-overflow-scrolling: touch;
-    max-width: 100%;
+    flex: 1;
+    min-width: 0;
   }
   .tb-pill::-webkit-scrollbar { display: none; }
   .tb-btn {
-    width: 38px; height: 38px; border: none; background: transparent; border-radius: 50%;
+    width: 36px; height: 36px; border: none; background: transparent; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background .15s cubic-bezier(0.34,1.56,0.64,1), transform .12s cubic-bezier(0.34,1.56,0.64,1);
@@ -113,7 +135,26 @@
   .tb-btn:disabled { cursor: default; }
   .tb-btn:disabled:active { transform: none; background: transparent; }
   .tb-active { background: rgba(47,123,246,0.16); }
-  .tb-divider { width: 1px; height: 20px; margin: 0 4px; flex-shrink: 0; }
+  .tb-divider { width: 1px; height: 18px; margin: 0 3px; flex-shrink: 0; }
+
+  /* FAB circular de concluir edição — fora da pill, sempre visível,
+     nunca faz parte do scroll horizontal dos ícones de formatação. */
+  .tb-fab {
+    pointer-events: auto;
+    width: 46px; height: 46px; border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow:
+      0 2px 6px rgba(47,123,246,0.35),
+      0 8px 20px rgba(0,0,0,0.18);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s;
+  }
+  .tb-fab:active {
+    transform: scale(0.88);
+    box-shadow:
+      0 1px 3px rgba(47,123,246,0.3),
+      0 4px 10px rgba(0,0,0,0.14);
+  }
 
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;

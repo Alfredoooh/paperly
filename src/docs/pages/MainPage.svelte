@@ -191,7 +191,12 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  ESTADO DE EDIÇÃO
+  //  ESTADO DE EDIÇÃO — isEditing controla qual bottom bar aparece.
+  //  IMPORTANTE: nada relacionado a isEditing entra no appbar. O
+  //  botão de concluir edição (check) agora vive no BottomToolbar,
+  //  como um FAB circular à parte da pill — assim o appbar nunca tem
+  //  nenhum {#if} nem classe condicional a isEditing, e não recalcula
+  //  nada internamente quando o utilizador toca na folha.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -207,6 +212,7 @@
 
   function handleToolbarAction(id) {
     buzz();
+    if (id === 'done') { confirmDoneEditing(); return; }
     if (id === 'undo') { undo(); return; }
     if (id === 'redo') { redo(); return; }
     if (id === 'bold') { exec('bold'); return; }
@@ -416,13 +422,14 @@
     window.addEventListener('orientationchange', handleOrientationChange);
   }
 
+  // activePageIndex/totalPages continuam a existir (o DocPage ainda
+  // os expõe e usa-os internamente para saber onde inserir imagem/
+  // tabela), mas os botões de navegação por página saíram do appbar —
+  // a navegação volta a ser 100% por scroll vertical contínuo.
   let activePageIndex = 0;
   let totalPages = 1;
 
   function handlePageFocusFromChild(e) { activePageIndex = e.detail; handlePageFocus(); }
-
-  function goPrevPage() { if (activePageIndex <= 0) return; buzz(); activePageIndex -= 1; }
-  function goNextPage() { if (activePageIndex >= totalPages - 1) return; buzz(); activePageIndex += 1; }
 
   // ══════════════════════════════════════════════════════════════════
   //  ANIMAÇÃO EXPORT — mainRecoil (fundo recua) + exportSlide (overlay
@@ -547,13 +554,20 @@
   bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
+  <!--
+    APPBAR: agora 100% estático em relação a isEditing. Não tem
+    nenhum {#if}, nenhuma classe condicional, nenhum atributo que
+    dependa do estado de edição — só o nome do documento, o estado de
+    gravação e os dois botões que sempre existiram (voltar, mais
+    opções). É isto que elimina de vez o "subir" ao tocar na folha:
+    antes, o botão de check aparecia/desaparecia AQUI DENTRO conforme
+    isEditing mudava, o que forçava o appbar a recalcular o próprio
+    conteúdo interno a cada toque. Agora ele nunca re-renderiza nada
+    por causa de isEditing.
+  -->
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
-
-    <button class="appbar-btn appbar-btn-page" style="background:{c.appbarBtnBg}" disabled={activePageIndex <= 0} on:click={goPrevPage} aria-label="Página anterior">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_left.svg');-webkit-mask-image:url('/icons/svg/chevron_left.svg');background:{c.iconTint};width:18px;height:18px;opacity:{activePageIndex <= 0 ? 0.32 : 1};"></span>
     </button>
 
     <div class="appbar-center">
@@ -567,19 +581,8 @@
       />
       <span class="save-state" style="color:{c.textSecondary}">
         {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-        · Página {activePageIndex + 1}/{totalPages}
       </span>
     </div>
-
-    <button class="appbar-btn appbar-btn-page" style="background:{c.appbarBtnBg}" disabled={activePageIndex >= totalPages - 1} on:click={goNextPage} aria-label="Página seguinte">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');background:{c.iconTint};width:18px;height:18px;opacity:{activePageIndex >= totalPages - 1 ? 0.32 : 1};"></span>
-    </button>
-
-    {#if isEditing}
-      <button class="appbar-btn appbar-btn-check" style="background:{c.appbarBtnBg}" on:click={confirmDoneEditing} aria-label="Concluir edição">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:#2F7BF6;width:20px;height:20px;"></span>
-      </button>
-    {/if}
 
     <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
       <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
@@ -588,18 +591,18 @@
 
   <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
-  bind:this={docPageComp}
-  {initialContent}
-  {footnotes}
-  bind:activePageIndex
-  bind:totalPages
-  on:ready={handleDocReady}
-  on:input={handleInput}
-  on:keydown={(e) => handleKeydown(e.detail)}
-  on:removefootnote={(e) => removeFootnote(e.detail)}
-  on:imagerequestedit={handleImageRequestEdit}
-  on:pagefocus={handlePageFocusFromChild}
-/>
+      bind:this={docPageComp}
+      {initialContent}
+      {footnotes}
+      bind:activePageIndex
+      on:ready={handleDocReady}
+      on:input={handleInput}
+      on:keydown={(e) => handleKeydown(e.detail)}
+      on:removefootnote={(e) => removeFootnote(e.detail)}
+      on:imagerequestedit={handleImageRequestEdit}
+      on:pagefocus={handlePageFocusFromChild}
+      on:totalpages={(e) => { totalPages = e.detail; }}
+    />
   </div>
 
   <CreationToolsBar
@@ -717,13 +720,15 @@
     overflow: hidden;
     contain: layout style paint;
     will-change: transform;
-    /* transition da camada de fundo — igual ao profile */
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  /* APPBAR: sem nenhuma dependência de isEditing. Altura e conteúdo
+     fixos sempre — isto é o que garante que nunca "sobe" ou treme ao
+     tocar na folha. */
   .appbar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 52px 10px 12px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 52px 12px 12px; flex-shrink: 0;
     position: fixed;
     left: 0; right: 0; top: 0;
     height: 100px;
@@ -737,16 +742,12 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
   .appbar-btn:active { opacity: .7; transform: scale(0.94); }
-  .appbar-btn:disabled { cursor: default; }
-  .appbar-btn:disabled:active { opacity: 1; transform: none; }
-  .appbar-btn-page { width: 32px; height: 32px; }
-  .appbar-btn-check { width: 36px; height: 36px; }
   .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
   .doc-name-input {
-    width: 100%; max-width: 200px; text-align: center; font-size: 16px; font-weight: 700;
+    width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;
     border: none; background: transparent; outline: none; padding: 0;
   }
-  .save-state { font-size: 10.5px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
+  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
 
   .canvas-area {
     flex: 1;

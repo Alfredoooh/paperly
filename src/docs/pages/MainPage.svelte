@@ -68,6 +68,8 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
+  onMount(() => { setupKeyboardAvoidance(); });
+
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
   function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
   function focusEditor() { docPageComp && docPageComp.focusEditor(); }
@@ -94,6 +96,7 @@
   }
 
   function handleInput() { scheduleSave(); pushHistory(); }
+
   function handleNameInput(e) { docName = e.target.value; scheduleSave(); }
   function handleNameBlur(e) {
     if (!docName || !docName.trim()) {
@@ -172,6 +175,7 @@
   let tableModalOpen = false;
   let layersModalOpen = false;
 
+  // ── Estado das camadas da folha atual ─────────────────────────────
   let currentPageLayers = [];
 
   function refreshLayers() {
@@ -186,6 +190,14 @@
     }));
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  ESTADO DE EDIÇÃO — isEditing controla qual bottom bar aparece.
+  //  IMPORTANTE: nada relacionado a isEditing entra no appbar. O
+  //  botão de concluir edição (check) agora vive no BottomToolbar,
+  //  como um FAB circular à parte da pill — assim o appbar nunca tem
+  //  nenhum {#if} nem classe condicional a isEditing, e não recalcula
+  //  nada internamente quando o utilizador toca na folha.
+  // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
   function handlePageFocus() { if (!isEditing) isEditing = true; }
@@ -225,6 +237,7 @@
   }
 
   function closeFormatModal() { activePanel = null; }
+
   function setFont(value) { exec('fontName', value); activePanel = null; }
   function setSize(px) {
     focusEditor();
@@ -250,12 +263,16 @@
     e.target.value = '';
   }
 
+  // Imagem: sem modal — gestos diretos no DocPage tratam tudo.
+  // Ao tocar numa imagem já selecionada abre o painel de camadas
+  // para o utilizador poder apagá-la se quiser.
   function handleImageRequestEdit(e) {
     refreshLayers();
     layersModalOpen = true;
   }
 
   function handleLayerSelect(e) {
+    // seleciona a camada no DocPage
     const [pageIndexStr, objIdStr] = String(e.detail).split(':');
     docPageComp && docPageComp.selectFloatById(Number(pageIndexStr), Number(objIdStr));
     layersModalOpen = false;
@@ -375,7 +392,6 @@
     const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
   }
-
   function scheduleKbUpdate() {
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     kbUpdateRaf = requestAnimationFrame(computeKbOffset);
@@ -391,11 +407,20 @@
     });
   }
 
+  // activePageIndex/totalPages continuam a existir (o DocPage ainda
+  // os expõe e usa-os internamente para saber onde inserir imagem/
+  // tabela), mas os botões de navegação por página saíram do appbar —
+  // a navegação volta a ser 100% por scroll vertical contínuo.
   let activePageIndex = 0;
   let totalPages = 1;
 
   function handlePageFocusFromChild(e) { activePageIndex = e.detail; handlePageFocus(); }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  ANIMAÇÃO EXPORT — mainRecoil (fundo recua) + exportSlide (overlay
+  //  entra da direita), EXACTAMENTE o mesmo padrão do profile/home.
+  //  Dois springs independentes, nunca o mesmo valor.
+  // ══════════════════════════════════════════════════════════════════
   const mainRecoil = createBackRecoilTransition();
   let mainRecoilValue = 0;
   const unsubscribeMainRecoil = mainRecoil.subscribe((v) => { mainRecoilValue = v; });
@@ -405,7 +430,7 @@
   const unsubscribeExportSlide = exportSlide.subscribe((v) => { exportSlideX = v; });
 
   let exportPickerOpen = false;
-  let exportPickerVisible = false;
+  let exportPickerVisible = false; // controla montagem
   let exportPickerMode = 'export';
   let exportNavToken = 0;
 
@@ -438,27 +463,12 @@
   $: mainRecoilScale = 1 - 0.02 * mainRecoilValue;
   $: mainTransformStyle = `transform: translate3d(${mainRecoilTranslate}%, 0, 0) scale(${mainRecoilScale});`;
 
-  onMount(async () => {
-    setupKeyboardAvoidance();
-    window.addEventListener('orientationchange', setupKeyboardAvoidance);
-
-    document.execCommand('defaultParagraphSeparator', false, 'p');
-
-    await tick();
-    const first = docPageComp;
-    if (first) {
-      await tick();
-    }
-    dispatch('ready', { html: getEditorHTML() });
-  });
-
   onDestroy(() => {
     if (vvRef) {
       vvRef.removeEventListener('resize', scheduleKbUpdate);
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
-    window.removeEventListener('orientationchange', setupKeyboardAvoidance);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();
@@ -521,164 +531,169 @@
   }
 </script>
 
-<div class="screen-shell" style={`--vv-top:${vvTop}px`}>
-  <div
-    class="appbar"
-    style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};top:var(--vv-top);"
-  >
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
+<!-- Camada de fundo (MainPage) — recua quando Export abre -->
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
+  <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
+    <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  </button>
 
-    <div class="appbar-center">
-      <input
-        class="doc-name-input"
-        style="color:{c.textPrimary}"
-        value={docName}
-        on:input={handleNameInput}
-        on:blur={handleNameBlur}
-        aria-label="Nome do documento"
-      />
-      <span class="save-state" style="color:{c.textSecondary}">
-        {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-      </span>
-    </div>
-
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
+  <div class="appbar-center">
+    <input
+      class="doc-name-input"
+      style="color:{c.textPrimary}"
+      value={docName}
+      on:input={handleNameInput}
+      on:blur={handleNameBlur}
+      aria-label="Nome do documento"
+    />
+    <span class="save-state" style="color:{c.textSecondary}">
+      {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
+    </span>
   </div>
 
-  <div
-    class="root"
-    bind:this={rootEl}
-    style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
-  >
-    <div class="canvas-area" style="background:{c.docCanvasBg}">
-      <DocPage
-        bind:this={docPageComp}
-        {initialContent}
-        {footnotes}
-        bind:activePageIndex
-        on:ready={handleDocReady}
-        on:input={handleInput}
-        on:keydown={(e) => handleKeydown(e.detail)}
-        on:removefootnote={(e) => removeFootnote(e.detail)}
-        on:imagerequestedit={handleImageRequestEdit}
-        on:pagefocus={handlePageFocusFromChild}
-        on:totalpages={(e) => { totalPages = e.detail; }}
-      />
-    </div>
-
-    <CreationToolsBar
-      {c}
-      visible={!isEditing}
-      on:action={(e) => handleCreationToolAction(e.detail)}
-    />
-
-    <BottomToolbar
-      {c}
-      {activePanel}
-      {canUndo}
-      {canRedo}
-      {kbOffset}
-      visible={isEditing}
-      on:action={(e) => handleToolbarAction(e.detail)}
-    />
-
-    <DocMenu
-      visible={showDocMenu}
-      anchor={docMenuAnchor}
-      {c}
-      on:close={closeDocMenu}
-      on:select={handleDocMenuSelect}
-    />
-
-    <FormatModal
-      {activePanel}
-      {c}
-      bind:linkUrlDraft
-      bind:footnoteDraft
-      on:close={closeFormatModal}
-      on:setfont={(e) => setFont(e.detail)}
-      on:setsize={(e) => setSize(e.detail)}
-      on:setalign={(e) => setAlign(e.detail)}
-      on:setlist={(e) => setList(e.detail)}
-      on:confirmlink={confirmInsertLink}
-      on:removelink={removeLink}
-      on:confirmfootnote={confirmInsertFootnote}
-    />
-
-    <ColorModal
-      visible={colorModalOpen}
-      {c}
-      {customColors}
-      on:close={() => colorModalOpen = false}
-      on:select={(e) => selectColor(e.detail)}
-      on:addcolor={requestAddColor}
-    />
-
-    <ColorPickerModal
-      visible={colorPickerOpen}
-      {c}
-      on:confirm={(e) => confirmCustomColor(e.detail)}
-      on:cancel={cancelCustomColor}
-    />
-
-    <TableModal
-      visible={tableModalOpen}
-      {c}
-      on:close={() => tableModalOpen = false}
-      on:insert={insertTable}
-    />
-
-    <LayersModal
-      visible={layersModalOpen}
-      {c}
-      layers={currentPageLayers}
-      on:close={() => layersModalOpen = false}
-      on:select={handleLayerSelect}
-      on:delete={handleLayerDelete}
-    />
-
-    <ConfirmDialog
-      visible={showDeleteConfirm}
-      {c}
-      message={`Tens a certeza que queres apagar "${docName}"? Esta ação não pode ser desfeita.`}
-      confirmLabel="Apagar"
-      on:cancel={cancelDeleteDoc}
-      on:confirm={confirmDeleteDoc}
-    />
-
-    <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
-  </div>
-
-  {#if exportPickerVisible}
-    <ExportPickerPage
-      slideX={exportSlideX}
-      {isDark}
-      {docName}
-      mode={exportPickerMode}
-      getHtml={getEditorHTML}
-      {setSuppressRouterPopstate}
-      on:close={closeExportPicker}
-    />
-  {/if}
+  <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+    <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+  </button>
 </div>
+
+<div
+  class="root"
+  bind:this={rootEl}
+  style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
+>
+  <div class="canvas-area" style="background:{c.docCanvasBg}">
+    <DocPage
+      bind:this={docPageComp}
+      {initialContent}
+      {footnotes}
+      bind:activePageIndex
+      on:ready={handleDocReady}
+      on:input={handleInput}
+      on:keydown={(e) => handleKeydown(e.detail)}
+      on:removefootnote={(e) => removeFootnote(e.detail)}
+      on:imagerequestedit={handleImageRequestEdit}
+      on:pagefocus={handlePageFocusFromChild}
+      on:totalpages={(e) => { totalPages = e.detail; }}
+    />
+  </div>
+
+  <CreationToolsBar
+    {c}
+    visible={!isEditing}
+    on:action={(e) => handleCreationToolAction(e.detail)}
+  />
+
+  <BottomToolbar
+    {c}
+    {activePanel}
+    {canUndo}
+    {canRedo}
+    {kbOffset}
+    visible={isEditing}
+    on:action={(e) => handleToolbarAction(e.detail)}
+  />
+
+  <DocMenu
+    visible={showDocMenu}
+    anchor={docMenuAnchor}
+    {c}
+    on:close={closeDocMenu}
+    on:select={handleDocMenuSelect}
+  />
+
+  <FormatModal
+    {activePanel}
+    {c}
+    bind:linkUrlDraft
+    bind:footnoteDraft
+    on:close={closeFormatModal}
+    on:setfont={(e) => setFont(e.detail)}
+    on:setsize={(e) => setSize(e.detail)}
+    on:setalign={(e) => setAlign(e.detail)}
+    on:setlist={(e) => setList(e.detail)}
+    on:confirmlink={confirmInsertLink}
+    on:removelink={removeLink}
+    on:confirmfootnote={confirmInsertFootnote}
+  />
+
+  <ColorModal
+    visible={colorModalOpen}
+    {c}
+    {customColors}
+    on:close={() => colorModalOpen = false}
+    on:select={(e) => selectColor(e.detail)}
+    on:addcolor={requestAddColor}
+  />
+
+  <ColorPickerModal
+    visible={colorPickerOpen}
+    {c}
+    on:confirm={(e) => confirmCustomColor(e.detail)}
+    on:cancel={cancelCustomColor}
+  />
+
+  <TableModal
+    visible={tableModalOpen}
+    {c}
+    on:close={() => tableModalOpen = false}
+    on:insert={insertTable}
+  />
+
+  <LayersModal
+    visible={layersModalOpen}
+    {c}
+    layers={currentPageLayers}
+    on:close={() => layersModalOpen = false}
+    on:select={handleLayerSelect}
+    on:delete={handleLayerDelete}
+  />
+
+  <ConfirmDialog
+    visible={showDeleteConfirm}
+    {c}
+    message={`Tens a certeza que queres apagar "${docName}"? Esta ação não pode ser desfeita.`}
+    confirmLabel="Apagar"
+    on:cancel={cancelDeleteDoc}
+    on:confirm={confirmDeleteDoc}
+  />
+
+  <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
+</div>
+
+<!-- Camada de overlay (ExportPickerPage) — desliza da direita por cima -->
+{#if exportPickerVisible}
+  <ExportPickerPage
+    slideX={exportSlideX}
+    {isDark}
+    {docName}
+    mode={exportPickerMode}
+    getHtml={getEditorHTML}
+    {setSuppressRouterPopstate}
+    on:close={closeExportPicker}
+  />
+{/if}
 
 <style>
   :global(html), :global(body) {
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
-    position: static;
+    margin: 0;
+    position: relative;
   }
 
-  .screen-shell {
-    position: fixed;
-    inset: 0;
+  .root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-    contain: layout paint size;
+    contain: layout style paint;
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
+    overscroll-behavior: none;
   }
 
   .appbar {
@@ -690,11 +705,12 @@
     position: fixed;
     left: 0;
     right: 0;
+    top: 0;
     height: 100px;
     z-index: 9999;
     contain: paint;
     transform: translate3d(0, 0, 0);
-    will-change: top;
+    will-change: transform;
     pointer-events: auto;
   }
 
@@ -709,7 +725,7 @@
     cursor: pointer;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    transition: transform .16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .14s;
   }
 
   .appbar-btn:active {
@@ -742,20 +758,6 @@
     font-weight: 500;
     margin-top: 1px;
     white-space: nowrap;
-  }
-
-  .root {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    contain: layout style paint;
-    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
-    overscroll-behavior: none;
   }
 
   .canvas-area {

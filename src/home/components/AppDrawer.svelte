@@ -1,13 +1,13 @@
 <!-- src/home/components/AppDrawer.svelte -->
 <script>
-  import { THEME_OPTIONS, DRAWER_ITEMS } from '../lib/constants.js';
+  import { createEventDispatcher } from 'svelte';
+  import { DRAWER_ITEMS } from '../lib/constants.js';
 
   export let drawerOpen = false;
   export let drawerVisible = false;
   export let drawerPushed = false; // bind bidirecional: controla o "empurrar" do ecrã por trás
   export let rootEl = null; // elemento .root do App.svelte, para animar o "empurrar" 1:1 durante o gesto
-  export let themeExpanded = false;
-  export let themeValue = 'dark';
+  export let themeValue = 'dark'; // 'light' | 'dark' | 'system'
 
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
@@ -17,15 +17,23 @@
   export let showInstall = false;
 
   export let onClose;
-  export let onToggleThemeExpanded;
   export let onApplyTheme;
   export let onLogout;
   export let onInstall;
   export let onOpenProfile = () => {}; // navegação interna, sem reload
+  export let onOpenSettings = () => {}; // navegação para a tela de definições
   export let onOpenViaGesture = () => {}; // completa o ciclo de vida real quando o gesto abre o drawer
+
+  const dispatch = createEventDispatcher();
 
   let showLogoutDialog = false;
   let dialogVisible = false; // controla a animação de entrada/saída do dialog
+
+  const THEME_CARDS = [
+    { id: 'light', label: 'Claro' },
+    { id: 'dark', label: 'Escuro' },
+    { id: 'system', label: 'Sistema' },
+  ];
 
   // FIX (bug: clicar em perfil deixava o drawer/ecrã empurrado presos
   // a meio da animação enquanto o perfil já tinha navegado por cima):
@@ -39,6 +47,10 @@
   // ecrã "desempurra" por completo antes da tela de perfil aparecer.
   function goProfile() {
     onOpenProfile();
+  }
+
+  function goSettings() {
+    onOpenSettings();
   }
 
   function handleItemClick(item) {
@@ -84,7 +96,7 @@
   //    teu JS desde o primeiro touchmove, sem competir por ele.
   // ------------------------------------------------------------------
   const EDGE_ZONE = 24;       // px a partir da borda direita para iniciar o "abrir"
-  const DRAWER_WIDTH_FRACTION = 0.82; // deve refletir min(288px, 82vw) do CSS
+  const DRAWER_WIDTH_FRACTION = 1; // drawer cobre 100% da largura do ecrã
   const OPEN_THRESHOLD = 0.35;  // % arrastado para considerar "abrir" ao soltar
   const CLOSE_THRESHOLD = 0.35; // % arrastado para considerar "fechar" ao soltar
   const VELOCITY_FLING = 0.55;  // px/ms — acima disto, decide pela direção do gesto
@@ -104,7 +116,7 @@
 
   function getDrawerWidth() {
     if (drawerEl) return drawerEl.getBoundingClientRect().width;
-    return Math.min(288, window.innerWidth * DRAWER_WIDTH_FRACTION);
+    return window.innerWidth * DRAWER_WIDTH_FRACTION;
   }
 
   function onEdgeTouchStart(e) {
@@ -301,19 +313,16 @@
         </button>
       {/if}
 
-      <button class="drawer-item pulse-tap" on:click={onToggleThemeExpanded}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Tema</span>
-        <span class="icon-mask drawer-chevron" class:drawer-chevron-open={themeExpanded} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');width:14px;height:14px;background:var(--drawer-text-faint)"></span>
-      </button>
-      <div class="theme-accordion" class:theme-accordion-open={themeExpanded}>
-        <div class="theme-accordion-inner">
-          {#each THEME_OPTIONS as opt}
-            <button class="theme-opt pulse-tap" on:click={() => onApplyTheme(opt.id)}>
-              <span class="theme-opt-label">{opt.label}</span>
-              {#if themeValue === opt.id}
-                <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:16px;height:16px;background:var(--accent-primary)"></span>
-              {/if}
+      <div class="theme-section">
+        <span class="theme-section-label">Tema</span>
+        <div class="theme-cards">
+          {#each THEME_CARDS as opt}
+            <button
+              class="theme-card pulse-tap"
+              class:theme-card-active={themeValue === opt.id}
+              on:click={() => onApplyTheme(opt.id)}
+            >
+              <span class="theme-card-label">{opt.label}</span>
             </button>
           {/each}
         </div>
@@ -326,9 +335,14 @@
       {/each}
     </nav>
 
-    <button class="drawer-logout pulse-tap" on:click={openLogoutDialog}>
-      <span class="drawer-logout-label">Terminar sessão</span>
-    </button>
+    <div class="drawer-bottom-row">
+      <button class="drawer-logout pulse-tap" on:click={openLogoutDialog}>
+        <span class="drawer-logout-label">Terminar sessão</span>
+      </button>
+      <button class="drawer-settings-btn pulse-tap" on:click={goSettings} aria-label="Definições">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/settings.svg');-webkit-mask-image:url('/icons/svg/settings.svg');width:19px;height:19px;background:var(--drawer-text)"></span>
+      </button>
+    </div>
   </div>
 {/if}
 
@@ -357,12 +371,12 @@
   }
   .drawer {
     position: fixed;
-    top: 0; right: 0; bottom: 0;
+    inset: 0;
     z-index: 61;
-    width: min(288px, 82vw);
+    width: 100%;
     background: var(--drawer-bg);
-    border-left: 0.5px solid var(--drawer-border);
-    box-shadow: -8px 0 32px var(--drawer-shadow);
+    border-left: none;
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     transform: translate3d(100%, 0, 0);
@@ -370,6 +384,8 @@
     will-change: transform;
     contain: layout style paint;
     touch-action: pan-y;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .drawer.drawer-in {
     transform: translate3d(0, 0, 0);
@@ -457,59 +473,67 @@
     font-weight: 400;
     color: var(--drawer-text);
   }
-  .drawer-chevron {
-    transition: transform .36s cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ── Tema: 4 slots de layout (3 cards), horizontal, ativo com
+     borda verde arredondada — substitui o antigo acordeão. ── */
+  .theme-section {
+    padding: 10px 14px 14px;
   }
-  .drawer-chevron-open {
-    transform: rotate(90deg);
+  .theme-section-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--drawer-text-faint);
+    padding: 4px 4px 10px;
   }
-  .theme-accordion {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows .36s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .theme-accordion-open {
-    grid-template-rows: 1fr;
-  }
-  .theme-accordion-inner {
-    overflow: hidden;
-    min-height: 0;
-  }
-  .theme-opt {
+  .theme-cards {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 11px 14px 11px 52px;
-    background: transparent;
-    border: none;
+    gap: 8px;
+  }
+  .theme-card {
+    flex: 1;
+    padding: 12px 6px;
+    border-radius: 14px;
+    border: 1.5px solid var(--drawer-sep);
+    background: var(--drawer-row-active, var(--btn-bg));
     cursor: pointer;
     font-family: inherit;
-    text-align: left;
-    border-radius: 8px;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1), background .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .theme-opt:active {
-    background: var(--drawer-row-active, var(--btn-bg));
+  .theme-card-active {
+    border-color: #34C759;
+    background: color-mix(in srgb, #34C759 12%, var(--drawer-row-active, var(--btn-bg)));
   }
-  .theme-opt-label {
-    font-size: 14px;
-    color: var(--drawer-text-faint);
-    flex: 1;
+  .theme-card-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--drawer-text);
+  }
+
+  .drawer-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 14px 4px;
+    flex-shrink: 0;
   }
   .drawer-logout {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    margin: 14px 14px 4px;
     padding: 14px 16px;
     border-radius: 999px;
     border: 0.5px solid var(--border-soft);
     background: var(--btn-bg);
     cursor: pointer;
     font-family: inherit;
-    flex-shrink: 0;
+    flex: 1;
     transition: background .24s cubic-bezier(0.32, 0.72, 0, 1), transform .24s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .drawer-logout:active {
@@ -520,6 +544,23 @@
     font-size: 15px;
     font-weight: 700;
     color: var(--logout-icon);
+  }
+  .drawer-settings-btn {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 0.5px solid var(--border-soft);
+    background: var(--btn-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1), transform .24s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .drawer-settings-btn:active {
+    background: var(--btn-bg-active);
+    transform: scale(0.9);
   }
 
   .logout-overlay {
@@ -616,10 +657,9 @@
     .drawer-overlay,
     .drawer,
     .drawer-item,
-    .drawer-chevron,
-    .theme-accordion,
-    .theme-opt,
+    .theme-card,
     .drawer-logout,
+    .drawer-settings-btn,
     .logout-overlay,
     .logout-dialog,
     .logout-btn-cancel,

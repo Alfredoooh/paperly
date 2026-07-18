@@ -275,7 +275,7 @@
     </div>
   </div>
 
-  <!-- ══ POPUP — Idioma (spring nativo + arrastável) ══════════════ -->
+  <!-- ══ POPUP — Idioma (spring nativo + arrastável, agora flutuante) ══ -->
   {#if showLangSheet}
     <button class="overlay" class:overlay-in={langOverlayVisible} on:click={closeLangSheet}></button>
     <div class="bottom-sheet" bind:this={langSheetEl} style="background:{c.dialogBackground};transform: translate3d(0, {langSheetY}%, 0);">
@@ -334,27 +334,33 @@
   .st-icon-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
   .st-icon-btn:active { transform: scale(0.86); opacity: .65; }
   .st-header-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
   .st-body { flex: 1; overflow-y: auto; padding: 8px 16px 24px; -webkit-overflow-scrolling: touch; }
-  .st-profile-card { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; margin-bottom: 24px; }
+  .st-profile-card {
+    display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 20px; margin-bottom: 26px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
   .st-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0; }
   .st-avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
   .st-profile-name { font-size: 16px; font-weight: 700; }
   .st-profile-email { font-size: 13px; margin-top: 2px; }
-  .st-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 0 2px 10px; }
-  .st-section { border-radius: 18px; overflow: hidden; margin-bottom: 20px; }
+  .st-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 0 4px 10px; }
+  .st-section {
+    border-radius: 20px; overflow: hidden; margin-bottom: 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
   .st-row {
     width: 100%; background: transparent; border: none; display: flex; align-items: center;
-    justify-content: space-between; padding: 14px 16px; font-size: 15px; cursor: pointer; text-align: left;
-    transition: opacity .14s;
+    justify-content: space-between; padding: 15px 16px; font-size: 15px; cursor: pointer; text-align: left;
+    transition: opacity .16s ease, background-color .16s ease;
   }
   .st-row:active { opacity: .7; }
   .st-danger { color: #FF3B30; justify-content: flex-start; }
   .st-row-value { font-size: 13px; }
-  .st-divider { height: 1px; margin: 0 16px; }
+  .st-divider { height: 1px; margin: 0 16px; opacity: .7; }
 
   .icon-mask {
     display: block; flex-shrink: 0;
@@ -363,56 +369,70 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* ── Bottom sheet (idioma) — spring nativo via rAF ───────────────── */
+  /* ── Bottom sheet (idioma) — flutuante, não toca nas bordas ───────── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
-    transition: background .32s ease;
+    transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-backdrop-filter: blur(0px);
+    backdrop-filter: blur(0px);
   }
-  .overlay.overlay-in { background: rgba(0,0,0,.45); }
+  .overlay.overlay-in {
+    background: rgba(0,0,0,.42);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
   .bottom-sheet {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    border-radius: 20px 20px 0 0; z-index: 700;
-    padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
+    position: fixed; left: 12px; right: 12px;
+    bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+    border-radius: 26px; z-index: 700;
+    padding: 0 0 10px;
     will-change: transform;
-    box-shadow: 0 -4px 40px rgba(0,0,0,.16);
+    box-shadow: 0 12px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
+    overflow: hidden;
   }
   .sheet-grab-zone { touch-action: none; }
-  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; }
+  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; opacity: .8; }
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
   .sheet-scroll { max-height: 50vh; overflow-y: auto; }
   .sheet-opt {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
     padding: 14px 18px; background: none; border: none; cursor: pointer; text-align: left;
-    transition: opacity .14s;
+    transition: opacity .16s ease;
   }
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
-  /* ── Confirmar logout — MESMO padrão do AppDrawer do home ────────── */
+  /* ── Confirmar logout — flutuante, cartão central com respiro lateral ── */
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
     background: rgba(0, 0, 0, 0);
-    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-backdrop-filter: blur(0px);
+    backdrop-filter: blur(0px);
   }
-  .logout-overlay.logout-overlay-in { background: rgba(0, 0, 0, 0.5); }
+  .logout-overlay.logout-overlay-in {
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
   .logout-dialog {
     position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.90);
+    transform: translate(-50%, -50%) scale(0.92);
     opacity: 0;
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border-radius: 24px;
+    padding: 26px 22px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
     z-index: 81;
-    min-width: 280px; max-width: 90vw;
-    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
+    width: calc(100vw - 56px); max-width: 320px;
+    transition: transform .4s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform, opacity;
   }
   .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  .logout-dialog-text { font-size: 16px; margin: 0 0 20px; text-align: center; font-family: inherit; }
-  .logout-dialog-actions { display: flex; gap: 12px; justify-content: center; }
+  .logout-dialog-text { font-size: 15.5px; line-height: 1.45; margin: 0 0 22px; text-align: center; font-family: inherit; }
+  .logout-dialog-actions { display: flex; gap: 10px; justify-content: center; }
   .logout-btn-cancel, .logout-btn-confirm {
-    flex: 1; padding: 12px 20px; border-radius: 999px; border: none;
+    flex: 1; padding: 13px 20px; border-radius: 999px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
@@ -422,7 +442,7 @@
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 
   @media (prefers-reduced-motion: reduce) {
-    .st-icon-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm {
+    .st-icon-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm, .overlay {
       transition: none !important;
     }
   }

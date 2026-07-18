@@ -53,7 +53,6 @@ function svgTemConteudo(svgContent) {
 
 // --- MODO COLORIDO ---
 
-// Extrai a paleta de N cores dominantes via quantização do ImageMagick
 async function extrairPaleta(inputPath, paletaPath, cores) {
   await run("convert", [
     inputPath,
@@ -73,16 +72,16 @@ async function extrairPaleta(inputPath, paletaPath, cores) {
   return { paletaPath, hexes: [...new Set(hexes)] };
 }
 
-// Isola uma cor específica da imagem quantizada em uma máscara binária (branco = cor, preto = resto)
+// Isola uma cor específica da imagem quantizada em uma máscara binária
+// (preto = forma a vetorizar, branco = fundo — é o que o potrace espera)
 async function isolarCorEmMascara(paletaPath, hex, mascaraPath) {
   await run("convert", [
     paletaPath,
-    "-fuzz", "5%",
+    "-fuzz", "8%",
+    "-fill", "white",
+    "+opaque", hex,
     "-fill", "black",
     "-opaque", hex,
-    "-fill", "white",
-    "-fuzz", "0%",
-    "+opaque", "black",
     mascaraPath
   ]);
 }
@@ -100,7 +99,6 @@ async function vetorizarMascara(mascaraPath, svgPath, opttolerance, turdsize) {
   return fs.readFileSync(svgPath, "utf8");
 }
 
-// Extrai só o conteúdo <path .../> de dentro de um SVG do potrace (que gera 1 <path> preto por camada)
 function extrairPathsDoSvg(svgContent) {
   const matches = svgContent.match(/<path[^>]*\/>/g) || [];
   return matches;
@@ -141,7 +139,7 @@ async function converterColoridoComFallback(inputPath, id, opts) {
         try {
           svgCamada = await vetorizarMascara(mascaraPath, svgTempPath, opts.opttolerance, opts.turdsize);
         } catch {
-          continue; // cor sem área vetorizável relevante, ignora
+          continue;
         }
         
         if (!svgTemConteudo(svgCamada)) continue;
@@ -173,7 +171,7 @@ async function converterColoridoComFallback(inputPath, id, opts) {
   throw ultimoErro || new Error("Não foi possível vetorizar a imagem colorida após várias tentativas");
 }
 
-// --- MODO PRETO E BRANCO (mantido como estava, agora como fallback opcional) ---
+// --- MODO PRETO E BRANCO (fallback opcional) ---
 
 async function prepararBitmap(inputPath, pbmPath, cores, thresholdPercent, espessura) {
   const flatPath = pbmPath.replace(".pbm", "_flat.png");
@@ -232,7 +230,7 @@ app.post("/convert", upload.single("file"), async (req, res) => {
   const opttolerance = parseFloat(req.body.opttolerance || req.query.opttolerance || "0.5");
   const turdsize = parseInt(req.body.turdsize || req.query.turdsize || "5", 10);
   const espessura = parseInt(req.body.espessura || req.query.espessura || "0", 10);
-  const modo = (req.body.modo || req.query.modo || "cor").toLowerCase(); // "cor" | "pb"
+  const modo = (req.body.modo || req.query.modo || "cor").toLowerCase();
   
   const id = path.parse(req.file.filename).name;
   const inputPath = req.file.path;

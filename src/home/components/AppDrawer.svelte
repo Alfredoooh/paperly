@@ -21,7 +21,6 @@
   export let onLogout;
   export let onInstall;
   export let onOpenProfile = () => {}; // navegação interna, sem reload
-  export let onOpenSettings = () => {}; // navegação para a tela de definições
   export let onOpenViaGesture = () => {}; // completa o ciclo de vida real quando o gesto abre o drawer
 
   const dispatch = createEventDispatcher();
@@ -49,8 +48,16 @@
     onOpenProfile();
   }
 
+  // Mesmo padrão usado no ProfilePage.svelte (dispatch('nav', {to:'settings'})),
+  // para o App.svelte pai tratar a navegação exatamente da mesma forma.
   function goSettings() {
-    onOpenSettings();
+    onClose();
+    dispatch('nav', { to: 'settings' });
+  }
+
+  function goHelp() {
+    onClose();
+    dispatch('nav', { to: 'help' });
   }
 
   function handleItemClick(item) {
@@ -296,6 +303,12 @@
     bind:this={drawerEl}
     on:touchstart={onDrawerTouchStart}
   >
+    <div class="drawer-topbar">
+      <button class="drawer-help-btn pulse-tap" on:click={goHelp} aria-label="Ajuda">
+        <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+      </button>
+    </div>
+
     <button class="drawer-avatar-block pulse-tap" on:click={goProfile}>
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="drawer-avatar-img" />
@@ -316,15 +329,30 @@
       <div class="theme-section">
         <span class="theme-section-label">Tema</span>
         <div class="theme-cards">
-          {#each THEME_CARDS as opt}
-            <button
-              class="theme-card pulse-tap"
-              class:theme-card-active={themeValue === opt.id}
-              on:click={() => onApplyTheme(opt.id)}
-            >
-              <span class="theme-card-label">{opt.label}</span>
-            </button>
-          {/each}
+          <button
+            class="theme-card pulse-tap theme-card-light"
+            class:theme-card-active={themeValue === 'light'}
+            on:click={() => onApplyTheme('light')}
+          >
+            <span class="theme-swatch theme-swatch-light"></span>
+            <span class="theme-card-label">Claro</span>
+          </button>
+          <button
+            class="theme-card pulse-tap theme-card-dark"
+            class:theme-card-active={themeValue === 'dark'}
+            on:click={() => onApplyTheme('dark')}
+          >
+            <span class="theme-swatch theme-swatch-dark"></span>
+            <span class="theme-card-label">Escuro</span>
+          </button>
+          <button
+            class="theme-card pulse-tap theme-card-system"
+            class:theme-card-active={themeValue === 'system'}
+            on:click={() => onApplyTheme('system')}
+          >
+            <span class="theme-swatch theme-swatch-system"></span>
+            <span class="theme-card-label">Sistema</span>
+          </button>
         </div>
       </div>
 
@@ -390,12 +418,31 @@
   .drawer.drawer-in {
     transform: translate3d(0, 0, 0);
   }
+
+  .drawer-topbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 14px 0;
+    flex-shrink: 0;
+  }
+  .drawer-help-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--drawer-row-active, var(--btn-bg));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
   .drawer-avatar-block {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    padding: 18px 20px;
+    padding: 10px 20px 18px;
     flex-shrink: 0;
     background: transparent;
     border: none;
@@ -474,8 +521,10 @@
     color: var(--drawer-text);
   }
 
-  /* ── Tema: 4 slots de layout (3 cards), horizontal, ativo com
-     borda verde arredondada — substitui o antigo acordeão. ── */
+  /* ── Tema: 3 cards horizontais, maiores, com um "swatch" (miniatura)
+     em cima do label. Swatch claro = branco sólido; escuro = escuro
+     sólido; sistema = dividido ao meio por uma linha inclinada,
+     metade branco / metade escuro. Ativo = borda azul. ── */
   .theme-section {
     padding: 10px 14px 14px;
   }
@@ -490,24 +539,46 @@
   }
   .theme-cards {
     display: flex;
-    gap: 8px;
+    gap: 10px;
   }
   .theme-card {
     flex: 1;
-    padding: 12px 6px;
-    border-radius: 14px;
-    border: 1.5px solid var(--drawer-sep);
+    padding: 10px;
+    border-radius: 18px;
+    border: 2px solid var(--drawer-sep);
     background: var(--drawer-row-active, var(--btn-bg));
     cursor: pointer;
     font-family: inherit;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1), background .2s cubic-bezier(0.32, 0.72, 0, 1);
+    gap: 8px;
+    transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .theme-card-active {
-    border-color: #34C759;
-    background: color-mix(in srgb, #34C759 12%, var(--drawer-row-active, var(--btn-bg)));
+    border-color: #0A84FF;
+  }
+  .theme-swatch {
+    width: 100%;
+    height: 56px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .theme-swatch-light {
+    background: #FFFFFF;
+  }
+  .theme-swatch-dark {
+    background: #1C1C1E;
+  }
+  .theme-swatch-system {
+    background: linear-gradient(
+      115deg,
+      #FFFFFF 0%,
+      #FFFFFF 47%,
+      #1C1C1E 53%,
+      #1C1C1E 100%
+    );
   }
   .theme-card-label {
     font-size: 13px;
@@ -519,7 +590,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 14px 14px 4px;
+    margin: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 14px);
     flex-shrink: 0;
   }
   .drawer-logout {
@@ -527,7 +598,7 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 16px 16px;
     border-radius: 999px;
     border: 0.5px solid var(--border-soft);
     background: var(--btn-bg);
@@ -547,8 +618,8 @@
   }
   .drawer-settings-btn {
     flex-shrink: 0;
-    width: 48px;
-    height: 48px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
     border: 0.5px solid var(--border-soft);
     background: var(--btn-bg);

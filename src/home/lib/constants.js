@@ -7,7 +7,6 @@ export const THEME_OPTIONS = [
 ];
 
 export const DRAWER_ITEMS = [
-  { icon: 'settings', label: 'Definições', action: () => {} },
   { icon: 'help', label: 'Ajuda', action: () => {} },
 ];
 

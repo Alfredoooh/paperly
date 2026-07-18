@@ -5,21 +5,14 @@
   export let activeTab = 'create';
   export let onSelect = () => {};
   
-  let bouncingId = null;
-  
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
   
   function select(tab) {
     buzz();
-    bouncingId = tab.id;
     if (tab.id === activeTab) return;
     onSelect(tab.id);
-  }
-  
-  function endBounce(id) {
-    if (bouncingId === id) bouncingId = null;
   }
 </script>
 
@@ -28,9 +21,7 @@
     <button
       class="tab-btn"
       class:active={activeTab === tab.id}
-      class:bounce={bouncingId === tab.id}
       on:click={() => select(tab)}
-      on:animationend={() => endBounce(tab.id)}
       aria-label={tab.label}
       aria-current={activeTab === tab.id ? 'page' : undefined}
     >
@@ -64,7 +55,7 @@
     border-top: none;
     box-shadow: none;
 
-    padding: 8px 6px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px);
     contain: layout paint style;
     touch-action: pan-y;
 
@@ -95,7 +86,7 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
-    height: 50px;
+    height: 42px;
     border: none;
     background: transparent;
     color: var(--icon-faint);
@@ -104,17 +95,6 @@
     touch-action: pan-y;
     -webkit-user-select: none;
     user-select: none;
-  }
-
-  .tab-btn.bounce {
-    animation: tabBounce .46s cubic-bezier(0.22, 1.42, 0.36, 1);
-  }
-  @keyframes tabBounce {
-    0%   { transform: scale(1); }
-    28%  { transform: scale(0.80); }
-    52%  { transform: scale(1.14); }
-    72%  { transform: scale(0.96); }
-    100% { transform: scale(1); }
   }
 
   .tab-btn.active { color: var(--icon-strong); }
@@ -126,6 +106,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .tab-btn:active .tab-icon {
+    transform: scale(0.88);
   }
 
   .icon-mask {
@@ -139,24 +124,20 @@
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-    transition: opacity .26s cubic-bezier(0.22, 1.42, 0.36, 1), transform .38s cubic-bezier(0.22, 1.42, 0.36, 1);
+    transition: opacity .18s ease;
   }
 
   .icon-outline {
     opacity: 1;
-    transform: scale(1);
   }
   .icon-filled {
     opacity: 0;
-    transform: scale(0.6);
   }
   .tab-btn.active .icon-outline {
     opacity: 0;
-    transform: scale(1.25);
   }
   .tab-btn.active .icon-filled {
     opacity: 1;
-    transform: scale(1);
   }
 
   .tab-label {
@@ -164,7 +145,7 @@
     font-weight: 600;
     letter-spacing: -0.1px;
     opacity: 0.7;
-    transition: opacity .22s ease, font-weight .22s ease;
+    transition: opacity .18s ease, font-weight .18s ease;
   }
   .tab-btn.active .tab-label {
     opacity: 1;
@@ -172,7 +153,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .icon-mask, .tab-label { transition: none !important; }
-    .tab-btn.bounce { animation: none !important; }
+    .icon-mask, .tab-label, .tab-icon { transition: none !important; }
   }
 </style>

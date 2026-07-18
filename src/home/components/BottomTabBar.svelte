@@ -64,6 +64,14 @@
     -webkit-touch-callout: none;
   }
 
+  /* Modo escuro: usa o mesmo tom de fundo do AppDrawer (--drawer-bg)
+     em vez do glass padrão. O modo claro fica inalterado, continua
+     em rgb(var(--header-glass-rgb)) acima. */
+  :global(.dark) .tab-bar,
+  :global(.theme-dark) .tab-bar {
+    background: var(--drawer-bg);
+  }
+
   /* Camada extra opaca atrás da nav, cobrindo qualquer overscroll/
      rubber-band do WebView, pra nunca revelar o conteúdo por trás. */
   .tab-bar::after {
@@ -75,6 +83,11 @@
     height: 40px;
     background: rgb(var(--header-glass-rgb));
     z-index: -1;
+  }
+
+  :global(.dark) .tab-bar::after,
+  :global(.theme-dark) .tab-bar::after {
+    background: var(--drawer-bg);
   }
 
   .tab-btn {

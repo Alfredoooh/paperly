@@ -64,12 +64,11 @@
     -webkit-touch-callout: none;
   }
 
-  /* Modo escuro: usa o mesmo tom de fundo do AppDrawer (--drawer-bg)
-     em vez do glass padrão. O modo claro fica inalterado, continua
-     em rgb(var(--header-glass-rgb)) acima. */
-  :global(.dark) .tab-bar,
-  :global(.theme-dark) .tab-bar {
-    background: var(--drawer-bg);
+  /* Modo escuro: usa --drawer-bg-strong (um tom mais escuro que o
+     --drawer-bg do AppDrawer), como pedido. O modo claro fica
+     inalterado, continua em rgb(var(--header-glass-rgb)) acima. */
+  :global([data-theme="dark"]) .tab-bar {
+    background: var(--drawer-bg-strong);
   }
 
   /* Camada extra opaca atrás da nav, cobrindo qualquer overscroll/
@@ -85,9 +84,8 @@
     z-index: -1;
   }
 
-  :global(.dark) .tab-bar::after,
-  :global(.theme-dark) .tab-bar::after {
-    background: var(--drawer-bg);
+  :global([data-theme="dark"]) .tab-bar::after {
+    background: var(--drawer-bg-strong);
   }
 
   .tab-btn {

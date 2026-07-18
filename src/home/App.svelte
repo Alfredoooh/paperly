@@ -8,7 +8,7 @@
   import { initPwaInstall, onPwaInstallAvailable, promptPwaInstall } from '$shared/pwa-install.js';
 
   import { getAvatarColor, TABS, TEMPLATE_VIEWS, IMAGE_MODELS, DOC_MODELS } from './lib/constants.js';
-  import { createBackRecoilTransition } from './lib/nav-transition.js';
+  import { createSlideTransition, createBackRecoilTransition } from './lib/nav-transition.js';
   import AppHeader from './components/AppHeader.svelte';
   import BottomTabBar from './components/BottomTabBar.svelte';
   import AppDrawer from './components/AppDrawer.svelte';
@@ -64,64 +64,58 @@
 
   let rootEl;
 
+  // ------------------------------------------------------------------
+  // Drawer: agora usa a MESMA "regra de ouro" de history já usada por
+  // search/preview, E o MESMO motor de spring (dentro do próprio
+  // AppDrawer.svelte, via createSlideTransition) — nada de
+  // requestAnimationFrame manual nem de CSS transition paralela aqui.
+  // App.svelte só é dono de DUAS coisas: (1) SE o drawer está montado
+  // no DOM (drawerOpen) e (2) o estado lógico "deve estar
+  // aberto/fechado" (drawerPushed) — a tradução disso em movimento
+  // físico acontece inteiramente dentro do AppDrawer.
+  // ------------------------------------------------------------------
   let drawerOpen = false;
-  let drawerVisible = false;
-  let drawerPushed = false; // controla o "empurrar" do ecrã por trás do drawer
-  let themeExpanded = false;
+  let drawerPushed = false;
   let showInstall = false;
   let unsubscribeInstall;
 
-  // ------------------------------------------------------------------
-  // Drawer: segue a MESMA "regra de ouro" já usada pelo search/preview.
-  // Abrir empurra um estado real para o histórico (pushState); fechar
-  // NUNCA esconde o drawer diretamente — chama history.back() e deixa
-  // o onPopState (fonte única de verdade) tratar do fecho visual. Isto
-  // faz o botão físico de voltar do Android e o gesto do Chrome
-  // fecharem o drawer exatamente como fecham a pesquisa/preview.
-  // ------------------------------------------------------------------
   async function openDrawer() {
     if (drawerOpen) return;
     pushOverlayState('drawer', { nexaDrawer: true });
     drawerOpen = true;
-    drawerVisible = false;
-    themeExpanded = false;
     await new Promise(r => requestAnimationFrame(r));
-    requestAnimationFrame(() => {
-      drawerVisible = true;
+    drawerPushed = true;
+  }
+
+  // Chamado pelo AppDrawer quando o gesto de arrastar começa ('live')
+  // ou termina com sucesso ('commit'). 'live' só monta o drawer no DOM
+  // (para o dedo já poder controlá-lo via setDragValue no mesmo frame),
+  // sem ainda tocar no histórico. 'commit' empurra o histórico real,
+  // assim que o gesto decide definitivamente abrir — exatamente o
+  // ponto em que search/preview empurram o deles.
+  function openDrawerFromGesture(phase) {
+    if (phase === 'live') {
+      if (drawerOpen) return;
+      drawerOpen = true;
+      return;
+    }
+    if (phase === 'commit') {
       drawerPushed = true;
-    });
+      if (history.state && history.state.nexaDrawer) return;
+      pushOverlayState('drawer', { nexaDrawer: true });
+    }
   }
 
-  // Chamado pelo AppDrawer quando o gesto de arrastar TERMINA a abrir
-  // com sucesso. O dedo já posicionou drawerVisible/drawerPushed em
-  // tempo real durante o arrasto (dentro do próprio AppDrawer) — falta
-  // só tornar esse estado real e persistente: montar {#if drawerOpen}
-  // e empurrar história, SEM repetir a animação de entrada (senão o
-  // drawer "saltava" de volta a 100% e reanimava do zero, por cima do
-  // que o dedo já tinha feito). Sem isto, o gesto nunca completava o
-  // ciclo de vida real — drawerOpen ficava sempre false, o listener de
-  // abertura nunca se desligava, e o botão físico de voltar não
-  // conseguia fechar nada porque não havia history.state.nexaDrawer.
-  function openDrawerFromGesture() {
-    if (drawerOpen) return;
-    pushOverlayState('drawer', { nexaDrawer: true });
-    drawerOpen = true;
-    // drawerVisible / drawerPushed já estão true, postos pelo gesto.
-  }
-
-  // Fecho visual puro — chamado a partir de onPopState E também
-  // diretamente por openProfile() quando queremos fechar o drawer sem
-  // depender de um evento popstate global (ver openProfile() abaixo).
+  // Fecho visual puro — chamado a partir de onPopState. Espelha
+  // exatamente closePreviewVisual()/closeSearchVisual(): desliga
+  // drawerPushed (o AppDrawer reage e chama slide.close()) e só
+  // desmonta drawerOpen depois da MESMA duração usada pelas outras
+  // telas full-screen (340ms, ver nav-transition.js/REST_DELTA).
   function closeDrawerVisual() {
-    drawerVisible = false;
     drawerPushed = false;
-    themeExpanded = false;
-    setTimeout(() => { drawerOpen = false; }, 320);
+    setTimeout(() => { drawerOpen = false; }, 340);
   }
 
-  // Chamado pelo botão "X"/overlay/gesto de swipe dentro do próprio
-  // drawer. Não fecha nada visualmente aqui — apenas dispara o popstate
-  // real (ou faz fallback caso o histórico já tenha sido consumido).
   function closeDrawer() {
     if (!drawerOpen) return;
     if (history.state && history.state.nexaDrawer) {
@@ -130,12 +124,9 @@
       closeDrawerVisual();
     }
   }
-  function toggleThemeExpanded() {
-    themeExpanded = !themeExpanded;
-  }
+
   function applyThemeFromDrawer(id) {
     applyThemeValue(id);
-    themeExpanded = false;
   }
 
   function showToast(msg) {
@@ -158,18 +149,6 @@
     }
   }
 
-  // FIX (bug: create -> "/home/home/" -> 404 numa navegação seguinte):
-  // O router usa 'create' como rootRoute (ver createRouter acima), e
-  // parseCurrentRoute() já devolve 'create' para a rota raiz. Antes,
-  // aqui passávamos a string literal 'home' (o nome da PASTA/BASE, não
-  // o rootRoute), o que fazia navigate() comparar 'home' !== 'create'
-  // e gerar o pathname inválido '/home/home/' em vez de '/home/'. Isso
-  // não dava erro na hora (é só um pushState), mas na próxima vez que
-  // essa URL fosse reavaliada — voltar, refresh, botão físico — o
-  // router não reconhecia '/home/home/' como rota válida e redirecionava
-  // para /404/. Agora passamos sempre activeTab diretamente: como
-  // activeTab já usa 'create' para a tab raiz, fala a mesma língua que
-  // o router sem qualquer tradução.
   function selectTab(id) {
     activeTab = id;
     router.navigate(id);
@@ -182,16 +161,11 @@
   }
 
   // ------------------------------------------------------------------
-  // Navegação nativa via history real (push + popstate), usada pela
-  // pesquisa, pelo preview de modelo, e agora também pelo perfil e
-  // pelas definições do perfil — todas em tela cheia.
-  //
-  // REGRA DE OURO (fix do bug de duplo-clique + 404 ao voltar):
-  // O fecho VISUAL de qualquer overlay (search/preview/profile/settings)
-  // SÓ acontece dentro de onPopState — nunca é antecipado pelas funções
-  // close*(). Essas só fazem history.back() e mais nada. Isto elimina a
-  // necessidade de "prever" se foi o botão dentro da app ou o gesto
-  // físico do Android/Chrome que disparou o popstate.
+  // Navegação nativa via history real (push + popstate) — search e
+  // preview já usavam createSlideTransition via a prop `pushed`
+  // passada aos componentes. Aqui não muda nada na física, só mantém
+  // a mesma "regra de ouro": o fecho VISUAL só acontece dentro de
+  // onPopState, nunca antecipado pelas funções close*().
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false;
@@ -217,9 +191,6 @@
     setTimeout(() => { searchOpen = false; }, 340);
   }
 
-  // Chamado pelo botão "voltar" dentro da própria tela de pesquisa.
-  // NÃO fecha nada visualmente aqui — só dispara o popstate real, que
-  // vai ser apanhado por onPopState (fonte única de verdade do fecho).
   function closeSearch() {
     if (!searchOpen) return;
     if (history.state && history.state.nexaSearch) {
@@ -276,23 +247,14 @@
   // FIX (bug: clicar no avatar por vezes não navegava para o perfil,
   // ou deixava o drawer/histórico presos):
   // A versão anterior dependia de UM evento popstate partilhado entre
-  // dois listeners (o onPopState interno do onMount, e um onDrawerClosed
-  // extra adicionado só aqui) — sem garantia de ordem entre os dois, e
-  // sem NENHUMA garantia de que o popstate chegava sequer a disparar
-  // (se closeDrawer() caísse no ramo de fallback sem history.back(), o
-  // listener ficava pendurado para sempre e o perfil nunca abria).
-  //
-  // Agora o fecho do drawer é feito diretamente aqui, de forma síncrona
-  // e determinística: consome-se a entrada nexaDrawer do histórico (se
-  // existir) SEM deixar o onPopState global reagir a ela — evitando que
-  // o router também reaja à mudança de histórico como se fosse uma
-  // troca de rota — faz-se o fecho visual de imediato via
-  // closeDrawerVisual(), e só se navega para o perfil depois da própria
-  // transição de fecho (320ms, a mesma duração usada dentro de
-  // closeDrawerVisual) terminar. Isto elimina por completo a corrida
-  // entre os dois listeners e garante sempre: drawer 100% fechado, sem
-  // qualquer entrada de overlay pendente no histórico, e só então a
-  // tela de perfil aparece.
+  // dois listeners — sem garantia de ordem, e sem garantia de que o
+  // popstate chegava sequer a disparar. Agora o fecho do drawer é
+  // feito diretamente aqui, de forma síncrona e determinística:
+  // consome-se a entrada nexaDrawer do histórico (se existir) SEM
+  // deixar o onPopState global reagir a ela, faz-se o fecho visual
+  // de imediato via closeDrawerVisual(), e só se navega para o perfil
+  // depois da própria transição de fecho (340ms, agora alinhada com a
+  // duração real do spring) terminar.
   function openProfile() {
     if (drawerOpen) {
       if (history.state && history.state.nexaDrawer) {
@@ -303,7 +265,7 @@
       closeDrawerVisual();
       setTimeout(() => {
         dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
-      }, 320); // espelha exatamente a duração de closeDrawerVisual()
+      }, 340); // espelha exatamente a duração de closeDrawerVisual()
     } else {
       dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
     }
@@ -321,11 +283,6 @@
   let scrolled = 0;
   let heroProgress = 0;
 
-  // Altura da imagem de fundo do CreateTab (tem de bater com .hero-bg
-  // em CreateTab.svelte). heroProgress vai de 0 (topo) a 1 (scroll >=
-  // esta altura) e alimenta a camada sólida sobre a imagem dentro do
-  // CreateTab — calculado a partir do MESMO scroll real (scrollRootEl)
-  // que já alimenta `scrolled`, sem criar nenhum scroll container extra.
   const CREATE_HERO_HEIGHT = 260;
 
   function handleScroll() {
@@ -337,16 +294,27 @@
   let mounted = false;
 
   // ------------------------------------------------------------------
-  // Recuo do fundo (.root) quando um overlay full-screen entra — ANTES
-  // usava CSS transition (transform .38s) na classe .pushed-back, que
-  // competia com a transition do próprio overlay (ex: TemplatePreviewPage)
-  // e causava o congelamento reportado. Agora usa o MESMO motor de
-  // spring via rAF do nav-transition.js: nunca há duas transições CSS
-  // de transform disputando o mesmo frame.
+  // Recuo do fundo (.root) quando um overlay full-screen entra — usa
+  // o motor de spring via rAF do nav-transition.js. O drawer JÁ NÃO
+  // participa deste recoil: agora ele escreve diretamente no rootEl
+  // a partir de DENTRO do AppDrawer (via applyRootPush, alimentado
+  // pelo MESMO spring do próprio drawer) — eliminando por completo a
+  // antiga disputa entre dois "donos" de transform no rootEl. Quando
+  // o drawer está fechado, este recoil (search/preview) volta a ser o
+  // único a escrever em rootEl.style.transform.
   // ------------------------------------------------------------------
   const backRecoil = createBackRecoilTransition();
   let rootRecoilValue = 0; // 0..1
-  const unsubscribeBackRecoil = backRecoil.subscribe((v) => { rootRecoilValue = v; });
+  const unsubscribeBackRecoil = backRecoil.subscribe((v) => {
+    rootRecoilValue = v;
+    // Só aplica aqui quando o drawer não está a controlar o rootEl —
+    // evita que os dois motores escrevam por cima um do outro no
+    // mesmíssimo frame.
+    if (!drawerOpen && rootEl) {
+      const translate = -28 * v;
+      rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(1)`;
+    }
+  });
 
   $: anyFullScreenOverlayPushed = searchPushed || previewPushed;
   let lastOverlayPushedState = false;
@@ -355,33 +323,6 @@
     if (anyFullScreenOverlayPushed) backRecoil.recoil();
     else backRecoil.reset();
   }
-  $: rootRecoilTranslate = -28 * rootRecoilValue; // %
-  $: rootRecoilScale = 1; // mantém escala normal (só o drawer encolhe)
-
-  // FIX (bug: o "empurrar" do ecrã pelo drawer nunca se via de forma
-  // consistente, e o fecho ficava preso a meio):
-  // .root tinha DOIS donos de transform ao mesmo tempo — a classe CSS
-  // .pushed-by-drawer (transition .38s) E o atributo style inline com
-  // rootRecoilTranslate/rootRecoilScale (do recoil do search/preview).
-  // Como o style inline tem sempre prioridade sobre a classe, mesmo
-  // "vazio" ele continuava presente no elemento, e assim que
-  // drawerPushed voltava a false o style inline reescrevia o transform
-  // SEM transição (a classe, essa sim com a transition, já tinha
-  // saído), cortando a animação de saída a meio. Um TERCEIRO dono
-  // ainda escreve directo em rootEl.style.transform durante o arrasto
-  // ao vivo (dentro do AppDrawer, via applyLiveTransform/
-  // releaseLiveTransform) — isso mantém-se, porque durante o gesto
-  // precisa de seguir o dedo 1:1 sem qualquer transition CSS a atrasar.
-  //
-  // Agora resolvido combinando os dois estados (drawer + recoil) numa
-  // ÚNICA expressão reativa e usando só style inline (nunca a classe
-  // ao mesmo tempo) — assim há sempre exactamente UMA fonte de verdade
-  // fora do gesto ao vivo, e a transition está sempre presente porque
-  // faz parte do próprio style computado, nunca de uma classe que
-  // pode ou não estar montada no mesmo frame.
-  $: rootTransformStyle = drawerPushed
-    ? 'transform: translate3d(-10%, 0, 0) scale(0.965); transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);'
-    : `transform: translate3d(${rootRecoilTranslate}%, 0, 0) scale(${rootRecoilScale}); transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);`;
 
   onMount(() => {
     user = requireAuth();
@@ -406,15 +347,11 @@
       showInstall = available;
     });
 
-    // parseCurrentRoute() já devolve 'create' diretamente para a rota
-    // raiz — não precisa de nenhuma tradução 'home' <-> 'create'.
     const { route: initialRoute, notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
     activeTab = initialRoute;
     router.navigate(activeTab, { replace: true });
 
-    // IMPORTANTE: este listener é vinculado pelo router ANTES do nosso
-    // onPopState local, logo corre primeiro em qualquer evento popstate.
     const unbindRouter = router.bindPopState((r, nf) => {
       if (suppressRouterPopstate) return;
       if (nf) { window.location.replace('/404/'); return; }
@@ -422,26 +359,10 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // Fonte ÚNICA de verdade para fechar overlays: dispara tanto quando
-    // o botão de voltar DENTRO da app chama history.back(), como quando
-    // o botão/gesto físico do Android ou o botão de voltar do Chrome
-    // disparam popstate diretamente. A ORDEM importa: overlays "mais
-    // profundos" na pilha (definições, depois perfil) são checados
-    // primeiro, espelhando exatamente a ordem em que foram empilhados.
-    //
-    // FIX (drawer "muitíssimo bugado" quando outra app fora do home
-    // estava aberta): antes, este onPopState assumia sempre que QUALQUER
-    // popstate lhe pertencia, mesmo quando o popstate era, na verdade,
-    // do shell raiz (ex.: fechar o perfil). Agora só reage se o
-    // history.state realmente corresponder ao overlay em questão —
-    // cada camada só trata o que é seu, sem competir por eventos que
-    // não lhe dizem respeito.
+    // Fonte ÚNICA de verdade para fechar overlays — drawer incluído,
+    // tratado exatamente como search/preview: consome-se o popstate,
+    // desliga-se drawerPushed (o AppDrawer trata da física sozinho).
     function onPopState() {
-      // NOTA: openProfile() define suppressRouterPopstate = true ANTES
-      // de chamar history.back() e só o repõe a false no frame seguinte
-      // — este onPopState respeita a mesma flag, para não reagir em
-      // duplicado ao popstate que openProfile() já está a tratar
-      // diretamente via closeDrawerVisual().
       if (suppressRouterPopstate) return;
       const state = history.state;
       if (previewOpen && (!state || state.nexaPreview === undefined)) {
@@ -479,7 +400,6 @@
 <div
   class="root"
   bind:this={rootEl}
-  style={rootTransformStyle}
 >
   <div class="bg-layer"></div>
 
@@ -556,10 +476,8 @@
 
 <AppDrawer
   {drawerOpen}
-  {drawerVisible}
-  bind:drawerPushed
+  {drawerPushed}
   {rootEl}
-  {themeExpanded}
   {themeValue}
   {avatarColor}
   {avatarUrl}
@@ -567,7 +485,6 @@
   {userName}
   {showInstall}
   onClose={closeDrawer}
-  onToggleThemeExpanded={toggleThemeExpanded}
   onApplyTheme={applyThemeFromDrawer}
   onLogout={logout}
   onInstall={handleInstall}
@@ -597,7 +514,13 @@
     --row-active: rgba(255,255,255,0.07);
     --btn-bg: rgba(255,255,255,0.10);
     --btn-bg-active: rgba(255,255,255,0.18);
+    /* --drawer-bg é o tom "de referência" do AppDrawer (usado em
+       cartões/estados internos do drawer); --drawer-bg-strong é um
+       tom AINDA MAIS escuro, reservado ao FUNDO do próprio drawer e
+       à bottom bar no escuro — como pediste, "um pouquinho mais
+       escuro que o AppDrawer". */
     --drawer-bg: #1C1C1E;
+    --drawer-bg-strong: #141416;
     --drawer-border: rgba(255,255,255,0.09);
     --drawer-shadow: rgba(0,0,0,0.45);
     --drawer-text: rgba(255,255,255,0.86);
@@ -628,6 +551,7 @@
     --btn-bg: rgba(0,0,0,0.06);
     --btn-bg-active: rgba(0,0,0,0.11);
     --drawer-bg: #ffffff;
+    --drawer-bg-strong: #ffffff;
     --drawer-border: rgba(0,0,0,0.07);
     --drawer-shadow: rgba(0,0,0,0.13);
     --drawer-text: #111111;
@@ -654,6 +578,7 @@
     will-change: transform;
     transform-origin: center;
     contain: layout style paint;
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .bg-layer { position:absolute; inset:0; z-index:0; background:var(--app-bg); }
 

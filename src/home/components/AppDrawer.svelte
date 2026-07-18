@@ -1,12 +1,12 @@
 <!-- src/home/components/AppDrawer.svelte -->
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { onDestroy, createEventDispatcher } from 'svelte';
+  import { createSlideTransition } from '../lib/nav-transition.js';
   import { DRAWER_ITEMS } from '../lib/constants.js';
 
   export let drawerOpen = false;
-  export let drawerVisible = false;
-  export let drawerPushed = false; // bind bidirecional: controla o "empurrar" do ecrã por trás
-  export let rootEl = null; // elemento .root do App.svelte, para animar o "empurrar" 1:1 durante o gesto
+  export let drawerPushed = false; // vindo do App.svelte: true = deve estar visível/aberto
+  export let rootEl = null; // elemento .root do App.svelte, para animar o "empurrar" 1:1
   export let themeValue = 'dark'; // 'light' | 'dark' | 'system'
 
   export let avatarColor = '#FF3B30';
@@ -20,30 +20,64 @@
   export let onApplyTheme;
   export let onLogout;
   export let onInstall;
-  export let onOpenProfile = () => {}; // navegação interna, sem reload
-  export let onOpenViaGesture = () => {}; // completa o ciclo de vida real quando o gesto abre o drawer
+  export let onOpenProfile = () => {};
+  export let onOpenViaGesture = () => {}; // avisa o App.svelte para montar drawerOpen sem reanimar
 
   const dispatch = createEventDispatcher();
 
   let showLogoutDialog = false;
-  let dialogVisible = false; // controla a animação de entrada/saída do dialog
+  let dialogVisible = false;
 
-  // FIX (bug: clicar em perfil deixava o drawer/ecrã empurrado presos
-  // a meio da animação enquanto o perfil já tinha navegado por cima):
-  // Antes, esta função chamava onClose() (history.back(), assíncrono)
-  // E onOpenProfile() (pushState, síncrono) no mesmo tick — as duas
-  // disparavam por cima uma da outra, corrompendo a pilha de histórico.
-  // Agora chama-se APENAS onOpenProfile(); é o App.svelte (via a
-  // função openProfile) quem decide, de forma sequencial, fechar
-  // primeiro o drawer (só se estiver aberto) e esperar o popstate REAL
-  // do fecho antes de navegar — garantindo que o drawer fecha e o
-  // ecrã "desempurra" por completo antes da tela de perfil aparecer.
+  // ------------------------------------------------------------------
+  // MESMO motor de spring (rAF) usado por perfil/settings/search/preview
+  // via nav-transition.js — em vez da CSS transition antiga, que
+  // competia com o gesto de arrastar e dava aquele "engasgo" ao soltar.
+  // slideX: 100 = fora do ecrã à direita, 0 = totalmente aberto.
+  // O "empurrar" do ecrã de trás (.root) é derivado do MESMO valor
+  // (openFraction = 1 - slideX/100), garantindo que drawer e recuo do
+  // fundo estão sempre fisicamente sincronizados — nunca dois motores
+  // diferentes a controlar dois elementos relacionados.
+  // ------------------------------------------------------------------
+  const PUSH_TRANSLATE = -10; // %
+  const PUSH_SCALE_MIN = 0.965;
+
+  const slide = createSlideTransition({
+    onSettleClosed: () => { onClose && closeSettled(); }
+  });
+  let slideX = 100;
+  const unsubscribeSlide = slide.subscribe((v) => {
+    slideX = v;
+    applyRootPush(v);
+  });
+
+  function applyRootPush(x) {
+    if (!rootEl) return;
+    const openFraction = 1 - x / 100;
+    const translate = PUSH_TRANSLATE * openFraction;
+    const scale = 1 - (1 - PUSH_SCALE_MIN) * openFraction;
+    rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
+  }
+
+  // Reage à prop drawerPushed vinda do App.svelte (fonte de verdade da
+  // navegação real/history), exatamente como TemplatePreviewPage reage
+  // a `pushed` — nunca decide por si só, só traduz o estado em spring.
+  let lastPushed = null;
+  $: if (drawerPushed !== lastPushed) {
+    lastPushed = drawerPushed;
+    if (drawerPushed) slide.open();
+    else slide.close();
+  }
+
+  function closeSettled() {
+    // no-op: o App.svelte já desmonta drawerOpen no seu próprio timing
+    // (via popstate); aqui só garantimos que o rootEl volta ao normal.
+    if (rootEl) rootEl.style.transform = '';
+  }
+
   function goProfile() {
     onOpenProfile();
   }
 
-  // Mesmo padrão usado no ProfilePage.svelte (dispatch('nav', {to:'settings'})),
-  // para o App.svelte pai tratar a navegação exatamente da mesma forma.
   function goSettings() {
     onClose();
     dispatch('nav', { to: 'settings' });
@@ -80,50 +114,35 @@
   }
 
   // ------------------------------------------------------------------
-  // Swipe gesture nativo (estilo Android Navigation Drawer):
-  // 1) Arrastar a partir da borda DIREITA do ecrã (o drawer entra pela
-  //    direita) abre o drawer seguindo o dedo 1:1 — incluindo o efeito
-  //    de "empurrar" o ecrã por trás, também 1:1 com o gesto.
-  // 2) Com o drawer aberto, arrastar para a direita fecha-o, também
-  //    seguindo o dedo 1:1, com "solta e decide" por threshold/velocidade.
-  // 3) Nada de listeners globais permanentes: o listener de abertura só
-  //    fica ativo quando o drawer está fechado, e vice-versa — para não
-  //    conflitar com o scroll normal do resto da app.
-  // 4) touch-action + listeners não-passivos: sem isto, o WebView tenta
-  //    decidir se o gesto é scroll/zoom nativo AO MESMO TEMPO que o teu
-  //    handler corre, o que causa o atraso/engasgo entre o dedo e o
-  //    drawer. Com touch-action:none no elemento e preventDefault() a
-  //    valer (listener não-passivo), o browser entrega o gesto 100% ao
-  //    teu JS desde o primeiro touchmove, sem competir por ele.
+  // Swipe gesture nativo (estilo Android Navigation Drawer), agora
+  // alimentando o MESMO spring em vez de escrever style.transform à
+  // parte. Durante o arrasto usamos slide.setDragValue() (sem física,
+  // 1:1 com o dedo); ao soltar, slide.releaseDragTo('open'|'closed')
+  // entrega de volta ao spring físico — a partir da velocidade/posição
+  // exatas onde o dedo largou, sem nenhum salto.
   // ------------------------------------------------------------------
-  const EDGE_ZONE = 24;       // px a partir da borda direita para iniciar o "abrir"
-  const DRAWER_WIDTH_FRACTION = 1; // drawer cobre 100% da largura do ecrã
-  const OPEN_THRESHOLD = 0.35;  // % arrastado para considerar "abrir" ao soltar
-  const CLOSE_THRESHOLD = 0.35; // % arrastado para considerar "fechar" ao soltar
-  const VELOCITY_FLING = 0.55;  // px/ms — acima disto, decide pela direção do gesto
-
-  // Amplitude do "empurrar" do ecrã de fundo, tem de refletir os
-  // mesmos valores usados em .root.pushed-by-drawer no App.svelte.
-  const PUSH_TRANSLATE = -10; // %
-  const PUSH_SCALE_MIN = 0.965;
+  const EDGE_ZONE = 24;
+  const OPEN_THRESHOLD = 0.35;
+  const CLOSE_THRESHOLD = 0.35;
+  const VELOCITY_FLING = 0.55; // px/ms
 
   let dragging = false;
   let dragStartX = 0;
   let dragStartTime = 0;
   let dragCurrentX = 0;
   let dragW = 300;
-  let liveDragActive = false; // true enquanto o dedo controla o drawer em tempo real
+  let liveDragActive = false;
   let drawerEl;
 
   function getDrawerWidth() {
     if (drawerEl) return drawerEl.getBoundingClientRect().width;
-    return window.innerWidth * DRAWER_WIDTH_FRACTION;
+    return window.innerWidth;
   }
 
   function onEdgeTouchStart(e) {
     if (drawerOpen) return;
     const x = e.touches ? e.touches[0].clientX : e.clientX;
-    if (x < window.innerWidth - EDGE_ZONE) return; // só a partir da borda direita
+    if (x < window.innerWidth - EDGE_ZONE) return;
     dragging = true;
     liveDragActive = false;
     dragStartX = x;
@@ -151,19 +170,15 @@
 
     if (!drawerOpen) {
       // gesto de ABRIR: arrastar para a esquerda a partir da borda direita
-      if (delta > 6 && !liveDragActive) return; // ainda não decidiu a direção
+      if (delta > 6 && !liveDragActive) return;
       if (delta >= -6) {
         if (!liveDragActive) {
           liveDragActive = true;
           document.documentElement.style.touchAction = 'none';
-        }
-        if (!drawerVisible) {
-          // ativa o drawer em modo "seguindo o dedo" sem a transição de entrada normal
-          drawerVisible = true;
-          drawerPushed = true;
+          onOpenLiveStart();
         }
         const progress = Math.min(1, Math.max(0, -delta / dragW));
-        applyLiveTransform(1 - progress);
+        slide.setDragValue((1 - progress) * 100);
         e.preventDefault();
       }
     } else {
@@ -175,38 +190,20 @@
         document.documentElement.style.touchAction = 'none';
       }
       const progress = Math.min(1, Math.max(0, delta / dragW));
-      applyLiveTransform(progress);
+      slide.setDragValue(progress * 100);
       e.preventDefault();
     }
   }
 
-  function applyLiveTransform(closedFraction) {
-    // closedFraction: 0 = totalmente aberto, 1 = totalmente fechado
-    if (drawerEl) {
-      drawerEl.style.transition = 'none';
-      drawerEl.style.transform = `translate3d(${closedFraction * 100}%, 0, 0)`;
-    }
-    // Ecrã de fundo acompanha o mesmo progresso, 1:1 com o dedo, para
-    // que o "empurrar" pareça parte do mesmo gesto físico e não um
-    // efeito a reagir com atraso.
-    if (rootEl) {
-      const openFraction = 1 - closedFraction;
-      const translate = PUSH_TRANSLATE * openFraction;
-      const scale = 1 - (1 - PUSH_SCALE_MIN) * openFraction;
-      rootEl.style.transition = 'none';
-      rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
-    }
-  }
-
-  function releaseLiveTransform() {
-    if (drawerEl) {
-      drawerEl.style.transition = '';
-      drawerEl.style.transform = '';
-    }
-    if (rootEl) {
-      rootEl.style.transition = '';
-      rootEl.style.transform = '';
-    }
+  // Chamado no instante em que o gesto de ABRIR é reconhecido: avisa
+  // o App.svelte para montar {#if drawerOpen} de imediato (sem ainda
+  // empurrar história), para que o drawer exista no DOM e o dedo já
+  // possa controlá-lo via slide.setDragValue() no mesmo frame.
+  let liveOpenAnnounced = false;
+  function onOpenLiveStart() {
+    if (liveOpenAnnounced) return;
+    liveOpenAnnounced = true;
+    onOpenViaGesture('live');
   }
 
   function onDragEnd(e) {
@@ -215,59 +212,36 @@
     document.documentElement.style.touchAction = '';
     const elapsed = Math.max(1, performance.now() - dragStartTime);
     const delta = dragCurrentX - dragStartX;
-    const velocity = Math.abs(delta) / elapsed; // px/ms
+    const velocity = Math.abs(delta) / elapsed;
 
     if (!liveDragActive) {
       liveDragActive = false;
       return;
     }
     liveDragActive = false;
+    liveOpenAnnounced = false;
 
     if (!drawerOpen) {
-      // estava a tentar abrir
       const openedFraction = Math.min(1, Math.max(0, -delta / dragW));
       const shouldOpen = openedFraction > OPEN_THRESHOLD || (delta < 0 && velocity > VELOCITY_FLING);
-      releaseLiveTransform();
       if (shouldOpen) {
-        openViaGesture();
+        slide.releaseDragTo('open');
+        onOpenViaGesture('commit');
       } else {
-        drawerVisible = false;
-        drawerPushed = false;
+        slide.releaseDragTo('closed');
       }
     } else {
-      // estava a tentar fechar
       const closedFraction = Math.min(1, Math.max(0, delta / dragW));
       const shouldClose = closedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
-      releaseLiveTransform();
       if (shouldClose) {
         onClose();
+      } else {
+        slide.releaseDragTo('open');
       }
     }
   }
 
-  function openViaGesture() {
-    // O gesto já moveu drawerVisible/drawerPushed para dar resposta
-    // imediata ao dedo, mas isto sozinho NUNCA monta {#if drawerOpen}
-    // nem empurra histórico — o drawer ficava "visualmente aberto" só
-    // enquanto o transform inline do arrasto durava, sem estado real
-    // por trás, sem history.state.nexaDrawer. É por isto que o gesto
-    // parecia bugado: o listener de "abrir" nunca se desligava (porque
-    // drawerOpen continuava false) e competia com o de "fechar" no
-    // frame seguinte, e o botão físico de voltar não fechava nada.
-    //
-    // onOpenViaGesture (vindo de home/App.svelte) completa o ciclo de
-    // vida real — monta drawerOpen=true e empurra história — sem
-    // repetir a animação de entrada, porque o dedo já fez esse trabalho
-    // visualmente.
-    onOpenViaGesture();
-  }
-
   function bindWindowTouchListeners(node) {
-    // svelte:window não permite passar { passive:false } por sintaxe;
-    // sem isso, touchmove é tratado como passivo pelo browser e
-    // e.preventDefault() é ignorado silenciosamente — o WebView então
-    // tenta fazer scroll nativo AO MESMO TEMPO que o teu JS processa o
-    // gesto, o que é a causa do atraso/engasgo entre o dedo e o drawer.
     const opts = { passive: false };
     const ts = (e) => { if (!drawerOpen) onEdgeTouchStart(e); };
     const tm = (e) => { if (dragging) onDragMove(e); };
@@ -285,16 +259,25 @@
       }
     };
   }
+
+  onDestroy(() => {
+    unsubscribeSlide();
+    slide.destroy();
+  });
 </script>
 
 <svelte:body use:bindWindowTouchListeners />
 
 {#if drawerOpen}
-  <div class="drawer-overlay" class:drawer-overlay-in={drawerVisible} on:click={onClose}></div>
+  <div
+    class="drawer-overlay"
+    style="opacity:{1 - slideX / 100}"
+    on:click={onClose}
+  ></div>
   <div
     class="drawer"
-    class:drawer-in={drawerVisible}
     bind:this={drawerEl}
+    style="transform: translate3d({slideX}%, 0, 0);"
     on:touchstart={onDrawerTouchStart}
   >
     <div class="drawer-topbar">
@@ -320,10 +303,6 @@
         </button>
       {/if}
 
-      <!-- Seletor de tema: 3 blocos visuais grandes lado a lado, cada
-           um É a própria miniatura do tema (fundo branco/escuro com
-           "linhas" de conteúdo dentro), tal como um seletor de template
-           de editor gráfico. O ativo ganha borda azul arredondada. -->
       <div class="theme-section">
         <div class="theme-cards">
           <button
@@ -401,36 +380,31 @@
 {/if}
 
 <style>
+  /* .drawer-overlay e .drawer já NÃO têm CSS transition em opacity/
+     transform — ambos são 100% controlados pelo spring via style
+     inline, no mesmo frame, exatamente como TemplatePreviewPage. */
   .drawer-overlay {
     position: fixed;
     inset: 0;
     z-index: 60;
-    background: rgba(0,0,0,0);
-    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .drawer-overlay.drawer-overlay-in {
     background: var(--drawer-overlay-in);
+    will-change: opacity;
   }
   .drawer {
     position: fixed;
     inset: 0;
     z-index: 61;
     width: 100%;
-    background: var(--drawer-bg);
+    background: var(--drawer-bg-strong);
     border-left: none;
     box-shadow: none;
     display: flex;
     flex-direction: column;
-    transform: translate3d(100%, 0, 0);
-    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
     contain: layout style paint;
     touch-action: pan-y;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .drawer.drawer-in {
-    transform: translate3d(0, 0, 0);
   }
 
   .drawer-topbar {
@@ -535,11 +509,6 @@
     color: var(--drawer-text);
   }
 
-  /* ── Seletor de tema: 3 blocos grandes, cada bloco É a miniatura do
-     tema (fundo real + linhas simuladas dentro), igual ao editor
-     gráfico de referência. O do meio ("Sistema") é dividido ao meio
-     por uma diagonal, metade claro / metade escuro. Ativo = borda
-     azul arredondada em volta do bloco inteiro. ── */
   .theme-section {
     padding: 10px 10px 16px;
   }
@@ -753,8 +722,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .drawer-overlay,
-    .drawer,
     .drawer-item,
     .theme-card,
     .drawer-logout,

@@ -6,9 +6,7 @@ export const THEME_OPTIONS = [
   { id: 'system', label: 'Predefinição do sistema' },
 ];
 
-export const DRAWER_ITEMS = [
-  { icon: 'help', label: 'Ajuda', action: () => {} },
-];
+export const DRAWER_ITEMS = [];
 
 // Tabs da bottom bar nativa
 export const TABS = [

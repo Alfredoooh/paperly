@@ -28,12 +28,6 @@
   let showLogoutDialog = false;
   let dialogVisible = false; // controla a animação de entrada/saída do dialog
 
-  const THEME_CARDS = [
-    { id: 'light', label: 'Claro' },
-    { id: 'dark', label: 'Escuro' },
-    { id: 'system', label: 'Sistema' },
-  ];
-
   // FIX (bug: clicar em perfil deixava o drawer/ecrã empurrado presos
   // a meio da animação enquanto o perfil já tinha navegado por cima):
   // Antes, esta função chamava onClose() (history.back(), assíncrono)
@@ -326,32 +320,52 @@
         </button>
       {/if}
 
+      <!-- Seletor de tema: 3 blocos visuais grandes lado a lado, cada
+           um É a própria miniatura do tema (fundo branco/escuro com
+           "linhas" de conteúdo dentro), tal como um seletor de template
+           de editor gráfico. O ativo ganha borda azul arredondada. -->
       <div class="theme-section">
-        <span class="theme-section-label">Tema</span>
         <div class="theme-cards">
           <button
-            class="theme-card pulse-tap theme-card-light"
+            class="theme-card"
             class:theme-card-active={themeValue === 'light'}
             on:click={() => onApplyTheme('light')}
+            aria-label="Tema claro"
           >
-            <span class="theme-swatch theme-swatch-light"></span>
-            <span class="theme-card-label">Claro</span>
+            <div class="theme-preview theme-preview-light">
+              <span class="theme-line" style="width:70%"></span>
+              <span class="theme-line" style="width:85%"></span>
+              <span class="theme-line" style="width:55%"></span>
+            </div>
           </button>
           <button
-            class="theme-card pulse-tap theme-card-dark"
-            class:theme-card-active={themeValue === 'dark'}
-            on:click={() => onApplyTheme('dark')}
-          >
-            <span class="theme-swatch theme-swatch-dark"></span>
-            <span class="theme-card-label">Escuro</span>
-          </button>
-          <button
-            class="theme-card pulse-tap theme-card-system"
+            class="theme-card"
             class:theme-card-active={themeValue === 'system'}
             on:click={() => onApplyTheme('system')}
+            aria-label="Tema automático"
           >
-            <span class="theme-swatch theme-swatch-system"></span>
-            <span class="theme-card-label">Sistema</span>
+            <div class="theme-preview theme-preview-system">
+              <div class="theme-preview-half theme-preview-half-light">
+                <span class="theme-line" style="width:70%"></span>
+                <span class="theme-line" style="width:55%"></span>
+              </div>
+              <div class="theme-preview-half theme-preview-half-dark">
+                <span class="theme-line theme-line-dark" style="width:70%"></span>
+                <span class="theme-line theme-line-dark" style="width:55%"></span>
+              </div>
+            </div>
+          </button>
+          <button
+            class="theme-card"
+            class:theme-card-active={themeValue === 'dark'}
+            on:click={() => onApplyTheme('dark')}
+            aria-label="Tema escuro"
+          >
+            <div class="theme-preview theme-preview-dark">
+              <span class="theme-line theme-line-dark" style="width:70%"></span>
+              <span class="theme-line theme-line-dark" style="width:85%"></span>
+              <span class="theme-line theme-line-dark" style="width:55%"></span>
+            </div>
           </button>
         </div>
       </div>
@@ -521,21 +535,13 @@
     color: var(--drawer-text);
   }
 
-  /* ── Tema: 3 cards horizontais, maiores, com um "swatch" (miniatura)
-     em cima do label. Swatch claro = branco sólido; escuro = escuro
-     sólido; sistema = dividido ao meio por uma linha inclinada,
-     metade branco / metade escuro. Ativo = borda azul. ── */
+  /* ── Seletor de tema: 3 blocos grandes, cada bloco É a miniatura do
+     tema (fundo real + linhas simuladas dentro), igual ao editor
+     gráfico de referência. O do meio ("Sistema") é dividido ao meio
+     por uma diagonal, metade claro / metade escuro. Ativo = borda
+     azul arredondada em volta do bloco inteiro. ── */
   .theme-section {
-    padding: 10px 14px 14px;
-  }
-  .theme-section-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: var(--drawer-text-faint);
-    padding: 4px 4px 10px;
+    padding: 10px 10px 16px;
   }
   .theme-cards {
     display: flex;
@@ -543,47 +549,69 @@
   }
   .theme-card {
     flex: 1;
-    padding: 10px;
+    aspect-ratio: 1 / 0.82;
+    padding: 4px;
     border-radius: 18px;
-    border: 2px solid var(--drawer-sep);
-    background: var(--drawer-row-active, var(--btn-bg));
+    border: 2.5px solid transparent;
+    background: transparent;
     cursor: pointer;
-    font-family: inherit;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
     transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .theme-card-active {
     border-color: #0A84FF;
   }
-  .theme-swatch {
-    width: 100%;
-    height: 56px;
-    border-radius: 12px;
-    overflow: hidden;
+  .theme-preview {
+    flex: 1;
+    border-radius: 14px;
     border: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    overflow: hidden;
+    position: relative;
   }
-  .theme-swatch-light {
+  .theme-preview-light {
     background: #FFFFFF;
   }
-  .theme-swatch-dark {
+  .theme-preview-dark {
     background: #1C1C1E;
   }
-  .theme-swatch-system {
-    background: linear-gradient(
-      115deg,
-      #FFFFFF 0%,
-      #FFFFFF 47%,
-      #1C1C1E 53%,
-      #1C1C1E 100%
-    );
+  .theme-line {
+    display: block;
+    height: 6px;
+    border-radius: 3px;
+    background: #D9D9DE;
   }
-  .theme-card-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--drawer-text);
+  .theme-line-dark {
+    background: #48484A;
+  }
+
+  .theme-preview-system {
+    padding: 0;
+    flex-direction: row;
+  }
+  .theme-preview-half {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 8px;
+    position: relative;
+  }
+  .theme-preview-half-light {
+    background: #FFFFFF;
+    clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%);
+    padding-right: 16px;
+  }
+  .theme-preview-half-dark {
+    background: #1C1C1E;
+    margin-left: -14px;
+    clip-path: polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
+    padding-left: 20px;
   }
 
   .drawer-bottom-row {

@@ -128,7 +128,8 @@
   //  CONFIRMAR LOGOUT — MESMO padrão visual/comportamental do
   //  logout-dialog do AppDrawer no home: overlay a escurecer + dialog
   //  central com scale-in (não é um bottom sheet), duas ações
-  //  (Cancelar / Terminar sessão).
+  //  (Cancelar / Terminar sessão), empilhadas verticalmente para que
+  //  "Terminar sessão" não fique espremido ao lado de "Cancelar".
   // ══════════════════════════════════════════════════════════════════
   let showLogoutDialog = false;
   let logoutDialogVisible = false;
@@ -222,7 +223,7 @@
   </div>
 
   <div class="st-body">
-    <div class="st-profile-card" style="background:{c.dialogBackground}">
+    <div class="st-profile-card" style="background:{c.authInputFill}">
       {#if user?.avatar}
         <img class="st-avatar-img" src={user.avatar} alt={userName} />
       {:else}
@@ -235,7 +236,7 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Aparência</div>
-    <div class="st-section" style="background:{c.dialogBackground}">
+    <div class="st-section" style="background:{c.authInputFill}">
       {#each THEME_OPTIONS as opt, i}
         <button class="st-row" on:click={() => setThemeValue(opt.id)}>
           <span class="st-row-label" style="color:{c.textPrimary}">{opt.label}</span>
@@ -248,7 +249,7 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Idioma</div>
-    <div class="st-section" style="background:{c.dialogBackground}">
+    <div class="st-section" style="background:{c.authInputFill}">
       <button class="st-row" on:click={openLangSheet}>
         <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
         <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
@@ -256,7 +257,7 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Notificações</div>
-    <div class="st-section" style="background:{c.dialogBackground}">
+    <div class="st-section" style="background:{c.authInputFill}">
       <button class="st-row" on:click={() => showToast('Em breve')}>
         <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
         <span class="st-row-value" style="color:{c.textSecondary}">Em breve</span>
@@ -264,7 +265,7 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Conta</div>
-    <div class="st-section" style="background:{c.dialogBackground}">
+    <div class="st-section" style="background:{c.authInputFill}">
       <button class="st-row" on:click={() => openLogoutDialog('all')}>
         <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
       </button>
@@ -275,7 +276,7 @@
     </div>
   </div>
 
-  <!-- ══ POPUP — Idioma (spring nativo + arrastável, agora flutuante) ══ -->
+  <!-- ══ POPUP — Idioma (spring nativo + arrastável, flutuante) ══════ -->
   {#if showLangSheet}
     <button class="overlay" class:overlay-in={langOverlayVisible} on:click={closeLangSheet}></button>
     <div class="bottom-sheet" bind:this={langSheetEl} style="background:{c.dialogBackground};transform: translate3d(0, {langSheetY}%, 0);">
@@ -302,7 +303,9 @@
 
   <!-- ══════════════════════════════════════════════════════════════
        CONFIRMAR LOGOUT — mesmo padrão do logout-dialog no AppDrawer
-       do home: overlay a escurecer + cartão central com scale-in.
+       do home: overlay a escurecer + cartão central com scale-in,
+       flutuante, botões empilhados (Terminar sessão em cima,
+       Cancelar por baixo) para não ficarem espremidos lado a lado.
   ══════════════════════════════════════════════════════════════ -->
   {#if showLogoutDialog}
     <div class="logout-overlay" class:logout-overlay-in={logoutDialogVisible}></div>
@@ -311,10 +314,10 @@
         {logoutMode === 'all' ? 'Tens a certeza que queres terminar a sessão em todos os dispositivos?' : 'Tens a certeza que queres terminar a sessão?'}
       </p>
       <div class="logout-dialog-actions">
-        <button class="logout-btn-cancel" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={cancelLogoutDialog} disabled={loggingOut}>Cancelar</button>
         <button class="logout-btn-confirm" on:click={confirmLogout} disabled={loggingOut}>
           {loggingOut ? 'A terminar…' : 'Terminar sessão'}
         </button>
+        <button class="logout-btn-cancel" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={cancelLogoutDialog} disabled={loggingOut}>Cancelar</button>
       </div>
     </div>
   {/if}
@@ -430,9 +433,9 @@
   }
   .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
   .logout-dialog-text { font-size: 15.5px; line-height: 1.45; margin: 0 0 22px; text-align: center; font-family: inherit; }
-  .logout-dialog-actions { display: flex; gap: 10px; justify-content: center; }
+  .logout-dialog-actions { display: flex; flex-direction: column; gap: 10px; }
   .logout-btn-cancel, .logout-btn-confirm {
-    flex: 1; padding: 13px 20px; border-radius: 999px; border: none;
+    width: 100%; padding: 13px 20px; border-radius: 999px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }

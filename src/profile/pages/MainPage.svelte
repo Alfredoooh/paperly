@@ -413,13 +413,13 @@
       {#if loading}
         <div class="pf-skeleton-wrap">
           {#each [1,2,3] as i}
-            <div class="pf-skeleton-row" style="background:{c.dialogBackground}"></div>
+            <div class="pf-skeleton-row" style="background:{c.authInputFill}"></div>
           {/each}
         </div>
       {:else}
         <!-- Dados pessoais -->
         <div class="pf-section-title" style="color:{c.textSecondary}">Dados pessoais</div>
-        <div class="pf-card" style="background:{c.dialogBackground};border-color:{c.divider}">
+        <div class="pf-card" style="background:{c.authInputFill};border-color:{c.divider}">
           {#if filledRows.length === 0 && !occupationLabel && !form.bio}
             <button class="pf-empty-row" style="color:{c.textSecondary}" on:click={openEdit}>
               <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');background:{c.primary};width:16px;height:16px"></span>
@@ -485,8 +485,8 @@
 
   <!-- ══════════════════════════════════════════════════════════════
        TELA FULLSCREEN DE EDIÇÃO — cards nativos + botão de guardar
-       como ícone check no appbar. Botão de fechar (X) sem fundo azul,
-       neutro como o resto dos ícones do appbar.
+       como ícone check no appbar. Botão de fechar (X) e botão de
+       guardar (check) neutros, iguais ao resto dos ícones do appbar.
   ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
     <div class="edit-screen"
@@ -503,11 +503,11 @@
             <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
           </button>
           <span class="edit-header-title" style="color:{c.textPrimary}">Editar perfil</span>
-          <button class="pf-icon-btn edit-save-icon-btn" style="background:{c.primary}" on:click={saveProfile} disabled={saving}>
+          <button class="pf-icon-btn edit-save-icon-btn" style="background:{c.appbarBtnBg}" on:click={saveProfile} disabled={saving}>
             {#if saving}
-              <span class="edit-save-spinner"></span>
+              <span class="edit-save-spinner" style="border-color:{c.divider};border-top-color:{c.iconTint}"></span>
             {:else}
-              <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:#fff;width:17px;height:17px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:{c.iconTint};width:17px;height:17px"></span>
             {/if}
           </button>
         </div>
@@ -524,7 +524,7 @@
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Localização</div>
-        <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
+        <div class="edit-card" style="background:{c.authInputFill};border-color:{c.divider}">
           <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
             <input type="number" min="0" max="120" class="edit-input-right" placeholder="—"
@@ -552,7 +552,7 @@
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Ocupação</div>
-        <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
+        <div class="edit-card" style="background:{c.authInputFill};border-color:{c.divider}">
           <button class="edit-row edit-row-btn" on:click={openOccSheet}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
             <div class="edit-row-right-group">
@@ -571,7 +571,7 @@
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Bio</div>
-        <div class="edit-card" style="background:{c.dialogBackground};border-color:{c.divider}">
+        <div class="edit-card" style="background:{c.authInputFill};border-color:{c.divider}">
           <div class="edit-row edit-notes-row">
             <textarea class="edit-textarea"
               placeholder="Escreve uma pequena bio…"
@@ -586,7 +586,7 @@
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       BOTTOM SHEET — seletor de ocupação
+       BOTTOM SHEET — seletor de ocupação (flutuante, não toca nas bordas)
   ══════════════════════════════════════════════════════════════ -->
   {#if showOccSheet}
     <button class="overlay" class:overlay-in={occOverlayVisible} on:click={closeOccSheet}></button>
@@ -642,7 +642,7 @@
   .pf-icon-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
   .pf-icon-btn:active { transform: scale(0.86); opacity: .65; }
   .pf-icon-btn:disabled { opacity: .4; }
@@ -658,19 +658,20 @@
   .pf-body-inner { width: 100%; will-change: transform; }
 
   /* ── Hero ─────────────────────────────────────────────────────────── */
-  .pf-hero { padding: 20px 16px 8px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+  .pf-hero { padding: 24px 16px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
   .pf-avatar-wrap {
-    position: relative; width: 88px; height: 88px; border-radius: 50%;
+    position: relative; width: 92px; height: 92px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; overflow: visible;
     border: none; padding: 0; cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1);
   }
   .pf-avatar-wrap:active { transform: scale(0.96); }
   .pf-avatar-wrap img {
     width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
     display: block;
   }
-  .pf-avatar-initial { font-size: 32px; font-weight: 700; color: #fff; }
+  .pf-avatar-initial { font-size: 34px; font-weight: 700; color: #fff; }
   .pf-avatar-loading {
     position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -692,24 +693,25 @@
     border-radius: 50%; border: 2.5px solid;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
   .pf-avatar-edit-badge:active { transform: scale(0.88); opacity: .8; }
 
-  .pf-hero h1 { margin: 8px 0 0; font-size: 21px; font-weight: 800; line-height: 1.15; }
+  .pf-hero h1 { margin: 10px 0 0; font-size: 21px; font-weight: 800; line-height: 1.15; }
   .pf-hero p { margin: 0; font-size: 13.5px; }
 
   /* ── Skeleton ─────────────────────────────────────────────────────── */
   .pf-skeleton-wrap { padding: 24px 16px 0; display: flex; flex-direction: column; gap: 10px; }
-  .pf-skeleton-row { height: 54px; border-radius: 14px; opacity: .5; animation: pf-pulse 1.2s ease-in-out infinite; }
+  .pf-skeleton-row { height: 54px; border-radius: 16px; opacity: .5; animation: pf-pulse 1.2s ease-in-out infinite; }
   @keyframes pf-pulse { 0%,100% { opacity: .35; } 50% { opacity: .65; } }
 
   /* ── Secção / cartão ──────────────────────────────────────────────── */
-  .pf-section-title { padding: 20px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-  .pf-card { margin: 0 16px; border: 1px solid; border-radius: 18px; overflow: hidden; }
+  .pf-section-title { padding: 22px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .pf-card { margin: 0 16px; border: 1px solid; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
   .pf-info-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 13px 16px; border-bottom: 1px solid; gap: 12px;
+    padding: 14px 16px; border-bottom: 1px solid; gap: 12px;
   }
   .pf-info-row:last-child { border-bottom: none; }
   .pf-info-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -726,9 +728,10 @@
 
   .pf-edit-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: calc(100% - 32px); margin: 18px 16px 0; padding: 14px;
-    border: none; border-radius: 14px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
-    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    width: calc(100% - 32px); margin: 20px 16px 0; padding: 15px;
+    border: none; border-radius: 16px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(47,123,246,0.28);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
   .pf-edit-btn:active { transform: scale(0.98); opacity: .88; }
 
@@ -790,14 +793,15 @@
   }
   .edit-header-title { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
 
-  /* Botão de guardar como ÍCONE (check.svg), fundo sólido cor primária.
-     Botão de fechar (X) reaproveita .pf-icon-btn puro — SEM cor de
-     destaque, apenas o fundo neutro appbarBtnBg como os outros ícones. */
+  /* Botão de guardar (check) e botão de fechar (X) reaproveitam ambos
+     .pf-icon-btn puro, com o mesmo fundo neutro appbarBtnBg — nenhum
+     dos dois usa cor de destaque, ambos ficam iguais aos outros
+     ícones do appbar. */
   .edit-save-icon-btn { position: relative; }
   .edit-save-icon-btn:disabled { opacity: .55; }
   .edit-save-spinner {
     width: 15px; height: 15px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+    border: 2px solid; border-top-color: transparent;
     animation: pf-spin .7s linear infinite;
   }
 
@@ -810,7 +814,7 @@
   }
 
   .edit-section-title { padding: 20px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-  .edit-card { margin: 0 16px; border: 1px solid; border-radius: 18px; overflow: hidden; }
+  .edit-card { margin: 0 16px; border: 1px solid; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
   .edit-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -828,27 +832,35 @@
     font-family: inherit; line-height: 1.55; min-height: 80px; width: 100%;
   }
 
-  /* ── Overlay + bottom sheet (popup nativo, spring dedicado) ─────────── */
+  /* ── Overlay + bottom sheet (popup nativo, spring dedicado, flutuante) ── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
-    transition: background .32s ease;
+    transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-backdrop-filter: blur(0px);
+    backdrop-filter: blur(0px);
   }
-  .overlay.overlay-in { background: rgba(0,0,0,.45); }
+  .overlay.overlay-in {
+    background: rgba(0,0,0,.42);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
   .bottom-sheet {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    border-radius: 20px 20px 0 0; z-index: 700;
-    padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
+    position: fixed; left: 12px; right: 12px;
+    bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+    border-radius: 26px; z-index: 700;
+    padding: 0 0 10px;
     will-change: transform;
-    box-shadow: 0 -4px 40px rgba(0,0,0,.16);
+    box-shadow: 0 12px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
+    overflow: hidden;
   }
   .sheet-grab-zone { touch-action: none; }
-  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; }
+  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; opacity: .8; }
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
   .sheet-opt {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
     padding: 14px 18px; background: none; border: none; cursor: pointer; text-align: left;
-    transition: opacity .14s;
+    transition: opacity .16s ease;
   }
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }

@@ -88,6 +88,11 @@
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
 
+  // A search-bar some ao rolar — só reaparece quando volta ao topo
+  // absoluto (heroProgress === 0), nunca a meio do scroll para cima,
+  // conforme decidido: "só reaparece no topo".
+  $: searchBarHidden = heroProgress > 0;
+
   function openApp(app) {
     try { navigator.vibrate && navigator.vibrate(7); } catch (e) {}
     if (app.id === 'ai') {
@@ -100,9 +105,21 @@
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
 
+  // ────────────────────────────────────────────────────────────────
+  // Clique na search-bar: mede o rect EXATO do botão no momento do
+  // clique (igual a openAvatarViewer em MainPage.svelte do profile) e
+  // passa-o ao App.svelte via onOpenSearch(origin) — é esse rect que
+  // o SearchPage usa como ponto de partida do container transform.
+  // ────────────────────────────────────────────────────────────────
+  let searchBarEl;
   function handleOpenSearch() {
     buzz();
-    onOpenSearch();
+    if (searchBarEl) {
+      const r = searchBarEl.getBoundingClientRect();
+      onOpenSearch({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      onOpenSearch(null);
+    }
   }
 
   function handleMenu() {
@@ -150,7 +167,12 @@
     </div>
   </div>
 
-  <button class="search-bar pulse-tap" on:click={handleOpenSearch}>
+  <button
+    class="search-bar pulse-tap"
+    class:search-bar-hidden={searchBarHidden}
+    bind:this={searchBarEl}
+    on:click={handleOpenSearch}
+  >
     <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
@@ -192,19 +214,12 @@
     pointer-events: none;
     contain: layout style paint;
     overflow: hidden;
-    /* sem border-bottom: a separação nunca existiu por linha, e agora
-       nem por sombra — o header sólido é literalmente o mesmo tom do
-       corpo, então não precisa de nenhuma fronteira visual. */
   }
   .create-header.in {
     opacity: 1;
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
   }
-  /* Sólido = idêntico ao fundo do app, no claro e no escuro. Sem
-     color-mix, sem preto misturado, sem sombra, sem borda — o header
-     "desaparece" por ser o mesmo plano do conteúdo, como appbar
-     nativo que soma o safe-area ao scroll em vez de flutuar por cima. */
   .create-header.solid {
     background: var(--app-bg);
   }
@@ -256,10 +271,6 @@
       transform .16s cubic-bezier(0.34,1.56,0.64,1);
     margin-left: auto;
   }
-  /* Sobre a hero photo o botão tem fundo translúcido claro pra
-     destacar-se da imagem. Assim que o header fica sólido (mesmo tom
-     do corpo), esse fundo translúcido pareceria uma mancha solta —
-     então ele passa a usar a superfície elevada real do tema. */
   .profile-btn.solid {
     background: var(--row-active, rgba(127,127,127,0.12));
     box-shadow: none;
@@ -346,7 +357,6 @@
     transition: opacity .2s linear;
     pointer-events: none;
   }
-  /* Saudação aumentada mais uma vez: 32px -> 38px. */
   .hero-greeting-name {
     margin: 0 0 4px;
     font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -384,6 +394,18 @@
     -webkit-tap-highlight-color: transparent;
     position: relative;
     z-index: 1;
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1), transform .2s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0s;
+  }
+  /* Some ao rolar (heroProgress > 0), só reaparece quando volta ao
+     topo absoluto — nunca com scroll para cima a meio do caminho. */
+  .search-bar.search-bar-hidden {
+    opacity: 0;
+    transform: scale(0.92);
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1), transform .2s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear .2s;
   }
   .search-bar-icon {
     width: 18px;
@@ -444,8 +466,6 @@
     mask-position: center;
     -webkit-mask-position: center;
   }
-  /* Tap "nativo": ícone encolhe com spring, label esbate levemente —
-     o mesmo tipo de resposta tátil visual do resto da app. */
   .native-tap:active .app-icon-wrap {
     transform: scale(0.86);
   }
@@ -481,4 +501,8 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
   }
   .pulse-tap:active { transform: scale(0.98); opacity: .85; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .search-bar { transition: none !important; }
+  }
 </style>

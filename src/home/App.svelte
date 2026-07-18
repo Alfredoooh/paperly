@@ -65,7 +65,7 @@
   let rootEl;
 
   // ------------------------------------------------------------------
-  // Drawer: agora usa a MESMA "regra de ouro" de history já usada por
+  // Drawer: usa a MESMA "regra de ouro" de history já usada por
   // search/preview, E o MESMO motor de spring (dentro do próprio
   // AppDrawer.svelte, via createSlideTransition) — nada de
   // requestAnimationFrame manual nem de CSS transition paralela aqui.
@@ -169,6 +169,7 @@
   // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false;
+  let searchOrigin = null; // {top,left,width,height} do elemento clicado, ou null = slide normal
   let previewOpen = false;
   let previewPushed = false;
   let previewData = null; // { kind: 'image'|'doc', item }
@@ -179,8 +180,12 @@
     history.pushState({ nexaOverlay: hash, fromPath: currentPath, ...extra }, '', currentPath + '#' + hash);
   }
 
-  function openSearch() {
+  // origin = DOMRect (ou null) do elemento que disparou a abertura —
+  // vindo da search-bar do CreateTab (container transform) ou do botão
+  // de lupa do AppHeader (nesse caso não passamos origin = slide normal).
+  function openSearch(origin = null) {
     if (searchOpen) return;
+    searchOrigin = origin;
     pushOverlayState('search', { nexaSearch: true });
     searchOpen = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { searchPushed = true; }));
@@ -188,7 +193,7 @@
 
   function closeSearchVisual() {
     searchPushed = false;
-    setTimeout(() => { searchOpen = false; }, 340);
+    setTimeout(() => { searchOpen = false; searchOrigin = null; }, 340);
   }
 
   function closeSearch() {
@@ -302,6 +307,13 @@
   // antiga disputa entre dois "donos" de transform no rootEl. Quando
   // o drawer está fechado, este recoil (search/preview) volta a ser o
   // único a escrever em rootEl.style.transform.
+  //
+  // AJUSTE: amplitude alinhada 1:1 com o recoil do profile/App.svelte
+  // (mainRecoilTranslate/mainRecoilScale) — ANTES este recoil usava
+  // -28% de translate sozinho, sem scale nenhum, o que produzia um
+  // "empurrão" bem mais brusco e sem a leve compressão que o profile
+  // tem. Agora usa exatamente -8% de translate + scale(1 - 0.02*v),
+  // igual, valor a valor, ao .profile-main-layer.
   // ------------------------------------------------------------------
   const backRecoil = createBackRecoilTransition();
   let rootRecoilValue = 0; // 0..1
@@ -311,8 +323,9 @@
     // evita que os dois motores escrevam por cima um do outro no
     // mesmíssimo frame.
     if (!drawerOpen && rootEl) {
-      const translate = -28 * v;
-      rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(1)`;
+      const translate = -8 * v;
+      const scale = 1 - 0.02 * v;
+      rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
     }
   });
 
@@ -416,7 +429,7 @@
       title={currentTitle}
       solidGradient={activeTab === 'templates'}
       showSearchBtn={activeTab === 'templates'}
-      onOpenSearch={openSearch}
+      onOpenSearch={() => openSearch(null)}
       showToggle={activeTab === 'templates'}
       toggleOptions={TEMPLATE_VIEWS}
       toggleValue={templatesView}
@@ -454,6 +467,7 @@
 {#if searchOpen}
   <SearchPage
     pushed={searchPushed}
+    origin={searchOrigin}
     {platformApps}
     imageModels={IMAGE_MODELS}
     docModels={DOC_MODELS}
@@ -514,11 +528,6 @@
     --row-active: rgba(255,255,255,0.07);
     --btn-bg: rgba(255,255,255,0.10);
     --btn-bg-active: rgba(255,255,255,0.18);
-    /* --drawer-bg é o tom "de referência" do AppDrawer (usado em
-       cartões/estados internos do drawer); --drawer-bg-strong é um
-       tom AINDA MAIS escuro, reservado ao FUNDO do próprio drawer e
-       à bottom bar no escuro — como pediste, "um pouquinho mais
-       escuro que o AppDrawer". */
     --drawer-bg: #1C1C1E;
     --drawer-bg-strong: #141416;
     --drawer-border: rgba(255,255,255,0.09);

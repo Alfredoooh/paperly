@@ -51,14 +51,13 @@ function svgTemConteudo(svgContent) {
   return /<path/.test(svgContent);
 }
 
-// --- MODO COLORIDO ---
-
 async function extrairPaleta(inputPath, paletaPath, cores) {
   await run("convert", [
     inputPath,
     "-background", "white",
     "-alpha", "remove",
     "-alpha", "off",
+    "-dither", "None",
     "-colors", String(cores),
     paletaPath
   ]);
@@ -72,8 +71,6 @@ async function extrairPaleta(inputPath, paletaPath, cores) {
   return { paletaPath, hexes: [...new Set(hexes)] };
 }
 
-// Isola uma cor específica da imagem quantizada em uma máscara binária
-// (preto = forma a vetorizar, branco = fundo — é o que o potrace espera)
 async function isolarCorEmMascara(paletaPath, hex, mascaraPath) {
   await run("convert", [
     paletaPath,
@@ -117,7 +114,8 @@ async function converterColoridoComFallback(inputPath, id, opts) {
   const paletaPath = path.join(os.tmpdir(), `${id}_paleta.png`);
   const arquivosTemp = [paletaPath];
   
-  const tentativasCores = [opts.cores, Math.max(4, opts.cores - 2), Math.min(16, opts.cores + 4)];
+  const tentativasCores = [opts.cores, Math.max(4, opts.cores - 2), Math.min(16, opts.cores + 4), 4, 2];
+  const tentativasTurdsize = [opts.turdsize, 2, 0];
   let ultimoErro = null;
   
   for (const numCores of tentativasCores) {
@@ -135,14 +133,20 @@ async function converterColoridoComFallback(inputPath, id, opts) {
         
         await isolarCorEmMascara(paletaPath, hex, mascaraPath);
         
-        let svgCamada;
-        try {
-          svgCamada = await vetorizarMascara(mascaraPath, svgTempPath, opts.opttolerance, opts.turdsize);
-        } catch {
-          continue;
+        let svgCamada = null;
+        for (const t of tentativasTurdsize) {
+          try {
+            const tentativa = await vetorizarMascara(mascaraPath, svgTempPath, opts.opttolerance, t);
+            if (svgTemConteudo(tentativa)) {
+              svgCamada = tentativa;
+              break;
+            }
+          } catch {
+            continue;
+          }
         }
         
-        if (!svgTemConteudo(svgCamada)) continue;
+        if (!svgCamada) continue;
         
         if (!dimensoes) dimensoes = extrairDimensoes(svgCamada);
         
@@ -170,8 +174,6 @@ async function converterColoridoComFallback(inputPath, id, opts) {
   limparArquivos(arquivosTemp);
   throw ultimoErro || new Error("Não foi possível vetorizar a imagem colorida após várias tentativas");
 }
-
-// --- MODO PRETO E BRANCO (fallback opcional) ---
 
 async function prepararBitmap(inputPath, pbmPath, cores, thresholdPercent, espessura) {
   const flatPath = pbmPath.replace(".pbm", "_flat.png");

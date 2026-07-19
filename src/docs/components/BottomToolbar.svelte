@@ -69,24 +69,19 @@
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
-        <fluent-tooltip content={item.label}>
-          <button
-            class="tb-btn"
-            class:tb-active={item.panel && activePanel === item.id}
-            disabled={item.disabled ? item.disabled() : false}
-            on:click={() => press(item)}
-            aria-label={item.label}
-            slot="anchor"
-          >
-            <span
-              class="icon-mask"
-              style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:18px;height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
-            ></span>
-            {#if item.panel && activePanel === item.id}
-              <fluent-badge class="tb-active-dot" appearance="filled" color="brand" size="extra-small"></fluent-badge>
-            {/if}
-          </button>
-        </fluent-tooltip>
+        <button
+          class="tb-btn"
+          class:tb-active={item.panel && activePanel === item.id}
+          disabled={item.disabled ? item.disabled() : false}
+          on:click={() => press(item)}
+          aria-label={item.label}
+          title={item.label}
+        >
+          <span
+            class="icon-mask"
+            style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:18px;height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+          ></span>
+        </button>
       {/each}
       {#if gi < GROUPS.length - 1}
         <div class="tb-divider" style="background:{c.divider}"></div>
@@ -145,14 +140,6 @@
   .tb-btn:disabled { cursor: default; }
   .tb-btn:disabled:active { transform: none; background: transparent; }
   .tb-active { background: rgba(47,123,246,0.16); }
-  .tb-active-dot {
-    position: absolute;
-    top: 2px; right: 2px;
-    width: 6px; height: 6px;
-    min-width: 0; min-height: 0;
-    padding: 0;
-    pointer-events: none;
-  }
   .tb-divider { width: 1px; height: 18px; margin: 0 3px; flex-shrink: 0; }
 
   /* FAB circular de concluir edição — fora da pill, sempre visível,

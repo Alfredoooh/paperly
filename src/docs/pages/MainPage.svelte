@@ -68,6 +68,19 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
+  onMount(() => {
+    setupKeyboardAvoidance();
+    document.addEventListener('focusin', lockViewport, true);
+    // NOTA: o listener de 'selectionchange' que existia aqui foi
+    // removido de propósito. Ele disparava a CADA tecla premida
+    // dentro do contenteditable (selectionchange dispara em todo
+    // movimento de cursor), o que recomputava kbOffset e reescrevia
+    // a CSS var --kb-offset constantemente enquanto se escrevia —
+    // essa era uma das causas dos saltos do appbar/canvas durante a
+    // digitação. 'focusin' sozinho já é suficiente para detetar a
+    // entrada em qualquer campo editável.
+  });
+
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
   function setEditorHTML(html) { docPageComp && docPageComp.setContent(html); }
   function focusEditor() { docPageComp && docPageComp.focusEditor(); }
@@ -379,6 +392,67 @@
     else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
   }
 
+  let kbOffset = 0;
+  let kbUpdateRaf = null;
+  let rootEl;
+  let vvRef = null;
+
+  function syncViewportVars() {
+    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
+  }
+
+  function computeKbOffset() {
+    // FIX (appbar/canvas saltando com o teclado):
+    // window.innerHeight NÃO encolhe quando o teclado abre (ao
+    // contrário de 100dvh, que em WebViews Android costuma encolher
+    // sozinho assim que o teclado aparece). Ao fixar --app-vh a
+    // partir de innerHeight aqui, garantimos que o layout inteiro
+    // (via calc(var(--app-vh)) no #app/.root) tem UMA ÚNICA fonte de
+    // verdade para a sua altura — deixa de haver o dvh nativo do
+    // browser a encolher o container AO MESMO TEMPO que o nosso
+    // próprio kbOffset desloca a bottom bar. Antes, essas duas coisas
+    // aconteciam em instantes ligeiramente diferentes e é isso que
+    // lia-se como o appbar "subindo e pulando".
+    document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
+
+    const vv = window.visualViewport;
+    if (!vv) {
+      kbOffset = 0;
+      syncViewportVars();
+      return;
+    }
+    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
+    kbOffset = overlap > 40 ? Math.round(overlap) : 0;
+    syncViewportVars();
+  }
+  function scheduleKbUpdate() {
+    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
+    kbUpdateRaf = requestAnimationFrame(computeKbOffset);
+  }
+
+  function setupKeyboardAvoidance() {
+    requestAnimationFrame(() => {
+      computeKbOffset();
+      vvRef = window.visualViewport;
+      if (!vvRef) return;
+      vvRef.addEventListener('resize', scheduleKbUpdate);
+      vvRef.addEventListener('scroll', scheduleKbUpdate);
+    });
+  }
+
+  function lockViewport() {
+    const active = document.activeElement;
+    const tag = active?.tagName?.toLowerCase?.() || '';
+    const isEditable = !!active && (
+      active.classList?.contains('conteudo') ||
+      active.isContentEditable ||
+      tag === 'input' ||
+      tag === 'textarea'
+    );
+    if (!isEditable) return;
+    computeKbOffset();
+  }
+
   // activePageIndex/totalPages continuam a existir (o DocPage ainda
   // os expõe e usa-os internamente para saber onde inserir imagem/
   // tabela), mas os botões de navegação por página saíram do appbar —
@@ -436,6 +510,12 @@
   $: mainTransformStyle = `transform: translate3d(${mainRecoilTranslate}%, 0, 0) scale(${mainRecoilScale});`;
 
   onDestroy(() => {
+    if (vvRef) {
+      vvRef.removeEventListener('resize', scheduleKbUpdate);
+      vvRef.removeEventListener('scroll', scheduleKbUpdate);
+    }
+    document.removeEventListener('focusin', lockViewport, true);
+    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();
@@ -499,7 +579,7 @@
 </script>
 
 <!-- Camada de fundo (MainPage) — recua quando Export abre -->
-<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};transform:translateZ(0);backface-visibility:hidden;">
+<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
   <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
     <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
   </button>
@@ -525,6 +605,7 @@
 
 <div
   class="root"
+  bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
   <div class="canvas-area" style="background:{c.docCanvasBg}">
@@ -554,6 +635,7 @@
     {activePanel}
     {canUndo}
     {canRedo}
+    {kbOffset}
     visible={isEditing}
     on:action={(e) => handleToolbarAction(e.detail)}
   />
@@ -640,95 +722,62 @@
 
 <style>
   :global(html), :global(body) {
+    width: 100%;
     height: 100%;
     overflow: hidden;
+    overflow-anchor: none;
     overscroll-behavior: none;
-    margin: 0;
     position: relative;
   }
 
   .root {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    height: calc(var(--app-vh, 100vh));
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    overflow-anchor: none;
     contain: layout style paint;
     transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
     overscroll-behavior: none;
   }
 
+  /* APPBAR: fica fora da root para não sofrer com transform/zoom
+     do editor nem com o teclado mobile. */
   .appbar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
     flex-shrink: 0;
     position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
+    left: 0; right: 0; top: 0;
     height: 100px;
     z-index: 9999;
     contain: paint;
-    transform: translate3d(0, 0, 0);
-    will-change: transform;
+    transform: none;
+    will-change: auto;
+    overflow-anchor: none;
     pointer-events: auto;
   }
-
   .appbar-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-    transition: transform .16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .14s;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
-
-  .appbar-btn:active {
-    opacity: .7;
-    transform: scale(0.94);
-  }
-
-  .appbar-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
+  .appbar-btn:active { opacity: .7; transform: scale(0.94); }
+  .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
   .doc-name-input {
-    width: 100%;
-    max-width: 220px;
-    text-align: center;
-    font-size: 16px;
-    font-weight: 700;
-    border: none;
-    background: transparent;
-    outline: none;
-    padding: 0;
+    width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;
+    border: none; background: transparent; outline: none; padding: 0;
   }
-
-  .save-state {
-    font-size: 11px;
-    font-weight: 500;
-    margin-top: 1px;
-    white-space: nowrap;
-  }
+  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
 
   .canvas-area {
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    overflow-anchor: none;
     display: flex;
     flex-direction: column;
     padding-top: 100px;
@@ -736,13 +785,9 @@
   }
 
   .icon-mask {
-    display: block;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
+    display: block; mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
     flex-shrink: 0;
   }
 </style>

@@ -172,6 +172,15 @@
       const selecao = window.getSelection();
       selecao.removeAllRanges();
       selecao.addRange(range);
+
+      const elementoBase = posicao.startContainer.nodeType === 3
+        ? posicao.startContainer.parentElement
+        : posicao.startContainer;
+      const conteudoPai = elementoBase.closest('.conteudo');
+      if (conteudoPai) {
+        try { conteudoPai.focus({ preventScroll: true }); }
+        catch (e) { conteudoPai.focus(); }
+      }
     } catch (erro) {}
   }
 
@@ -581,7 +590,7 @@
             on:input={handleInput}
             on:keydown={handleKeydown}
             on:paste={aoColar}
-            on:focus={() => handleFocusPagina(i)}
+            on:focus={() => { handleFocusPagina(i); }}
             on:pointerdown={() => onPageBackgroundTap(i)}
             spellcheck="true"
             role="textbox"
@@ -682,6 +691,7 @@
     overflow-wrap: break-word;
     position: relative;
     z-index: 1;
+    scroll-margin-top: 120px;
     -webkit-user-select: text;
     user-select: text;
   }
@@ -773,21 +783,5 @@
     border: none; background: transparent; color: #999; font-size: 14px; line-height: 1; cursor: pointer;
     padding: 0 2px; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
   }
-  .conteudo {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  font-size: 15px;
-  line-height: 1.6;
-  color: #1a1a1a;
-  outline: none;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  position: relative;
-  z-index: 1;
-  -webkit-user-select: text;
-  user-select: text;
-  touch-action: manipulation;
-}
   .footnote-remove:active { color: #F0384A; }
 </style>

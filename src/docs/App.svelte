@@ -97,33 +97,25 @@
 
 <style>
   :global(:root) { --primary: #2F7BF6; }
-  :global(*, *::before, *::after) { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  :global(html, body) {
-    width: 100%;
-    height: 100%;
-    overscroll-behavior: none;
-    margin: 0;
-  }
-
+  :global(*, *::before, *::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :global(html, body) { width:100%; height:100%; overscroll-behavior:none; }
   :global(body) {
-    padding: 0;
-    overflow: hidden;
-    position: relative;
-    width: 100%;
-    min-height: 100%;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    transition: background-color .3s ease, color .3s ease;
+    margin:0;
+    padding:0;
+    overflow:hidden;
+    position:relative;
+    min-height:100dvh;
+    width:100%;
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    transition:background-color .3s ease, color .3s ease;
   }
-
   :global(#app) {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    width:100%;
+    height:calc(var(--app-vh, 100vh));
+    display:flex;
+    flex-direction:column;
+    position:fixed;
+    inset:0;
+    overflow:hidden;
   }
 </style>

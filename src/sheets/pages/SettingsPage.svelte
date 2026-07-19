@@ -1,82 +1,127 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { getThemeColors, getTheme } from '$shared/theme.js';
-  import { logout } from '$shared/auth-guard.js';
 
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Nexa Sheets';
 
   const dispatch = createEventDispatcher();
-  $: c = getThemeColors(isDark);
 
-  let themeValue = getTheme();
-  $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
-  $: userEmail = user?.email || '';
-  $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
+  $: c = isDark
+    ? {
+        background: '#0B0D10',
+        textPrimary: '#F2F3F5',
+        textSecondary: '#9AA0A8',
+        divider: 'rgba(255,255,255,0.10)',
+        appbarBtnBg: 'rgba(255,255,255,0.08)',
+        iconTint: '#F2F3F5',
+        dialogBackground: '#1B1E23',
+        settings_section_label: '#7E858E',
+      }
+    : {
+        background: '#F4F5F7',
+        textPrimary: '#15181D',
+        textSecondary: '#6B7280',
+        divider: 'rgba(0,0,0,0.08)',
+        appbarBtnBg: 'rgba(0,0,0,0.05)',
+        iconTint: '#15181D',
+        dialogBackground: '#FFFFFF',
+        settings_section_label: '#8A9099',
+      };
 
-  function setThemeValue(v) {
-    themeValue = v;
-    localStorage.setItem('nexa_theme', v);
-    const dark = v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    dispatch('nav', { to: 'main', data: { isDark: dark } });
+  function goBack() {
+    dispatch('nav', { to: 'main' });
+  }
+
+  function toggleTheme() {
+    dispatch('nav', { to: 'main', data: { isDark: !isDark } });
   }
 </script>
 
-<div class="settings-root" style="background:{c.background}">
-  <div class="topbar">
-    <button class="back-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+<div class="page-shell" style="background:{c.background};">
+  <div class="appbar" style="background:{c.background};border-color:{c.divider};">
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/back.svg');-webkit-mask-image:url('/icons/svg/back.svg');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
-    <span class="topbar-title" style="color:{c.textPrimary}">{appTitle} • Definições</span>
-    <div style="width:36px"></div>
+    <div class="appbar-title" style="color:{c.textPrimary}">Definições</div>
+    <div class="appbar-spacer"></div>
   </div>
-  <div class="content">
-    <div class="profile-card" style="background:{c.dialogBackground}">
-      <div class="avatar" style="background:{c.primary}">{userInitial}</div>
-      <div class="profile-info">
-        <div class="profile-name" style="color:{c.textPrimary}">{userName}</div>
-        {#if userEmail}<div class="profile-email" style="color:{c.textSecondary}">{userEmail}</div>{/if}
+
+  <div class="settings-body">
+    <div class="settings-section-label" style="color:{c.settings_section_label}">Aparência</div>
+    <div class="settings-group" style="background:{c.dialogBackground};">
+      <button class="settings-row" on:click={toggleTheme}>
+        <span class="row-label" style="color:{c.textPrimary}">Tema escuro</span>
+        <div class="toggle-track" class:toggle-on={isDark}>
+          <div class="toggle-thumb" class:toggle-thumb-on={isDark}></div>
+        </div>
+      </button>
+    </div>
+
+    <div class="settings-section-label" style="color:{c.settings_section_label}">Conta</div>
+    <div class="settings-group" style="background:{c.dialogBackground};">
+      <div class="settings-row settings-row-static">
+        <span class="row-label" style="color:{c.textPrimary}">{user?.name || user?.email || 'Utilizador'}</span>
       </div>
     </div>
 
-    <div class="section-label" style="color:{c.settings_section_label}">Aparência</div>
-    <div class="section" style="background:{c.dialogBackground}">
-      {#each [['light','Claro'],['dark','Escuro'],['system','Sistema']] as [v, label], i}
-        <button class="row" on:click={() => setThemeValue(v)}>
-          <span class="row-label" style="color:{c.textPrimary}">{label}</span>
-          {#if themeValue === v}<span class="check">✓</span>{/if}
-        </button>
-        {#if i < 2}<div class="divider" style="background:{c.divider}"></div>{/if}
-      {/each}
-    </div>
-
-    <div class="section-label" style="color:{c.settings_section_label}">Conta</div>
-    <div class="section" style="background:{c.dialogBackground}">
-      <button class="row danger" on:click={() => logout()}>
-        <span class="row-label">Terminar sessão</span>
-      </button>
+    <div class="settings-section-label" style="color:{c.settings_section_label}">Sobre</div>
+    <div class="settings-group" style="background:{c.dialogBackground};">
+      <div class="settings-row settings-row-static">
+        <span class="row-label" style="color:{c.textPrimary}">{appTitle}</span>
+        <span class="row-value" style="color:{c.textSecondary}">v1.0</span>
+      </div>
     </div>
   </div>
 </div>
 
 <style>
-  .settings-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
-  .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:52px 16px 12px; flex-shrink:0; }
-  .back-btn { width:36px; height:36px; border-radius:10px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-  .back-btn:active { opacity:.7; }
-  .topbar-title { font-size:16px; font-weight:700; text-align:center; flex:1; }
-  .content { flex:1; overflow-y:auto; padding:8px 16px 16px; }
-  .profile-card { display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:24px; }
-  .avatar { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#fff; flex-shrink:0; }
-  .profile-name { font-size:16px; font-weight:700; }
-  .profile-email { font-size:13px; margin-top:2px; }
-  .section-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:0 2px 10px; }
-  .section { border-radius:18px; overflow:hidden; margin-bottom:20px; }
-  .row { width:100%; background:transparent; border:none; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; font-size:15px; cursor:pointer; }
-  .row:active { opacity:.7; }
-  .row.danger { color:#FF3B30; justify-content:flex-start; }
-  .check { color:#2F7BF6; font-weight:700; }
-  .divider { height:1px; margin:0 16px; }
-  .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
+  .page-shell {
+    display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;
+  }
+  .appbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px;
+    border-bottom: 1px solid; flex-shrink: 0;
+  }
+  .appbar-btn {
+    width: 38px; height: 38px; border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .appbar-btn:active { transform: scale(0.88); }
+  .appbar-title { flex: 1; font-size: 16px; font-weight: 700; text-align: center; margin-right: 38px; }
+  .appbar-spacer { width: 38px; flex-shrink: 0; }
+
+  .icon-mask {
+    display: block; mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+  }
+
+  .settings-body { flex: 1; overflow-y: auto; padding: 18px 16px calc(env(safe-area-inset-bottom,0px) + 24px); -webkit-overflow-scrolling: touch; }
+  .settings-section-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin: 20px 8px 8px; }
+  .settings-section-label:first-child { margin-top: 0; }
+  .settings-group { border-radius: 16px; overflow: hidden; }
+  .settings-row {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: none; border: none; cursor: pointer; text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .settings-row-static { cursor: default; }
+  .row-label { font-size: 15px; font-weight: 500; }
+  .row-value { font-size: 14px; }
+
+  .toggle-track {
+    width: 46px; height: 27px; border-radius: 999px; background: rgba(127,127,127,0.28);
+    position: relative; transition: background .22s ease; flex-shrink: 0;
+  }
+  .toggle-track.toggle-on { background: #2F7BF6; }
+  .toggle-thumb {
+    position: absolute; top: 2px; left: 2px; width: 23px; height: 23px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: transform .22s cubic-bezier(0.34,1.4,0.64,1);
+  }
+  .toggle-thumb-on { transform: translateX(19px); }
 </style>

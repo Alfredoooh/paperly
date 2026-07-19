@@ -1,85 +1,708 @@
 <script>
+  import { onMount, onDestroy, tick } from 'svelte';
   import { createEventDispatcher } from 'svelte';
-  import { getThemeColors } from '$shared/theme.js';
-  import { showToast } from '$shared/utils.js';
+  import {
+    loadDocument, createDocument, persistDocument, recomputeAll,
+    cellId, parseCellId, downloadCsv, duplicateDocument, deleteDocument,
+  } from '../lib/sheet-store.js';
+  import { FormulaError } from '../lib/formula-engine.js';
+  import SheetGrid from '../components/SheetGrid.svelte';
+  import CellFormatBar from '../components/CellFormatBar.svelte';
+  import CellNumberFormatModal from '../components/CellNumberFormatModal.svelte';
+  import ColorModal from '../components/ColorModal.svelte';
+  import ColorPickerModal from '../components/ColorPickerModal.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
+  import SheetMenu from '../components/SheetMenu.svelte';
 
   export let isDark = false;
   export let user = null;
+  export let resourceId = null;
   export let appTitle = 'Nexa Sheets';
   export let appId = 'sheets';
   export let iconPath = '/icons/svg/sheets.svg';
 
   const dispatch = createEventDispatcher();
-  $: c = getThemeColors(isDark);
 
-  $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
-  $: userEmail = user?.email || '';
-  $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
+  // ── Tema ─────────────────────────────────────────────────────
 
-  const actions = [
-    { label: 'Novo',     hint: 'Criar um novo item', action: () => showToast('Em breve') },
-    { label: 'Recentes', hint: 'Aceder aos últimos ficheiros', action: () => showToast('Em breve') },
-    { label: 'Modelos',  hint: 'Explorar modelos', action: () => showToast('Em breve') },
-  ];
+  $: c = isDark
+    ? {
+        background: '#0B0D10',
+        textPrimary: '#F2F3F5',
+        textSecondary: '#9AA0A8',
+        divider: 'rgba(255,255,255,0.10)',
+        appbarBtnBg: 'rgba(255,255,255,0.08)',
+        iconTint: '#F2F3F5',
+        dialogBackground: '#1B1E23',
+        toolbarSolidBg: '#1B1E23',
+        primary: '#2F7BF6',
+        sheetPaperBg: '#14161A',
+        sheetCellBg: '#181B20',
+        sheetGridLine: 'rgba(255,255,255,0.08)',
+      }
+    : {
+        background: '#F4F5F7',
+        textPrimary: '#15181D',
+        textSecondary: '#6B7280',
+        divider: 'rgba(0,0,0,0.08)',
+        appbarBtnBg: 'rgba(0,0,0,0.05)',
+        iconTint: '#15181D',
+        dialogBackground: '#FFFFFF',
+        toolbarSolidBg: '#FFFFFF',
+        primary: '#2F7BF6',
+        sheetPaperBg: '#EDEEF1',
+        sheetCellBg: '#FFFFFF',
+        sheetGridLine: 'rgba(0,0,0,0.08)',
+      };
+
+  // ── Documento ────────────────────────────────────────────────
+
+  let doc = null;
+  let resolvedValues = {};
+  let resolvedErrors = {};
+  let docReady = false;
+  let nameInputEl;
+  let editingName = false;
+  let nameDraft = '';
+
+  function ensureDocId() {
+    if (resourceId) return resourceId;
+    const newId = 'sheet_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    return newId;
+  }
+
+  function loadOrCreate() {
+    const id = ensureDocId();
+    let loaded = loadDocument(id);
+    if (!loaded) {
+      loaded = createDocument(id);
+    }
+    doc = loaded;
+    recompute();
+    docReady = true;
+    if (!resourceId) {
+      dispatch('nav', { to: 'resource', data: { id } });
+    }
+  }
+
+  function recompute() {
+    const { values, errors } = recomputeAll(doc);
+    resolvedValues = values;
+    resolvedErrors = errors;
+  }
+
+  // ── Persistência com debounce ───────────────────────────────
+
+  let saveTimer = null;
+  function scheduleSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      persistDocument(doc);
+      saveTimer = null;
+    }, 500);
+  }
+  function saveImmediately() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    persistDocument(doc);
+  }
+
+  // ── Undo / Redo ──────────────────────────────────────────────
+
+  let undoStack = [];
+  let redoStack = [];
+  let historyTimer = null;
+  const MAX_HISTORY = 60;
+
+  function snapshotCells() {
+    return JSON.parse(JSON.stringify(doc.cells));
+  }
+
+  function pushHistory() {
+    undoStack.push(snapshotCells());
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+    redoStack = [];
+  }
+
+  function scheduleHistoryPush() {
+    // agrupa alterações rápidas consecutivas (ex: escrever letra a letra)
+    // num único ponto de undo, dando um snapshot ANTES de começar o grupo
+    if (historyTimer) {
+      clearTimeout(historyTimer);
+    } else {
+      pushHistory();
+    }
+    historyTimer = setTimeout(() => { historyTimer = null; }, 700);
+  }
+
+  function undo() {
+    if (undoStack.length === 0) return;
+    redoStack.push(snapshotCells());
+    const prev = undoStack.pop();
+    doc.cells = prev;
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+
+  function redo() {
+    if (redoStack.length === 0) return;
+    undoStack.push(snapshotCells());
+    const next = redoStack.pop();
+    doc.cells = next;
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+
+  $: canUndo = undoStack.length > 0;
+  $: canRedo = redoStack.length > 0;
+
+  // ── Grid: referência ao componente e estado de seleção ──────
+
+  let gridComp;
+  let activeAddr = 'A1';
+  let selectionAnchor = 'A1';
+  let selectionFocus = 'A1';
+
+  function ensureCell(addr) {
+    if (!doc.cells[addr]) doc.cells[addr] = { raw: '' };
+    return doc.cells[addr];
+  }
+
+  function handleCellChange(e) {
+    const { addr, raw } = e.detail;
+    scheduleHistoryPush();
+    if (raw === '' || raw === null || raw === undefined) {
+      if (doc.cells[addr]) {
+        // mantém a formatação da célula (bold/color/etc), só limpa o conteúdo,
+        // a menos que a célula não tenha nenhuma formatação — nesse caso remove
+        // a entrada por completo para manter a grelha esparsa e leve.
+        const meta = doc.cells[addr];
+        const hasFormatting = meta.bold || meta.italic || meta.underline || meta.align || meta.color || meta.fill || (meta.format && meta.format !== 'general');
+        if (hasFormatting) {
+          doc.cells[addr] = { ...meta, raw: '' };
+        } else {
+          delete doc.cells[addr];
+        }
+      }
+    } else {
+      const meta = ensureCell(addr);
+      meta.raw = raw;
+    }
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+
+  // ── Barra de fórmulas (topo) ─────────────────────────────────
+
+  $: formulaBarValue = doc && activeAddr ? (doc.cells[activeAddr] && doc.cells[activeAddr].raw !== undefined ? doc.cells[activeAddr].raw : '') : '';
+  let formulaBarFocused = false;
+  let formulaBarDraft = '';
+
+  function onFormulaBarFocus() {
+    formulaBarFocused = true;
+    formulaBarDraft = String(formulaBarValue);
+  }
+  function onFormulaBarInput(e) {
+    formulaBarDraft = e.target.value;
+  }
+  function commitFormulaBar() {
+    if (formulaBarFocused && activeAddr) {
+      handleCellChange({ detail: { addr: activeAddr, raw: formulaBarDraft } });
+    }
+    formulaBarFocused = false;
+  }
+  function onFormulaBarKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitFormulaBar();
+      e.target.blur();
+    } else if (e.key === 'Escape') {
+      formulaBarFocused = false;
+      e.target.blur();
+    }
+  }
+
+  $: activeCellMeta = doc && activeAddr ? (doc.cells[activeAddr] || {}) : {};
+  $: activeErrorCode = doc && activeAddr && resolvedValues[activeAddr] instanceof FormulaError
+    ? resolvedValues[activeAddr].code
+    : null;
+
+  // ── Barra de formatação de célula ────────────────────────────
+
+  let formatBarVisible = false;
+  $: formatBarVisible = docReady; // sempre visível quando o documento está pronto (é a barra principal de ações)
+
+  let colorModalMode = null; // 'text' | 'fill' | null
+  let colorModalVisible = false;
+  let colorPickerVisible = false;
+  let customColors = [];
+  let numFormatModalVisible = false;
+
+  function applyMetaToSelection(patchFn) {
+    const a = parseCellId(selectionAnchor);
+    const b = parseCellId(selectionFocus);
+    if (!a || !b) return;
+    const r0 = Math.min(a.row, b.row), r1 = Math.max(a.row, b.row);
+    const c0 = Math.min(a.col, b.col), c1 = Math.max(a.col, b.col);
+    pushHistoryIfNeededOnce();
+    for (let r = r0; r <= r1; r++) {
+      for (let col = c0; col <= c1; col++) {
+        const addr = cellId(r, col);
+        const meta = ensureCell(addr);
+        patchFn(meta);
+      }
+    }
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+
+  let historyPushedForBatch = false;
+  function pushHistoryIfNeededOnce() {
+    if (!historyPushedForBatch) {
+      pushHistory();
+      historyPushedForBatch = true;
+      setTimeout(() => { historyPushedForBatch = false; }, 50);
+    }
+  }
+
+  function handleFormatAction(e) {
+    const action = e.detail;
+    const id = typeof action === 'string' ? action : action.id;
+
+    if (id === 'undo') { undo(); return; }
+    if (id === 'redo') { redo(); return; }
+    if (id === 'done') {
+      // fecha edição ativa se estiver aberta, sem esconder a barra
+      // (a barra em sheets é persistente, ao contrário do texto rico)
+      if (gridComp) gridComp.editActiveCell && false;
+      return;
+    }
+    if (id === 'bold') {
+      applyMetaToSelection((meta) => { meta.bold = !meta.bold; });
+      return;
+    }
+    if (id === 'italic') {
+      applyMetaToSelection((meta) => { meta.italic = !meta.italic; });
+      return;
+    }
+    if (id === 'underline') {
+      applyMetaToSelection((meta) => { meta.underline = !meta.underline; });
+      return;
+    }
+    if (id === 'align') {
+      const value = action.value;
+      applyMetaToSelection((meta) => { meta.align = value; });
+      return;
+    }
+    if (id === 'textcolor') {
+      colorModalMode = 'text';
+      colorModalVisible = true;
+      return;
+    }
+    if (id === 'fillcolor') {
+      colorModalMode = 'fill';
+      colorModalVisible = true;
+      return;
+    }
+    if (id === 'numformat') {
+      numFormatModalVisible = true;
+      return;
+    }
+    if (id === 'insertrow') {
+      insertRowAtActive();
+      return;
+    }
+    if (id === 'insertcol') {
+      insertColAtActive();
+      return;
+    }
+    if (id === 'deleterow') {
+      deleteRowAtActive();
+      return;
+    }
+    if (id === 'deletecol') {
+      deleteColAtActive();
+      return;
+    }
+  }
+
+  function handleColorSelect(e) {
+    const hex = e.detail;
+    if (colorModalMode === 'text') {
+      applyMetaToSelection((meta) => { meta.color = hex; });
+    } else if (colorModalMode === 'fill') {
+      applyMetaToSelection((meta) => { meta.fill = hex; });
+    }
+    colorModalVisible = false;
+    colorModalMode = null;
+  }
+  function handleAddCustomColor() {
+    colorModalVisible = false;
+    colorPickerVisible = true;
+  }
+  function handlePickerConfirm(e) {
+    const hex = e.detail;
+    if (!customColors.includes(hex)) customColors = [...customColors, hex];
+    colorPickerVisible = false;
+    if (colorModalMode === 'text') {
+      applyMetaToSelection((meta) => { meta.color = hex; });
+    } else if (colorModalMode === 'fill') {
+      applyMetaToSelection((meta) => { meta.fill = hex; });
+    }
+    colorModalMode = null;
+  }
+  function handlePickerCancel() {
+    colorPickerVisible = false;
+    colorModalVisible = true; // volta ao seletor de presets
+  }
+  function handleNumFormatSelect(e) {
+    const format = e.detail;
+    applyMetaToSelection((meta) => { meta.format = format; });
+    numFormatModalVisible = false;
+  }
+
+  // ── Inserir/apagar linhas e colunas ──────────────────────────
+  //
+  // NOTA IMPORTANTE: esta operação reendereça as CHAVES das células
+  // na grelha esparsa (ex: A2 passa a A3), mas NÃO reescreve o texto
+  // das fórmulas guardadas noutras células que referenciam os
+  // endereços deslocados. Numa folha pequena isto raramente é
+  // notado, mas é uma limitação conhecida desta primeira versão
+  // (um "sheets" completo tipo Excel também ajusta o texto das
+  // fórmulas — fica como possível melhoria futura).
+
+  function reindexCells(transformFn) {
+    const next = {};
+    for (const [addr, val] of Object.entries(doc.cells)) {
+      const pos = parseCellId(addr);
+      if (!pos) continue;
+      const result = transformFn(pos.row, pos.col);
+      if (result === null) continue; // célula removida pela operação
+      next[cellId(result.row, result.col)] = val;
+    }
+    doc.cells = next;
+  }
+
+  function insertRowAtActive() {
+    const pos = parseCellId(activeAddr);
+    if (!pos) return;
+    pushHistory();
+    reindexCells((row, col) => ({ row: row >= pos.row ? row + 1 : row, col }));
+    doc.rows = doc.rows + 1;
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+  function insertColAtActive() {
+    const pos = parseCellId(activeAddr);
+    if (!pos) return;
+    pushHistory();
+    reindexCells((row, col) => ({ row, col: col >= pos.col ? col + 1 : col }));
+    doc.cols = doc.cols + 1;
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+  function deleteRowAtActive() {
+    const pos = parseCellId(activeAddr);
+    if (!pos || doc.rows <= 1) return;
+    pushHistory();
+    reindexCells((row, col) => {
+      if (row === pos.row) return null;
+      return { row: row > pos.row ? row - 1 : row, col };
+    });
+    doc.rows = doc.rows - 1;
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+  function deleteColAtActive() {
+    const pos = parseCellId(activeAddr);
+    if (!pos || doc.cols <= 1) return;
+    pushHistory();
+    reindexCells((row, col) => {
+      if (col === pos.col) return null;
+      return { row, col: col > pos.col ? col - 1 : col };
+    });
+    doc.cols = doc.cols - 1;
+    doc = doc;
+    recompute();
+    scheduleSave();
+  }
+
+  // ── Nome do documento (no appbar) ────────────────────────────
+
+  async function startEditName() {
+    editingName = true;
+    nameDraft = doc.name;
+    await tick();
+    nameInputEl && nameInputEl.select();
+  }
+  function commitName() {
+    editingName = false;
+    const trimmed = nameDraft.trim();
+    doc.name = trimmed || 'Nova folha';
+    doc = doc;
+    saveImmediately();
+  }
+
+  // ── Menu (⋮) — duplicar / exportar CSV / apagar ──────────────
+
+  let menuVisible = false;
+  let menuAnchor = { top: 56, right: 12 };
+  let confirmDeleteVisible = false;
+  let confirmLoading = false;
+
+  function openMenu() {
+    menuVisible = true;
+  }
+  function handleMenuSelect(e) {
+    const id = e.detail;
+    menuVisible = false;
+    if (id === 'duplicate') {
+      saveImmediately();
+      const copy = duplicateDocument(doc.id);
+      if (copy) {
+        dispatch('nav', { to: 'resource', data: { id: copy.id } });
+        resourceId = copy.id;
+        loadOrCreate();
+      }
+      return;
+    }
+    if (id === 'export') {
+      downloadCsv(doc, resolvedValues);
+      return;
+    }
+    if (id === 'delete') {
+      confirmDeleteVisible = true;
+      return;
+    }
+  }
+  function confirmDelete() {
+    confirmLoading = true;
+    deleteDocument(doc.id);
+    setTimeout(() => {
+      confirmLoading = false;
+      confirmDeleteVisible = false;
+      dispatch('nav', { to: 'home' });
+    }, 200);
+  }
+
+  // ── Navegação para trás ──────────────────────────────────────
+
+  function goBack() {
+    saveImmediately();
+    dispatch('nav', { to: 'home' });
+  }
+
+  // ── Ciclo de vida ─────────────────────────────────────────────
+
+  onMount(() => {
+    loadOrCreate();
+    const beforeUnload = () => { if (doc) saveImmediately(); };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  });
+
+  onDestroy(() => {
+    if (saveTimer) { clearTimeout(saveTimer); persistDocument(doc); }
+  });
+
+  const ALIGN_LABEL = { left: 'Esquerda', center: 'Centro', right: 'Direita' };
 </script>
 
-<div class="root" style="background:{c.background};color:{c.textPrimary}">
-  <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+<div class="page-shell" style="background:{c.background};">
+  <!-- Appbar: voltar, nome editável do documento, ⋮ menu — SEM export/AndroidStorage -->
+  <div class="appbar" style="background:{c.background};border-color:{c.divider};">
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/back.svg');-webkit-mask-image:url('/icons/svg/back.svg');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
-    <span class="appbar-title" style="color:{c.textPrimary}">{appTitle}</span>
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'settings' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/settings.svg');-webkit-mask-image:url('/icons/svg/settings.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+
+    <div class="appbar-title">
+      {#if editingName}
+        <input
+          class="name-input"
+          bind:this={nameInputEl}
+          bind:value={nameDraft}
+          style="color:{c.textPrimary}"
+          on:blur={commitName}
+          on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitName(); } else if (e.key === 'Escape') { editingName = false; } }}
+        />
+      {:else}
+        <button class="name-display" style="color:{c.textPrimary}" on:click={startEditName}>
+          {doc ? doc.name : ''}
+        </button>
+      {/if}
+    </div>
+
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={openMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/docs/more.svg');-webkit-mask-image:url('/icons/svg/docs/more.svg');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
   </div>
 
-  <div class="hero">
-    <div class="hero-badge" style="background:{c.dialogBackground}">
-      <span class="icon-mask" style="mask-image:url('{iconPath}');-webkit-mask-image:url('{iconPath}');background:{c.iconTint};width:34px;height:34px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+  <!-- Barra de fórmulas: mostra endereço da célula ativa + conteúdo bruto editável -->
+  {#if docReady}
+    <div class="formula-bar" style="background:{c.dialogBackground};border-color:{c.divider};">
+      <div class="fx-addr" style="color:{c.textSecondary};border-color:{c.divider};">{activeAddr}</div>
+      <div class="fx-sign" style="color:{c.textSecondary};">ƒx</div>
+      <input
+        class="fx-input"
+        style="color:{c.textPrimary};"
+        value={formulaBarFocused ? formulaBarDraft : formulaBarValue}
+        placeholder="Valor ou fórmula (ex: =A1+B2)"
+        on:focus={onFormulaBarFocus}
+        on:input={onFormulaBarInput}
+        on:blur={commitFormulaBar}
+        on:keydown={onFormulaBarKeydown}
+      />
+      {#if activeErrorCode}
+        <div class="fx-error-badge" title={activeErrorCode}>{activeErrorCode}</div>
+      {/if}
     </div>
-    <h1>{appTitle}</h1>
-    <p style="color:{c.textSecondary}">{appTitle} está pronto para receber o teu fluxo de trabalho.</p>
-  </div>
+  {/if}
 
-  <div class="section-title" style="color:{c.textSecondary}">Ações rápidas</div>
-  <div class="grid">
-    {#each actions as action}
-      <button class="card" style="background:{c.dialogBackground};border-color:{c.divider}" on:click={action.action}>
-        <div class="card-label">{action.label}</div>
-        <div class="card-hint" style="color:{c.textSecondary}">{action.hint}</div>
-      </button>
-    {/each}
-  </div>
+  <!-- Grelha (o "papel" dedicado a sheets) -->
+  {#if docReady && doc}
+    <SheetGrid
+      bind:this={gridComp}
+      {doc}
+      {resolvedValues}
+      {c}
+      bind:activeAddr
+      bind:selectionAnchor
+      bind:selectionFocus
+      on:cellchange={handleCellChange}
+    />
+  {/if}
 
-  <div class="footer" style="background:{c.dialogBackground};border-color:{c.divider}">
-    <div class="avatar" style="background:{c.primary}">{userInitial}</div>
-    <div class="meta">
-      <div class="name" style="color:{c.textPrimary}">{userName}</div>
-      {#if userEmail}<div class="email" style="color:{c.textSecondary}">{userEmail}</div>{/if}
-    </div>
-  </div>
+  <!-- Espaço reservado para a barra de formatação fixa no rodapé -->
+  {#if docReady}
+    <div class="format-bar-spacer"></div>
+  {/if}
 </div>
 
+<!-- Barra de formatação de célula (substitui o BottomToolbar de texto rico) -->
+<CellFormatBar
+  {c}
+  visible={formatBarVisible}
+  activeMeta={activeCellMeta}
+  {canUndo}
+  {canRedo}
+  on:action={handleFormatAction}
+/>
+
+<!-- Modais -->
+<ColorModal
+  visible={colorModalVisible}
+  {c}
+  {customColors}
+  title={colorModalMode === 'fill' ? 'Cor de preenchimento' : 'Cor do texto'}
+  on:select={handleColorSelect}
+  on:addcolor={handleAddCustomColor}
+  on:close={() => { colorModalVisible = false; colorModalMode = null; }}
+/>
+
+<ColorPickerModal
+  visible={colorPickerVisible}
+  {c}
+  on:confirm={handlePickerConfirm}
+  on:cancel={handlePickerCancel}
+/>
+
+<CellNumberFormatModal
+  visible={numFormatModalVisible}
+  {c}
+  currentFormat={activeCellMeta.format || 'general'}
+  on:select={handleNumFormatSelect}
+  on:close={() => { numFormatModalVisible = false; }}
+/>
+
+<SheetMenu
+  visible={menuVisible}
+  anchor={menuAnchor}
+  {c}
+  on:select={handleMenuSelect}
+  on:close={() => { menuVisible = false; }}
+/>
+
+<ConfirmDialog
+  visible={confirmDeleteVisible}
+  {c}
+  message="Apagar esta folha de cálculo? Esta ação não pode ser desfeita."
+  confirmLabel="Apagar"
+  loading={confirmLoading}
+  on:cancel={() => { confirmDeleteVisible = false; }}
+  on:confirm={confirmDelete}
+/>
+
 <style>
-  .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
-  .appbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:52px 16px 12px; flex-shrink:0; background:inherit; }
-  .appbar-btn { width:36px; height:36px; border-radius:10px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
-  .appbar-btn:active { opacity:.7; }
-  .appbar-title { font-size:17px; font-weight:700; text-align:center; flex:1; }
-  .hero { padding:28px 16px 8px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; }
-  .hero-badge { width:80px; height:80px; border-radius:22px; display:flex; align-items:center; justify-content:center; }
-  h1 { margin:0; font-size:28px; line-height:1.1; }
-  p { margin:0; max-width:28ch; font-size:14px; line-height:1.45; }
-  .section-title { padding:18px 16px 10px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
-  .grid { display:grid; grid-template-columns:1fr; gap:10px; padding:0 16px; }
-  .card { text-align:left; border:1px solid; border-radius:18px; padding:14px; cursor:pointer; }
-  .card:active { transform:scale(.99); }
-  .card-label { font-size:15px; font-weight:700; margin-bottom:4px; }
-  .card-hint { font-size:13px; line-height:1.4; }
-  .footer { margin:16px; margin-top:auto; border:1px solid; border-radius:18px; padding:12px; display:flex; align-items:center; gap:12px; }
-  .avatar { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; flex-shrink:0; }
-  .name { font-weight:700; }
-  .email { font-size:13px; margin-top:2px; }
-  .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
+  .page-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .appbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px;
+    border-bottom: 1px solid;
+    flex-shrink: 0;
+  }
+  .appbar-btn {
+    width: 38px; height: 38px; border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .appbar-btn:active { transform: scale(0.88); }
+  .appbar-title { flex: 1; min-width: 0; display: flex; }
+  .name-display {
+    background: none; border: none; font-size: 16px; font-weight: 700;
+    padding: 6px 10px; border-radius: 10px; cursor: pointer; text-align: left;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .name-display:active { background: rgba(127,127,127,0.10); }
+  .name-input {
+    width: 100%; background: none; border: none; outline: none;
+    font-size: 16px; font-weight: 700; padding: 6px 10px; font-family: inherit;
+  }
+
+  .icon-mask {
+    display: block; mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+  }
+
+  .formula-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid;
+    flex-shrink: 0;
+  }
+  .fx-addr {
+    font-size: 12px; font-weight: 700; font-family: 'SF Mono', 'Courier New', monospace;
+    padding: 5px 8px; border-radius: 8px; border: 1px solid;
+    min-width: 44px; text-align: center; flex-shrink: 0;
+  }
+  .fx-sign { font-size: 13px; font-style: italic; font-weight: 700; flex-shrink: 0; opacity: 0.7; }
+  .fx-input {
+    flex: 1; min-width: 0; border: none; outline: none; background: none;
+    font-size: 14px; font-family: 'SF Mono', 'Courier New', monospace; padding: 6px 4px;
+  }
+  .fx-error-badge {
+    font-size: 11px; font-weight: 700; color: #F0384A;
+    background: rgba(240,56,74,0.12); padding: 3px 7px; border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .format-bar-spacer {
+    height: calc(46px + env(safe-area-inset-bottom, 0px) + 14px);
+    flex-shrink: 0;
+  }
 </style>

@@ -299,65 +299,70 @@
         </button>
       {/if}
 
-      <!-- 3 CONTAINERS SEPARADOS, cada um com cantos totalmente
-           arredondados e o seu próprio fundo — Ajuda / Temas / Outros.
-           Nada de agrupamento tipo iOS-settings: cada card é
-           independente, com espaço entre eles. -->
-      <button class="drawer-card drawer-card-row pulse-tap" on:click={goHelp}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Ajuda</span>
-      </button>
+      <!-- Grupo M3 (Material 3 grouped list): 3 blocos com 2px de
+           espaçamento entre si — 1º item com cantos superiores em
+           28px e inferiores em 4px; item do meio (temas) com os 4
+           cantos em 4px; último item com cantos inferiores em 28px e
+           superiores em 4px. Fundo próprio dos cards (não o do
+           drawer), reduzido de opacidade porque no tema claro o
+           --btn-bg puro ficava demasiado carregado. -->
+      <div class="m3-group">
+        <button class="m3-item m3-item-first pulse-tap" on:click={goHelp}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="drawer-item-label" style="flex:1">Ajuda</span>
+        </button>
 
-      <div class="drawer-card theme-section">
-        <div class="theme-cards">
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'light'}
-            on:click={() => onApplyTheme('light')}
-            aria-label="Tema claro"
-          >
-            <div class="theme-preview theme-preview-light">
-              <span class="theme-line" style="width:70%"></span>
-              <span class="theme-line" style="width:85%"></span>
-              <span class="theme-line" style="width:55%"></span>
-            </div>
-          </button>
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'system'}
-            on:click={() => onApplyTheme('system')}
-            aria-label="Tema automático"
-          >
-            <div class="theme-preview theme-preview-system">
-              <div class="theme-preview-half theme-preview-half-light">
+        <div class="m3-item m3-item-mid theme-section">
+          <div class="theme-cards">
+            <button
+              class="theme-card"
+              class:theme-card-active={themeValue === 'light'}
+              on:click={() => onApplyTheme('light')}
+              aria-label="Tema claro"
+            >
+              <div class="theme-preview theme-preview-light">
                 <span class="theme-line" style="width:70%"></span>
+                <span class="theme-line" style="width:85%"></span>
                 <span class="theme-line" style="width:55%"></span>
               </div>
-              <div class="theme-preview-half theme-preview-half-dark">
+            </button>
+            <button
+              class="theme-card"
+              class:theme-card-active={themeValue === 'system'}
+              on:click={() => onApplyTheme('system')}
+              aria-label="Tema automático"
+            >
+              <div class="theme-preview theme-preview-system">
+                <div class="theme-preview-half theme-preview-half-light">
+                  <span class="theme-line" style="width:70%"></span>
+                  <span class="theme-line" style="width:55%"></span>
+                </div>
+                <div class="theme-preview-half theme-preview-half-dark">
+                  <span class="theme-line theme-line-dark" style="width:70%"></span>
+                  <span class="theme-line theme-line-dark" style="width:55%"></span>
+                </div>
+              </div>
+            </button>
+            <button
+              class="theme-card"
+              class:theme-card-active={themeValue === 'dark'}
+              on:click={() => onApplyTheme('dark')}
+              aria-label="Tema escuro"
+            >
+              <div class="theme-preview theme-preview-dark">
                 <span class="theme-line theme-line-dark" style="width:70%"></span>
+                <span class="theme-line theme-line-dark" style="width:85%"></span>
                 <span class="theme-line theme-line-dark" style="width:55%"></span>
               </div>
-            </div>
-          </button>
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'dark'}
-            on:click={() => onApplyTheme('dark')}
-            aria-label="Tema escuro"
-          >
-            <div class="theme-preview theme-preview-dark">
-              <span class="theme-line theme-line-dark" style="width:70%"></span>
-              <span class="theme-line theme-line-dark" style="width:85%"></span>
-              <span class="theme-line theme-line-dark" style="width:55%"></span>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <button class="drawer-card drawer-card-row pulse-tap" on:click={goOthers}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Outros</span>
-      </button>
+        <button class="m3-item m3-item-last pulse-tap" on:click={goOthers}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="drawer-item-label" style="flex:1">Outros</span>
+        </button>
+      </div>
 
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
@@ -502,14 +507,29 @@
     color: var(--drawer-text);
   }
 
-  /* ── 3 cards independentes: Ajuda / Temas / Outros ──────────────── */
-  .drawer-card {
-    background: var(--drawer-row-active, var(--btn-bg));
-    border-radius: 16px;
-    margin: 6px 8px;
-    width: calc(100% - 16px);
+  /* ── Grupo M3: Ajuda / Temas / Outros ───────────────────────────── */
+  .m3-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 6px 8px 10px;
   }
-  .drawer-card-row {
+  .m3-item {
+    width: 100%;
+    /* Fundo reduzido: --btn-bg no tema claro é forte demais para 3
+       cards seguidos — 55% da opacidade original em ambos os temas. */
+    background: color-mix(in srgb, var(--btn-bg) 55%, transparent);
+  }
+  .m3-item-first {
+    border-radius: 28px 28px 4px 4px;
+  }
+  .m3-item-mid {
+    border-radius: 4px;
+  }
+  .m3-item-last {
+    border-radius: 4px 4px 28px 28px;
+  }
+  button.m3-item {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -520,12 +540,12 @@
     text-align: left;
     transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .drawer-card-row:active {
-    background: var(--btn-bg-active);
+  button.m3-item:active {
+    background: color-mix(in srgb, var(--btn-bg-active) 65%, transparent);
   }
 
   .theme-section {
-    padding: 12px;
+    padding: 10px 12px;
   }
   .theme-cards {
     display: flex;
@@ -533,9 +553,11 @@
   }
   .theme-card {
     flex: 1;
-    aspect-ratio: 1 / 1.05;
+    /* Menos alto que antes — cabe confortavelmente dentro do card do
+       meio, sem esticar o grupo inteiro. */
+    aspect-ratio: 1 / 0.62;
     padding: 3px;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 2px solid transparent;
     background: transparent;
     cursor: pointer;
@@ -547,18 +569,17 @@
   }
   .theme-preview {
     flex: 1;
-    border-radius: 9px;
+    border-radius: 7px;
     border: 1px solid rgba(0,0,0,0.08);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 5px;
-    padding: 0 8px;
+    gap: 4px;
+    padding: 0 7px;
     overflow: hidden;
     position: relative;
   }
-  /* FIX: branco puro (#FFFFFF) ficava "estourado" ao lado do fundo
-     escuro do drawer — agora 93% branco (menos 7%). */
+  /* Branco a 93% (menos 7%) — nunca #FFFFFF puro. */
   .theme-preview-light {
     background: #EDEDED;
   }
@@ -584,20 +605,20 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 5px;
-    padding: 0 7px;
+    gap: 4px;
+    padding: 0 6px;
     position: relative;
   }
   .theme-preview-half-light {
     background: #EDEDED;
     clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%);
-    padding-right: 14px;
+    padding-right: 12px;
   }
   .theme-preview-half-dark {
     background: #1C1C1E;
-    margin-left: -11px;
+    margin-left: -10px;
     clip-path: polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
-    padding-left: 16px;
+    padding-left: 14px;
   }
 
   .drawer-bottom-row {
@@ -751,4 +772,4 @@
       transition: none !important;
     }
   }
-</style>
+</style

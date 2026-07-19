@@ -5,9 +5,9 @@
   import { DRAWER_ITEMS } from '../lib/constants.js';
 
   export let drawerOpen = false;
-  export let drawerPushed = false; // vindo do App.svelte: true = deve estar visível/aberto
-  export let rootEl = null; // elemento .root do App.svelte, para animar o "empurrar" 1:1
-  export let themeValue = 'dark'; // 'light' | 'dark' | 'system'
+  export let drawerPushed = false;
+  export let rootEl = null;
+  export let themeValue = 'dark';
 
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
@@ -21,24 +21,14 @@
   export let onLogout;
   export let onInstall;
   export let onOpenProfile = () => {};
-  export let onOpenViaGesture = () => {}; // avisa o App.svelte para montar drawerOpen sem reanimar
+  export let onOpenViaGesture = () => {};
 
   const dispatch = createEventDispatcher();
 
   let showLogoutDialog = false;
   let dialogVisible = false;
 
-  // ------------------------------------------------------------------
-  // MESMO motor de spring (rAF) usado por perfil/settings/search/preview
-  // via nav-transition.js — em vez da CSS transition antiga, que
-  // competia com o gesto de arrastar e dava aquele "engasgo" ao soltar.
-  // slideX: 100 = fora do ecrã à direita, 0 = totalmente aberto.
-  // O "empurrar" do ecrã de trás (.root) é derivado do MESMO valor
-  // (openFraction = 1 - slideX/100), garantindo que drawer e recuo do
-  // fundo estão sempre fisicamente sincronizados — nunca dois motores
-  // diferentes a controlar dois elementos relacionados.
-  // ------------------------------------------------------------------
-  const PUSH_TRANSLATE = -10; // %
+  const PUSH_TRANSLATE = -10;
   const PUSH_SCALE_MIN = 0.965;
 
   const slide = createSlideTransition({
@@ -58,9 +48,6 @@
     rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
   }
 
-  // Reage à prop drawerPushed vinda do App.svelte (fonte de verdade da
-  // navegação real/history), exatamente como TemplatePreviewPage reage
-  // a `pushed` — nunca decide por si só, só traduz o estado em spring.
   let lastPushed = null;
   $: if (drawerPushed !== lastPushed) {
     lastPushed = drawerPushed;
@@ -69,14 +56,10 @@
   }
 
   function closeSettled() {
-    // no-op: o App.svelte já desmonta drawerOpen no seu próprio timing
-    // (via popstate); aqui só garantimos que o rootEl volta ao normal.
     if (rootEl) rootEl.style.transform = '';
   }
 
-  function goProfile() {
-    onOpenProfile();
-  }
+  function goProfile() { onOpenProfile(); }
 
   function goSettings() {
     onClose();
@@ -88,15 +71,12 @@
     dispatch('nav', { to: 'help' });
   }
 
-  // Placeholder — ainda sem rota/ação definida.
   function goOthers() {
     onClose();
   }
 
   function handleItemClick(item) {
-    if (typeof item.action === 'function') {
-      item.action();
-    }
+    if (typeof item.action === 'function') item.action();
     onClose();
   }
 
@@ -118,18 +98,10 @@
     setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
-  // ------------------------------------------------------------------
-  // Swipe gesture nativo (estilo Android Navigation Drawer), agora
-  // alimentando o MESMO spring em vez de escrever style.transform à
-  // parte. Durante o arrasto usamos slide.setDragValue() (sem física,
-  // 1:1 com o dedo); ao soltar, slide.releaseDragTo('open'|'closed')
-  // entrega de volta ao spring físico — a partir da velocidade/posição
-  // exatas onde o dedo largou, sem nenhum salto.
-  // ------------------------------------------------------------------
   const EDGE_ZONE = 24;
   const OPEN_THRESHOLD = 0.35;
   const CLOSE_THRESHOLD = 0.35;
-  const VELOCITY_FLING = 0.55; // px/ms
+  const VELOCITY_FLING = 0.55;
 
   let dragging = false;
   let dragStartX = 0;
@@ -174,7 +146,6 @@
     const delta = x - dragStartX;
 
     if (!drawerOpen) {
-      // gesto de ABRIR: arrastar para a esquerda a partir da borda direita
       if (delta > 6 && !liveDragActive) return;
       if (delta >= -6) {
         if (!liveDragActive) {
@@ -187,7 +158,6 @@
         e.preventDefault();
       }
     } else {
-      // gesto de FECHAR: arrastar para a direita com o drawer aberto
       if (delta < -6 && !liveDragActive) return;
       if (delta <= 6) return;
       if (!liveDragActive) {
@@ -299,19 +269,14 @@
         </button>
       {/if}
 
-      <!-- Grupo M3 (Material 3 grouped list): 3 blocos com 2px de
-           espaçamento entre si — 1º item com cantos superiores em
-           28px e inferiores em 4px; item do meio (temas) com os 4
-           cantos em 4px; último item com cantos inferiores em 28px e
-           superiores em 4px. Fundo próprio dos cards (não o do
-           drawer), reduzido de opacidade porque no tema claro o
-           --btn-bg puro ficava demasiado carregado. -->
       <div class="m3-group">
+        <!-- 1º card: cantos superiores grandes (18px), inferiores pequenos (5px) -->
         <button class="m3-item m3-item-first pulse-tap" on:click={goHelp}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Ajuda</span>
         </button>
 
+        <!-- 2º card: cantos todos pequenos (5px) -->
         <div class="m3-item m3-item-mid theme-section">
           <div class="theme-cards">
             <button
@@ -358,6 +323,7 @@
           </div>
         </div>
 
+        <!-- 3º card: cantos superiores pequenos (5px), inferiores grandes (18px) -->
         <button class="m3-item m3-item-last pulse-tap" on:click={goOthers}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Outros</span>
@@ -412,7 +378,6 @@
     width: 86%;
     max-width: 340px;
     background: var(--drawer-bg-strong);
-    border-left: none;
     box-shadow: -4px 0 24px rgba(0,0,0,0.22);
     display: flex;
     flex-direction: column;
@@ -436,9 +401,7 @@
     cursor: pointer;
     font-family: inherit;
   }
-  .drawer-avatar-block:active {
-    opacity: .7;
-  }
+  .drawer-avatar-block:active { opacity: .7; }
   .drawer-avatar {
     width: 72px;
     height: 72px;
@@ -498,16 +461,18 @@
     transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
     width: 100%;
   }
-  .drawer-item:active {
-    background: var(--drawer-row-active, var(--btn-bg));
-  }
+  .drawer-item:active { background: var(--drawer-row-active, var(--btn-bg)); }
   .drawer-item-label {
     font-size: 15px;
     font-weight: 400;
     color: var(--drawer-text);
   }
 
-  /* ── Grupo M3: Ajuda / Temas / Outros ───────────────────────────── */
+  /* ── Grupo M3 ────────────────────────────────────────────────────
+     Pontas externas do grupo: 18px (grandes mas não exageradas).
+     Junções internas entre os 3 cards: 5px (quase retas).
+     Gap de 2px entre cada card — sem linha divisória, o espaçamento
+     é a separação visual. Fundo a 55% para não ficar pesado.      */
   .m3-group {
     display: flex;
     flex-direction: column;
@@ -516,18 +481,19 @@
   }
   .m3-item {
     width: 100%;
-    /* Fundo reduzido: --btn-bg no tema claro é forte demais para 3
-       cards seguidos — 55% da opacidade original em ambos os temas. */
     background: color-mix(in srgb, var(--btn-bg) 55%, transparent);
   }
+  /* 1º card: superiores grandes (18px), inferiores pequenos (5px) */
   .m3-item-first {
-    border-radius: 28px 28px 4px 4px;
+    border-radius: 18px 18px 5px 5px;
   }
+  /* card do meio: todos os cantos pequenos (5px) */
   .m3-item-mid {
-    border-radius: 4px;
+    border-radius: 5px;
   }
+  /* 3º card: superiores pequenos (5px), inferiores grandes (18px) */
   .m3-item-last {
-    border-radius: 4px 4px 28px 28px;
+    border-radius: 5px 5px 18px 18px;
   }
   button.m3-item {
     display: flex;
@@ -553,8 +519,6 @@
   }
   .theme-card {
     flex: 1;
-    /* Menos alto que antes — cabe confortavelmente dentro do card do
-       meio, sem esticar o grupo inteiro. */
     aspect-ratio: 1 / 0.62;
     padding: 3px;
     border-radius: 10px;
@@ -564,9 +528,7 @@
     display: flex;
     transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .theme-card-active {
-    border-color: #0A84FF;
-  }
+  .theme-card-active { border-color: #0A84FF; }
   .theme-preview {
     flex: 1;
     border-radius: 7px;
@@ -579,22 +541,15 @@
     overflow: hidden;
     position: relative;
   }
-  /* Branco a 93% (menos 7%) — nunca #FFFFFF puro. */
-  .theme-preview-light {
-    background: #EDEDED;
-  }
-  .theme-preview-dark {
-    background: #1C1C1E;
-  }
+  .theme-preview-light { background: #EDEDED; }
+  .theme-preview-dark  { background: #1C1C1E; }
   .theme-line {
     display: block;
     height: 4px;
     border-radius: 2px;
     background: #D9D9DE;
   }
-  .theme-line-dark {
-    background: #48484A;
-  }
+  .theme-line-dark { background: #48484A; }
 
   .theme-preview-system {
     padding: 0;
@@ -633,7 +588,7 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 16px 16px;
+    padding: 16px;
     border-radius: 999px;
     border: 0.5px solid var(--border-soft);
     background: var(--btn-bg);
@@ -673,12 +628,10 @@
     position: fixed;
     inset: 0;
     z-index: 80;
-    background: rgba(0, 0, 0, 0);
+    background: rgba(0,0,0,0);
     transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .logout-overlay.logout-overlay-in {
-    background: rgba(0, 0, 0, 0.5);
-  }
+  .logout-overlay.logout-overlay-in { background: rgba(0,0,0,0.5); }
   .logout-dialog {
     position: fixed;
     top: 50%;
@@ -688,7 +641,7 @@
     background: var(--surface);
     border-radius: 20px;
     padding: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     z-index: 81;
     min-width: 280px;
     max-width: 90vw;
@@ -732,14 +685,12 @@
     background: var(--btn-bg-active);
     transform: scale(0.96);
   }
-  .logout-btn-confirm {
-    background: #FF3B30;
-    color: white;
-  }
+  .logout-btn-confirm { background: #FF3B30; color: white; }
   .logout-btn-confirm:active {
     background: #E0342A;
     transform: scale(0.96);
   }
+
   .icon-mask {
     display: block;
     mask-size: contain;
@@ -754,22 +705,11 @@
     cursor: pointer;
     transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .pulse-tap:active {
-    transform: scale(0.96);
-    opacity: .80;
-  }
+  .pulse-tap:active { transform: scale(0.96); opacity: .80; }
 
   @media (prefers-reduced-motion: reduce) {
-    .drawer-item,
-    .theme-card,
-    .drawer-logout,
-    .drawer-settings-btn,
-    .logout-overlay,
-    .logout-dialog,
-    .logout-btn-cancel,
-    .logout-btn-confirm,
-    .pulse-tap {
-      transition: none !important;
-    }
+    .drawer-item, .theme-card, .drawer-logout, .drawer-settings-btn,
+    .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
+    .pulse-tap { transition: none !important; }
   }
-</style
+</style>

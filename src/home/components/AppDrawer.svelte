@@ -200,10 +200,6 @@
     }
   }
 
-  // Chamado no instante em que o gesto de ABRIR é reconhecido: avisa
-  // o App.svelte para montar {#if drawerOpen} de imediato (sem ainda
-  // empurrar história), para que o drawer exista no DOM e o dedo já
-  // possa controlá-lo via slide.setDragValue() no mesmo frame.
   let liveOpenAnnounced = false;
   function onOpenLiveStart() {
     if (liveOpenAnnounced) return;
@@ -295,6 +291,7 @@
     </button>
     <div class="drawer-sep"></div>
     <nav class="drawer-nav">
+
       {#if showInstall}
         <button class="drawer-item pulse-tap" on:click={onInstall}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/download.svg');-webkit-mask-image:url('/icons/svg/download.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
@@ -302,61 +299,71 @@
         </button>
       {/if}
 
-      <button class="drawer-item pulse-tap" on:click={goHelp}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Ajuda</span>
-      </button>
+      <!-- Container único de 3 itens agrupados: Ajuda / Temas / Outros —
+           1º item com cantos superiores curvos, 3º item com cantos
+           inferiores curvos, item do meio (temas) sem curva nenhuma,
+           com linha divisória fina entre cada um. -->
+      <div class="drawer-group">
+        <button class="drawer-group-item drawer-group-item-first pulse-tap" on:click={goHelp}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="drawer-item-label" style="flex:1">Ajuda</span>
+        </button>
 
-      <div class="theme-section">
-        <div class="theme-cards">
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'light'}
-            on:click={() => onApplyTheme('light')}
-            aria-label="Tema claro"
-          >
-            <div class="theme-preview theme-preview-light">
-              <span class="theme-line" style="width:70%"></span>
-              <span class="theme-line" style="width:85%"></span>
-              <span class="theme-line" style="width:55%"></span>
-            </div>
-          </button>
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'system'}
-            on:click={() => onApplyTheme('system')}
-            aria-label="Tema automático"
-          >
-            <div class="theme-preview theme-preview-system">
-              <div class="theme-preview-half theme-preview-half-light">
+        <div class="drawer-group-divider"></div>
+
+        <div class="drawer-group-item drawer-group-item-mid theme-section">
+          <div class="theme-cards">
+            <button
+              class="theme-card"
+              class:theme-card-active={themeValue === 'light'}
+              on:click={() => onApplyTheme('light')}
+              aria-label="Tema claro"
+            >
+              <div class="theme-preview theme-preview-light">
                 <span class="theme-line" style="width:70%"></span>
+                <span class="theme-line" style="width:85%"></span>
                 <span class="theme-line" style="width:55%"></span>
               </div>
-              <div class="theme-preview-half theme-preview-half-dark">
+            </button>
+            <button
+              class="theme-card"
+              class:theme-card-active={themeValue === 'system'}
+              on:click={() => onApplyTheme('system')}
+              aria-label="Tema automático"
+            >
+              <div class="theme-preview theme-preview-system">
+                <div class="theme-preview-half theme-preview-half-light">
+                  <span class="theme-line" style="width:70%"></span>
+                  <span class="theme-line" style="width:55%"></span>
+                </div>
+                <div class="theme-preview-half theme-preview-half-dark">
+                  <span class="theme-line theme-line-dark" style="width:70%"></span>
+                  <span class="theme-line theme-line-dark" style="width:55%"></span>
+                </div>
+              </div>
+            </button>
+            <button
+              class="theme-card"
+              class:theme-card-active={themeValue === 'dark'}
+              on:click={() => onApplyTheme('dark')}
+              aria-label="Tema escuro"
+            >
+              <div class="theme-preview theme-preview-dark">
                 <span class="theme-line theme-line-dark" style="width:70%"></span>
+                <span class="theme-line theme-line-dark" style="width:85%"></span>
                 <span class="theme-line theme-line-dark" style="width:55%"></span>
               </div>
-            </div>
-          </button>
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'dark'}
-            on:click={() => onApplyTheme('dark')}
-            aria-label="Tema escuro"
-          >
-            <div class="theme-preview theme-preview-dark">
-              <span class="theme-line theme-line-dark" style="width:70%"></span>
-              <span class="theme-line theme-line-dark" style="width:85%"></span>
-              <span class="theme-line theme-line-dark" style="width:55%"></span>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <button class="drawer-item pulse-tap" on:click={goOthers}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-        <span class="drawer-item-label" style="flex:1">Outros</span>
-      </button>
+        <div class="drawer-group-divider"></div>
+
+        <button class="drawer-group-item drawer-group-item-last pulse-tap" on:click={goOthers}>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="drawer-item-label" style="flex:1">Outros</span>
+        </button>
+      </div>
 
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
@@ -392,9 +399,6 @@
 {/if}
 
 <style>
-  /* .drawer-overlay e .drawer já NÃO têm CSS transition em opacity/
-     transform — ambos são 100% controlados pelo spring via style
-     inline, no mesmo frame, exatamente como TemplatePreviewPage. */
   .drawer-overlay {
     position: fixed;
     inset: 0;
@@ -406,9 +410,6 @@
     position: fixed;
     inset: 0 0 0 auto;
     z-index: 61;
-    /* FIX (bug: drawer a ocupar o ecrã inteiro): antes width:100% —
-       agora largura fixa, deixando o .root visível/recuado à
-       esquerda, como um Navigation Drawer real. */
     width: 86%;
     max-width: 340px;
     background: var(--drawer-bg-strong);
@@ -507,12 +508,40 @@
     color: var(--drawer-text);
   }
 
-  /* Cards de tema reduzidos: menos altura, menos gap, cantos mais
-     fechados — para caberem confortavelmente na largura estreita do
-     drawer, sem esticar como no drawer antigo (que ocupava o ecrã
-     todo). */
+  /* ── Container agrupado: Ajuda / Temas / Outros ─────────────────── */
+  .drawer-group {
+    display: flex;
+    flex-direction: column;
+    background: var(--drawer-row-active, var(--btn-bg));
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 6px 8px 10px;
+  }
+  .drawer-group-item {
+    border-radius: 0;
+    width: 100%;
+    margin: 0;
+  }
+  .drawer-group-item-first {
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+  .drawer-group-item-last {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+  }
+  .drawer-group-item.pulse-tap:active {
+    background: var(--drawer-row-active, var(--btn-bg));
+    opacity: .7;
+  }
+  .drawer-group-divider {
+    height: 0.5px;
+    background: var(--drawer-sep);
+    margin: 0 14px;
+  }
+
   .theme-section {
-    padding: 6px 10px 14px;
+    padding: 10px 10px;
   }
   .theme-cards {
     display: flex;
@@ -544,8 +573,11 @@
     overflow: hidden;
     position: relative;
   }
+  /* FIX: branco puro (#FFFFFF) ficava "estourado" ao lado do fundo
+     escuro do drawer — agora 93% branco (menos 7%), igual valor nos
+     dois lados do preview "sistema". */
   .theme-preview-light {
-    background: #FFFFFF;
+    background: #EDEDED;
   }
   .theme-preview-dark {
     background: #1C1C1E;
@@ -574,7 +606,7 @@
     position: relative;
   }
   .theme-preview-half-light {
-    background: #FFFFFF;
+    background: #EDEDED;
     clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%);
     padding-right: 12px;
   }

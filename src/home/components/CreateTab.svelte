@@ -22,14 +22,6 @@
   // img_dark.jpg, ambas na mesma pasta /images/createbg/.
   $: heroImage = isDark ? '/images/createbg/img_dark.jpg' : '/images/createbg/img.jpg';
 
-  // Cor do texto da saudação conforme o tema — no escuro fica branco
-  // (como sempre foi), no claro fica escuro, já que a img.jpg clara
-  // não tem contraste suficiente para texto branco no topo do hero.
-  $: heroTextColor = isDark ? '#fff' : '#111111';
-  $: heroTextShadow = isDark
-    ? '0 2px 14px rgba(0,0,0,0.5)'
-    : '0 1px 3px rgba(255,255,255,0.6)';
-
   // Saudação rotativa: escolhida UMA vez ao montar. O nome fica numa
   // linha própria, sempre com exclamação.
   const GREETINGS_MANHA = [
@@ -148,12 +140,8 @@
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
 
-    <!-- Bloco de saudação: nome + frase, ambos na fonte importada.
-         Cor adapta-se ao tema via CSS vars. -->
-    <div
-      class="hero-greeting-block"
-      style="opacity:{1 - heroProgress}; --hero-text-color:{heroTextColor}; --hero-text-shadow:{heroTextShadow};"
-    >
+    <!-- Bloco de saudação: nome + frase, ambos na fonte importada. -->
+    <div class="hero-greeting-block" style="opacity:{1 - heroProgress}">
       <p class="hero-greeting-name">{userName}!</p>
       <p class="hero-greeting-text">{greetingText}</p>
     </div>
@@ -355,8 +343,8 @@
     font-weight: 800;
     letter-spacing: -0.5px;
     line-height: 1.08;
-    color: var(--hero-text-color);
-    text-shadow: var(--hero-text-shadow);
+    color: #fff;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.5);
   }
   .hero-greeting-text {
     margin: 0;
@@ -365,9 +353,8 @@
     font-weight: 600;
     letter-spacing: -0.2px;
     line-height: 1.25;
-    color: var(--hero-text-color);
-    opacity: 0.92;
-    text-shadow: var(--hero-text-shadow);
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.45);
   }
 
   .search-bar {

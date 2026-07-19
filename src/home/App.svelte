@@ -440,18 +440,19 @@
   <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{activeTab === 'create' ? 0 : appbarHeight}px;">
     {#if activeTab === 'create'}
       <CreateTab
-        {platformApps}
-        {heroProgress}
-        {mounted}
-        {avatarUrl}
-        {avatarColor}
-        {userInitial}
-        {userName}
-        title={currentTitle}
-        onOpenDrawer={openDrawer}
-        onOpenSearch={openSearch}
-        onOpenApp={navigateToApp}
-      />
+  {platformApps}
+  {heroProgress}
+  {mounted}
+  {isDark}
+  {avatarUrl}
+  {avatarColor}
+  {userInitial}
+  {userName}
+  title={currentTitle}
+  onOpenDrawer={openDrawer}
+  onOpenSearch={openSearch}
+  onOpenApp={navigateToApp}
+/>
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}

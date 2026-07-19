@@ -88,6 +88,11 @@
     dispatch('nav', { to: 'help' });
   }
 
+  // Placeholder — ainda sem rota/ação definida.
+  function goOthers() {
+    onClose();
+  }
+
   function handleItemClick(item) {
     if (typeof item.action === 'function') {
       item.action();
@@ -280,12 +285,6 @@
     style="transform: translate3d({slideX}%, 0, 0);"
     on:touchstart={onDrawerTouchStart}
   >
-    <div class="drawer-topbar">
-      <button class="drawer-help-btn pulse-tap" on:click={goHelp} aria-label="Ajuda">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-      </button>
-    </div>
-
     <button class="drawer-avatar-block pulse-tap" on:click={goProfile}>
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="drawer-avatar-img" />
@@ -302,6 +301,11 @@
           <span class="drawer-item-label" style="flex:1">Instalar app</span>
         </button>
       {/if}
+
+      <button class="drawer-item pulse-tap" on:click={goHelp}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+        <span class="drawer-item-label" style="flex:1">Ajuda</span>
+      </button>
 
       <div class="theme-section">
         <div class="theme-cards">
@@ -349,8 +353,16 @@
         </div>
       </div>
 
+      <button class="drawer-item pulse-tap" on:click={goOthers}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+        <span class="drawer-item-label" style="flex:1">Outros</span>
+      </button>
+
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
+          {#if item.icon}
+            <span class="icon-mask" style="mask-image:url('{item.icon}');-webkit-mask-image:url('{item.icon}');width:20px;height:20px;background:var(--drawer-text)"></span>
+          {/if}
           <span class="drawer-item-label" style="flex:1">{item.label}</span>
         </button>
       {/each}
@@ -392,12 +404,16 @@
   }
   .drawer {
     position: fixed;
-    inset: 0;
+    inset: 0 0 0 auto;
     z-index: 61;
-    width: 100%;
+    /* FIX (bug: drawer a ocupar o ecrã inteiro): antes width:100% —
+       agora largura fixa, deixando o .root visível/recuado à
+       esquerda, como um Navigation Drawer real. */
+    width: 86%;
+    max-width: 340px;
     background: var(--drawer-bg-strong);
     border-left: none;
-    box-shadow: none;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.22);
     display: flex;
     flex-direction: column;
     will-change: transform;
@@ -407,30 +423,12 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  .drawer-topbar {
-    display: flex;
-    justify-content: flex-end;
-    padding: 10px 14px 0;
-    flex-shrink: 0;
-  }
-  .drawer-help-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: none;
-    background: var(--drawer-row-active, var(--btn-bg));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
   .drawer-avatar-block {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    padding: 10px 20px 18px;
+    padding: 22px 20px 18px;
     flex-shrink: 0;
     background: transparent;
     border: none;
@@ -442,26 +440,26 @@
     opacity: .7;
   }
   .drawer-avatar {
-    width: 84px;
-    height: 84px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
     color: #fff;
   }
   .drawer-avatar-img {
-    width: 84px;
-    height: 84px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
   }
   .drawer-user-name {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--drawer-text);
     text-align: center;
@@ -509,19 +507,23 @@
     color: var(--drawer-text);
   }
 
+  /* Cards de tema reduzidos: menos altura, menos gap, cantos mais
+     fechados — para caberem confortavelmente na largura estreita do
+     drawer, sem esticar como no drawer antigo (que ocupava o ecrã
+     todo). */
   .theme-section {
-    padding: 10px 10px 16px;
+    padding: 6px 10px 14px;
   }
   .theme-cards {
     display: flex;
-    gap: 10px;
+    gap: 6px;
   }
   .theme-card {
     flex: 1;
-    aspect-ratio: 1 / 0.82;
-    padding: 4px;
-    border-radius: 18px;
-    border: 2.5px solid transparent;
+    aspect-ratio: 1 / 0.68;
+    padding: 3px;
+    border-radius: 12px;
+    border: 2px solid transparent;
     background: transparent;
     cursor: pointer;
     display: flex;
@@ -532,13 +534,13 @@
   }
   .theme-preview {
     flex: 1;
-    border-radius: 14px;
+    border-radius: 9px;
     border: 1px solid rgba(0,0,0,0.08);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
-    padding: 0 10px;
+    gap: 4px;
+    padding: 0 7px;
     overflow: hidden;
     position: relative;
   }
@@ -550,8 +552,8 @@
   }
   .theme-line {
     display: block;
-    height: 6px;
-    border-radius: 3px;
+    height: 4px;
+    border-radius: 2px;
     background: #D9D9DE;
   }
   .theme-line-dark {
@@ -567,20 +569,20 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
-    padding: 0 8px;
+    gap: 4px;
+    padding: 0 6px;
     position: relative;
   }
   .theme-preview-half-light {
     background: #FFFFFF;
     clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%);
-    padding-right: 16px;
+    padding-right: 12px;
   }
   .theme-preview-half-dark {
     background: #1C1C1E;
-    margin-left: -14px;
+    margin-left: -10px;
     clip-path: polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
-    padding-left: 20px;
+    padding-left: 14px;
   }
 
   .drawer-bottom-row {

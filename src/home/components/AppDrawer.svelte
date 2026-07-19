@@ -299,71 +299,65 @@
         </button>
       {/if}
 
-      <!-- Container único de 3 itens agrupados: Ajuda / Temas / Outros —
-           1º item com cantos superiores curvos, 3º item com cantos
-           inferiores curvos, item do meio (temas) sem curva nenhuma,
-           com linha divisória fina entre cada um. -->
-      <div class="drawer-group">
-        <button class="drawer-group-item drawer-group-item-first pulse-tap" on:click={goHelp}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Ajuda</span>
-        </button>
+      <!-- 3 CONTAINERS SEPARADOS, cada um com cantos totalmente
+           arredondados e o seu próprio fundo — Ajuda / Temas / Outros.
+           Nada de agrupamento tipo iOS-settings: cada card é
+           independente, com espaço entre eles. -->
+      <button class="drawer-card drawer-card-row pulse-tap" on:click={goHelp}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+        <span class="drawer-item-label" style="flex:1">Ajuda</span>
+      </button>
 
-        <div class="drawer-group-divider"></div>
-
-        <div class="drawer-group-item drawer-group-item-mid theme-section">
-          <div class="theme-cards">
-            <button
-              class="theme-card"
-              class:theme-card-active={themeValue === 'light'}
-              on:click={() => onApplyTheme('light')}
-              aria-label="Tema claro"
-            >
-              <div class="theme-preview theme-preview-light">
+      <div class="drawer-card theme-section">
+        <div class="theme-cards">
+          <button
+            class="theme-card"
+            class:theme-card-active={themeValue === 'light'}
+            on:click={() => onApplyTheme('light')}
+            aria-label="Tema claro"
+          >
+            <div class="theme-preview theme-preview-light">
+              <span class="theme-line" style="width:70%"></span>
+              <span class="theme-line" style="width:85%"></span>
+              <span class="theme-line" style="width:55%"></span>
+            </div>
+          </button>
+          <button
+            class="theme-card"
+            class:theme-card-active={themeValue === 'system'}
+            on:click={() => onApplyTheme('system')}
+            aria-label="Tema automático"
+          >
+            <div class="theme-preview theme-preview-system">
+              <div class="theme-preview-half theme-preview-half-light">
                 <span class="theme-line" style="width:70%"></span>
-                <span class="theme-line" style="width:85%"></span>
                 <span class="theme-line" style="width:55%"></span>
               </div>
-            </button>
-            <button
-              class="theme-card"
-              class:theme-card-active={themeValue === 'system'}
-              on:click={() => onApplyTheme('system')}
-              aria-label="Tema automático"
-            >
-              <div class="theme-preview theme-preview-system">
-                <div class="theme-preview-half theme-preview-half-light">
-                  <span class="theme-line" style="width:70%"></span>
-                  <span class="theme-line" style="width:55%"></span>
-                </div>
-                <div class="theme-preview-half theme-preview-half-dark">
-                  <span class="theme-line theme-line-dark" style="width:70%"></span>
-                  <span class="theme-line theme-line-dark" style="width:55%"></span>
-                </div>
-              </div>
-            </button>
-            <button
-              class="theme-card"
-              class:theme-card-active={themeValue === 'dark'}
-              on:click={() => onApplyTheme('dark')}
-              aria-label="Tema escuro"
-            >
-              <div class="theme-preview theme-preview-dark">
+              <div class="theme-preview-half theme-preview-half-dark">
                 <span class="theme-line theme-line-dark" style="width:70%"></span>
-                <span class="theme-line theme-line-dark" style="width:85%"></span>
                 <span class="theme-line theme-line-dark" style="width:55%"></span>
               </div>
-            </button>
-          </div>
+            </div>
+          </button>
+          <button
+            class="theme-card"
+            class:theme-card-active={themeValue === 'dark'}
+            on:click={() => onApplyTheme('dark')}
+            aria-label="Tema escuro"
+          >
+            <div class="theme-preview theme-preview-dark">
+              <span class="theme-line theme-line-dark" style="width:70%"></span>
+              <span class="theme-line theme-line-dark" style="width:85%"></span>
+              <span class="theme-line theme-line-dark" style="width:55%"></span>
+            </div>
+          </button>
         </div>
-
-        <div class="drawer-group-divider"></div>
-
-        <button class="drawer-group-item drawer-group-item-last pulse-tap" on:click={goOthers}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Outros</span>
-        </button>
       </div>
+
+      <button class="drawer-card drawer-card-row pulse-tap" on:click={goOthers}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+        <span class="drawer-item-label" style="flex:1">Outros</span>
+      </button>
 
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
@@ -508,48 +502,38 @@
     color: var(--drawer-text);
   }
 
-  /* ── Container agrupado: Ajuda / Temas / Outros ─────────────────── */
-  .drawer-group {
-    display: flex;
-    flex-direction: column;
+  /* ── 3 cards independentes: Ajuda / Temas / Outros ──────────────── */
+  .drawer-card {
     background: var(--drawer-row-active, var(--btn-bg));
     border-radius: 16px;
-    overflow: hidden;
-    margin: 6px 8px 10px;
+    margin: 6px 8px;
+    width: calc(100% - 16px);
   }
-  .drawer-group-item {
-    border-radius: 0;
-    width: 100%;
-    margin: 0;
+  .drawer-card-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 15px 16px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .drawer-group-item-first {
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-  }
-  .drawer-group-item-last {
-    border-bottom-left-radius: 16px;
-    border-bottom-right-radius: 16px;
-  }
-  .drawer-group-item.pulse-tap:active {
-    background: var(--drawer-row-active, var(--btn-bg));
-    opacity: .7;
-  }
-  .drawer-group-divider {
-    height: 0.5px;
-    background: var(--drawer-sep);
-    margin: 0 14px;
+  .drawer-card-row:active {
+    background: var(--btn-bg-active);
   }
 
   .theme-section {
-    padding: 10px 10px;
+    padding: 12px;
   }
   .theme-cards {
     display: flex;
-    gap: 6px;
+    gap: 8px;
   }
   .theme-card {
     flex: 1;
-    aspect-ratio: 1 / 0.68;
+    aspect-ratio: 1 / 1.05;
     padding: 3px;
     border-radius: 12px;
     border: 2px solid transparent;
@@ -568,14 +552,13 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
-    padding: 0 7px;
+    gap: 5px;
+    padding: 0 8px;
     overflow: hidden;
     position: relative;
   }
   /* FIX: branco puro (#FFFFFF) ficava "estourado" ao lado do fundo
-     escuro do drawer — agora 93% branco (menos 7%), igual valor nos
-     dois lados do preview "sistema". */
+     escuro do drawer — agora 93% branco (menos 7%). */
   .theme-preview-light {
     background: #EDEDED;
   }
@@ -601,20 +584,20 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
-    padding: 0 6px;
+    gap: 5px;
+    padding: 0 7px;
     position: relative;
   }
   .theme-preview-half-light {
     background: #EDEDED;
     clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%);
-    padding-right: 12px;
+    padding-right: 14px;
   }
   .theme-preview-half-dark {
     background: #1C1C1E;
-    margin-left: -10px;
+    margin-left: -11px;
     clip-path: polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
-    padding-left: 14px;
+    padding-left: 16px;
   }
 
   .drawer-bottom-row {

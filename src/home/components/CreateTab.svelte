@@ -7,6 +7,7 @@
   export let onOpenApp = () => {};
 
   export let heroProgress = 0;
+  export let isDark = false;
 
   // dados do header próprio (antes vinham via AppHeader)
   export let mounted = false;
@@ -17,30 +18,9 @@
   export let title = '';
   export let onOpenDrawer = () => {};
 
-  // Cor do container por app — fixa por ID, todas distintas entre si.
-  const APP_CONTAINER_COLORS = {
-    ai:           '#F0384A', // vermelho
-    profilelens:  '#D6409F', // rosa-magenta
-    docs:         '#2F7BF6', // azul
-    sheets:       '#1E9E8C', // teal
-    slides:       '#E8720F', // laranja
-    drive:        '#8B3FE0', // roxo
-    calendar:     '#1FA34A', // verde
-    chat:         '#12A8D6', // azul-ciano
-    tasks:        '#B0B0B8', // cinza
-    notes:        '#C2410C', // laranja-terracota
-    forms:        '#E0405F', // vermelho-rosado
-    projects:     '#9333EA', // roxo-violeta
-    wiki:         '#4A5FE0', // índigo
-    whiteboard:   '#0D9488', // teal-escuro
-    analytics:    '#84CC16', // lima
-  };
-
-  const FALLBACK_COLOR = '#8E8E93';
-
-  function containerColor(app) {
-    return APP_CONTAINER_COLORS[app.id] || FALLBACK_COLOR;
-  }
+  // Imagem do hero conforme o tema — clara usa img.jpg, escura usa
+  // img_dark.jpg, ambas na mesma pasta /images/createbg/.
+  $: heroImage = isDark ? '/images/createbg/img_dark.jpg' : '/images/createbg/img.jpg';
 
   // Saudação rotativa: escolhida UMA vez ao montar. O nome fica numa
   // linha própria, sempre com exclamação.
@@ -152,8 +132,8 @@
 <div class="create-tab">
 
   <div class="hero-bg">
-    <!-- Camada 1: a foto em si -->
-    <div class="hero-photo" style="background-image:url('/images/createbg/img.jpg')"></div>
+    <!-- Camada 1: a foto em si — troca conforme o tema -->
+    <div class="hero-photo" style="background-image:url('{heroImage}')"></div>
     <!-- Camada 2: gradiente ESTÁTICO, suave — a foto respira mais. -->
     <div class="hero-static-fade"></div>
     <!-- Camada 3: cobre a imagem por completo conforme o utilizador
@@ -180,9 +160,7 @@
   <div class="apps-grid">
     {#each platformApps as app}
       <button class="app-item native-tap" on:click={() => openApp(app)}>
-        <span class="app-icon-wrap" style="background:{containerColor(app)}">
-          <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-        </span>
+        <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
         <span class="app-label">{app.label}</span>
       </button>
     {/each}
@@ -326,6 +304,7 @@
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    transition: background-image .2s linear;
   }
 
   .hero-static-fade {
@@ -426,17 +405,19 @@
     color: var(--text-faint);
   }
 
+  /* Grid sem containers: apenas ícone outline + label, como no
+     print de referência (estilo CapCut). */
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 22px 8px;
-    padding: 20px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
+    gap: 28px 8px;
+    padding: 24px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
   }
   .app-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     border: none;
     background: transparent;
     padding: 0;
@@ -445,28 +426,20 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
-  .app-icon-wrap {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
   .app-icon-svg {
-    width: 60%;
-    height: 60%;
+    width: 26px;
+    height: 26px;
     display: block;
-    background: #fff;
+    background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .native-tap:active .app-icon-wrap {
+  .native-tap:active .app-icon-svg {
     transform: scale(0.86);
   }
   .native-tap:active .app-label {
@@ -477,7 +450,7 @@
     font-weight: 500;
     text-align: center;
     line-height: 1.25;
-    max-width: 80px;
+    max-width: 88px;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;

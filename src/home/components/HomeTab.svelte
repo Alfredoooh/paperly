@@ -3,18 +3,28 @@
   export let platformApps = [];
   export let onOpenApp = () => {};
   
+  let pressedId = null;
+  
   function openApp(app) {
-    if (app.id === 'ai') {
-      try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
-    }
-    onOpenApp(app);
+    pressedId = app.id;
+    setTimeout(() => {
+      if (app.id === 'ai') {
+        try { sessionStorage.removeItem('nexa_pending_message'); } catch (e) {}
+      }
+      onOpenApp(app);
+      pressedId = null;
+    }, 130);
   }
 </script>
 
 <div class="home-tab">
   <div class="apps-grid">
     {#each platformApps as app}
-      <button class="app-item" on:click={() => openApp(app)}>
+      <button
+        class="app-item"
+        class:pressed={pressedId === app.id}
+        on:click={() => openApp(app)}
+      >
         <img src={app.icon} alt={app.label} class="app-icon-img" />
         <span class="app-label">{app.label}</span>
       </button>
@@ -52,7 +62,7 @@
     display: block;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .app-item:active .app-icon-img {
+  .app-item.pressed .app-icon-img {
     transform: scale(0.88);
   }
   .app-label {

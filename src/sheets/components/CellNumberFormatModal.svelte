@@ -105,11 +105,11 @@
 
     <div class="sheet-body">
       {#each FORMATS as f}
-        <button class="format-row" class:format-row-active={currentFormat === f.id} on:click={() => pick(f.id)}>
+        <button class="format-row" class:format-row-active={currentFormat === f.id} style={currentFormat === f.id ? `background:${c.primary}1A;` : ''} on:click={() => pick(f.id)}>
           <span class="format-label" style="color:{c.textPrimary}">{f.label}</span>
           <span class="format-sample" style="color:{c.textSecondary}">{f.sample}</span>
           {#if currentFormat === f.id}
-            <span class="format-check" style="color:#2F7BF6">✓</span>
+            <span class="format-check" style="color:{c.primary}">✓</span>
           {/if}
         </button>
       {/each}
@@ -144,7 +144,6 @@
     transition: background .14s ease;
   }
   .format-row:active { background: rgba(127,127,127,0.10); }
-  .format-row-active { background: rgba(47,123,246,0.10); }
   .format-label { font-size: 14px; font-weight: 600; flex-shrink: 0; min-width: 150px; }
   .format-sample { font-size: 13px; flex: 1; text-align: right; }
   .format-check { font-weight: 700; flex-shrink: 0; }

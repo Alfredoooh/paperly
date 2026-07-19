@@ -198,7 +198,7 @@
 
       <div class="sheet-actions">
         <button class="btn-secondary" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={cancel}>Cancelar</button>
-        <button class="btn-primary" on:click={confirmColor}>OK</button>
+        <button class="btn-primary" style="background:{c.primary};" on:click={confirmColor}>OK</button>
       </div>
     </div>
   </div>
@@ -266,7 +266,7 @@
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .btn-primary { background: #2F7BF6; color: #fff; }
+  .btn-primary { color: #fff; }
   .btn-primary:active, .btn-secondary:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {

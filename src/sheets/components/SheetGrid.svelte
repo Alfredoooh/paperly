@@ -12,10 +12,10 @@
 
   const dispatch = createEventDispatcher();
 
-  const ROW_HEADER_W = 40;
-  const DEFAULT_COL_W = 84;
-  const ROW_H = 36;
-  const HEADER_H = 32;
+  const ROW_HEADER_W = 44;
+  const DEFAULT_COL_W = 88;
+  const ROW_H = 34;
+  const HEADER_H = 30;
 
   function colWidth(colIdx) {
     return doc.colWidths[String(colIdx)] || DEFAULT_COL_W;
@@ -232,12 +232,12 @@
   }
 </script>
 
-<div class="grid-shell" style="background:{c.sheetPaperBg || '#F4F5F7'};">
+<div class="grid-shell" style="background:{c.sheetPaperBg};">
   <!-- Canto superior-esquerdo fixo -->
-  <div class="corner" style="background:{c.dialogBackground};border-color:{c.divider};width:{ROW_HEADER_W}px;height:{HEADER_H}px;"></div>
+  <div class="corner" style="background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};width:{ROW_HEADER_W}px;height:{HEADER_H}px;"></div>
 
   <!-- Cabeçalho de colunas (A, B, C...) — sincroniza scroll horizontal com o corpo -->
-  <div class="col-header" bind:this={colHeaderEl} style="left:{ROW_HEADER_W}px;height:{HEADER_H}px;background:{c.dialogBackground};border-color:{c.divider};">
+  <div class="col-header" bind:this={colHeaderEl} style="left:{ROW_HEADER_W}px;height:{HEADER_H}px;background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};">
     <div class="col-header-inner" style="width:{totalWidth}px;">
       {#each Array(doc.cols) as _, col}
         <div
@@ -252,7 +252,7 @@
   </div>
 
   <!-- Cabeçalho de linhas (1, 2, 3...) — sincroniza scroll vertical com o corpo -->
-  <div class="row-header" bind:this={rowHeaderEl} style="top:{HEADER_H}px;width:{ROW_HEADER_W}px;background:{c.dialogBackground};border-color:{c.divider};">
+  <div class="row-header" bind:this={rowHeaderEl} style="top:{HEADER_H}px;width:{ROW_HEADER_W}px;background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};">
     <div class="row-header-inner" style="height:{totalHeight}px;">
       {#each Array(doc.rows) as _, row}
         <div
@@ -273,7 +273,7 @@
     style="left:{ROW_HEADER_W}px;top:{HEADER_H}px;"
     on:scroll={syncHeaderScroll}
   >
-    <div class="grid-canvas" style="width:{totalWidth}px;height:{totalHeight}px;background:{c.sheetCellBg || '#FFFFFF'};">
+    <div class="grid-canvas" style="width:{totalWidth}px;height:{totalHeight}px;background:{c.sheetCellBg};">
       {#each Array(doc.rows) as _, row}
         {#each Array(doc.cols) as __, col}
           {@const addr = cellId(row, col)}
@@ -284,16 +284,17 @@
             class:cell-selected={isInSelection(row, col) && isSelectionMultiCell()}
             class:cell-editing={editingAddr === addr}
             class:cell-error={isErrorCell(addr)}
+            class:cell-zebra={row % 2 === 1}
             style="
               left:{colOffsets[col]}px; top:{row * ROW_H}px;
               width:{colWidth(col)}px; height:{ROW_H}px;
-              border-color:{c.sheetGridLine || c.divider};
+              border-color:{c.sheetGridLine};
               font-weight:{meta.bold ? 700 : 400};
               font-style:{meta.italic ? 'italic' : 'normal'};
               text-decoration:{meta.underline ? 'underline' : 'none'};
               text-align:{meta.align || (typeof resolvedValues[addr] === 'number' ? 'right' : 'left')};
-              color:{isErrorCell(addr) ? '#F0384A' : (meta.color || c.textPrimary)};
-              background:{editingAddr === addr ? c.sheetCellBg || '#FFFFFF' : (meta.fill || 'transparent')};
+              color:{isErrorCell(addr) ? '#C42B1C' : (meta.color || c.textPrimary)};
+              background:{editingAddr === addr ? c.sheetCellBg : (meta.fill || 'transparent')};
             "
             on:pointerdown={(e) => onCellPointerDown(addr, e)}
             on:pointerenter={() => onCellPointerEnter(addr)}
@@ -324,6 +325,8 @@
             left:{colOffsets[selRange.c0]}px; top:{selRange.r0 * ROW_H}px;
             width:{colOffsets[selRange.c1 + 1] - colOffsets[selRange.c0]}px;
             height:{(selRange.r1 - selRange.r0 + 1) * ROW_H}px;
+            border-color:{c.primary};
+            background:{c.primary}14;
           "
         ></div>
       {/if}
@@ -337,8 +340,12 @@
             style="
               left:{colOffsets[activePos.col]}px; top:{activePos.row * ROW_H}px;
               width:{colWidth(activePos.col)}px; height:{ROW_H}px;
+              border-color:{c.primary};
+              box-shadow: 0 0 0 0.5px {c.primary};
             "
-          ></div>
+          >
+            <div class="active-fill-handle" style="background:{c.primary};"></div>
+          </div>
         {/if}
       {/if}
     </div>
@@ -363,10 +370,10 @@
   .col-header-inner { display: flex; height: 100%; }
   .col-head-cell {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; border-right: 1px solid;
+    font-size: 11.5px; font-weight: 600; border-right: 1px solid;
     -webkit-user-select: none; user-select: none;
   }
-  .col-head-active { background: rgba(47,123,246,0.10); }
+  .col-head-active { background: rgba(33,163,102,0.14); font-weight: 700; }
 
   .row-header {
     position: absolute; left: 0; bottom: 0; z-index: 20;
@@ -375,10 +382,10 @@
   .row-header-inner { display: flex; flex-direction: column; width: 100%; }
   .row-head-cell {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; border-bottom: 1px solid;
+    font-size: 11.5px; font-weight: 600; border-bottom: 1px solid;
     -webkit-user-select: none; user-select: none;
   }
-  .row-head-active { background: rgba(47,123,246,0.10); }
+  .row-head-active { background: rgba(33,163,102,0.14); font-weight: 700; }
 
   .grid-scroller {
     position: absolute; right: 0; bottom: 0;
@@ -402,6 +409,7 @@
     cursor: cell;
     -webkit-user-select: none; user-select: none;
   }
+  .cell-zebra { background: rgba(127,127,127,0.025); }
   .cell-text {
     width: 100%;
     overflow: hidden;
@@ -409,7 +417,7 @@
     white-space: nowrap;
   }
   .cell-error { font-weight: 600; }
-  .cell-selected { background: rgba(47,123,246,0.10) !important; }
+  .cell-selected { background: rgba(33,163,102,0.10) !important; }
   .cell-editing { cursor: text; padding: 0; z-index: 15; }
   .cell-input {
     width: 100%; height: 100%;
@@ -420,16 +428,21 @@
 
   .active-outline {
     position: absolute;
-    border: 2px solid #2F7BF6;
-    box-shadow: 0 0 0 0.5px #2F7BF6;
+    border: 2px solid;
     pointer-events: none;
     z-index: 10;
     box-sizing: border-box;
   }
+  .active-fill-handle {
+    position: absolute;
+    right: -4px; bottom: -4px;
+    width: 7px; height: 7px;
+    border-radius: 1px;
+    border: 1.5px solid #fff;
+  }
   .selection-outline {
     position: absolute;
-    border: 1.5px solid rgba(47,123,246,0.55);
-    background: rgba(47,123,246,0.04);
+    border: 1.5px solid;
     pointer-events: none;
     z-index: 8;
     box-sizing: border-box;

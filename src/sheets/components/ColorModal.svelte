@@ -11,9 +11,9 @@
   const dispatch = createEventDispatcher();
 
   const PRESET_COLORS = [
-    '#000000', '#3C3C43', '#8E8E93', '#F0384A',
-    '#E8720F', '#F5B700', '#1FA34A', '#0FA3A3',
-    '#2F7BF6', '#5856D6', '#8B3FE0', '#D63384',
+    '#000000', '#3C3C43', '#8E8E93', '#C42B1C',
+    '#CA5010', '#EAA300', '#107C41', '#0B6A6A',
+    '#185ABD', '#2564CF', '#8764B8', '#C239B3',
   ];
 
   const slide = createSlideTransition({});

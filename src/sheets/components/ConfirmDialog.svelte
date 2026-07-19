@@ -51,7 +51,7 @@
     transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .logout-btn-cancel:active { transform: scale(0.96); }
-  .logout-btn-confirm { background: #FF3B30; color: white; }
+  .logout-btn-confirm { background: #C42B1C; color: white; }
   .logout-btn-confirm:active { transform: scale(0.96); }
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 

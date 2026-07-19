@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+  import { iconWithFallback } from '../lib/icon-fallback.js';
 
   export let isDark = false;
   export let user = null;
@@ -17,16 +18,18 @@
         iconTint: '#F2F3F5',
         dialogBackground: '#1B1E23',
         settings_section_label: '#7E858E',
+        primary: '#21A366',
       }
     : {
-        background: '#F4F5F7',
+        background: '#F3F2F1',
         textPrimary: '#15181D',
         textSecondary: '#6B7280',
-        divider: 'rgba(0,0,0,0.08)',
+        divider: 'rgba(0,0,0,0.10)',
         appbarBtnBg: 'rgba(0,0,0,0.05)',
         iconTint: '#15181D',
         dialogBackground: '#FFFFFF',
         settings_section_label: '#8A9099',
+        primary: '#21A366',
       };
 
   function goBack() {
@@ -39,9 +42,9 @@
 </script>
 
 <div class="page-shell" style="background:{c.background};">
-  <div class="appbar" style="background:{c.background};border-color:{c.divider};">
+  <div class="appbar" style="background:{c.dialogBackground};border-color:{c.divider};">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back.svg');-webkit-mask-image:url('/icons/svg/back.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+      <img src="/icons/svg/back.svg" use:iconWithFallback={'back'} class="appbar-icon" alt="" />
     </button>
     <div class="appbar-title" style="color:{c.textPrimary}">Definições</div>
     <div class="appbar-spacer"></div>
@@ -52,7 +55,7 @@
     <div class="settings-group" style="background:{c.dialogBackground};">
       <button class="settings-row" on:click={toggleTheme}>
         <span class="row-label" style="color:{c.textPrimary}">Tema escuro</span>
-        <div class="toggle-track" class:toggle-on={isDark}>
+        <div class="toggle-track" class:toggle-on={isDark} style={isDark ? `background:${c.primary};` : ''}>
           <div class="toggle-thumb" class:toggle-thumb-on={isDark}></div>
         </div>
       </button>
@@ -91,14 +94,9 @@
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
   .appbar-btn:active { transform: scale(0.88); }
+  .appbar-icon { width: 20px; height: 20px; display: block; object-fit: contain; }
   .appbar-title { flex: 1; font-size: 16px; font-weight: 700; text-align: center; margin-right: 38px; }
   .appbar-spacer { width: 38px; flex-shrink: 0; }
-
-  .icon-mask {
-    display: block; mask-size: contain; -webkit-mask-size: contain;
-    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center;
-  }
 
   .settings-body { flex: 1; overflow-y: auto; padding: 18px 16px calc(env(safe-area-inset-bottom,0px) + 24px); -webkit-overflow-scrolling: touch; }
   .settings-section-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin: 20px 8px 8px; }
@@ -117,7 +115,6 @@
     width: 46px; height: 27px; border-radius: 999px; background: rgba(127,127,127,0.28);
     position: relative; transition: background .22s ease; flex-shrink: 0;
   }
-  .toggle-track.toggle-on { background: #2F7BF6; }
   .toggle-thumb {
     position: absolute; top: 2px; left: 2px; width: 23px; height: 23px; border-radius: 50%;
     background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);

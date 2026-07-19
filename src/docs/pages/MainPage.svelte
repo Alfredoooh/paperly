@@ -578,36 +578,35 @@
   }
 </script>
 
-<!-- Camada de fundo (MainPage) — recua quando Export abre -->
-<div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
-  <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
-    <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-  </button>
-
-  <div class="appbar-center">
-    <input
-      class="doc-name-input"
-      style="color:{c.textPrimary}"
-      value={docName}
-      on:input={handleNameInput}
-      on:blur={handleNameBlur}
-      aria-label="Nome do documento"
-    />
-    <span class="save-state" style="color:{c.textSecondary}">
-      {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-    </span>
-  </div>
-
-  <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-    <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-  </button>
-</div>
-
 <div
   class="root"
   bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
+  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    </button>
+
+    <div class="appbar-center">
+      <input
+        class="doc-name-input"
+        style="color:{c.textPrimary}"
+        value={docName}
+        on:input={handleNameInput}
+        on:blur={handleNameBlur}
+        aria-label="Nome do documento"
+      />
+      <span class="save-state" style="color:{c.textSecondary}">
+        {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
+      </span>
+    </div>
+
+    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    </button>
+  </div>
+
   <div class="canvas-area" style="background:{c.docCanvasBg}">
     <DocPage
       bind:this={docPageComp}
@@ -743,21 +742,12 @@
     overscroll-behavior: none;
   }
 
-  /* APPBAR: fica fora da root para não sofrer com transform/zoom
-     do editor nem com o teclado mobile. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
     flex-shrink: 0;
-    position: fixed;
-    left: 0; right: 0; top: 0;
-    height: 100px;
-    z-index: 9999;
+    background: inherit;
     contain: paint;
-    transform: none;
-    will-change: auto;
-    overflow-anchor: none;
-    pointer-events: auto;
   }
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -780,7 +770,6 @@
     overflow-anchor: none;
     display: flex;
     flex-direction: column;
-    padding-top: 100px;
     contain: strict;
   }
 

@@ -68,10 +68,12 @@
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
 
-  // A search-bar some ao rolar — só reaparece quando volta ao topo
-  // absoluto (heroProgress === 0), nunca a meio do scroll para cima,
-  // conforme decidido: "só reaparece no topo".
-  $: searchBarHidden = heroProgress > 0;
+  // A search-bar desaparece progressivamente com o próprio scroll —
+  // opacity e scale seguem heroProgress (0→1) continuamente, sem
+  // liga/desliga abrupto. Só fica não-interativa perto do fim.
+  $: searchBarOpacity = 1 - heroProgress;
+  $: searchBarScale = 1 - 0.08 * heroProgress;
+  $: searchBarInert = heroProgress > 0.9;
 
   function openApp(app) {
     try { navigator.vibrate && navigator.vibrate(7); } catch (e) {}
@@ -85,21 +87,11 @@
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Clique na search-bar: mede o rect EXATO do botão no momento do
-  // clique (igual a openAvatarViewer em MainPage.svelte do profile) e
-  // passa-o ao App.svelte via onOpenSearch(origin) — é esse rect que
-  // o SearchPage usa como ponto de partida do container transform.
-  // ────────────────────────────────────────────────────────────────
-  let searchBarEl;
+  // Clique na search-bar: sempre slide normal, sem container
+  // transform/origin — nada de medir getBoundingClientRect aqui.
   function handleOpenSearch() {
     buzz();
-    if (searchBarEl) {
-      const r = searchBarEl.getBoundingClientRect();
-      onOpenSearch({ top: r.top, left: r.left, width: r.width, height: r.height });
-    } else {
-      onOpenSearch(null);
-    }
+    onOpenSearch(null);
   }
 
   function handleMenu() {
@@ -140,7 +132,8 @@
          desliza para cima — ESTA sim depende do scroll (heroProgress) -->
     <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
 
-    <!-- Bloco de saudação: nome + frase, ambos na fonte importada. -->
+    <!-- Bloco de saudação: nome + frase, sempre branco (como no
+         design original) sobre a foto. -->
     <div class="hero-greeting-block" style="opacity:{1 - heroProgress}">
       <p class="hero-greeting-name">{userName}!</p>
       <p class="hero-greeting-text">{greetingText}</p>
@@ -149,8 +142,8 @@
 
   <button
     class="search-bar pulse-tap"
-    class:search-bar-hidden={searchBarHidden}
-    bind:this={searchBarEl}
+    style="opacity:{searchBarOpacity}; transform:scale({searchBarScale});"
+    class:search-bar-inert={searchBarInert}
     on:click={handleOpenSearch}
   >
     <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
@@ -373,18 +366,13 @@
     -webkit-tap-highlight-color: transparent;
     position: relative;
     z-index: 1;
-    opacity: 1;
-    transform: scale(1);
-    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1), transform .2s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0s;
   }
-  /* Some ao rolar (heroProgress > 0), só reaparece quando volta ao
-     topo absoluto — nunca com scroll para cima a meio do caminho. */
-  .search-bar.search-bar-hidden {
-    opacity: 0;
-    transform: scale(0.92);
+  /* Desaparecimento progressivo, ligado diretamente a heroProgress
+     via opacity/transform inline — sem classe liga/desliga. Fica
+     não-interativa perto do fim do fade, para não capturar toques
+     enquanto praticamente invisível. */
+  .search-bar.search-bar-inert {
     pointer-events: none;
-    visibility: hidden;
-    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1), transform .2s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear .2s;
   }
   .search-bar-icon {
     width: 18px;

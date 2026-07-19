@@ -1,47 +1,50 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  
+
   export let c;
   export let activePanel = null;
   export let canUndo = false;
   export let canRedo = false;
   export let kbOffset = 0;
   export let visible = false;
-  
+
   const dispatch = createEventDispatcher();
-  
+
+  // Base oficial do pacote @fluentui/svg-icons (Microsoft Fluent System Icons)
+  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+
   const GROUPS = [
     [
-      { id: 'undo', icon: 'undo', label: 'Desfazer', disabled: () => !canUndo },
-      { id: 'redo', icon: 'redo', label: 'Refazer', disabled: () => !canRedo },
+      { id: 'undo', icon: 'arrow_undo_24_regular', label: 'Desfazer', disabled: () => !canUndo },
+      { id: 'redo', icon: 'arrow_redo_24_regular', label: 'Refazer', disabled: () => !canRedo },
     ],
     [
-      { id: 'bold', icon: 'bold', label: 'Negrito' },
-      { id: 'italic', icon: 'italic', label: 'Itálico' },
-      { id: 'underline', icon: 'underline', label: 'Sublinhado' },
+      { id: 'bold', icon: 'text_bold_24_regular', label: 'Negrito' },
+      { id: 'italic', icon: 'text_italic_24_regular', label: 'Itálico' },
+      { id: 'underline', icon: 'text_underline_24_regular', label: 'Sublinhado' },
     ],
     [
-      { id: 'font', icon: 'font', label: 'Fonte', panel: true },
-      { id: 'size', icon: 'font_size', label: 'Tamanho', panel: true },
-      { id: 'color', icon: 'text_color', label: 'Cor', panel: true },
+      { id: 'font', icon: 'text_font_24_regular', label: 'Fonte', panel: true },
+      { id: 'size', icon: 'text_font_size_24_regular', label: 'Tamanho', panel: true },
+      { id: 'color', icon: 'color_24_regular', label: 'Cor', panel: true },
     ],
     [
-      { id: 'align', icon: 'align_left', label: 'Alinhamento', panel: true },
-      { id: 'list', icon: 'list_bullet', label: 'Listas', panel: true },
+      { id: 'align', icon: 'text_align_left_24_regular', label: 'Alinhamento', panel: true },
+      { id: 'list', icon: 'text_bullet_list_24_regular', label: 'Listas', panel: true },
     ],
     [
-      { id: 'link', icon: 'link', label: 'Link', panel: true },
-      { id: 'footnote', icon: 'footnote', label: 'Nota de rodapé', panel: true },
+      { id: 'link', icon: 'link_24_regular', label: 'Link', panel: true },
+      { id: 'footnote', icon: 'text_footnote_24_regular', label: 'Nota de rodapé', panel: true },
     ],
     [
-      { id: 'insert', icon: 'image', label: 'Imagem' },
-      { id: 'table', icon: 'table', label: 'Tabela' },
+      { id: 'insert', icon: 'image_24_regular', label: 'Imagem' },
+      { id: 'table', icon: 'table_24_regular', label: 'Tabela' },
     ],
     [
-      { id: 'layers', icon: 'layers', label: 'Camadas', panel: true },
+      { id: 'layers', icon: 'layer_24_regular', label: 'Camadas', panel: true },
     ],
   ];
-  
+
   function press(item) {
     if (item.disabled && item.disabled()) return;
     dispatch('action', item.id);
@@ -66,18 +69,24 @@
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
       {#each group as item}
-        <button
-          class="tb-btn"
-          class:tb-active={item.panel && activePanel === item.id}
-          disabled={item.disabled ? item.disabled() : false}
-          on:click={() => press(item)}
-          aria-label={item.label}
-        >
-          <span
-            class="icon-mask"
-            style="mask-image:url('/icons/svg/docs/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{item.icon}.svg');background:{c.iconTint};width:18px;height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
-          ></span>
-        </button>
+        <fluent-tooltip content={item.label}>
+          <button
+            class="tb-btn"
+            class:tb-active={item.panel && activePanel === item.id}
+            disabled={item.disabled ? item.disabled() : false}
+            on:click={() => press(item)}
+            aria-label={item.label}
+            slot="anchor"
+          >
+            <span
+              class="icon-mask"
+              style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:18px;height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+            ></span>
+            {#if item.panel && activePanel === item.id}
+              <fluent-badge class="tb-active-dot" appearance="filled" color="brand" size="extra-small"></fluent-badge>
+            {/if}
+          </button>
+        </fluent-tooltip>
       {/each}
       {#if gi < GROUPS.length - 1}
         <div class="tb-divider" style="background:{c.divider}"></div>
@@ -88,7 +97,7 @@
   <button class="tb-fab" style="background:#2F7BF6" on:click={pressDone} aria-label="Concluir edição">
     <span
       class="icon-mask"
-      style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');background:#FFFFFF;width:20px;height:20px;"
+      style="mask-image:url('{FLUENT_CDN}checkmark_24_filled.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_filled.svg');background:#FFFFFF;width:20px;height:20px;"
     ></span>
   </button>
 </div>
@@ -126,6 +135,7 @@
   }
   .tb-pill::-webkit-scrollbar { display: none; }
   .tb-btn {
+    position: relative;
     width: 36px; height: 36px; border: none; background: transparent; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
@@ -135,6 +145,14 @@
   .tb-btn:disabled { cursor: default; }
   .tb-btn:disabled:active { transform: none; background: transparent; }
   .tb-active { background: rgba(47,123,246,0.16); }
+  .tb-active-dot {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 6px; height: 6px;
+    min-width: 0; min-height: 0;
+    padding: 0;
+    pointer-events: none;
+  }
   .tb-divider { width: 1px; height: 18px; margin: 0 3px; flex-shrink: 0; }
 
   /* FAB circular de concluir edição — fora da pill, sempre visível,

@@ -28,6 +28,8 @@
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
+  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+
   const STORAGE_PREFIX = 'docs_';
   const CUSTOM_COLORS_KEY = STORAGE_PREFIX + 'custom_colors';
 
@@ -584,9 +586,9 @@
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
+    <fluent-button appearance="subtle" class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    </fluent-button>
 
     <div class="appbar-center">
       <input
@@ -602,9 +604,9 @@
       </span>
     </div>
 
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/more_vert.svg');-webkit-mask-image:url('/icons/svg/more_vert.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-    </button>
+    <fluent-button appearance="subtle" class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    </fluent-button>
   </div>
 
   <div class="canvas-area" style="background:{c.docCanvasBg}">
@@ -749,13 +751,13 @@
     background: inherit;
     contain: paint;
   }
-  .appbar-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+  :global(.appbar-btn) {
+    width: 36px; height: 36px; border-radius: 50% !important; min-width: 0;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
-  .appbar-btn:active { opacity: .7; transform: scale(0.94); }
+  :global(.appbar-btn:active) { opacity: .7; transform: scale(0.94); }
   .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
   .doc-name-input {
     width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;

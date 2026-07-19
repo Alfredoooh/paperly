@@ -10,11 +10,13 @@
   
   const dispatch = createEventDispatcher();
   
+  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+  
   const ITEMS = [
-    { id: 'duplicate', label: 'Duplicar', icon: 'duplicate' },
-    { id: 'share', label: 'Partilhar', icon: 'share' },
-    { id: 'export', label: 'Exportar', icon: 'export' },
-    { id: 'delete', label: 'Apagar', icon: 'delete', danger: true },
+    { id: 'duplicate', label: 'Duplicar', icon: 'copy_24_regular' },
+    { id: 'share', label: 'Partilhar', icon: 'share_24_regular' },
+    { id: 'export', label: 'Exportar', icon: 'arrow_export_24_regular' },
+    { id: 'delete', label: 'Apagar', icon: 'delete_24_regular', danger: true },
   ];
   
   function select(id) {
@@ -24,17 +26,17 @@
 
 {#if visible}
   <button class="anchor-overlay" on:click={() => dispatch('close')} aria-label="Fechar menu"></button>
-  <div class="anchor-menu" style="background:{c.dialogBackground}; top:{anchor.top}px; right:{anchor.right}px;">
+  <fluent-menu class="anchor-menu" style="background:{c.dialogBackground}; top:{anchor.top}px; right:{anchor.right}px;">
     {#each ITEMS as item, i}
-      <button class="anchor-item" class:anchor-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/docs/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{item.icon}.svg');background:{item.danger ? '#FF3B30' : c.iconTint};width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <fluent-menu-item class="anchor-item" class:anchor-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{item.danger ? '#FF3B30' : c.iconTint};width:18px;height:18px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;" slot="start"></span>
         <span>{item.label}</span>
-      </button>
+      </fluent-menu-item>
       {#if i < ITEMS.length - 1}
         <div class="anchor-divider" style="background:{c.divider}"></div>
       {/if}
     {/each}
-  </div>
+  </fluent-menu>
 {/if}
 
 <style>
@@ -42,7 +44,7 @@
     position: fixed; inset: 0; z-index: 80;
     background: transparent; border: none; cursor: default; width: 100%; height: 100%;
   }
-  .anchor-menu {
+  :global(.anchor-menu) {
     position: fixed;
     min-width: 200px;
     border-radius: 18px;
@@ -51,18 +53,19 @@
     z-index: 81;
     transform-origin: top right;
     animation: anchorPop .26s cubic-bezier(0.34, 1.4, 0.64, 1);
+    display: block;
   }
   @keyframes anchorPop {
     0% { transform: scale(0.85) translateY(-6px); opacity: 0; }
     100% { transform: scale(1) translateY(0); opacity: 1; }
   }
-  .anchor-item {
+  :global(.anchor-item) {
     width: 100%; display: flex; align-items: center; gap: 12px;
     background: none; border: none; padding: 13px 14px; border-radius: 12px;
     font-size: 15px; font-weight: 500; text-align: left; cursor: pointer;
     -webkit-tap-highlight-color: transparent; transition: background .12s;
   }
-  .anchor-item:active { background: rgba(127,127,127,0.10); }
+  :global(.anchor-item:active) { background: rgba(127,127,127,0.10); }
   .anchor-danger { color: #FF3B30; }
   .anchor-divider { height: 1px; margin: 0 10px; }
 

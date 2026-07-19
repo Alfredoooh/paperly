@@ -6,12 +6,14 @@
 
   const dispatch = createEventDispatcher();
 
+  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+
   const TOOLS = [
-    { id: 'templates', icon: 'templates', label: 'Modelos' },
-    { id: 'shapes', icon: 'shapes', label: 'Formas' },
-    { id: 'tools', icon: 'tools', label: 'Ferramentas' },
-    { id: 'insert', icon: 'image', label: 'Imagem' },
-    { id: 'table', icon: 'table', label: 'Tabela' },
+    { id: 'templates', icon: 'document_multiple_24_regular', label: 'Modelos' },
+    { id: 'shapes', icon: 'shapes_24_regular', label: 'Formas' },
+    { id: 'tools', icon: 'wrench_24_regular', label: 'Ferramentas' },
+    { id: 'insert', icon: 'image_24_regular', label: 'Imagem' },
+    { id: 'table', icon: 'table_24_regular', label: 'Tabela' },
   ];
 
   let pressedId = null;
@@ -42,22 +44,25 @@
   style="background:{c.creationBarBg};"
 >
   {#each TOOLS as item}
-    <button
-      class="ctb-btn"
-      class:ctb-btn-pressed={pressedId === item.id}
-      on:pointerdown={() => onPointerDown(item.id)}
-      on:pointerup={onPointerUp}
-      on:pointercancel={onPointerUp}
-      on:click={() => press(item)}
-      aria-label={item.label}
-    >
-      <span class="ctb-btn-bg"></span>
-      <span
-        class="icon-mask"
-        style="mask-image:url('/icons/svg/docs/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/docs/{item.icon}.svg');background:{c.iconTint};width:20px;height:20px;"
-      ></span>
-      <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
-    </button>
+    <fluent-tooltip content={item.label}>
+      <button
+        class="ctb-btn"
+        class:ctb-btn-pressed={pressedId === item.id}
+        on:pointerdown={() => onPointerDown(item.id)}
+        on:pointerup={onPointerUp}
+        on:pointercancel={onPointerUp}
+        on:click={() => press(item)}
+        aria-label={item.label}
+        slot="anchor"
+      >
+        <span class="ctb-btn-bg"></span>
+        <span
+          class="icon-mask"
+          style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:20px;height:20px;"
+        ></span>
+        <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
+      </button>
+    </fluent-tooltip>
   {/each}
 </div>
 

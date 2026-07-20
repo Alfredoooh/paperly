@@ -17,6 +17,34 @@
   const ROW_H = 34;
   const HEADER_H = 30;
 
+  // ── Virtualização ────────────────────────────────────────────
+  //
+  // PERFORMANCE: com a grelha por defeito (60 linhas × 26 colunas =
+  // 1.560 células), desenhar todas de uma vez no mount era o que
+  // fazia o Sheets demorar visivelmente mais a abrir do que as outras
+  // apps — 1.560 elementos DOM, cada um com ~7 estilos interpolados
+  // e 4 listeners, criados de uma só vez antes do primeiro paint.
+  //
+  // A partir daqui só se desenham as células realmente visíveis no
+  // "grid-scroller" (mais uma margem de OVERSCAN células para fora de
+  // cada lado, para não haver flash em branco durante scroll rápido).
+  // O "grid-canvas" continua a ter width/height TOTAIS — isso é o que
+  // dá à scrollbar o tamanho real do documento — só o CONTEÚDO dentro
+  // dele é que passa a ser parcial. Toda a lógica de seleção/edição/
+  // navegação por teclado já operava sobre (row,col)/addr, nunca sobre
+  // a existência do elemento DOM, por isso continua a funcionar sem
+  // qualquer mudança de comportamento, mesmo com a célula ativa fora
+  // do viewport (ex: navegação por teclado para lá do que está visível
+  // já chama scrollCellIntoView, que só depende de scrollerEl).
+
+  const OVERSCAN_ROWS = 6;
+  const OVERSCAN_COLS = 3;
+
+  let scrollTop = 0;
+  let scrollLeft = 0;
+  let viewportW = 0;
+  let viewportH = 0;
+
   function colWidth(colIdx) {
     return doc.colWidths[String(colIdx)] || DEFAULT_COL_W;
   }
@@ -27,9 +55,19 @@
 
   function syncHeaderScroll() {
     if (!scrollerEl) return;
+    scrollTop = scrollerEl.scrollTop;
+    scrollLeft = scrollerEl.scrollLeft;
     if (colHeaderEl) colHeaderEl.scrollLeft = scrollerEl.scrollLeft;
     if (rowHeaderEl) rowHeaderEl.scrollTop = scrollerEl.scrollTop;
   }
+
+  function syncViewportSize() {
+    if (!scrollerEl) return;
+    viewportW = scrollerEl.clientWidth;
+    viewportH = scrollerEl.clientHeight;
+  }
+
+  let resizeObserver;
 
   // ── Edição de célula ──────────────────────────────────────────
 
@@ -180,6 +218,56 @@
   $: totalWidth = colOffsets[doc.cols];
   $: totalHeight = doc.rows * ROW_H;
 
+  // ── Range visível (linhas/colunas), com overscan ─────────────
+  //
+  // Traduz scrollTop/scrollLeft + tamanho do viewport num intervalo
+  // [rowStart,rowEnd) / [colStart,colEnd) de índices a desenhar. Feito
+  // por busca linear sobre colOffsets (poucas dezenas de colunas no
+  // caso normal — não vale a pena busca binária aqui) e por divisão
+  // direta para linhas, já que ROW_H é fixo.
+
+  $: firstVisibleRow = Math.max(0, Math.floor(scrollTop / ROW_H));
+  $: lastVisibleRow = Math.min(doc.rows - 1, Math.floor((scrollTop + viewportH) / ROW_H));
+  $: rowStart = Math.max(0, firstVisibleRow - OVERSCAN_ROWS);
+  $: rowEnd = Math.min(doc.rows - 1, lastVisibleRow + OVERSCAN_ROWS);
+
+  $: firstVisibleCol = (() => {
+    for (let i = 0; i < doc.cols; i++) {
+      if (colOffsets[i + 1] > scrollLeft) return i;
+    }
+    return Math.max(0, doc.cols - 1);
+  })();
+  $: lastVisibleCol = (() => {
+    const rightEdge = scrollLeft + viewportW;
+    for (let i = firstVisibleCol; i < doc.cols; i++) {
+      if (colOffsets[i] >= rightEdge) return Math.max(firstVisibleCol, i - 1);
+    }
+    return doc.cols - 1;
+  })();
+  $: colStart = Math.max(0, firstVisibleCol - OVERSCAN_COLS);
+  $: colEnd = Math.min(doc.cols - 1, lastVisibleCol + OVERSCAN_COLS);
+
+  // Arrays simples [rowStart..rowEnd] / [colStart..colEnd] para os
+  // #each com key — muito mais baratos que Array(doc.rows) inteiro.
+  $: visibleRowIndices = (() => {
+    const arr = [];
+    for (let r = rowStart; r <= rowEnd; r++) arr.push(r);
+    return arr;
+  })();
+  $: visibleColIndices = (() => {
+    const arr = [];
+    for (let c = colStart; c <= colEnd; c++) arr.push(c);
+    return arr;
+  })();
+
+  // Cabeçalhos de coluna/linha também só desenham o range visível —
+  // mas mantêm um "spacer" invisível antes/depois para a barra de
+  // cabeçalho continuar com o comprimento total e alinhada ao scroll.
+  $: colHeaderLeadWidth = colOffsets[colStart];
+  $: colHeaderTrailWidth = totalWidth - colOffsets[colEnd + 1];
+  $: rowHeaderLeadHeight = rowStart * ROW_H;
+  $: rowHeaderTrailHeight = totalHeight - (rowEnd + 1) * ROW_H;
+
   // ── Range de seleção (normalizado) ─────────────────────────────
 
   $: selRange = (() => {
@@ -213,10 +301,20 @@
   onMount(() => {
     window.addEventListener('pointerup', onGlobalPointerUp);
     window.addEventListener('keydown', handleTypeToEdit);
+    syncViewportSize();
+    if (scrollerEl && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => syncViewportSize());
+      resizeObserver.observe(scrollerEl);
+    } else {
+      // fallback sem ResizeObserver: recalcula pelo menos no resize da janela
+      window.addEventListener('resize', syncViewportSize);
+    }
   });
   onDestroy(() => {
     window.removeEventListener('pointerup', onGlobalPointerUp);
     window.removeEventListener('keydown', handleTypeToEdit);
+    if (resizeObserver) resizeObserver.disconnect();
+    else window.removeEventListener('resize', syncViewportSize);
   });
 
   // Expõe para o pai poder pedir foco/edit programaticamente (ex: barra de fórmulas)
@@ -236,10 +334,13 @@
   <!-- Canto superior-esquerdo fixo -->
   <div class="corner" style="background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};width:{ROW_HEADER_W}px;height:{HEADER_H}px;"></div>
 
-  <!-- Cabeçalho de colunas (A, B, C...) — sincroniza scroll horizontal com o corpo -->
+  <!-- Cabeçalho de colunas (A, B, C...) — sincroniza scroll horizontal com o corpo.
+       Só desenha colStart..colEnd; os dois spacers mantêm o alinhamento visual
+       e o comprimento total de scroll idêntico ao de antes da virtualização. -->
   <div class="col-header" bind:this={colHeaderEl} style="left:{ROW_HEADER_W}px;height:{HEADER_H}px;background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};">
     <div class="col-header-inner" style="width:{totalWidth}px;">
-      {#each Array(doc.cols) as _, col}
+      <div class="header-spacer" style="width:{colHeaderLeadWidth}px;"></div>
+      {#each visibleColIndices as col (col)}
         <div
           class="col-head-cell"
           class:col-head-active={selRange && col >= selRange.c0 && col <= selRange.c1}
@@ -248,13 +349,16 @@
           {cellId(0, col).replace(/\d+$/, '')}
         </div>
       {/each}
+      <div class="header-spacer" style="width:{colHeaderTrailWidth}px;"></div>
     </div>
   </div>
 
-  <!-- Cabeçalho de linhas (1, 2, 3...) — sincroniza scroll vertical com o corpo -->
+  <!-- Cabeçalho de linhas (1, 2, 3...) — sincroniza scroll vertical com o corpo.
+       Mesmo princípio de spacers do cabeçalho de colunas, acima. -->
   <div class="row-header" bind:this={rowHeaderEl} style="top:{HEADER_H}px;width:{ROW_HEADER_W}px;background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};">
     <div class="row-header-inner" style="height:{totalHeight}px;">
-      {#each Array(doc.rows) as _, row}
+      <div class="header-spacer" style="height:{rowHeaderLeadHeight}px;"></div>
+      {#each visibleRowIndices as row (row)}
         <div
           class="row-head-cell"
           class:row-head-active={selRange && row >= selRange.r0 && row <= selRange.r1}
@@ -263,10 +367,15 @@
           {row + 1}
         </div>
       {/each}
+      <div class="header-spacer" style="height:{rowHeaderTrailHeight}px;"></div>
     </div>
   </div>
 
-  <!-- Corpo da grelha (o "papel" de sheets) — scroll bidirecional -->
+  <!-- Corpo da grelha (o "papel" de sheets) — scroll bidirecional.
+       PERFORMANCE: grid-canvas mantém width/height TOTAIS (para a
+       scrollbar refletir o tamanho real do documento), mas só as
+       células dentro de [rowStart,rowEnd] × [colStart,colEnd] são
+       desenhadas — ver bloco "Range visível" acima do <script>. -->
   <div
     class="grid-scroller"
     bind:this={scrollerEl}
@@ -274,8 +383,8 @@
     on:scroll={syncHeaderScroll}
   >
     <div class="grid-canvas" style="width:{totalWidth}px;height:{totalHeight}px;background:{c.sheetCellBg};">
-      {#each Array(doc.rows) as _, row}
-        {#each Array(doc.cols) as __, col}
+      {#each visibleRowIndices as row (row)}
+        {#each visibleColIndices as col (col)}
           {@const addr = cellId(row, col)}
           {@const meta = cellMeta(addr)}
           <div
@@ -368,6 +477,7 @@
     overflow: hidden; border-bottom: 1px solid;
   }
   .col-header-inner { display: flex; height: 100%; }
+  .header-spacer { flex-shrink: 0; }
   .col-head-cell {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     font-size: 11.5px; font-weight: 600; border-right: 1px solid;

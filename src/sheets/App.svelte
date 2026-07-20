@@ -71,20 +71,12 @@
 
 {#if ready}
   {#if route === 'main'}
-    <MainPage
-      {isDark}
-      {user}
-      {resourceId}
-      appTitle={APP_TITLE}
-      appId={APP_ID}
-      iconPath={APP_ICON}
-      on:nav={handleNav}
-    />
+    <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
   {/if}
 {/if}
 
 <style>
-  :global(:root) { --primary: #21A366; }
+  :global(:root) { --primary: #2F7BF6; }
   :global(*, *::before, *::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :global(html, body) { width:100%; height:100%; overscroll-behavior:none; }
   :global(body) {

@@ -4,6 +4,8 @@
   import {
     loadDocument, createDocument, persistDocument, recomputeAll,
     cellId, parseCellId, downloadCsv, duplicateDocument, deleteDocument,
+    getActiveSheet, addSheet, removeSheet, renameSheet, duplicateSheet, setActiveSheet,
+    MAX_SHEETS,
   } from '../lib/sheet-store.js';
   import { FormulaError } from '../lib/formula-engine.js';
   import { fluentIconUrl } from '../lib/icon-fallback.js';
@@ -78,6 +80,11 @@
   let editingName = false;
   let nameDraft = '';
 
+  // A folha (aba) atualmente ativa — é ISTO que se passa ao SheetGrid
+  // no lugar de `doc`, porque o SheetGrid só entende rows/cols/cells/
+  // colWidths de uma única folha, exatamente como antes das abas.
+  $: activeSheet = doc ? getActiveSheet(doc) : null;
+
   function ensureDocId() {
     if (resourceId) return resourceId;
     const newId = 'sheet_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -123,6 +130,11 @@
   }
 
   // ── Undo / Redo ──────────────────────────────────────────────
+  //
+  // O histórico de undo/redo é POR ABA: trocar de folha não deve
+  // desfazer ações da folha anterior nem vice-versa. Por isso as
+  // pilhas guardam { sheetId, cells } e undo()/redo() só atuam sobre
+  // entradas cujo sheetId bate com a aba ativa no momento.
 
   let undoStack = [];
   let redoStack = [];
@@ -130,7 +142,7 @@
   const MAX_HISTORY = 60;
 
   function snapshotCells() {
-    return JSON.parse(JSON.stringify(doc.cells));
+    return { sheetId: activeSheet.id, cells: JSON.parse(JSON.stringify(activeSheet.cells)) };
   }
 
   function pushHistory() {
@@ -150,28 +162,41 @@
     historyTimer = setTimeout(() => { historyTimer = null; }, 700);
   }
 
+  function applyCellsToActiveSheet(cells) {
+    doc = {
+      ...doc,
+      sheets: doc.sheets.map((s) => (s.id === activeSheet.id ? { ...s, cells } : s)),
+    };
+  }
+
   function undo() {
-    if (undoStack.length === 0) return;
+    // só desfaz se o topo da pilha pertencer à aba atualmente ativa
+    while (undoStack.length > 0 && undoStack[undoStack.length - 1].sheetId !== activeSheet.id) {
+      // entradas de outras abas ficam intactas na pilha, só as saltamos
+      // por agora — reordenar a pilha por aba tornaria undo/redo confuso
+      // entre trocas de folha, por isso simplesmente não há nada para
+      // desfazer NESTA aba enquanto o topo pertencer a outra.
+      break;
+    }
+    if (undoStack.length === 0 || undoStack[undoStack.length - 1].sheetId !== activeSheet.id) return;
     redoStack.push(snapshotCells());
     const prev = undoStack.pop();
-    doc.cells = prev;
-    doc = doc;
+    applyCellsToActiveSheet(prev.cells);
     recompute();
     scheduleSave();
   }
 
   function redo() {
-    if (redoStack.length === 0) return;
+    if (redoStack.length === 0 || redoStack[redoStack.length - 1].sheetId !== activeSheet.id) return;
     undoStack.push(snapshotCells());
     const next = redoStack.pop();
-    doc.cells = next;
-    doc = doc;
+    applyCellsToActiveSheet(next.cells);
     recompute();
     scheduleSave();
   }
 
-  $: canUndo = undoStack.length > 0;
-  $: canRedo = redoStack.length > 0;
+  $: canUndo = undoStack.length > 0 && undoStack[undoStack.length - 1].sheetId === (activeSheet && activeSheet.id);
+  $: canRedo = redoStack.length > 0 && redoStack[redoStack.length - 1].sheetId === (activeSheet && activeSheet.id);
 
   // ── Grid: referência ao componente e estado de seleção ──────
 
@@ -181,38 +206,42 @@
   let selectionFocus = 'A1';
 
   function ensureCell(addr) {
-    if (!doc.cells[addr]) doc.cells[addr] = { raw: '' };
-    return doc.cells[addr];
+    if (!activeSheet.cells[addr]) {
+      const nextCells = { ...activeSheet.cells, [addr]: { raw: '' } };
+      applyCellsToActiveSheet(nextCells);
+      return doc.sheets.find((s) => s.id === activeSheet.id).cells[addr];
+    }
+    return activeSheet.cells[addr];
   }
 
   function handleCellChange(e) {
     const { addr, raw } = e.detail;
     scheduleHistoryPush();
+    const cells = { ...activeSheet.cells };
     if (raw === '' || raw === null || raw === undefined) {
-      if (doc.cells[addr]) {
+      if (cells[addr]) {
         // mantém a formatação da célula (bold/color/etc), só limpa o conteúdo,
         // a menos que a célula não tenha nenhuma formatação — nesse caso remove
         // a entrada por completo para manter a grelha esparsa e leve.
-        const meta = doc.cells[addr];
+        const meta = cells[addr];
         const hasFormatting = meta.bold || meta.italic || meta.underline || meta.align || meta.color || meta.fill || (meta.format && meta.format !== 'general');
         if (hasFormatting) {
-          doc.cells[addr] = { ...meta, raw: '' };
+          cells[addr] = { ...meta, raw: '' };
         } else {
-          delete doc.cells[addr];
+          delete cells[addr];
         }
       }
     } else {
-      const meta = ensureCell(addr);
-      meta.raw = raw;
+      cells[addr] = { ...(cells[addr] || {}), raw };
     }
-    doc = doc;
+    applyCellsToActiveSheet(cells);
     recompute();
     scheduleSave();
   }
 
   // ── Barra de fórmulas (topo) ─────────────────────────────────
 
-  $: formulaBarValue = doc && activeAddr ? (doc.cells[activeAddr] && doc.cells[activeAddr].raw !== undefined ? doc.cells[activeAddr].raw : '') : '';
+  $: formulaBarValue = activeSheet && activeAddr ? (activeSheet.cells[activeAddr] && activeSheet.cells[activeAddr].raw !== undefined ? activeSheet.cells[activeAddr].raw : '') : '';
   let formulaBarFocused = false;
   let formulaBarDraft = '';
 
@@ -240,8 +269,8 @@
     }
   }
 
-  $: activeCellMeta = doc && activeAddr ? (doc.cells[activeAddr] || {}) : {};
-  $: activeErrorCode = doc && activeAddr && resolvedValues[activeAddr] instanceof FormulaError
+  $: activeCellMeta = activeSheet && activeAddr ? (activeSheet.cells[activeAddr] || {}) : {};
+  $: activeErrorCode = activeSheet && activeAddr && resolvedValues[activeAddr] instanceof FormulaError
     ? resolvedValues[activeAddr].code
     : null;
 
@@ -263,14 +292,16 @@
     const r0 = Math.min(a.row, b.row), r1 = Math.max(a.row, b.row);
     const c0 = Math.min(a.col, b.col), c1 = Math.max(a.col, b.col);
     pushHistoryIfNeededOnce();
+    const cells = { ...activeSheet.cells };
     for (let r = r0; r <= r1; r++) {
       for (let col = c0; col <= c1; col++) {
         const addr = cellId(r, col);
-        const meta = ensureCell(addr);
+        const meta = { ...(cells[addr] || { raw: '' }) };
         patchFn(meta);
+        cells[addr] = meta;
       }
     }
-    doc = doc;
+    applyCellsToActiveSheet(cells);
     recompute();
     scheduleSave();
   }
@@ -392,23 +423,29 @@
 
   function reindexCells(transformFn) {
     const next = {};
-    for (const [addr, val] of Object.entries(doc.cells)) {
+    for (const [addr, val] of Object.entries(activeSheet.cells)) {
       const pos = parseCellId(addr);
       if (!pos) continue;
       const result = transformFn(pos.row, pos.col);
       if (result === null) continue; // célula removida pela operação
       next[cellId(result.row, result.col)] = val;
     }
-    doc.cells = next;
+    return next;
+  }
+
+  function patchActiveSheet(patch) {
+    doc = {
+      ...doc,
+      sheets: doc.sheets.map((s) => (s.id === activeSheet.id ? { ...s, ...patch } : s)),
+    };
   }
 
   function insertRowAtActive() {
     const pos = parseCellId(activeAddr);
     if (!pos) return;
     pushHistory();
-    reindexCells((row, col) => ({ row: row >= pos.row ? row + 1 : row, col }));
-    doc.rows = doc.rows + 1;
-    doc = doc;
+    const cells = reindexCells((row, col) => ({ row: row >= pos.row ? row + 1 : row, col }));
+    patchActiveSheet({ cells, rows: activeSheet.rows + 1 });
     recompute();
     scheduleSave();
   }
@@ -416,37 +453,106 @@
     const pos = parseCellId(activeAddr);
     if (!pos) return;
     pushHistory();
-    reindexCells((row, col) => ({ row, col: col >= pos.col ? col + 1 : col }));
-    doc.cols = doc.cols + 1;
-    doc = doc;
+    const cells = reindexCells((row, col) => ({ row, col: col >= pos.col ? col + 1 : col }));
+    patchActiveSheet({ cells, cols: activeSheet.cols + 1 });
     recompute();
     scheduleSave();
   }
   function deleteRowAtActive() {
     const pos = parseCellId(activeAddr);
-    if (!pos || doc.rows <= 1) return;
+    if (!pos || activeSheet.rows <= 1) return;
     pushHistory();
-    reindexCells((row, col) => {
+    const cells = reindexCells((row, col) => {
       if (row === pos.row) return null;
       return { row: row > pos.row ? row - 1 : row, col };
     });
-    doc.rows = doc.rows - 1;
-    doc = doc;
+    patchActiveSheet({ cells, rows: activeSheet.rows - 1 });
     recompute();
     scheduleSave();
   }
   function deleteColAtActive() {
     const pos = parseCellId(activeAddr);
-    if (!pos || doc.cols <= 1) return;
+    if (!pos || activeSheet.cols <= 1) return;
     pushHistory();
-    reindexCells((row, col) => {
+    const cells = reindexCells((row, col) => {
       if (col === pos.col) return null;
       return { row, col: col > pos.col ? col - 1 : col };
     });
-    doc.cols = doc.cols - 1;
-    doc = doc;
+    patchActiveSheet({ cells, cols: activeSheet.cols - 1 });
     recompute();
     scheduleSave();
+  }
+
+  // ── Abas (folhas) ─────────────────────────────────────────────
+
+  let renamingSheetId = null;
+  let renameDraft = '';
+  let renameInputEl;
+
+  function switchToSheet(sheetId) {
+    if (sheetId === doc.activeSheetId) return;
+    saveImmediately();
+    doc = setActiveSheet(doc, sheetId);
+    activeAddr = 'A1';
+    selectionAnchor = 'A1';
+    selectionFocus = 'A1';
+    formulaBarFocused = false;
+    recompute();
+    scheduleSave();
+  }
+
+  function handleAddSheet() {
+    if (doc.sheets.length >= MAX_SHEETS) return;
+    saveImmediately();
+    doc = addSheet(doc);
+    activeAddr = 'A1';
+    selectionAnchor = 'A1';
+    selectionFocus = 'A1';
+    recompute();
+    scheduleSave();
+  }
+
+  function handleDuplicateSheet(sheetId) {
+    if (doc.sheets.length >= MAX_SHEETS) return;
+    saveImmediately();
+    doc = duplicateSheet(doc, sheetId);
+    activeAddr = 'A1';
+    selectionAnchor = 'A1';
+    selectionFocus = 'A1';
+    recompute();
+    scheduleSave();
+  }
+
+  let confirmDeleteSheetId = null;
+  function handleRequestDeleteSheet(sheetId) {
+    if (doc.sheets.length <= 1) return; // botão já vem desabilitado neste caso, é só defesa extra
+    confirmDeleteSheetId = sheetId;
+  }
+  function confirmDeleteSheet() {
+    if (!confirmDeleteSheetId) return;
+    doc = removeSheet(doc, confirmDeleteSheetId);
+    confirmDeleteSheetId = null;
+    activeAddr = 'A1';
+    selectionAnchor = 'A1';
+    selectionFocus = 'A1';
+    recompute();
+    scheduleSave();
+  }
+
+  async function startRenameSheet(sheetId) {
+    const sheet = doc.sheets.find((s) => s.id === sheetId);
+    if (!sheet) return;
+    renamingSheetId = sheetId;
+    renameDraft = sheet.name;
+    await tick();
+    renameInputEl && renameInputEl.select();
+  }
+  function commitRenameSheet() {
+    if (renamingSheetId) {
+      doc = renameSheet(doc, renamingSheetId, renameDraft);
+      scheduleSave();
+    }
+    renamingSheetId = null;
   }
 
   // ── Nome do documento (no appbar) ────────────────────────────
@@ -460,8 +566,7 @@
   function commitName() {
     editingName = false;
     const trimmed = nameDraft.trim();
-    doc.name = trimmed || 'Nova folha';
-    doc = doc;
+    doc = { ...doc, name: trimmed || 'Nova pasta de cálculo' };
     saveImmediately();
   }
 
@@ -568,10 +673,10 @@
     docReady = false;
     undoStack = [];
     redoStack = [];
-    redoStack = [];
     historyTimer = null;
     editingName = false;
     formulaBarFocused = false;
+    renamingSheetId = null;
     loadOrCreate();
   }
 
@@ -632,11 +737,13 @@
     </div>
   {/if}
 
-  <!-- Grelha (o "papel" dedicado a sheets) -->
-  {#if docReady && doc}
+  <!-- Grelha (o "papel" dedicado a sheets) — recebe a FOLHA ATIVA,
+       não o documento inteiro, porque o SheetGrid só entende
+       rows/cols/cells/colWidths de uma única folha. -->
+  {#if docReady && activeSheet}
     <SheetGrid
       bind:this={gridComp}
-      {doc}
+      doc={activeSheet}
       {resolvedValues}
       {c}
       bind:activeAddr
@@ -644,6 +751,76 @@
       bind:selectionFocus
       on:cellchange={handleCellChange}
     />
+  {/if}
+
+  <!-- Barra de abas (tabs) — estilo Excel: scroll horizontal, aba
+       ativa destacada com a cor primária, "+" para adicionar no fim. -->
+  {#if docReady && doc}
+    <div class="sheet-tabs" style="background:{c.dialogBackground};border-color:{c.divider};">
+      <div class="sheet-tabs-scroll">
+        {#each doc.sheets as sheet (sheet.id)}
+          <div class="sheet-tab-wrap">
+            {#if renamingSheetId === sheet.id}
+              <input
+                class="sheet-tab-input"
+                bind:this={renameInputEl}
+                bind:value={renameDraft}
+                style="color:{c.primary};border-color:{c.primary};"
+                on:blur={commitRenameSheet}
+                on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitRenameSheet(); } else if (e.key === 'Escape') { renamingSheetId = null; } }}
+              />
+            {:else}
+              <button
+                class="sheet-tab"
+                class:sheet-tab-active={sheet.id === doc.activeSheetId}
+                style={sheet.id === doc.activeSheetId
+                  ? `color:${c.primary};border-color:${c.primary};background:${c.appbarBtnBgActive};`
+                  : `color:${c.textSecondary};border-color:transparent;`}
+                on:click={() => switchToSheet(sheet.id)}
+                on:dblclick={() => startRenameSheet(sheet.id)}
+              >
+                {sheet.name}
+              </button>
+            {/if}
+          </div>
+        {/each}
+        <button
+          class="sheet-tab-add"
+          style="color:{c.textSecondary};"
+          on:click={handleAddSheet}
+          disabled={doc.sheets.length >= MAX_SHEETS}
+          aria-label="Nova folha"
+        >
+          <span class="icon-mask" style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.textSecondary};width:16px;height:16px;transform:rotate(45deg);"></span>
+        </button>
+      </div>
+
+      <!-- Ações da aba ativa: duplicar / apagar — só a aba corrente,
+           mantém a barra compacta em vez de um menu de contexto por
+           aba (que em mobile, com toques, é mais atrito que ajuda). -->
+      {#if activeSheet}
+        <div class="sheet-tab-actions">
+          <button
+            class="sheet-tab-action-btn"
+            style="background:{c.appbarBtnBg}"
+            on:click={() => handleDuplicateSheet(activeSheet.id)}
+            disabled={doc.sheets.length >= MAX_SHEETS}
+            aria-label="Duplicar folha"
+          >
+            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('duplicate')}');-webkit-mask-image:url('{fluentIconUrl('duplicate')}');background:{c.iconTint};width:16px;height:16px;"></span>
+          </button>
+          <button
+            class="sheet-tab-action-btn"
+            style="background:{c.appbarBtnBg}"
+            on:click={() => handleRequestDeleteSheet(activeSheet.id)}
+            disabled={doc.sheets.length <= 1}
+            aria-label="Apagar folha"
+          >
+            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete')}');-webkit-mask-image:url('{fluentIconUrl('delete')}');background:{doc.sheets.length <= 1 ? c.textSecondary : '#C42B1C'};width:16px;height:16px;"></span>
+          </button>
+        </div>
+      {/if}
+    </div>
   {/if}
 
   <!-- Espaço reservado para a barra de formatação fixa no rodapé -->
@@ -706,6 +883,16 @@
   on:confirm={confirmDelete}
 />
 
+<ConfirmDialog
+  visible={!!confirmDeleteSheetId}
+  {c}
+  message="Apagar esta folha? Todas as células e formatação desta aba serão perdidas."
+  confirmLabel="Apagar"
+  loading={false}
+  on:cancel={() => { confirmDeleteSheetId = null; }}
+  on:confirm={confirmDeleteSheet}
+/>
+
 <style>
   .page-shell {
     display: flex;
@@ -762,6 +949,57 @@
     background: rgba(196,43,28,0.12); padding: 3px 7px; border-radius: 6px;
     flex-shrink: 0;
   }
+
+  .sheet-tabs {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 6px;
+    border-top: 1px solid;
+    flex-shrink: 0;
+  }
+  .sheet-tabs-scroll {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .sheet-tabs-scroll::-webkit-scrollbar { display: none; }
+  .sheet-tab-wrap { flex-shrink: 0; }
+  .sheet-tab {
+    display: block; flex-shrink: 0;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 14px; border-radius: 10px 10px 0 0;
+    border: none; border-bottom: 2px solid;
+    background: none; cursor: pointer; white-space: nowrap;
+    max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .12s ease, color .12s ease;
+  }
+  .sheet-tab:active { transform: scale(0.97); }
+  .sheet-tab-input {
+    font-size: 13px; font-weight: 600;
+    padding: 6px 10px; border-radius: 8px;
+    border: 1.5px solid; outline: none; background: none;
+    width: 110px; font-family: inherit;
+  }
+  .sheet-tab-add {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+    border: none; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sheet-tab-add:active { transform: scale(0.9); }
+  .sheet-tab-add:disabled { opacity: 0.35; cursor: default; }
+
+  .sheet-tab-actions {
+    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+    padding-left: 4px; border-left: 1px solid rgba(127,127,127,0.16);
+  }
+  .sheet-tab-action-btn {
+    width: 30px; height: 30px; border: none; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .12s ease;
+  }
+  .sheet-tab-action-btn:active { transform: scale(0.88); }
+  .sheet-tab-action-btn:disabled { opacity: 0.35; cursor: default; }
 
   .format-bar-spacer {
     height: calc(46px + env(safe-area-inset-bottom, 0px) + 14px);

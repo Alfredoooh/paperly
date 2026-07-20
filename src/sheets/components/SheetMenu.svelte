@@ -1,7 +1,7 @@
 <!-- components/SheetMenu.svelte -->
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { iconWithFallback } from '../lib/icon-fallback.js';
+  import { fluentIconUrl } from '../lib/icon-fallback.js';
   
   export let visible = false;
   export let anchor = { top: 0, right: 0 };
@@ -71,12 +71,10 @@
   <div class="anchor-menu" style="background:{c.dialogBackground}; border-color:{c.divider}; top:{anchor.top}px; right:{anchor.right}px;">
     {#each ITEMS as item, i}
       <button class="anchor-item" class:anchor-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
-        <img
-          use:iconWithFallback={item.icon}
+        <span
           class="anchor-icon"
-          style={item.danger ? 'filter: invert(20%) sepia(90%) saturate(4000%) hue-rotate(350deg);' : ''}
-          alt=""
-        />
+          style="mask-image:url('{fluentIconUrl(item.icon)}');-webkit-mask-image:url('{fluentIconUrl(item.icon)}');background:{item.danger ? '#C42B1C' : c.iconTint};"
+        ></span>
         <span>{item.label}</span>
       </button>
       {#if i < ITEMS.length - 1}
@@ -116,7 +114,11 @@
   .anchor-danger { color: #C42B1C; }
   .anchor-divider { height: 1px; margin: 0 10px; }
 
-  .anchor-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; object-fit: contain; }
+  .anchor-icon {
+    width: 18px; height: 18px; flex-shrink: 0; display: block;
+    mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .anchor-menu { animation: none; }

@@ -3,8 +3,9 @@
 // Motor de fórmulas para o Nexa Sheets. Sem dependências externas.
 // Suporta: referências de célula (A1), ranges (A1:B5), operadores
 // + - * / ^, parênteses, negativos unários, e as funções SUM,
-// AVERAGE, MIN, MAX, COUNT. Deteta referências circulares (a
-// deteção em si vive em sheet-store.js:recomputeAll).
+// AVERAGE, MIN, MAX, COUNT, SE, SOMASE, CONTASE, PROCV, CONCATENAR,
+// ARREDONDA, E, OU. Deteta referências circulares (a deteção em si
+// vive em sheet-store.js:recomputeAll).
 
 // ── Conversão entre coordenadas e endereços tipo "A1" ──────────────
 
@@ -178,9 +179,9 @@ function parseExpression(tokens) {
   return result;
 }
 
-// ── Funções agregadoras ─────────────────────────────────────────
+// ── Funções agregadoras (recebem array de números já resolvidos) ──
 
-const FUNCTIONS = {
+const NUMERIC_FUNCTIONS = {
   SUM: (nums) => nums.reduce((a, b) => a + b, 0),
   AVERAGE: (nums) => (nums.length === 0 ? 0 : nums.reduce((a, b) => a + b, 0) / nums.length),
   MIN: (nums) => (nums.length === 0 ? 0 : Math.min(...nums)),
@@ -193,7 +194,7 @@ const FUNCTIONS = {
 export class FormulaError extends Error {
   constructor(code) {
     super(code);
-    this.code = code; // '#REF!' | '#DIV/0!' | '#ERROR!' | '#CIRC!'
+    this.code = code; // '#REF!' | '#DIV/0!' | '#ERROR!' | '#CIRC!' | '#N/D!'
   }
 }
 
@@ -217,6 +218,64 @@ function toNumber(v) {
   if (v === '' || v === null || v === undefined) return 0;
   const n = parseFloat(String(v).replace(',', '.'));
   return isNaN(n) ? 0 : n;
+}
+
+function toBoolean(v) {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v !== 0;
+  if (typeof v === 'string') {
+    const s = v.trim().toUpperCase();
+    if (s === 'VERDADEIRO' || s === 'TRUE') return true;
+    if (s === 'FALSO' || s === 'FALSE') return false;
+    return s !== '';
+  }
+  return !!v;
+}
+
+function toDisplayText(v) {
+  if (v === null || v === undefined) return '';
+  if (v instanceof FormulaError) return v.code;
+  if (typeof v === 'boolean') return v ? 'VERDADEIRO' : 'FALSO';
+  return String(v);
+}
+
+// Compara um valor de célula com um critério estilo Excel/Sheets:
+// SOMASE(A1:A10, ">10", B1:B10)  ou  SOMASE(A1:A10, "Lisboa", B1:B10)
+// Aceita: >, <, >=, <=, <>, = seguidos de número ou texto; sem
+// operador, compara igualdade (numérica se ambos forem números,
+// senão texto sem distinguir maiúsculas/minúsculas).
+function matchesCriteria(cellValue, criteria) {
+  if (criteria === null || criteria === undefined) return false;
+  const critStr = String(criteria).trim();
+  const m = /^(<=|>=|<>|>|<|=)\s*(.*)$/.exec(critStr);
+  const op = m ? m[1] : '=';
+  const rhsRaw = m ? m[2] : critStr;
+
+  const rhsNum = parseFloat(String(rhsRaw).replace(',', '.'));
+  const rhsIsNumeric = rhsRaw !== '' && !isNaN(rhsNum);
+  const cellIsNumeric = typeof cellValue === 'number' ||
+    (typeof cellValue === 'string' && cellValue.trim() !== '' && !isNaN(parseFloat(cellValue.replace(',', '.'))));
+
+  if (op !== '=' && op !== '<>') {
+    // operadores relacionais exigem comparação numérica
+    const l = toNumber(cellValue);
+    const r = rhsIsNumeric ? rhsNum : toNumber(rhsRaw);
+    switch (op) {
+      case '>': return l > r;
+      case '<': return l < r;
+      case '>=': return l >= r;
+      case '<=': return l <= r;
+      default: return false;
+    }
+  }
+
+  let equal;
+  if (rhsIsNumeric && cellIsNumeric) {
+    equal = toNumber(cellValue) === rhsNum;
+  } else {
+    equal = toDisplayText(cellValue).trim().toLowerCase() === String(rhsRaw).trim().toLowerCase();
+  }
+  return op === '<>' ? !equal : equal;
 }
 
 function evaluateNode(node, ctx) {
@@ -253,7 +312,101 @@ function evaluateNode(node, ctx) {
       }
     }
     case 'call': {
-      const fn = FUNCTIONS[node.name];
+      const name = node.name;
+
+      // ── Funções que operam sobre nós crus (não convertem tudo para número) ──
+      switch (name) {
+        case 'SE': {
+          if (node.args.length < 2 || node.args.length > 3) throw new FormulaError('#ERROR!');
+          const cond = toBoolean(evaluateNode(node.args[0], ctx));
+          if (cond) return evaluateNode(node.args[1], ctx);
+          if (node.args.length === 3) return evaluateNode(node.args[2], ctx);
+          return false;
+        }
+        case 'E': {
+          if (node.args.length === 0) throw new FormulaError('#ERROR!');
+          return node.args.every((a) => toBoolean(evaluateNode(a, ctx)));
+        }
+        case 'OU': {
+          if (node.args.length === 0) throw new FormulaError('#ERROR!');
+          return node.args.some((a) => toBoolean(evaluateNode(a, ctx)));
+        }
+        case 'CONCATENAR': {
+          return node.args.map((a) => toDisplayText(evaluateNode(a, ctx))).join('');
+        }
+        case 'ARREDONDA': {
+          if (node.args.length < 1 || node.args.length > 2) throw new FormulaError('#ERROR!');
+          const val = toNumber(evaluateNode(node.args[0], ctx));
+          const casas = node.args.length === 2 ? Math.trunc(toNumber(evaluateNode(node.args[1], ctx))) : 0;
+          const fator = Math.pow(10, casas);
+          return Math.round(val * fator) / fator;
+        }
+        case 'SOMASE':
+        case 'CONTASE': {
+          // SOMASE(range_criterio, criterio, [range_soma])
+          // CONTASE(range_criterio, criterio)
+          if (node.args[0].type !== 'range') throw new FormulaError('#REF!');
+          const critAddrs = rangeAddresses(node.args[0].from, node.args[0].to);
+          const criteria = evaluateNode(node.args[1], ctx);
+
+          if (name === 'CONTASE') {
+            let count = 0;
+            for (const addr of critAddrs) {
+              if (matchesCriteria(ctx.getCellValue(addr), criteria)) count++;
+            }
+            return count;
+          }
+
+          // SOMASE: se não houver range_soma, soma o próprio range_criterio
+          let sumAddrs = critAddrs;
+          if (node.args.length >= 3) {
+            if (node.args[2].type !== 'range') throw new FormulaError('#REF!');
+            sumAddrs = rangeAddresses(node.args[2].from, node.args[2].to);
+            if (sumAddrs.length !== critAddrs.length) throw new FormulaError('#REF!');
+          }
+          let total = 0;
+          for (let i = 0; i < critAddrs.length; i++) {
+            if (matchesCriteria(ctx.getCellValue(critAddrs[i]), criteria)) {
+              total += toNumber(ctx.getCellValue(sumAddrs[i]));
+            }
+          }
+          return total;
+        }
+        case 'PROCV': {
+          // PROCV(valor_procurado, range_tabela, indice_coluna, [exato])
+          if (node.args.length < 3 || node.args.length > 4) throw new FormulaError('#ERROR!');
+          if (node.args[1].type !== 'range') throw new FormulaError('#REF!');
+          const alvo = evaluateNode(node.args[0], ctx);
+          const colIdx = Math.trunc(toNumber(evaluateNode(node.args[2], ctx)));
+          if (colIdx < 1) throw new FormulaError('#REF!');
+
+          const fromCell = parseCellId(node.args[1].from);
+          const toCell = parseCellId(node.args[1].to);
+          if (!fromCell || !toCell) throw new FormulaError('#REF!');
+          const r0 = Math.min(fromCell.row, toCell.row), r1 = Math.max(fromCell.row, toCell.row);
+          const c0 = Math.min(fromCell.col, toCell.col), c1 = Math.max(fromCell.col, toCell.col);
+          const numCols = c1 - c0 + 1;
+          if (colIdx > numCols) throw new FormulaError('#REF!');
+
+          for (let r = r0; r <= r1; r++) {
+            const firstColAddr = cellId(r, c0);
+            const cellVal = ctx.getCellValue(firstColAddr);
+            const matches = (typeof alvo === 'number')
+              ? toNumber(cellVal) === alvo
+              : toDisplayText(cellVal).trim().toLowerCase() === toDisplayText(alvo).trim().toLowerCase();
+            if (matches) {
+              const resultAddr = cellId(r, c0 + colIdx - 1);
+              return ctx.getCellValue(resultAddr);
+            }
+          }
+          throw new FormulaError('#N/D!');
+        }
+        default:
+          break; // não é função "crua" — cai para as funções numéricas abaixo
+      }
+
+      // ── Funções numéricas agregadoras (comportamento original) ──
+      const fn = NUMERIC_FUNCTIONS[name];
       if (!fn) throw new FormulaError('#ERROR!');
       const nums = [];
       for (const arg of node.args) {
@@ -279,7 +432,7 @@ function evaluateNode(node, ctx) {
 
 /**
  * Avalia uma fórmula (string começando por "="). Devolve o valor
- * resultante (number | string) ou lança FormulaError.
+ * resultante (number | string | boolean) ou lança FormulaError.
  *
  * ctx.getCellValue(addr) deve devolver o valor JÁ RESOLVIDO de outra
  * célula (o chamador é responsável por resolver dependências por
@@ -337,6 +490,7 @@ export function extractDependencies(formulaText) {
 /** Formata um valor numérico para exibição, respeitando formato da célula. */
 export function formatDisplayValue(value, format) {
   if (value instanceof FormulaError) return value.code;
+  if (typeof value === 'boolean') return value ? 'VERDADEIRO' : 'FALSO';
   if (typeof value !== 'number') return value === undefined || value === null ? '' : String(value);
 
   switch (format) {

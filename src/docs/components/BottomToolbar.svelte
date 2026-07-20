@@ -3,20 +3,15 @@
   
   export let c;
   export let activePanel = null;
-  export let canUndo = false;
-  export let canRedo = false;
   export let kbOffset = 0;
   export let visible = false;
   
   const dispatch = createEventDispatcher();
 
   const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+  const ICON_PX = 512;
   
   const GROUPS = [
-    [
-      { id: 'undo', icon: 'arrow_undo_24_regular', label: 'Desfazer', disabled: () => !canUndo },
-      { id: 'redo', icon: 'arrow_redo_24_regular', label: 'Refazer', disabled: () => !canRedo },
-    ],
     [
       { id: 'bold', icon: 'text_bold_24_regular', label: 'Negrito' },
       { id: 'italic', icon: 'text_italic_24_regular', label: 'Itálico' },
@@ -48,10 +43,6 @@
     if (item.disabled && item.disabled()) return;
     dispatch('action', item.id);
   }
-
-  function pressDone() {
-    dispatch('action', 'done');
-  }
 </script>
 
 <div
@@ -60,10 +51,10 @@
   style="transform: translate3d(0, {visible ? -kbOffset : 40}px, 0);"
 >
   <!--
-    A pill de formatação encolheu (padding menor, gap menor) para
-    abrir espaço ao FAB de concluir edição, que agora fica FORA da
-    pill, à direita, como um círculo próprio — é para lá que foi o
-    botão de check que antes vivia no appbar.
+    Apenas a pill de formatação. Sem FAB de check (o botão de
+    concluir edição vive agora no appbar), sem undo/redo (também
+    movidos para o appbar), e sem containers circulares nos botões —
+    cada botão é um quadrado com cantos levemente arredondados.
   -->
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
@@ -77,7 +68,7 @@
         >
           <span
             class="icon-mask"
-            style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:18px;height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+            style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:18px;max-height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
           ></span>
         </button>
       {/each}
@@ -86,13 +77,6 @@
       {/if}
     {/each}
   </div>
-
-  <button class="tb-fab" style="background:#2F7BF6" on:click={pressDone} aria-label="Concluir edição">
-    <span
-      class="icon-mask"
-      style="mask-image:url('{FLUENT_CDN}checkmark_24_filled.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_filled.svg');background:#FFFFFF;width:20px;height:20px;"
-    ></span>
-  </button>
 </div>
 
 <style>
@@ -111,9 +95,6 @@
     opacity: 0;
     pointer-events: none;
   }
-  /* Pill encurtada: padding e gap reduzidos, e agora tem um max-width
-     próprio (em vez de ocupar toda a largura livre) para deixar
-     espaço fixo e reservado ao FAB ao lado. */
   .tb-pill {
     pointer-events: auto;
     display: flex; align-items: center; gap: 1px;
@@ -127,8 +108,10 @@
     min-width: 0;
   }
   .tb-pill::-webkit-scrollbar { display: none; }
+  /* Botões sem container circular: fundo transparente por defeito,
+     cantos levemente arredondados (não círculo) só quando ativo/press. */
   .tb-btn {
-    width: 36px; height: 36px; border: none; background: transparent; border-radius: 50%;
+    width: 36px; height: 36px; border: none; background: transparent; border-radius: 8px;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background .15s cubic-bezier(0.34,1.56,0.64,1), transform .12s cubic-bezier(0.34,1.56,0.64,1);
@@ -138,25 +121,6 @@
   .tb-btn:disabled:active { transform: none; background: transparent; }
   .tb-active { background: rgba(47,123,246,0.16); }
   .tb-divider { width: 1px; height: 18px; margin: 0 3px; flex-shrink: 0; }
-
-  /* FAB circular de concluir edição — fora da pill, sempre visível,
-     nunca faz parte do scroll horizontal dos ícones de formatação. */
-  .tb-fab {
-    pointer-events: auto;
-    width: 46px; height: 46px; border: none; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
-    box-shadow:
-      0 2px 6px rgba(47,123,246,0.35),
-      0 8px 20px rgba(0,0,0,0.18);
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s;
-  }
-  .tb-fab:active {
-    transform: scale(0.88);
-    box-shadow:
-      0 1px 3px rgba(47,123,246,0.3),
-      0 4px 10px rgba(0,0,0,0.14);
-  }
 
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;

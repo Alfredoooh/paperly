@@ -32,26 +32,27 @@ export const OCCUPATION_OPTIONS = [
   { id: 'other',         label: 'Outro' },
 ];
 
-// Ícones do grid do tab "Criar" (CreateTab) usam agora exclusivamente
-// SVGs mascarados a partir de /icons/svg/apps/{id}.svg — herdam a cor
-// do tema automaticamente (var(--icon-strong)), tal como no resto da app.
+// Ícones do grid do tab "Criar" (CreateTab) usam SVGs mascarados a
+// partir de /icons/svg/apps/{id}.svg. Cada app tem agora a sua PRÓPRIA
+// cor (fundo do círculo do ícone) escolhida para combinar com o que o
+// app representa — o SVG em si fica sempre branco por cima dessa cor.
 export const ALL_APPS = [
-  { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/' },
-  { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/' },
-  { id: 'analytics', label: 'Análises', icon: '/icons/svg/apps/analytics.svg', path: '/analytics/' },
-  { id: 'calendar', label: 'Calendário', icon: '/icons/svg/apps/calendar.svg', path: '/calendar/' },
-  { id: 'docs', label: 'Editor de Documentos', icon: '/icons/svg/apps/docs.svg', path: '/docs/' },
-  { id: 'draw', label: 'Desenho', icon: '/icons/svg/apps/draw.svg', path: '/draw/' },
-  { id: 'drive', label: 'Armazenamento', icon: '/icons/svg/apps/drive.svg', path: '/drive/' },
-  { id: 'forms', label: 'Formulários', icon: '/icons/svg/apps/forms.svg', path: '/forms/' },
-  { id: 'image', label: 'Editor de Imagem', icon: '/icons/svg/apps/image.svg', path: '/image/' },
-  { id: 'mail', label: 'Correio', icon: '/icons/svg/apps/mail.svg', path: '/mail/' },
-  { id: 'notes', label: 'Notas', icon: '/icons/svg/apps/notes.svg', path: '/notes/' },
-  { id: 'profilelens', label: 'Análise de Perfil', icon: '/icons/svg/apps/profilelens.svg', path: '/profilelens/' },
-  { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/svg/apps/sheets.svg', path: '/sheets/' },
-  { id: 'slides', label: 'Apresentações', icon: '/icons/svg/apps/slides.svg', path: '/slides/' },
-  { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/svg/apps/whiteboard.svg', path: '/whiteboard/' },
-  { id: 'wiki', label: 'Wiki', icon: '/icons/svg/apps/wiki.svg', path: '/wiki/' },
+  { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/', color: '#FF3B30' },
+  { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/', color: '#7C5CFF' },
+  { id: 'analytics', label: 'Análises', icon: '/icons/svg/apps/analytics.svg', path: '/analytics/', color: '#FF9500' },
+  { id: 'calendar', label: 'Calendário', icon: '/icons/svg/apps/calendar.svg', path: '/calendar/', color: '#FF3B30' },
+  { id: 'docs', label: 'Editor de Documentos', icon: '/icons/svg/apps/docs.svg', path: '/docs/', color: '#2F7BF6' },
+  { id: 'draw', label: 'Desenho', icon: '/icons/svg/apps/draw.svg', path: '/draw/', color: '#FF6B9D' },
+  { id: 'drive', label: 'Armazenamento', icon: '/icons/svg/apps/drive.svg', path: '/drive/', color: '#00A3FF' },
+  { id: 'forms', label: 'Formulários', icon: '/icons/svg/apps/forms.svg', path: '/forms/', color: '#6C63FF' },
+  { id: 'image', label: 'Editor de Imagem', icon: '/icons/svg/apps/image.svg', path: '/image/', color: '#00C7BE' },
+  { id: 'mail', label: 'Correio', icon: '/icons/svg/apps/mail.svg', path: '/mail/', color: '#4285F4' },
+  { id: 'notes', label: 'Notas', icon: '/icons/svg/apps/notes.svg', path: '/notes/', color: '#FFCC00' },
+  { id: 'profilelens', label: 'Análise de Perfil', icon: '/icons/svg/apps/profilelens.svg', path: '/profilelens/', color: '#AF52DE' },
+  { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/svg/apps/sheets.svg', path: '/sheets/', color: '#10B981' },
+  { id: 'slides', label: 'Apresentações', icon: '/icons/svg/apps/slides.svg', path: '/slides/', color: '#F4B400' },
+  { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/svg/apps/whiteboard.svg', path: '/whiteboard/', color: '#5856D6' },
+  { id: 'wiki', label: 'Wiki', icon: '/icons/svg/apps/wiki.svg', path: '/wiki/', color: '#8E8E93' },
 ];
 
 

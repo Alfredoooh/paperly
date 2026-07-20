@@ -150,13 +150,21 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <div class="apps-grid">
-    {#each platformApps as app}
-      <button class="app-item native-tap" on:click={() => openApp(app)}>
-        <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-        <span class="app-label">{app.label}</span>
-      </button>
-    {/each}
+  <!-- Bottom sheet de apps: mesma cor de fundo do bottom bar (tanto
+       claro como escuro), mesmo border-radius da search-bar (999px),
+       mas só nos cantos superiores — o sheet "cola" no fundo do ecrã
+       por baixo do tab bar, dando a sensação de estar ligado a ele. -->
+  <div class="apps-sheet">
+    <div class="apps-grid">
+      {#each platformApps as app}
+        <button class="app-item native-tap" on:click={() => openApp(app)}>
+          <span class="app-icon-circle" style="background:{app.color || 'var(--icon-strong)'}">
+            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
+          </span>
+          <span class="app-label">{app.label}</span>
+        </button>
+      {/each}
+    </div>
   </div>
 </div>
 
@@ -393,13 +401,28 @@
     color: var(--text-faint);
   }
 
-  /* Grid sem containers: apenas ícone outline + label, como no
-     print de referência (estilo CapCut). */
+  /* ---------- Bottom sheet de apps ---------- */
+  /* Mesma cor do bottom bar (rgb(var(--header-glass-rgb)) no claro,
+     var(--drawer-bg-strong) no escuro) para que o design combine e
+     pareça uma continuação visual do tab bar. Border-radius igual ao
+     da search-bar (999px), mas só em cima — só os cantos de topo
+     ficam arredondados, os de baixo ficam retos porque o sheet
+     encosta no fundo do ecrã, atrás do bottom bar. */
+  .apps-sheet {
+    margin: 16px 14px calc(env(safe-area-inset-bottom, 0px) + 78px);
+    border-radius: 28px 28px 0 0;
+    background: rgb(var(--header-glass-rgb));
+    overflow: hidden;
+  }
+  :global([data-theme="dark"]) .apps-sheet {
+    background: var(--drawer-bg-strong);
+  }
+
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 28px 8px;
-    padding: 24px 14px calc(env(safe-area-inset-bottom, 0px) + 96px);
+    gap: 24px 8px;
+    padding: 28px 14px 24px;
   }
   .app-item {
     display: flex;
@@ -414,20 +437,30 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
+  .app-icon-circle {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
   .app-icon-svg {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     display: block;
-    background: var(--icon-strong);
+    background: #fff;
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .native-tap:active .app-icon-svg {
+  .native-tap:active .app-icon-circle {
     transform: scale(0.86);
   }
   .native-tap:active .app-label {

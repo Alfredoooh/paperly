@@ -150,20 +150,24 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <!-- Bottom sheet de apps: encosta nas duas bordas laterais do ecrã
-       (sem margem lateral nenhuma) e vai até ao fundo, ficando por
-       baixo/atrás do bottom bar — mesma cor de fundo do bottom bar
-       nos dois temas, para parecer a mesma superfície. -->
+  <!-- Bottom sheet de apps: é um painel de ALTURA FIXA (não cresce
+       com o conteúdo) que vai desde logo abaixo da search-bar até ao
+       limite de cima do bottom bar. O conteúdo dentro dele tem scroll
+       PRÓPRIO (overflow-y no .apps-grid-scroll) — não é a página que
+       desliza, é o sheet que revela o resto por dentro de si mesmo,
+       como um bottom-sheet nativo. Cor igual à do bottom bar. -->
   <div class="apps-sheet">
-    <div class="apps-grid">
-      {#each platformApps as app}
-        <button class="app-item native-tap" on:click={() => openApp(app)}>
-          <span class="app-icon-circle" style="background:{app.color || 'var(--icon-strong)'}">
-            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-          </span>
-          <span class="app-label">{app.label}</span>
-        </button>
-      {/each}
+    <div class="apps-grid-scroll">
+      <div class="apps-grid">
+        {#each platformApps as app}
+          <button class="app-item native-tap" on:click={() => openApp(app)}>
+            <span class="app-icon-circle" style="background-color:{app.color ? app.color : '#8E8E93'} !important">
+              <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
+            </span>
+            <span class="app-label">{app.label}</span>
+          </button>
+        {/each}
+      </div>
     </div>
   </div>
 </div>
@@ -402,27 +406,38 @@
   }
 
   /* ---------- Bottom sheet de apps ---------- */
-  /* Sem margem lateral nenhuma — encosta nos dois cantos da tela,
-     tal como o bottom bar. Mesma cor de fundo do bottom bar (rgb do
-     --header-glass-rgb no claro, --drawer-bg-strong no escuro), para
-     parecer a mesma superfície. Border-radius igual ao da search-bar
-     (999px) só nos cantos de cima — os de baixo ficam retos porque
-     o sheet vai até à borda inferior do ecrã, por trás do tab bar. */
+  /* position: sticky com top negativo faz o sheet "prender-se" logo
+     abaixo da search-bar assim que ela deixa de estar visível no
+     ecrã, e height calculado com 100vh menos o espaço do bottom bar
+     garante que o sheet NUNCA passa por baixo do bottom bar — o
+     scroll do conteúdo fica todo contido dentro do próprio sheet. */
   .apps-sheet {
+    position: sticky;
+    top: 0;
+    height: calc(100vh - env(safe-area-inset-bottom, 0px) - 78px);
     margin: 16px 0 0;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
     border-radius: 28px 28px 0 0;
     background: rgb(var(--header-glass-rgb));
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   :global([data-theme="dark"]) .apps-sheet {
     background: var(--drawer-bg-strong);
+  }
+
+  .apps-grid-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px 8px;
-    padding: 28px 14px 4px;
+    padding: 28px 14px 24px;
   }
   .app-item {
     display: flex;

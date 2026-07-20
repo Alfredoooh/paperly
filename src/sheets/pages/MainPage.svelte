@@ -19,7 +19,6 @@
 
   export let isDark = false;
   export let user = null;
-  export let resourceId = null;
   export let appTitle = 'Nexa Sheets';
   export let appId = 'sheets';
   export let iconPath = '/icons/svg/sheets.svg';
@@ -71,6 +70,14 @@
       };
 
   // ── Documento ────────────────────────────────────────────────
+  //
+  // FIX (link sempre com ID + navegação atrasada + falha ao voltar):
+  // esta app deixou de anunciar o ID do documento ao router (ver
+  // App.svelte). O id passa a viver só aqui, tal como docId em
+  // docs/pages/MainPage.svelte — criado uma vez ao montar e mantido
+  // por toda a sessão de navegação dentro do sheets. Reabrir o app
+  // (ou recarregar a página) volta sempre ao último documento tocado
+  // via loadIndex()/mais recente, exatamente como o docs já fazia.
 
   let doc = null;
   let resolvedValues = {};
@@ -85,32 +92,12 @@
   // colWidths de uma única folha, exatamente como antes das abas.
   $: activeSheet = doc ? getActiveSheet(doc) : null;
 
-  // FIX (bug: "está sempre criando ID no link"): esta função gerava
-  // antes um ID no formato 'sheet_' + Date.now().toString(36) + ...,
-  // que NUNCA bate no UUID_REGEX ('8-4-4-4-12' hex) usado por
-  // shared/router.js para reconhecer um resourceId válido na URL.
-  // Resultado: o router tratava sempre esse ID como rota desconhecida
-  // (notFound) assim que ele voltava pela URL — dando a impressão de
-  // o app estar "sempre a criar" IDs ao navegar, em vez de reconhecer
-  // o documento já existente. Os outros apps (ex: 'ai') nunca sofrem
-  // disto porque o ID de conversa vem do backend já em UUID real. O
-  // Sheets não tem backend (é só localStorage), por isso o ID tem de
-  // nascer no cliente — mas agora nasce como UUID v4 real, igual ao
-  // formato que o router espera, resolvendo o problema na raiz.
-  function ensureDocId() {
-    if (resourceId) return resourceId;
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
-      const r = (Math.random() * 16) | 0;
-      const v = ch === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  function newDocId() {
+    return 'sheet_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
   function loadOrCreate() {
-    const id = ensureDocId();
+    const id = newDocId();
     let loaded = loadDocument(id);
     if (!loaded) {
       loaded = createDocument(id);
@@ -121,9 +108,6 @@
     selectionFocus = 'A1';
     recompute();
     docReady = true;
-    if (!resourceId) {
-      dispatch('nav', { to: 'resource', data: { id } });
-    }
   }
 
   function recompute() {
@@ -601,27 +585,16 @@
     menuVisible = true;
   }
 
-  // FIX: duplicar uma folha despachava a navegação para o novo
-  // `resource` E, de seguida, chamava loadOrCreate() manualmente aqui
-  // — duplicado com o bloco reativo mais abaixo
-  // ($: if (hasMounted && resourceId !== loadedResourceId)), que já
-  // trata exatamente esta troca de documento sempre que `resourceId`
-  // muda (seja por navegação normal, popstate, ou duplicação). Chamar
-  // loadOrCreate() nos dois sítios abria uma janela onde o documento
-  // podia ser carregado duas vezes em sequência rápida. Agora esta
-  // função só atualiza `resourceId` e deixa o bloco reativo, que já é
-  // a fonte única de verdade para troca de documento, tratar do
-  // recarregamento.
+  // FIX (padrão igual ao duplicateDoc() do docs): duplicar já não
+  // navega para o novo documento. Só grava a cópia no localStorage
+  // e o índice; a sessão de edição continua no documento atual. Isto
+  // remove a última chamada que ainda dependia de um resourceId/URL.
   function handleMenuSelect(e) {
     const id = e.detail;
     menuVisible = false;
     if (id === 'duplicate') {
       saveImmediately();
-      const copy = duplicateDocument(doc.id);
-      if (copy) {
-        dispatch('nav', { to: 'resource', data: { id: copy.id } });
-        resourceId = copy.id;
-      }
+      duplicateDocument(doc.id);
       return;
     }
     if (id === 'export') {
@@ -651,52 +624,13 @@
   }
 
   // ── Ciclo de vida ─────────────────────────────────────────────
-  //
-  // FIX (bug: navegar dentro do Sheets — voltar, trocar de folha,
-  // duplicar — deixava a grelha "bugada"/dessincronizada da URL):
-  //
-  // Antes, loadOrCreate() só corria uma vez em onMount(). Quando o
-  // router do App.svelte pai mudava a prop `resourceId` (por
-  // popstate/voltar, ou depois de duplicar um documento), o
-  // componente NÃO recarregava o documento correspondente — ficava
-  // preso a mostrar o doc antigo (ou um doc a meio de troca) enquanto
-  // a navegação/URL já tinha avançado. A partir daqui, qualquer
-  // mudança em `resourceId` depois do mount dispara um recarregamento
-  // completo e correto do documento, com guarda de gravação prévia
-  // para nunca perder alterações por trocar de folha depressa demais.
-  // Esta é agora a ÚNICA rota de recarregamento — ver nota acima em
-  // handleMenuSelect() sobre a duplicação removida.
-
-  let loadedResourceId = null; // qual doc está atualmente carregado/montado
-  let hasMounted = false;
 
   onMount(() => {
     loadOrCreate();
-    loadedResourceId = resourceId;
-    hasMounted = true;
     const beforeUnload = () => { if (doc) saveImmediately(); };
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
   });
-
-  // Reage a mudanças de resourceId vindas de fora (router, popstate,
-  // botão físico de voltar do Android, troca de folha por duplicação)
-  // — garante gravação do doc atual ANTES de trocar, e recarrega o
-  // doc certo DEPOIS de trocar, sempre na mesma ordem.
-  $: if (hasMounted && resourceId !== loadedResourceId) {
-    if (doc) saveImmediately();
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-    loadedResourceId = resourceId;
-    doc = null;
-    docReady = false;
-    undoStack = [];
-    redoStack = [];
-    historyTimer = null;
-    editingName = false;
-    formulaBarFocused = false;
-    renamingSheetId = null;
-    loadOrCreate();
-  }
 
   onDestroy(() => {
     if (saveTimer) { clearTimeout(saveTimer); if (doc) persistDocument(doc); }

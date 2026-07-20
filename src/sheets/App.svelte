@@ -15,7 +15,6 @@
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 
   let route = 'main';
-  let resourceId = null;
   let user = null;
   let isDark = false;
   let ready = false;
@@ -30,17 +29,28 @@
     isDark = t === 'dark';
     syncTheme(isDark);
 
-    const { route: initialRoute, resourceId: initialResourceId, notFound } = router.parseCurrentRoute();
+    // FIX (link sempre a mostrar um ID e navegação atrasada/a falhar
+    // ao voltar): esta app deixou de suportar um resourceId dinâmico
+    // na URL. Ao contrário do 'ai' ou 'docs' antes desta correção,
+    // aqui tínhamos router.navigateToResource(id) a escrever no
+    // histórico DEPOIS do primeiro paint (dando o salto/atraso visto
+    // na barra de endereço) e a criar uma entrada extra no histórico
+    // do browser — por isso o botão físico "voltar" do Android
+    // primeiro tinha de sair de /sheets/{id}/ para /sheets/ antes de
+    // sair da app, exigindo dois toques. Agora, tal como no 'docs',
+    // a rota fica sempre presa a 'main' (sem segmento de recurso) e
+    // o documento correto é resolvido inteiramente dentro do
+    // MainPage a partir do localStorage — ver docId em
+    // pages/MainPage.svelte.
+    const { notFound } = router.parseCurrentRoute();
     if (notFound) { window.location.replace('/404/'); return; }
-    route = initialRoute;
-    resourceId = initialResourceId;
-    if (!resourceId) router.navigate(route, { replace: true });
+    route = 'main';
+    router.navigate('main', { replace: true });
     ready = true;
 
-    const unbind = router.bindPopState((r, nf, rid) => {
+    const unbind = router.bindPopState((r, nf) => {
       if (nf) { window.location.replace('/404/'); return; }
       route = r;
-      resourceId = rid;
     });
 
     return unbind;
@@ -59,19 +69,13 @@
       return;
     }
     if (to === 'home') { dispatch('nav', { to: 'home' }); return; }
-    if (to === 'main' || to === APP_ID) { route = 'main'; resourceId = null; router.navigate('main'); return; }
-    if (to === 'resource' && data?.id) {
-      route = 'main';
-      resourceId = data.id;
-      router.navigateToResource(data.id);
-      return;
-    }
+    if (to === 'main' || to === APP_ID) { route = 'main'; router.navigate('main'); return; }
   }
 </script>
 
 {#if ready}
   {#if route === 'main'}
-    <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
+    <MainPage {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
   {/if}
 {/if}
 

@@ -34,30 +34,7 @@ export const MAX_SHEETS = 40;
 //   ],
 // }
 
-// Gera um UUID v4 real (mesmo formato que o router.js e o resto do
-// ecossistema Nexa esperam: 8-4-4-4-12 hex). IMPORTANTE: este ID é o
-// que vai parar na URL como /sheets/{id}/, por isso TEM de bater no
-// UUID_REGEX de shared/router.js — caso contrário o router trata a
-// rota como desconhecida (notFound) e o utilizador vê o app a
-// "criar" ID atrás de ID sempre que navega. `crypto.randomUUID()`
-// existe em todos os browsers/WebViews modernos (Chrome 92+, Safari
-// 15.4+); o fallback manual cobre WebViews Android mais antigos onde
-// a API pode faltar.
-function newUuid() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
-    const r = (Math.random() * 16) | 0;
-    const v = ch === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-// ID interno de ABA (tab) dentro de um documento — este NUNCA vai
-// para a URL (só doc.id vai), por isso mantém-se no formato curto
-// original 'tab_xxxxx'. Não mexer aqui evita invalidar abas já
-// guardadas no localStorage de utilizadores existentes.
+// ID interno de ABA (tab) dentro de um documento.
 function newSheetId() {
   return 'tab_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
@@ -188,10 +165,13 @@ export function deleteDocument(id) {
   saveIndex(index.filter((d) => d.id !== id));
 }
 
+// FIX: sem ID na URL, este ID deixa de precisar bater no UUID_REGEX
+// do router (que já não é consultado para o sheets) — volta ao
+// formato simples local, igual ao 'doc_' + Date.now() do docs.
 export function duplicateDocument(id) {
   const doc = loadDocument(id);
   if (!doc) return null;
-  const newId = newUuid();
+  const newId = 'sheet_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const copy = {
     ...doc,
     id: newId,

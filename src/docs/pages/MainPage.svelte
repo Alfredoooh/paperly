@@ -216,6 +216,8 @@
   //     (Vista Para Dispositivo / Cabeçalhos / Editar / Partilhar /
   //     Ler em Voz Alta).
   //  O botão "Editar" do CreationToolsBar volta a pôr isEditing=true.
+  //  NENHUM botão do appbar tem fundo/container — todos ficam soltos
+  //  diretamente na barra, sem círculo nem quadrado atrás.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -602,13 +604,13 @@
 >
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
     <!--
-      Botão esquerdo do appbar:
+      Botão esquerdo do appbar (SEM fundo/container):
       - isEditing=true  → ícone de check. Clicar SÓ conclui a edição
         (confirmDoneEditing), nunca navega para trás.
       - isEditing=false → ícone de X. Clicar fecha o documento e
         navega para 'home' (dispatch('nav', {to:'home'})).
     -->
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
+    <button class="appbar-btn" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
       {#if isEditing}
         <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:22px;max-height:22px;"></span>
       {:else}
@@ -625,35 +627,30 @@
         on:blur={handleNameBlur}
         aria-label="Nome do documento"
       />
-      {#if isEditing}
-        <span class="save-state" style="color:{c.textSecondary}">
-          {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-        </span>
-      {/if}
     </div>
 
     {#if isEditing}
-      <!-- Grupo direito em modo de edição: lápis / lupa / documento / undo / ⋮ -->
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Caligrafia em breve')} aria-label="Caligrafia">
+      <!-- Grupo direito em modo de edição: lápis / lupa / documento / undo / ⋮ — todos SEM fundo/container -->
+      <button class="appbar-btn" on:click={() => showToast('Caligrafia em breve')} aria-label="Caligrafia">
         <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}pen_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}pen_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
       </button>
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
+      <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
         <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}search_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}search_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
       </button>
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Esquema em breve')} aria-label="Esquema">
+      <button class="appbar-btn" on:click={() => showToast('Esquema em breve')} aria-label="Esquema">
         <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}document_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}document_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
       </button>
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
+      <button class="appbar-btn" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
         <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;opacity:{canUndo ? 1 : 0.32};"></span>
       </button>
     {:else}
-      <!-- Grupo direito fora de edição: lupa -->
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
+      <!-- Grupo direito fora de edição: lupa — SEM fundo/container -->
+      <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
         <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}search_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}search_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
       </button>
     {/if}
 
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+    <button class="appbar-btn" bind:this={docMenuBtnEl} on:click={openDocMenu} aria-label="Mais opções">
       <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
     </button>
   </div>
@@ -797,21 +794,24 @@
     background: inherit;
     contain: paint;
   }
+  /* Botões do appbar SEM nenhum container: sem fundo, sem
+     border-radius, sem círculo/quadrado atrás do ícone — o ícone
+     fica solto diretamente sobre a barra. */
   .appbar-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+    width: 36px; height: 36px; border-radius: 0; border: none;
+    background: transparent;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    transition: opacity .14s;
   }
-  .appbar-btn:active { opacity: .7; transform: scale(0.94); }
+  .appbar-btn:active { opacity: .55; }
   .appbar-btn:disabled { cursor: default; }
-  .appbar-btn:disabled:active { opacity: 1; transform: none; }
-  .appbar-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+  .appbar-btn:disabled:active { opacity: 1; }
+  .appbar-center { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
   .doc-name-input {
-    width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 700;
+    width: 100%; max-width: 220px; text-align: center; font-size: 16px; font-weight: 400;
     border: none; background: transparent; outline: none; padding: 0;
   }
-  .save-state { font-size: 11px; font-weight: 500; margin-top: 1px; white-space: nowrap; }
 
   .canvas-area {
     flex: 1;

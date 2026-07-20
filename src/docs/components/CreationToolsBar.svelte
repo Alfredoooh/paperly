@@ -7,36 +7,27 @@
   const dispatch = createEventDispatcher();
 
   const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+  const ICON_PX = 512;
 
   const TOOLS = [
-    { id: 'templates', icon: 'document_multiple_24_regular', label: 'Modelos' },
-    { id: 'shapes', icon: 'shapes_24_regular', label: 'Formas' },
-    { id: 'tools', icon: 'wrench_24_regular', label: 'Ferramentas' },
-    { id: 'insert', icon: 'image_24_regular', label: 'Imagem' },
-    { id: 'table', icon: 'table_24_regular', label: 'Tabela' },
+    { id: 'devicelayout', icon: 'phone_24_regular', label: 'Vista Para Dispositiv...' },
+    { id: 'headings', icon: 'text_bullet_list_square_24_regular', label: 'Cabeçalhos' },
+    { id: 'edit', icon: 'edit_24_regular', label: 'Editar' },
+    { id: 'share', icon: 'share_24_regular', label: 'Partilhar' },
+    { id: 'readaloud', icon: 'speaker_2_24_regular', label: 'Ler em Voz Alta' },
   ];
-
-  let pressedId = null;
 
   function press(item) {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
     dispatch('action', item.id);
   }
-  function onPointerDown(id) {
-    pressedId = id;
-  }
-  function onPointerUp() {
-    pressedId = null;
-  }
 </script>
 
 <!--
-  Barra mais baixa e mais nativa: ícone maior proporcionalmente ao
-  espaço, label reduzida a 9px (peso visual de legenda, não de botão),
-  altura total ~52px (perto do padrão real de tab bar iOS/Android) em
-  vez dos ~74px de antes. O toque em cada botão dá um feedback de
-  "pill" (fundo arredondado que aparece no press), que é o mesmo
-  padrão tátil que o resto do app já usa, em vez de só opacity solta.
+  Barra de navegação inferior (modo não-edição): 5 itens ícone+label,
+  full-width, colada ao fundo, sem containers circulares nos
+  botões — igual à imagem de referência (Vista Para Dispositivo,
+  Cabeçalhos, Editar, Partilhar, Ler em Voz Alta).
 -->
 <div
   class="ctb-wrap"
@@ -46,17 +37,12 @@
   {#each TOOLS as item}
     <button
       class="ctb-btn"
-      class:ctb-btn-pressed={pressedId === item.id}
-      on:pointerdown={() => onPointerDown(item.id)}
-      on:pointerup={onPointerUp}
-      on:pointercancel={onPointerUp}
       on:click={() => press(item)}
       aria-label={item.label}
     >
-      <span class="ctb-btn-bg"></span>
       <span
         class="icon-mask"
-        style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:20px;height:20px;"
+        style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:26px;max-height:26px;"
       ></span>
       <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
     </button>
@@ -69,66 +55,44 @@
     left: 0; right: 0; bottom: 0;
     z-index: 40;
     display: flex;
-    align-items: center;
-    justify-content: space-around;
-    /* padding reduzido: era 10px topo / 10px+safe-area fundo.
-       Agora 6px topo, safe-area + 6px fundo — barra visivelmente
-       mais baixa, mais próxima de uma tab bar nativa. */
-    padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px);
-    box-shadow: 0 -1px 0 0 rgba(127,127,127,0.14);
-    transition: opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 10px);
+    box-shadow: 0 -0.5px 0 0 rgba(127,127,127,0.18);
+    transition: opacity .3s cubic-bezier(0.32, 0.72, 0, 1), transform .3s cubic-bezier(0.32, 0.72, 0, 1);
     opacity: 1;
   }
   .ctb-wrap.ctb-hidden {
     opacity: 0;
     pointer-events: none;
+    transform: translate3d(0, 100%, 0);
   }
+  /* Botões sem nenhum container circular: sem fundo em repouso nem
+     em press, apenas ícone + label empilhados. */
   .ctb-btn {
-    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 2px;
+    justify-content: flex-start;
+    gap: 6px;
     border: none;
     background: transparent;
-    padding: 6px 10px;
+    flex: 1;
+    min-width: 0;
+    padding: 4px 2px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none;
     user-select: none;
+    transition: opacity .12s;
   }
-  /* "Pill" de fundo que aparece atrás do ícone+label no press —
-     mesmo tipo de resposta tátil que os botões nativos do resto do
-     app (ex: app-item do CreateTab), em vez de só opacity solta. */
-  .ctb-btn-bg {
-    position: absolute;
-    inset: 2px 4px;
-    border-radius: 12px;
-    background: rgba(127,127,127,0.12);
-    opacity: 0;
-    transform: scale(0.88);
-    transition: opacity .15s cubic-bezier(0.16,1,0.3,1), transform .15s cubic-bezier(0.34,1.56,0.64,1);
-    pointer-events: none;
-  }
-  .ctb-btn-pressed .ctb-btn-bg {
-    opacity: 1;
-    transform: scale(1);
-  }
-  .ctb-btn-pressed .icon-mask,
-  .ctb-btn-pressed .ctb-label {
-    transform: scale(0.92);
-  }
-  .icon-mask,
+  .ctb-btn:active { opacity: .55; }
   .ctb-label {
-    position: relative;
-    z-index: 1;
-    transition: transform .15s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .ctb-label {
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: -0.05px;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    text-align: center;
+    max-width: 100%;
   }
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;
@@ -137,6 +101,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ctb-wrap, .ctb-btn-bg, .icon-mask, .ctb-label { transition: none !important; }
+    .ctb-wrap { transition: none !important; }
   }
 </style>

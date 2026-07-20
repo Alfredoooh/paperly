@@ -8,6 +8,7 @@
   import DocPage from '../components/DocPage.svelte';
   import DocMenu from '../components/DocMenu.svelte';
   import BottomToolbar from '../components/BottomToolbar.svelte';
+  import CreationToolsBar from '../components/CreationToolsBar.svelte';
   import ColorModal from '../components/ColorModal.svelte';
   import ColorPickerModal from '../components/ColorPickerModal.svelte';
   import FormatModal from '../components/FormatModal.svelte';
@@ -29,9 +30,6 @@
 
   const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
   const ICON_PX = 512;
-  // Tamanho visual real dos ícones do appbar (antes era 20px).
-  const APPBAR_ICON_SIZE = 26;
-  const APPBAR_BTN_SIZE = 42;
 
   const STORAGE_PREFIX = 'docs_';
   const CUSTOM_COLORS_KEY = STORAGE_PREFIX + 'custom_colors';
@@ -207,15 +205,17 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  ESTADO DE EDIÇÃO — isEditing controla qual bottom bar aparece.
-  //  O CreationToolsBar foi removido por completo do app: fora do
-  //  modo de edição já não existe nenhuma bottom bar. O BottomToolbar
-  //  (pill de formatação) só é montado/visível quando isEditing=true.
-  //  O botão de concluir edição (check) agora vive no appbar, no
-  //  canto superior esquerdo, e SUBSTITUI a seta de voltar sempre que
-  //  isEditing=true — ao clicar, apenas fecha a edição (não navega
-  //  para trás, não faz 'nav: home'). Undo/Redo também passaram a
-  //  viver no appbar, e só aparecem durante a edição.
+  //  ESTADO DE EDIÇÃO — isEditing controla TANTO o appbar (que grupo
+  //  de botões aparece à esquerda/direita) COMO qual bottom bar
+  //  aparece:
+  //   - isEditing = true  → appbar: check (esquerda) + lápis/lupa/
+  //     documento/undo/⋮ (direita); bottom bar: BottomToolbar
+  //     (formatação).
+  //   - isEditing = false → appbar: X (esquerda, fecha e navega para
+  //     'home') + lupa/⋮ (direita); bottom bar: CreationToolsBar
+  //     (Vista Para Dispositivo / Cabeçalhos / Editar / Partilhar /
+  //     Ler em Voz Alta).
+  //  O botão "Editar" do CreationToolsBar volta a pôr isEditing=true.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -232,6 +232,8 @@
   function handleAppbarLeftAction() {
     buzz();
     if (isEditing) { confirmDoneEditing(); return; }
+    // Fora do modo de edição, o botão esquerdo é o X: fecha o
+    // documento e navega de volta para 'home'.
     dispatch('nav', { to: 'home' });
   }
 
@@ -243,13 +245,23 @@
     if (id === 'bold') { exec('bold'); return; }
     if (id === 'italic') { exec('italic'); return; }
     if (id === 'underline') { exec('underline'); return; }
-    if (id === 'color') { colorModalOpen = true; return; }
+    if (id === 'color' || id === 'fontcolor') { colorModalOpen = true; return; }
     if (id === 'link') { openLinkPanel(); return; }
     if (id === 'footnote') { openFootnotePanel(); return; }
     if (id === 'insert') { triggerImagePicker(); return; }
     if (id === 'table') { tableModalOpen = true; return; }
     if (id === 'layers') { refreshLayers(); layersModalOpen = true; return; }
+    if (id === 'more') { return; }
     activePanel = id;
+  }
+
+  function handleCreationToolAction(id) {
+    buzz();
+    if (id === 'edit') { isEditing = true; requestAnimationFrame(() => focusEditor()); return; }
+    if (id === 'devicelayout') { showToast('Vista para dispositivo em breve'); return; }
+    if (id === 'headings') { showToast('Cabeçalhos em breve'); return; }
+    if (id === 'share') { openExport('share'); return; }
+    if (id === 'readaloud') { showToast('Ler em voz alta em breve'); return; }
   }
 
   function closeFormatModal() { activePanel = null; }
@@ -590,17 +602,17 @@
 >
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
     <!--
-      Botão esquerdo do appbar: quando NÃO se está a editar, mostra a
-      seta de voltar (navega para 'home'). Quando SE está a editar,
-      a seta é SUBSTITUÍDA pelo ícone de check — clicar nele apenas
-      conclui a edição (confirmDoneEditing), nunca navega para trás.
-      Ícone e botão maiores que antes (26px / 42px em vez de 20px/36px).
+      Botão esquerdo do appbar:
+      - isEditing=true  → ícone de check. Clicar SÓ conclui a edição
+        (confirmDoneEditing), nunca navega para trás.
+      - isEditing=false → ícone de X. Clicar fecha o documento e
+        navega para 'home' (dispatch('nav', {to:'home'})).
     -->
-    <button class="appbar-btn" style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Voltar'}>
+    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
       {#if isEditing}
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;"></span>
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:22px;max-height:22px;"></span>
       {:else}
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;"></span>
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}dismiss_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}dismiss_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:22px;max-height:22px;"></span>
       {/if}
     </button>
 
@@ -613,23 +625,36 @@
         on:blur={handleNameBlur}
         aria-label="Nome do documento"
       />
-      <span class="save-state" style="color:{c.textSecondary}">
-        {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
-      </span>
+      {#if isEditing}
+        <span class="save-state" style="color:{c.textSecondary}">
+          {#if savedState === 'saving'}A gravar…{:else if savedState === 'dirty'}Não gravado{:else}Gravado{/if}
+        </span>
+      {/if}
     </div>
 
     {#if isEditing}
-      <!-- Undo/Redo só aparecem no appbar durante a edição. -->
-      <button class="appbar-btn" style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;opacity:{canUndo ? 1 : 0.32};"></span>
+      <!-- Grupo direito em modo de edição: lápis / lupa / documento / undo / ⋮ -->
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Caligrafia em breve')} aria-label="Caligrafia">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}pen_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}pen_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
       </button>
-      <button class="appbar-btn" style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" disabled={!canRedo} on:click={redo} aria-label="Refazer">
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_redo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_redo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;opacity:{canRedo ? 1 : 0.32};"></span>
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}search_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}search_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
+      </button>
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Esquema em breve')} aria-label="Esquema">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}document_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}document_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
+      </button>
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;opacity:{canUndo ? 1 : 0.32};"></span>
+      </button>
+    {:else}
+      <!-- Grupo direito fora de edição: lupa -->
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}search_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}search_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
       </button>
     {/if}
 
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;"></span>
+    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
     </button>
   </div>
 
@@ -649,10 +674,15 @@
     />
   </div>
 
+  <CreationToolsBar
+    {c}
+    visible={!isEditing}
+    on:action={(e) => handleCreationToolAction(e.detail)}
+  />
+
   <BottomToolbar
     {c}
     {activePanel}
-    {kbOffset}
     visible={isEditing}
     on:action={(e) => handleToolbarAction(e.detail)}
   />
@@ -768,7 +798,7 @@
     contain: paint;
   }
   .appbar-btn {
-    border-radius: 50%; border: none;
+    width: 36px; height: 36px; border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;

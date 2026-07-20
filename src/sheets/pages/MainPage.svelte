@@ -6,7 +6,7 @@
     cellId, parseCellId, downloadCsv, duplicateDocument, deleteDocument,
   } from '../lib/sheet-store.js';
   import { FormulaError } from '../lib/formula-engine.js';
-  import { iconWithFallback } from '../lib/icon-fallback.js';
+  import { fluentIconUrl } from '../lib/icon-fallback.js';
   import SheetGrid from '../components/SheetGrid.svelte';
   import CellFormatBar from '../components/CellFormatBar.svelte';
   import CellNumberFormatModal from '../components/CellNumberFormatModal.svelte';
@@ -466,6 +466,8 @@
   }
 
   // ── Menu (⋮) — duplicar / exportar CSV / apagar ──────────────
+  // MESMO padrão local simples do DocMenu em docs: sem history push,
+  // só estado local (menuVisible) e overlay de clique-fora.
 
   let menuVisible = false;
   let menuAnchor = { top: 56, right: 12 };
@@ -476,18 +478,17 @@
     menuVisible = true;
   }
 
-  // FIX (bug de navegação): duplicar uma folha despachava a navegação
-  // para o novo `resource` E, de seguida, chamava loadOrCreate()
-  // manualmente aqui — duplicado com o bloco reativo mais abaixo
+  // FIX: duplicar uma folha despachava a navegação para o novo
+  // `resource` E, de seguida, chamava loadOrCreate() manualmente aqui
+  // — duplicado com o bloco reativo mais abaixo
   // ($: if (hasMounted && resourceId !== loadedResourceId)), que já
   // trata exatamente esta troca de documento sempre que `resourceId`
   // muda (seja por navegação normal, popstate, ou duplicação). Chamar
   // loadOrCreate() nos dois sítios abria uma janela onde o documento
-  // podia ser carregado duas vezes em sequência rápida, com o
-  // undo/redo e o estado de edição a ficarem inconsistentes entre as
-  // duas cargas. Agora esta função só atualiza `resourceId` e deixa o
-  // bloco reativo, que já existe e já é a fonte única de verdade para
-  // troca de documento, tratar do recarregamento.
+  // podia ser carregado duas vezes em sequência rápida. Agora esta
+  // função só atualiza `resourceId` e deixa o bloco reativo, que já é
+  // a fonte única de verdade para troca de documento, tratar do
+  // recarregamento.
   function handleMenuSelect(e) {
     const id = e.detail;
     menuVisible = false;
@@ -585,7 +586,7 @@
        de "barra de ferramentas" que o Excel/Office sempre tem. -->
   <div class="appbar" style="background:{c.dialogBackground};border-color:{c.divider};">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
-      <img use:iconWithFallback={'back'} class="appbar-icon" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('back')}');-webkit-mask-image:url('{fluentIconUrl('back')}');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
 
     <div class="appbar-title">
@@ -606,7 +607,7 @@
     </div>
 
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={openMenu} aria-label="Mais opções">
-      <img use:iconWithFallback={'more'} class="appbar-icon" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('more')}');-webkit-mask-image:url('{fluentIconUrl('more')}');background:{c.iconTint};width:20px;height:20px;"></span>
     </button>
   </div>
 
@@ -727,7 +728,6 @@
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), background .14s ease;
   }
   .appbar-btn:active { transform: scale(0.88); }
-  .appbar-icon { width: 20px; height: 20px; display: block; object-fit: contain; }
   .appbar-title { flex: 1; min-width: 0; display: flex; }
   .name-display {
     background: none; border: none; font-size: 16px; font-weight: 700;
@@ -766,5 +766,12 @@
   .format-bar-spacer {
     height: calc(46px + env(safe-area-inset-bottom, 0px) + 14px);
     flex-shrink: 0;
+  }
+
+  .icon-mask {
+    display: block; flex-shrink: 0;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
   }
 </style>

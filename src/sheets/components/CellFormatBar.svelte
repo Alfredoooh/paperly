@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { iconWithFallback } from '../lib/icon-fallback.js';
+  import { fluentIconUrl } from '../lib/icon-fallback.js';
 
   export let c;
   export let visible = false;
@@ -32,10 +32,10 @@
 >
   <div class="fb-pill" style="background:{c.toolbarSolidBg || c.dialogBackground}; border-color:{c.divider};">
     <button class="fb-btn" disabled={!canUndo} on:click={() => press('undo')} aria-label="Desfazer">
-      <img use:iconWithFallback={'undo'} class="icon-img" style="opacity:{canUndo ? 1 : 0.32};" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('undo')}');-webkit-mask-image:url('{fluentIconUrl('undo')}');background:{c.iconTint};width:18px;height:18px;opacity:{canUndo ? 1 : 0.32};"></span>
     </button>
     <button class="fb-btn" disabled={!canRedo} on:click={() => press('redo')} aria-label="Refazer">
-      <img use:iconWithFallback={'redo'} class="icon-img" style="opacity:{canRedo ? 1 : 0.32};" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('redo')}');-webkit-mask-image:url('{fluentIconUrl('redo')}');background:{c.iconTint};width:18px;height:18px;opacity:{canRedo ? 1 : 0.32};"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
@@ -53,44 +53,40 @@
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={() => press('textcolor')} aria-label="Cor do texto">
-      <img use:iconWithFallback={'text_color'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_color')}');-webkit-mask-image:url('{fluentIconUrl('text_color')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('fillcolor')} aria-label="Cor de preenchimento">
-      <img use:iconWithFallback={'fill_color'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('fill_color')}');-webkit-mask-image:url('{fluentIconUrl('fill_color')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={cycleAlign} aria-label="Alinhamento">
-      <img
-        use:iconWithFallback={ALIGN_ICONS[activeMeta.align || 'left']}
-        class="icon-img"
-        alt=""
-      />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl(ALIGN_ICONS[activeMeta.align || 'left'])}');-webkit-mask-image:url('{fluentIconUrl(ALIGN_ICONS[activeMeta.align || 'left'])}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('numformat')} aria-label="Formato numérico">
-      <img use:iconWithFallback={'number_format'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('number_format')}');-webkit-mask-image:url('{fluentIconUrl('number_format')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={() => press('insertrow')} aria-label="Inserir linha">
-      <img use:iconWithFallback={'insert_row'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('insert_row')}');-webkit-mask-image:url('{fluentIconUrl('insert_row')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('insertcol')} aria-label="Inserir coluna">
-      <img use:iconWithFallback={'insert_col'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('insert_col')}');-webkit-mask-image:url('{fluentIconUrl('insert_col')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('deleterow')} aria-label="Apagar linha">
-      <img use:iconWithFallback={'delete_row'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete_row')}');-webkit-mask-image:url('{fluentIconUrl('delete_row')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('deletecol')} aria-label="Apagar coluna">
-      <img use:iconWithFallback={'delete_col'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete_col')}');-webkit-mask-image:url('{fluentIconUrl('delete_col')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn fb-done" on:click={() => press('done')} aria-label="Concluir edição">
-      <img use:iconWithFallback={'check'} class="icon-img" alt="" />
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.iconTint};width:18px;height:18px;"></span>
     </button>
   </div>
 </div>
@@ -137,12 +133,14 @@
   .fb-divider { width: 1px; height: 18px; margin: 0 3px; flex-shrink: 0; background: currentColor; opacity: 0.12; }
   .fb-glyph { font-size: 15px; line-height: 1; font-family: Georgia, serif; }
 
-  .icon-img {
+  .icon-mask {
     display: block;
     width: 18px;
     height: 18px;
     flex-shrink: 0;
-    object-fit: contain;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
   }
 
   @media (prefers-reduced-motion: reduce) {

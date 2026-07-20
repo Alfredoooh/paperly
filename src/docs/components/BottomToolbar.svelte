@@ -10,6 +10,9 @@
 
   const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
   const ICON_PX = 512;
+  // Tamanho visual real dos ícones da pill (antes era 18px / botão 36px).
+  const TB_ICON_SIZE = 24;
+  const TB_BTN_SIZE = 42;
   
   const GROUPS = [
     [
@@ -55,6 +58,7 @@
     concluir edição vive agora no appbar), sem undo/redo (também
     movidos para o appbar), e sem containers circulares nos botões —
     cada botão é um quadrado com cantos levemente arredondados.
+    Ícones e botões maiores que antes (24px / 42px em vez de 18px/36px).
   -->
   <div class="tb-pill" style="background:{c.toolbarSolidBg}">
     {#each GROUPS as group, gi}
@@ -62,13 +66,14 @@
         <button
           class="tb-btn"
           class:tb-active={item.panel && activePanel === item.id}
+          style="width:{TB_BTN_SIZE}px;height:{TB_BTN_SIZE}px;"
           disabled={item.disabled ? item.disabled() : false}
           on:click={() => press(item)}
           aria-label={item.label}
         >
           <span
             class="icon-mask"
-            style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:18px;max-height:18px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+            style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{TB_ICON_SIZE}px;max-height:{TB_ICON_SIZE}px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
           ></span>
         </button>
       {/each}
@@ -111,7 +116,7 @@
   /* Botões sem container circular: fundo transparente por defeito,
      cantos levemente arredondados (não círculo) só quando ativo/press. */
   .tb-btn {
-    width: 36px; height: 36px; border: none; background: transparent; border-radius: 8px;
+    border: none; background: transparent; border-radius: 8px;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background .15s cubic-bezier(0.34,1.56,0.64,1), transform .12s cubic-bezier(0.34,1.56,0.64,1);

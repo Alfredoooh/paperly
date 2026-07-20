@@ -29,6 +29,9 @@
 
   const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
   const ICON_PX = 512;
+  // Tamanho visual real dos ícones do appbar (antes era 20px).
+  const APPBAR_ICON_SIZE = 26;
+  const APPBAR_BTN_SIZE = 42;
 
   const STORAGE_PREFIX = 'docs_';
   const CUSTOM_COLORS_KEY = STORAGE_PREFIX + 'custom_colors';
@@ -591,12 +594,13 @@
       seta de voltar (navega para 'home'). Quando SE está a editar,
       a seta é SUBSTITUÍDA pelo ícone de check — clicar nele apenas
       conclui a edição (confirmDoneEditing), nunca navega para trás.
+      Ícone e botão maiores que antes (26px / 42px em vez de 20px/36px).
     -->
-    <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Voltar'}>
+    <button class="appbar-btn" style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Voltar'}>
       {#if isEditing}
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}checkmark_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;"></span>
       {:else}
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;"></span>
       {/if}
     </button>
 
@@ -616,16 +620,16 @@
 
     {#if isEditing}
       <!-- Undo/Redo só aparecem no appbar durante a edição. -->
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;opacity:{canUndo ? 1 : 0.32};"></span>
+      <button class="appbar-btn" style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_undo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;opacity:{canUndo ? 1 : 0.32};"></span>
       </button>
-      <button class="appbar-btn" style="background:{c.appbarBtnBg}" disabled={!canRedo} on:click={redo} aria-label="Refazer">
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_redo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_redo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;opacity:{canRedo ? 1 : 0.32};"></span>
+      <button class="appbar-btn" style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" disabled={!canRedo} on:click={redo} aria-label="Refazer">
+        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_redo_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_redo_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;opacity:{canRedo ? 1 : 0.32};"></span>
       </button>
     {/if}
 
-    <button class="appbar-btn" bind:this={docMenuBtnEl} style="background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;"></span>
+    <button class="appbar-btn" bind:this={docMenuBtnEl} style="width:{APPBAR_BTN_SIZE}px;height:{APPBAR_BTN_SIZE}px;background:{c.appbarBtnBg}" on:click={openDocMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}more_vertical_24_regular.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:{APPBAR_ICON_SIZE}px;max-height:{APPBAR_ICON_SIZE}px;"></span>
     </button>
   </div>
 
@@ -764,7 +768,7 @@
     contain: paint;
   }
   .appbar-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+    border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;

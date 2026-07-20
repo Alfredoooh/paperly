@@ -85,10 +85,28 @@
   // colWidths de uma única folha, exatamente como antes das abas.
   $: activeSheet = doc ? getActiveSheet(doc) : null;
 
+  // FIX (bug: "está sempre criando ID no link"): esta função gerava
+  // antes um ID no formato 'sheet_' + Date.now().toString(36) + ...,
+  // que NUNCA bate no UUID_REGEX ('8-4-4-4-12' hex) usado por
+  // shared/router.js para reconhecer um resourceId válido na URL.
+  // Resultado: o router tratava sempre esse ID como rota desconhecida
+  // (notFound) assim que ele voltava pela URL — dando a impressão de
+  // o app estar "sempre a criar" IDs ao navegar, em vez de reconhecer
+  // o documento já existente. Os outros apps (ex: 'ai') nunca sofrem
+  // disto porque o ID de conversa vem do backend já em UUID real. O
+  // Sheets não tem backend (é só localStorage), por isso o ID tem de
+  // nascer no cliente — mas agora nasce como UUID v4 real, igual ao
+  // formato que o router espera, resolvendo o problema na raiz.
   function ensureDocId() {
     if (resourceId) return resourceId;
-    const newId = 'sheet_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    return newId;
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+      const r = (Math.random() * 16) | 0;
+      const v = ch === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 
   function loadOrCreate() {

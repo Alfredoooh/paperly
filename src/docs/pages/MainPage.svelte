@@ -15,6 +15,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import TableModal from '../components/TableModal.svelte';
   import LayersModal from '../components/LayersModal.svelte';
+  import DesignModal from '../components/DesignModal.svelte';
   import ExportPickerPage from './ExportPickerPage.svelte';
 
   export let isDark = false;
@@ -188,6 +189,8 @@
   let colorPickerOpen = false;
   let tableModalOpen = false;
   let layersModalOpen = false;
+  let designModalOpen = false;
+  let activeDesignTool = null;
 
   // ── Estado das camadas da folha atual ─────────────────────────────
   let currentPageLayers = [];
@@ -209,15 +212,15 @@
   //  de botões aparece à esquerda/direita) COMO qual bottom bar
   //  aparece:
   //   - isEditing = true  → appbar: check (esquerda) + lápis/lupa/
-  //     documento/undo/⋮ (direita); bottom bar: BottomToolbar
-  //     (formatação).
+  //     documento/undo/⋮ (direita), SEM nome do documento visível;
+  //     bottom bar: BottomToolbar (formatação, scroll horizontal,
+  //     todas as opções, incl. Design).
   //   - isEditing = false → appbar: X (esquerda, fecha e navega para
-  //     'home') + lupa/⋮ (direita); bottom bar: CreationToolsBar
-  //     (Vista Para Dispositivo / Cabeçalhos / Editar / Partilhar /
-  //     Ler em Voz Alta).
+  //     'home') + lupa/⋮ (direita), COM nome do documento visível;
+  //     bottom bar: CreationToolsBar (Vista Para Dispositivo /
+  //     Cabeçalhos / Editar / Partilhar / Ler em Voz Alta).
   //  O botão "Editar" do CreationToolsBar volta a pôr isEditing=true.
-  //  NENHUM botão do appbar tem fundo/container — todos ficam soltos
-  //  diretamente na barra, sem círculo nem quadrado atrás.
+  //  NENHUM botão do appbar tem fundo/container.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -228,6 +231,7 @@
     docPageComp && docPageComp.blurEditor();
     docPageComp && docPageComp.deselectFloat();
     activePanel = null;
+    designModalOpen = false;
     isEditing = false;
   }
 
@@ -247,13 +251,14 @@
     if (id === 'bold') { exec('bold'); return; }
     if (id === 'italic') { exec('italic'); return; }
     if (id === 'underline') { exec('underline'); return; }
+    if (id === 'strikethrough') { exec('strikeThrough'); return; }
     if (id === 'color' || id === 'fontcolor') { colorModalOpen = true; return; }
     if (id === 'link') { openLinkPanel(); return; }
     if (id === 'footnote') { openFootnotePanel(); return; }
     if (id === 'insert') { triggerImagePicker(); return; }
     if (id === 'table') { tableModalOpen = true; return; }
     if (id === 'layers') { refreshLayers(); layersModalOpen = true; return; }
-    if (id === 'more') { return; }
+    if (id === 'design') { designModalOpen = true; return; }
     activePanel = id;
   }
 
@@ -264,6 +269,12 @@
     if (id === 'headings') { showToast('Cabeçalhos em breve'); return; }
     if (id === 'share') { openExport('share'); return; }
     if (id === 'readaloud') { showToast('Ler em voz alta em breve'); return; }
+  }
+
+  function handleDesignSelect(e) {
+    activeDesignTool = e.detail;
+    designModalOpen = false;
+    showToast('Ferramenta selecionada');
   }
 
   function closeFormatModal() { activePanel = null; }
@@ -619,14 +630,17 @@
     </button>
 
     <div class="appbar-center">
-      <input
-        class="doc-name-input"
-        style="color:{c.textPrimary}"
-        value={docName}
-        on:input={handleNameInput}
-        on:blur={handleNameBlur}
-        aria-label="Nome do documento"
-      />
+      {#if !isEditing}
+        <!-- Nome do documento só aparece FORA do modo de edição. -->
+        <input
+          class="doc-name-input"
+          style="color:{c.textPrimary}"
+          value={docName}
+          on:input={handleNameInput}
+          on:blur={handleNameBlur}
+          aria-label="Nome do documento"
+        />
+      {/if}
     </div>
 
     {#if isEditing}
@@ -684,10 +698,16 @@
     on:action={(e) => handleToolbarAction(e.detail)}
   />
 
+  <!--
+    DocMenu agora é um bottom sheet (sobe do fundo), fundo branco
+    puro no tema claro. A prop `anchor` deixou de influenciar o
+    posicionamento (mantida só por compatibilidade de assinatura).
+  -->
   <DocMenu
     visible={showDocMenu}
     anchor={docMenuAnchor}
     {c}
+    {isDark}
     on:close={closeDocMenu}
     on:select={handleDocMenuSelect}
   />
@@ -737,6 +757,18 @@
     on:close={() => layersModalOpen = false}
     on:select={handleLayerSelect}
     on:delete={handleLayerDelete}
+  />
+
+  <!-- Novo: modal (bottom sheet) de equipamentos de design, com
+       ícones Fluent Emoji coloridos (lápis, marcador, pincel,
+       paleta, régua, esquadro, tesoura, borracha, lapiseira). -->
+  <DesignModal
+    visible={designModalOpen}
+    {c}
+    {isDark}
+    activeTool={activeDesignTool}
+    on:close={() => designModalOpen = false}
+    on:select={handleDesignSelect}
   />
 
   <ConfirmDialog

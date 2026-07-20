@@ -44,25 +44,22 @@
   style="background:{c.creationBarBg};"
 >
   {#each TOOLS as item}
-    <fluent-tooltip content={item.label}>
-      <button
-        class="ctb-btn"
-        class:ctb-btn-pressed={pressedId === item.id}
-        on:pointerdown={() => onPointerDown(item.id)}
-        on:pointerup={onPointerUp}
-        on:pointercancel={onPointerUp}
-        on:click={() => press(item)}
-        aria-label={item.label}
-        slot="anchor"
-      >
-        <span class="ctb-btn-bg"></span>
-        <span
-          class="icon-mask"
-          style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:20px;height:20px;"
-        ></span>
-        <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
-      </button>
-    </fluent-tooltip>
+    <button
+      class="ctb-btn"
+      class:ctb-btn-pressed={pressedId === item.id}
+      on:pointerdown={() => onPointerDown(item.id)}
+      on:pointerup={onPointerUp}
+      on:pointercancel={onPointerUp}
+      on:click={() => press(item)}
+      aria-label={item.label}
+    >
+      <span class="ctb-btn-bg"></span>
+      <span
+        class="icon-mask"
+        style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:20px;height:20px;"
+      ></span>
+      <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
+    </button>
   {/each}
 </div>
 

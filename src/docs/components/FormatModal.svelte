@@ -122,62 +122,62 @@
       {#if activePanel === 'font'}
         <div class="opt-grid">
           {#each FONTS as f}
-            <fluent-button appearance="outline" class="opt-chip" style="font-family:{f.value}" on:click={() => dispatch('setfont', f.value)}>{f.label}</fluent-button>
+            <button class="opt-chip" style="background:{c.appbarBtnBg};color:{c.textPrimary};font-family:{f.value}" on:click={() => dispatch('setfont', f.value)}>{f.label}</button>
           {/each}
         </div>
       {:else if activePanel === 'size'}
         <div class="opt-grid">
           {#each SIZES as s}
-            <fluent-button appearance="outline" class="opt-chip" on:click={() => dispatch('setsize', s)}>{s}</fluent-button>
+            <button class="opt-chip" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => dispatch('setsize', s)}>{s}</button>
           {/each}
         </div>
       {:else if activePanel === 'align'}
         <div class="opt-grid">
-          <fluent-button appearance="subtle" class="opt-icon-btn" on:click={() => dispatch('setalign', 'justifyLeft')}>
+          <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyLeft')}>
             <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_left_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-          </fluent-button>
-          <fluent-button appearance="subtle" class="opt-icon-btn" on:click={() => dispatch('setalign', 'justifyCenter')}>
+          </button>
+          <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyCenter')}>
             <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_center_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_center_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-          </fluent-button>
-          <fluent-button appearance="subtle" class="opt-icon-btn" on:click={() => dispatch('setalign', 'justifyRight')}>
+          </button>
+          <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyRight')}>
             <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_right_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_right_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-          </fluent-button>
-          <fluent-button appearance="subtle" class="opt-icon-btn" on:click={() => dispatch('setalign', 'justifyFull')}>
+          </button>
+          <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyFull')}>
             <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_justify_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_justify_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-          </fluent-button>
+          </button>
         </div>
       {:else if activePanel === 'list'}
         <div class="opt-grid">
-          <fluent-button appearance="subtle" class="opt-icon-btn" on:click={() => dispatch('setlist', 'insertUnorderedList')}>
+          <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setlist', 'insertUnorderedList')}>
             <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_bullet_list_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_bullet_list_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-          </fluent-button>
-          <fluent-button appearance="subtle" class="opt-icon-btn" on:click={() => dispatch('setlist', 'insertOrderedList')}>
+          </button>
+          <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setlist', 'insertOrderedList')}>
             <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_number_list_ltr_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_number_list_ltr_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
-          </fluent-button>
+          </button>
         </div>
       {:else if activePanel === 'link'}
-        <fluent-text-field
+        <input
           class="sheet-input"
+          style="background:{c.appbarBtnBg};color:{c.textPrimary}"
           placeholder="https://..."
-          value={linkUrlDraft}
-          on:input={(e) => linkUrlDraft = e.target.value}
+          bind:value={linkUrlDraft}
           on:keydown={(e) => e.key === 'Enter' && dispatch('confirmlink')}
-        ></fluent-text-field>
+        />
         <div class="sheet-actions">
-          <fluent-button appearance="outline" class="btn-secondary" on:click={() => dispatch('removelink')}>Remover</fluent-button>
-          <fluent-button appearance="accent" class="btn-primary" on:click={() => dispatch('confirmlink')}>Aplicar</fluent-button>
+          <button class="btn-secondary" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={() => dispatch('removelink')}>Remover</button>
+          <button class="btn-primary" on:click={() => dispatch('confirmlink')}>Aplicar</button>
         </div>
       {:else if activePanel === 'footnote'}
-        <fluent-text-field
+        <input
           class="sheet-input"
+          style="background:{c.appbarBtnBg};color:{c.textPrimary}"
           placeholder="Texto da nota…"
-          value={footnoteDraft}
-          on:input={(e) => footnoteDraft = e.target.value}
+          bind:value={footnoteDraft}
           on:keydown={(e) => e.key === 'Enter' && dispatch('confirmfootnote')}
-        ></fluent-text-field>
+        />
         <div class="sheet-actions">
-          <fluent-button appearance="outline" class="btn-secondary" on:click={close}>Cancelar</fluent-button>
-          <fluent-button appearance="accent" class="btn-primary" on:click={() => dispatch('confirmfootnote')}>Inserir</fluent-button>
+          <button class="btn-secondary" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={close}>Cancelar</button>
+          <button class="btn-primary" on:click={() => dispatch('confirmfootnote')}>Inserir</button>
         </div>
       {/if}
     </div>
@@ -204,30 +204,36 @@
 
   .sheet-body { padding: 8px 18px 4px; }
   .opt-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 6px 0 4px; }
-  :global(.opt-chip) {
-    --neutral-fill-rest: transparent;
-    border-radius: 999px !important; font-size: 14px; font-weight: 600;
-    white-space: nowrap;
+  .opt-chip {
+    border: none; border-radius: 999px; padding: 10px 16px; font-size: 14px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
-  :global(.opt-icon-btn) {
-    width: 48px; height: 48px; border-radius: 50% !important;
-    display: flex; align-items: center; justify-content: center;
-    min-width: 0; padding: 0;
+  .opt-chip:active { transform: scale(0.95); }
+  .opt-icon-btn {
+    width: 48px; height: 48px; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .opt-icon-btn:active { transform: scale(0.9); }
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
-  :global(.sheet-input) {
-    width: 100%; border-radius: 999px !important;
-    font-size: 14px; margin: 6px 0 14px; box-sizing: border-box;
+  .sheet-input {
+    width: 100%; border: none; border-radius: 999px; padding: 13px 16px;
+    font-size: 14px; outline: none; margin: 6px 0 14px; box-sizing: border-box;
   }
   .sheet-actions { display: flex; gap: 10px; padding-bottom: 4px; }
-  :global(.btn-primary), :global(.btn-secondary) {
-    flex: 1; border-radius: 999px !important;
-    font-size: 14px; font-weight: 600; text-align: center;
+  .btn-primary, .btn-secondary {
+    flex: 1; padding: 12px 16px; border-radius: 999px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .btn-primary { background: #2F7BF6; color: #fff; }
+  .btn-primary:active, .btn-secondary:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
     .overlay, .bottom-sheet, .opt-chip, .opt-icon-btn, .btn-primary, .btn-secondary { transition: none !important; }

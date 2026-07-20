@@ -171,9 +171,9 @@
 <div class="root" style="background:{c.background};transform:translate3d({slideX}%,0,0);">
 
   <div class="appbar">
-    <fluent-button appearance="subtle" class="appbar-btn pulse-tap" on:click={goBackFolder} aria-label="Voltar">
+    <button class="appbar-btn pulse-tap" on:click={goBackFolder} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');background:{c.iconTint};"></span>
-    </fluent-button>
+    </button>
     <div class="appbar-title" style="color:{c.textPrimary}">
       {mode === 'share' ? 'Partilhar' : 'Exportar'} "{docName}"
     </div>
@@ -185,7 +185,7 @@
       <div class="permission-text" style="color:{c.textSecondary}">
         Para exportar o documento diretamente para uma pasta do teu telemóvel, é preciso autorizar o acesso ao armazenamento.
       </div>
-      <fluent-button appearance="accent" class="primary-btn pulse-tap" on:click={requestPermission}>Autorizar acesso</fluent-button>
+      <button class="primary-btn pulse-tap" on:click={requestPermission}>Autorizar acesso</button>
     </div>
   {:else}
     <div class="segmented" style="--count:2">
@@ -199,14 +199,13 @@
     </div>
 
     <div class="path-row" style="color:{c.textSecondary}">{currentPath}</div>
-    <fluent-button appearance="stealth" class="new-folder-btn" on:click={toggleNewFolder}>+ Nova pasta</fluent-button>
+    <button class="new-folder-btn" on:click={toggleNewFolder}>+ Nova pasta</button>
 
     {#if showNewFolderInput}
       <div class="new-folder-form">
-        <fluent-text-field class="new-folder-input" placeholder="Nome da pasta" value={newFolderName}
-          on:input={(e) => newFolderName = e.target.value}
-          on:keydown={(e) => e.key === 'Enter' && confirmNewFolder()}></fluent-text-field>
-        <fluent-button appearance="stealth" class="new-folder-confirm" on:click={confirmNewFolder}>Criar</fluent-button>
+        <input class="new-folder-input" placeholder="Nome da pasta" bind:value={newFolderName}
+          on:keydown={(e) => e.key === 'Enter' && confirmNewFolder()} />
+        <button class="new-folder-confirm" on:click={confirmNewFolder}>Criar</button>
       </div>
     {/if}
 
@@ -233,9 +232,9 @@
     </div>
 
     <div class="confirm-bar">
-      <fluent-button appearance="accent" class="confirm-btn pulse-tap" on:click={confirmExport} disabled={exporting}>
+      <button class="confirm-btn pulse-tap" on:click={confirmExport} disabled={exporting}>
         {exporting ? 'A gerar…' : (mode === 'share' ? 'Guardar e partilhar aqui' : 'Exportar para esta pasta')}
-      </fluent-button>
+      </button>
     </div>
   {/if}
 </div>
@@ -257,14 +256,14 @@
     padding: calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;
     flex-shrink: 0;
   }
-  :global(.appbar-btn) {
-    width: 36px; height: 36px; border-radius: 50% !important;
+  .appbar-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
     background: var(--btn-bg);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; flex-shrink: 0; padding: 0; min-width: 0;
+    cursor: pointer; flex-shrink: 0; padding: 0;
     transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
-  :global(.appbar-btn:active) { background: var(--btn-bg-active); transform: scale(0.88); }
+  .appbar-btn:active { background: var(--btn-bg-active); transform: scale(0.88); }
   .icon-mask {
     display: block; width: 18px; height: 18px;
     mask-size: contain; -webkit-mask-size: contain;
@@ -284,9 +283,10 @@
     padding: 32px; gap: 20px; text-align: center;
   }
   .permission-text { font-size: 14px; line-height: 1.5; }
-  :global(.primary-btn) {
-    border-radius: 999px !important; padding: 14px 28px;
-    font-size: 15px; font-weight: 700;
+  .primary-btn {
+    border: none; border-radius: 999px; padding: 14px 28px;
+    background: var(--accent-primary, #2F7BF6); color: #fff;
+    font-size: 15px; font-weight: 700; cursor: pointer;
   }
 
   .segmented {
@@ -319,19 +319,21 @@
 
   .path-row { padding: 10px 16px 4px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  :global(.new-folder-btn) {
-    display: block; text-align: left;
+  .new-folder-btn {
+    background: none; border: none; text-align: left;
     padding: 4px 16px 10px; font-size: 14px; font-weight: 700;
-    color: var(--accent-primary, #2F7BF6) !important;
+    color: var(--accent-primary, #2F7BF6); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; align-items: center; }
-  :global(.new-folder-input) {
-    flex: 1; border-radius: 12px !important;
-    font-size: 14px;
+  .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; }
+  .new-folder-input {
+    flex: 1; border: none; border-radius: 12px; padding: 11px 14px;
+    font-size: 14px; outline: none;
+    background: var(--surface-apps-tab); color: var(--drawer-text);
   }
-  :global(.new-folder-confirm) {
-    font-size: 14px; font-weight: 700;
-    color: var(--accent-primary, #2F7BF6) !important;
+  .new-folder-confirm {
+    background: none; border: none; font-size: 14px; font-weight: 700;
+    color: var(--accent-primary, #2F7BF6); cursor: pointer; padding: 0 8px;
   }
 
   .folder-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 8px; }
@@ -359,11 +361,12 @@
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   .confirm-bar { padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px); flex-shrink: 0; }
-  :global(.confirm-btn) {
-    width: 100%; border-radius: 999px !important; padding: 15px;
-    font-size: 15px; font-weight: 700;
+  .confirm-btn {
+    width: 100%; border: none; border-radius: 999px; padding: 15px;
+    background: var(--accent-primary, #2F7BF6); color: #fff;
+    font-size: 15px; font-weight: 700; cursor: pointer;
   }
-  :global(.confirm-btn:disabled) { opacity: 0.6; }
+  .confirm-btn:disabled { opacity: 0.6; }
 
   .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }
   .pulse-tap:active { transform: scale(0.96); opacity: .82; }

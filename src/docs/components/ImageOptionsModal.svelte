@@ -126,7 +126,7 @@
 
     <div class="sheet-body">
       <div class="field-label" style="color:{c.textSecondary}">Tamanho — {width}px</div>
-      <fluent-slider class="width-slider" min="40" max="760" step="1" value={width} on:input={onWidthInput}></fluent-slider>
+      <input type="range" min="40" max="760" step="1" bind:value={width} on:input={onWidthInput} class="width-slider" />
 
       <div class="field-label" style="color:{c.textSecondary}">Rotação — {rotationLabel}°</div>
       <div class="rotation-hint" style="color:{c.textSecondary}">Arrasta a alça acima da imagem para rodar livremente.</div>
@@ -146,7 +146,7 @@
         {/each}
       </div>
 
-      <fluent-button appearance="outline" class="delete-btn" on:click={requestDelete}>Remover imagem</fluent-button>
+      <button class="delete-btn" on:click={requestDelete}>Remover imagem</button>
     </div>
   </div>
 {/if}
@@ -175,9 +175,16 @@
   .field-label { font-size: 12px; font-weight: 600; margin: 14px 0 10px; text-transform: uppercase; letter-spacing: .04em; }
   .rotation-hint { font-size: 12px; font-weight: 500; margin: -4px 0 14px; opacity: 0.8; }
 
-  :global(.width-slider) {
-    width: 100%; margin: 0 0 4px;
-    --accent-fill-rest: #2F7BF6;
+  .width-slider {
+    width: 100%; height: 34px; -webkit-appearance: none; appearance: none;
+    background: transparent; margin: 0 0 4px;
+  }
+  .width-slider::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px; background: rgba(127,127,127,0.28);
+  }
+  .width-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: #2F7BF6; margin-top: -9px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   }
 
   .wrap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -195,12 +202,14 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  :global(.delete-btn) {
-    width: 100%; margin: 18px 0 4px; border-radius: 999px !important;
-    font-size: 14px; font-weight: 600;
-    --neutral-stroke-rest: rgba(255,59,48,0.4);
-    color: #FF3B30 !important;
+  .delete-btn {
+    width: 100%; margin: 18px 0 4px; border: none; border-radius: 999px;
+    padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: rgba(255,59,48,0.12); color: #FF3B30;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .delete-btn:active { transform: scale(0.97); }
 
   @media (prefers-reduced-motion: reduce) {
     .overlay, .bottom-sheet, .wrap-opt, .delete-btn { transition: none !important; }

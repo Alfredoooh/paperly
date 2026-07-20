@@ -1,18 +1,17 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-
+  
   export let c;
   export let activePanel = null;
   export let canUndo = false;
   export let canRedo = false;
   export let kbOffset = 0;
   export let visible = false;
-
+  
   const dispatch = createEventDispatcher();
 
-  // Base oficial do pacote @fluentui/svg-icons (Microsoft Fluent System Icons)
   const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
-
+  
   const GROUPS = [
     [
       { id: 'undo', icon: 'arrow_undo_24_regular', label: 'Desfazer', disabled: () => !canUndo },
@@ -44,7 +43,7 @@
       { id: 'layers', icon: 'layer_24_regular', label: 'Camadas', panel: true },
     ],
   ];
-
+  
   function press(item) {
     if (item.disabled && item.disabled()) return;
     dispatch('action', item.id);
@@ -75,7 +74,6 @@
           disabled={item.disabled ? item.disabled() : false}
           on:click={() => press(item)}
           aria-label={item.label}
-          title={item.label}
         >
           <span
             class="icon-mask"
@@ -130,7 +128,6 @@
   }
   .tb-pill::-webkit-scrollbar { display: none; }
   .tb-btn {
-    position: relative;
     width: 36px; height: 36px; border: none; background: transparent; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;

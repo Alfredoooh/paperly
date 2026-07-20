@@ -119,14 +119,12 @@
               style="mask-image:url('{FLUENT_CDN}{TYPE_ICONS[layer.type] || 'image_24_regular'}.svg');-webkit-mask-image:url('{FLUENT_CDN}{TYPE_ICONS[layer.type] || 'image_24_regular'}.svg');background:{c.iconTint};width:20px;height:20px;"
             ></span>
             <span class="layer-label" style="color:{c.textPrimary}">{layer.label}</span>
-            <fluent-button
-              appearance="stealth"
+            <button
               class="layer-delete"
               on:click={(e) => deleteLayer(e, layer)}
               aria-label="Remover"
-            >
-              <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}dismiss_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}dismiss_24_regular.svg');background:#FF3B30;width:16px;height:16px;"></span>
-            </fluent-button>
+              style="color:#FF3B30"
+            >×</button>
           </button>
         {/each}
       {/if}
@@ -184,11 +182,13 @@
   }
   .layer-label { flex: 1; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  :global(.layer-delete) {
-    flex-shrink: 0; min-width: 0; width: 28px; height: 28px;
-    padding: 0; display: flex; align-items: center; justify-content: center;
-    border-radius: 50% !important;
+  .layer-delete {
+    background: none; border: none; font-size: 20px; line-height: 1;
+    padding: 4px 6px; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .layer-delete:active { transform: scale(0.86); }
 
   @media (prefers-reduced-motion: reduce) {
     .overlay, .bottom-sheet, .layer-row, .layer-delete { transition: none !important; }

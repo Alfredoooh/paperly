@@ -2,6 +2,11 @@
   import { createEventDispatcher } from 'svelte';
   import { iconWithFallback } from '../lib/icon-fallback.js';
 
+  // slideX vem do spring do App.svelte pai (settingsSlide) — este
+  // componente já não decide sozinho se está visível ou não; segue o
+  // MESMO padrão que profile/pages/SettingsPage.svelte já usa, para
+  // que Sheets tenha a mesma navegação suave que o resto do app.
+  export let slideX = 100;
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Nexa Sheets';
@@ -39,12 +44,71 @@
   function toggleTheme() {
     dispatch('nav', { to: 'main', data: { isDark: !isDark } });
   }
+
+  // ── Gesto de arrastar da borda esquerda para fechar (edge-swipe) ──
+  // MESMO padrão de profile/pages/SettingsPage.svelte: segue o dedo
+  // 1:1 escrevendo diretamente no elemento (sem tocar no spring do
+  // pai), e ao soltar decide por threshold/velocidade e delega ao
+  // dispatch('nav',{to:'main'}) — o MESMO caminho do botão "voltar".
+  const EDGE_ZONE = 24;
+  const CLOSE_THRESHOLD = 0.32;
+  const VELOCITY_FLING = 0.5; // px/ms
+  let dragging = false;
+  let dragLiveActive = false;
+  let dragStartX = 0;
+  let dragCurrentX = 0;
+  let dragStartTime = 0;
+  let dragW = 360;
+  let liveOverrideX = null; // null = usa slideX do pai; número = dedo está a controlar
+
+  function onEdgeTouchStart(e) {
+    const x = e.touches[0].clientX;
+    if (x > EDGE_ZONE) return;
+    dragging = true;
+    dragLiveActive = false;
+    dragStartX = x;
+    dragCurrentX = x;
+    dragStartTime = performance.now();
+    dragW = window.innerWidth || 360;
+  }
+  function onEdgeTouchMove(e) {
+    if (!dragging) return;
+    const x = e.touches[0].clientX;
+    dragCurrentX = x;
+    const delta = x - dragStartX;
+    if (delta <= 4) return;
+    if (!dragLiveActive) dragLiveActive = true;
+    const progress = Math.min(1, Math.max(0, delta / dragW));
+    liveOverrideX = progress * 100;
+    e.preventDefault();
+  }
+  function onEdgeTouchEnd() {
+    if (!dragging) return;
+    dragging = false;
+    if (!dragLiveActive) { dragLiveActive = false; liveOverrideX = null; return; }
+    dragLiveActive = false;
+    const elapsed = Math.max(1, performance.now() - dragStartTime);
+    const delta = dragCurrentX - dragStartX;
+    const velocity = Math.abs(delta) / elapsed;
+    const draggedFraction = Math.min(1, Math.max(0, delta / dragW));
+    const shouldClose = draggedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
+    liveOverrideX = null;
+    if (shouldClose) {
+      dispatch('nav', { to: 'main' });
+    }
+    // se não fechar, o próximo valor de slideX do pai (já em 0) volta
+    // a assumir o controlo visual automaticamente
+  }
+
+  $: displayX = liveOverrideX !== null ? liveOverrideX : slideX;
 </script>
 
-<div class="page-shell" style="background:{c.background};">
+<svelte:window on:touchstart={onEdgeTouchStart} on:touchmove|nonpassive={onEdgeTouchMove} on:touchend={onEdgeTouchEnd} on:touchcancel={onEdgeTouchEnd} />
+
+<div class="page-shell" style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
   <div class="appbar" style="background:{c.dialogBackground};border-color:{c.divider};">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
-      <img src="/icons/svg/back.svg" use:iconWithFallback={'back'} class="appbar-icon" alt="" />
+      <img use:iconWithFallback={'back'} class="appbar-icon" alt="" />
     </button>
     <div class="appbar-title" style="color:{c.textPrimary}">Definições</div>
     <div class="appbar-spacer"></div>
@@ -80,7 +144,10 @@
 
 <style>
   .page-shell {
-    display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column; overflow: hidden;
+    will-change: transform;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.18);
   }
   .appbar {
     display: flex; align-items: center; gap: 8px;

@@ -1,18 +1,19 @@
 // lib/icon-fallback.js
 //
-// Sistema de ícones com fallback online.
+// Sistema de ícones — Fluent System Icons direto, sem fallback
+// condicional.
 //
-// Cada ícone tenta primeiro o SVG local do projeto (ficheiro em
-// /icons/svg/...), usado como <img> normal (não mask — mask falha
-// silenciosamente e fica invisível; <img> dispara um evento "error"
-// detetável). Se esse ficheiro local não existir/não carregar em
-// runtime (asset em falta, path errado, build Android sem o ficheiro
-// empacotado), a ação `use:iconWithFallback` deteta a falha e troca
-// automaticamente o src para o ícone vetorial equivalente da Fluent
-// System Icons — a biblioteca OFICIAL de ícones da Microsoft (MIT
-// license, usada no Windows 11, Teams, Word, Excel, Outlook),
-// servida via jsDelivr a partir do pacote npm @fluentui/svg-icons.
-// NÃO são emojis, são ícones vetoriais de contorno/preenchidos.
+// A biblioteca Fluent System Icons é a biblioteca OFICIAL de ícones
+// da Microsoft (MIT license, usada no Windows 11, Teams, Word, Excel,
+// Outlook), servida via jsDelivr a partir do pacote npm
+// @fluentui/svg-icons. NÃO são emojis, são ícones vetoriais de
+// contorno/preenchidos.
+//
+// ANTES: tentava-se primeiro um SVG local do projeto (via <img>, não
+// mask) e só se esse ficheiro falhasse a carregar em runtime é que se
+// trocava para o Fluent correspondente. Agora o Fluent é a fonte
+// ÚNICA e direta — nenhuma tentativa local, nenhuma dependência de um
+// evento "error" do browser para decidir qual ícone aparece.
 //
 // https://www.npmjs.com/package/@fluentui/svg-icons
 
@@ -39,7 +40,13 @@ export const FLUENT_ICON_MAP = {
   export: 'arrow_download_24_regular',
   delete: 'delete_24_regular',
   close: 'dismiss_24_regular',
-  sheets: 'table_24_filled',
+  settings: 'settings_24_regular',
+  // 'sheets' NÃO entra aqui de propósito: o ícone da app Sheets no
+  // ecrã inicial (launcher do home) vem sempre dos ficheiros locais
+  // /icons/svg/sheets.svg, /icons/svg/sheets_filled.svg e
+  // /icons/svg/apps/sheets.svg — geridos por src/shared/plans.js e
+  // src/home/lib/constants.js. Esses ficheiros do home ficam FORA
+  // deste sistema Fluent, exatamente como pedido.
 };
 
 /**
@@ -53,36 +60,29 @@ export function fluentIconUrl(semanticName) {
 }
 
 /**
- * Ação Svelte aplicada a um <img>. Se o `src` local falhar a
- * carregar (evento "error" nativo do browser), troca o `src` para o
- * ícone Fluent oficial correspondente.
+ * Ação Svelte aplicada a um <img>. Define o `src` diretamente para o
+ * ícone Fluent oficial correspondente — sem tentar nenhum ficheiro
+ * local primeiro e sem depender de um evento "error" para decidir.
+ *
+ * Mantida com o mesmo nome (`iconWithFallback`) e a mesma assinatura
+ * de uso para não obrigar a tocar em todos os componentes que já a
+ * chamam — só o comportamento interno mudou (Fluent sempre, direto).
  *
  * Uso:
  *   <img
- *     src="/icons/svg/docs/undo.svg"
  *     use:iconWithFallback={'undo'}
  *     class="icon-img"
  *     alt=""
  *   />
  */
 export function iconWithFallback(node, semanticName) {
-  let usedFallback = false;
-  
-  function handleError() {
-    if (usedFallback) return; // já está no fallback — evita loop se o CDN também falhar
-    usedFallback = true;
-    node.src = fluentIconUrl(semanticName);
-  }
-  
-  node.addEventListener('error', handleError);
+  node.src = fluentIconUrl(semanticName);
   
   return {
     update(newSemanticName) {
       semanticName = newSemanticName;
-      usedFallback = false;
+      node.src = fluentIconUrl(semanticName);
     },
-    destroy() {
-      node.removeEventListener('error', handleError);
-    },
+    destroy() {},
   };
 }

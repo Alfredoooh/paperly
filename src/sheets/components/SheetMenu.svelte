@@ -1,6 +1,6 @@
 <!-- components/SheetMenu.svelte -->
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { iconWithFallback } from '../lib/icon-fallback.js';
   
   export let visible = false;
@@ -18,15 +18,60 @@
   function select(id) {
     dispatch('select', id);
   }
+  
+  // ────────────────────────────────────────────────────────────────
+  // FIX (bug de navegação): antes, este menu abria/fechava só por
+  // estado local (`visible`), sem empurrar história nenhuma — o botão
+  // físico de voltar do Android saltava por cima dele e fechava a
+  // app inteira em vez de só fechar o menu. Agora segue a MESMA
+  // "regra de ouro" já usada por drawer/search no home: abrir empurra
+  // um estado real (pushState com `nexaSheetMenu`), e fechar nunca
+  // esconde o menu diretamente — só pede history.back(); quem de
+  // facto esconde é sempre o onpopstate.
+  // ────────────────────────────────────────────────────────────────
+  let lastVisible = false;
+  let suppressOwnPopstate = false;
+  
+  function pushMenuState() {
+    const currentPath = window.location.pathname + window.location.search;
+    history.pushState({ nexaSheetMenu: true, fromPath: currentPath }, '', currentPath);
+  }
+  
+  function requestClose() {
+    if (history.state && history.state.nexaSheetMenu) {
+      history.back();
+    } else {
+      dispatch('close');
+    }
+  }
+  
+  function onPopState() {
+    if (suppressOwnPopstate) return;
+    const state = history.state;
+    if (visible && (!state || state.nexaSheetMenu === undefined)) {
+      dispatch('close');
+    }
+  }
+  
+  $: if (visible !== lastVisible) {
+    lastVisible = visible;
+    if (visible) pushMenuState();
+  }
+  
+  onMount(() => {
+    window.addEventListener('popstate', onPopState);
+  });
+  onDestroy(() => {
+    window.removeEventListener('popstate', onPopState);
+  });
 </script>
 
 {#if visible}
-  <button class="anchor-overlay" on:click={() => dispatch('close')} aria-label="Fechar menu"></button>
+  <button class="anchor-overlay" on:click={requestClose} aria-label="Fechar menu"></button>
   <div class="anchor-menu" style="background:{c.dialogBackground}; border-color:{c.divider}; top:{anchor.top}px; right:{anchor.right}px;">
     {#each ITEMS as item, i}
       <button class="anchor-item" class:anchor-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
         <img
-          src="/icons/svg/docs/{item.icon}.svg"
           use:iconWithFallback={item.icon}
           class="anchor-icon"
           style={item.danger ? 'filter: invert(20%) sepia(90%) saturate(4000%) hue-rotate(350deg);' : ''}

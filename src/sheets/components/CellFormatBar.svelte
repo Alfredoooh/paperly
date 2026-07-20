@@ -32,10 +32,10 @@
 >
   <div class="fb-pill" style="background:{c.toolbarSolidBg || c.dialogBackground}; border-color:{c.divider};">
     <button class="fb-btn" disabled={!canUndo} on:click={() => press('undo')} aria-label="Desfazer">
-      <img src="/icons/svg/docs/undo.svg" use:iconWithFallback={'undo'} class="icon-img" style="opacity:{canUndo ? 1 : 0.32};" alt="" />
+      <img use:iconWithFallback={'undo'} class="icon-img" style="opacity:{canUndo ? 1 : 0.32};" alt="" />
     </button>
     <button class="fb-btn" disabled={!canRedo} on:click={() => press('redo')} aria-label="Refazer">
-      <img src="/icons/svg/docs/redo.svg" use:iconWithFallback={'redo'} class="icon-img" style="opacity:{canRedo ? 1 : 0.32};" alt="" />
+      <img use:iconWithFallback={'redo'} class="icon-img" style="opacity:{canRedo ? 1 : 0.32};" alt="" />
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
@@ -53,45 +53,44 @@
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={() => press('textcolor')} aria-label="Cor do texto">
-      <img src="/icons/svg/docs/text_color.svg" use:iconWithFallback={'text_color'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'text_color'} class="icon-img" alt="" />
     </button>
     <button class="fb-btn" on:click={() => press('fillcolor')} aria-label="Cor de preenchimento">
-      <img src="/icons/svg/sheets/fill_color.svg" use:iconWithFallback={'fill_color'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'fill_color'} class="icon-img" alt="" />
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={cycleAlign} aria-label="Alinhamento">
       <img
-        src={`/icons/svg/docs/${ALIGN_ICONS[activeMeta.align || 'left']}.svg`}
         use:iconWithFallback={ALIGN_ICONS[activeMeta.align || 'left']}
         class="icon-img"
         alt=""
       />
     </button>
     <button class="fb-btn" on:click={() => press('numformat')} aria-label="Formato numérico">
-      <img src="/icons/svg/sheets/number_format.svg" use:iconWithFallback={'number_format'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'number_format'} class="icon-img" alt="" />
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={() => press('insertrow')} aria-label="Inserir linha">
-      <img src="/icons/svg/sheets/insert_row.svg" use:iconWithFallback={'insert_row'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'insert_row'} class="icon-img" alt="" />
     </button>
     <button class="fb-btn" on:click={() => press('insertcol')} aria-label="Inserir coluna">
-      <img src="/icons/svg/sheets/insert_col.svg" use:iconWithFallback={'insert_col'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'insert_col'} class="icon-img" alt="" />
     </button>
     <button class="fb-btn" on:click={() => press('deleterow')} aria-label="Apagar linha">
-      <img src="/icons/svg/sheets/delete_row.svg" use:iconWithFallback={'delete_row'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'delete_row'} class="icon-img" alt="" />
     </button>
     <button class="fb-btn" on:click={() => press('deletecol')} aria-label="Apagar coluna">
-      <img src="/icons/svg/sheets/delete_col.svg" use:iconWithFallback={'delete_col'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'delete_col'} class="icon-img" alt="" />
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn fb-done" on:click={() => press('done')} aria-label="Concluir edição">
-      <img src="/icons/svg/check.svg" use:iconWithFallback={'check'} class="icon-img" alt="" />
+      <img use:iconWithFallback={'check'} class="icon-img" alt="" />
     </button>
   </div>
 </div>

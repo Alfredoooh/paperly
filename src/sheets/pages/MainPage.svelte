@@ -475,6 +475,19 @@
   function openMenu() {
     menuVisible = true;
   }
+
+  // FIX (bug de navegação): duplicar uma folha despachava a navegação
+  // para o novo `resource` E, de seguida, chamava loadOrCreate()
+  // manualmente aqui — duplicado com o bloco reativo mais abaixo
+  // ($: if (hasMounted && resourceId !== loadedResourceId)), que já
+  // trata exatamente esta troca de documento sempre que `resourceId`
+  // muda (seja por navegação normal, popstate, ou duplicação). Chamar
+  // loadOrCreate() nos dois sítios abria uma janela onde o documento
+  // podia ser carregado duas vezes em sequência rápida, com o
+  // undo/redo e o estado de edição a ficarem inconsistentes entre as
+  // duas cargas. Agora esta função só atualiza `resourceId` e deixa o
+  // bloco reativo, que já existe e já é a fonte única de verdade para
+  // troca de documento, tratar do recarregamento.
   function handleMenuSelect(e) {
     const id = e.detail;
     menuVisible = false;
@@ -484,7 +497,6 @@
       if (copy) {
         dispatch('nav', { to: 'resource', data: { id: copy.id } });
         resourceId = copy.id;
-        loadOrCreate();
       }
       return;
     }
@@ -528,6 +540,8 @@
   // mudança em `resourceId` depois do mount dispara um recarregamento
   // completo e correto do documento, com guarda de gravação prévia
   // para nunca perder alterações por trocar de folha depressa demais.
+  // Esta é agora a ÚNICA rota de recarregamento — ver nota acima em
+  // handleMenuSelect() sobre a duplicação removida.
 
   let loadedResourceId = null; // qual doc está atualmente carregado/montado
   let hasMounted = false;
@@ -571,7 +585,7 @@
        de "barra de ferramentas" que o Excel/Office sempre tem. -->
   <div class="appbar" style="background:{c.dialogBackground};border-color:{c.divider};">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
-      <img src="/icons/svg/back.svg" use:iconWithFallback={'back'} class="appbar-icon" alt="" />
+      <img use:iconWithFallback={'back'} class="appbar-icon" alt="" />
     </button>
 
     <div class="appbar-title">
@@ -592,7 +606,7 @@
     </div>
 
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={openMenu} aria-label="Mais opções">
-      <img src="/icons/svg/docs/more.svg" use:iconWithFallback={'more'} class="appbar-icon" alt="" />
+      <img use:iconWithFallback={'more'} class="appbar-icon" alt="" />
     </button>
   </div>
 

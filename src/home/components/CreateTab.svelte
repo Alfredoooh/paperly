@@ -150,10 +150,10 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <!-- Bottom sheet de apps: mesma cor de fundo do bottom bar (tanto
-       claro como escuro), mesmo border-radius da search-bar (999px),
-       mas só nos cantos superiores — o sheet "cola" no fundo do ecrã
-       por baixo do tab bar, dando a sensação de estar ligado a ele. -->
+  <!-- Bottom sheet de apps: encosta nas duas bordas laterais do ecrã
+       (sem margem lateral nenhuma) e vai até ao fundo, ficando por
+       baixo/atrás do bottom bar — mesma cor de fundo do bottom bar
+       nos dois temas, para parecer a mesma superfície. -->
   <div class="apps-sheet">
     <div class="apps-grid">
       {#each platformApps as app}
@@ -402,17 +402,17 @@
   }
 
   /* ---------- Bottom sheet de apps ---------- */
-  /* Mesma cor do bottom bar (rgb(var(--header-glass-rgb)) no claro,
-     var(--drawer-bg-strong) no escuro) para que o design combine e
-     pareça uma continuação visual do tab bar. Border-radius igual ao
-     da search-bar (999px), mas só em cima — só os cantos de topo
-     ficam arredondados, os de baixo ficam retos porque o sheet
-     encosta no fundo do ecrã, atrás do bottom bar. */
+  /* Sem margem lateral nenhuma — encosta nos dois cantos da tela,
+     tal como o bottom bar. Mesma cor de fundo do bottom bar (rgb do
+     --header-glass-rgb no claro, --drawer-bg-strong no escuro), para
+     parecer a mesma superfície. Border-radius igual ao da search-bar
+     (999px) só nos cantos de cima — os de baixo ficam retos porque
+     o sheet vai até à borda inferior do ecrã, por trás do tab bar. */
   .apps-sheet {
-    margin: 16px 14px calc(env(safe-area-inset-bottom, 0px) + 78px);
+    margin: 16px 0 0;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
     border-radius: 28px 28px 0 0;
     background: rgb(var(--header-glass-rgb));
-    overflow: hidden;
   }
   :global([data-theme="dark"]) .apps-sheet {
     background: var(--drawer-bg-strong);
@@ -422,7 +422,7 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px 8px;
-    padding: 28px 14px 24px;
+    padding: 28px 14px 4px;
   }
   .app-item {
     display: flex;
@@ -440,7 +440,7 @@
   .app-icon-circle {
     width: 52px;
     height: 52px;
-    border-radius: 16px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;

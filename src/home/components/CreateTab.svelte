@@ -150,28 +150,24 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <!-- Bottom sheet de apps: é um painel de ALTURA FIXA (não cresce
-       com o conteúdo) que vai desde logo abaixo da search-bar até ao
-       limite de cima do bottom bar. O conteúdo dentro dele tem scroll
-       PRÓPRIO (overflow-y no .apps-grid-scroll) — não é a página que
-       desliza, é o sheet que revela o resto por dentro de si mesmo,
-       como um bottom-sheet nativo. O fundo do SHEET fica igual ao
-       bottom bar; os CONTAINERS dos ícones são sempre claros/brancos
-       nos dois temas — só o tom de branco varia. Os ÍCONES é que
-       mudam: no claro ficam num azul suave, no escuro ficam escuros
-       (quase pretos) para contrastar com o container claro. -->
+  <!-- Bottom sheet de apps: SEM scroll próprio e SEM sticky — é só um
+       container comprido (min-height) que faz parte do fluxo normal
+       da página. O scroll para ver todos os apps é o MESMO scroll da
+       página inteira (o que já funcionava antes), evitando qualquer
+       scroll aninhado que possa bloquear o gesto de deslizar. O fundo
+       do SHEET é igual ao bottom bar; os containers dos ícones ficam
+       claros/brancos nos dois temas, e os ícones em si são azuis
+       (claro) ou escuros/quase-pretos (escuro). -->
   <div class="apps-sheet">
-    <div class="apps-grid-scroll">
-      <div class="apps-grid">
-        {#each platformApps as app}
-          <button class="app-item native-tap" on:click={() => openApp(app)}>
-            <span class="app-icon-circle">
-              <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-            </span>
-            <span class="app-label">{app.label}</span>
-          </button>
-        {/each}
-      </div>
+    <div class="apps-grid">
+      {#each platformApps as app}
+        <button class="app-item native-tap" on:click={() => openApp(app)}>
+          <span class="app-icon-circle">
+            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
+          </span>
+          <span class="app-label">{app.label}</span>
+        </button>
+      {/each}
     </div>
   </div>
 </div>
@@ -410,31 +406,21 @@
   }
 
   /* ---------- Bottom sheet de apps ---------- */
-  /* position: sticky com top negativo faz o sheet "prender-se" logo
-     abaixo da search-bar assim que ela deixa de estar visível no
-     ecrã, e height calculado com 100vh menos o espaço do bottom bar
-     garante que o sheet NUNCA passa por baixo do bottom bar — o
-     scroll do conteúdo fica todo contido dentro do próprio sheet. */
+  /* Sem sticky, sem overflow próprio — apenas parte do fluxo normal
+     da página, com min-height para garantir que o painel fica bem
+     comprido (chega perto do fim mesmo com poucos apps), mas SEM
+     forçar altura fixa: se houver mais apps que couberem no ecrã, o
+     sheet cresce e o scroll natural da página (o mesmo que já existe
+     para o hero e a search-bar) revela o resto. */
   .apps-sheet {
-    position: sticky;
-    top: 0;
-    height: calc(100vh - env(safe-area-inset-bottom, 0px) - 78px);
+    min-height: calc(100vh - 260px - 78px);
     margin: 16px 0 0;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
     border-radius: 28px 28px 0 0;
     background: rgb(var(--header-glass-rgb));
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
   :global([data-theme="dark"]) .apps-sheet {
     background: var(--drawer-bg-strong);
-  }
-
-  .apps-grid-scroll {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
   }
 
   .apps-grid {

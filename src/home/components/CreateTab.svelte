@@ -155,13 +155,15 @@
        limite de cima do bottom bar. O conteúdo dentro dele tem scroll
        PRÓPRIO (overflow-y no .apps-grid-scroll) — não é a página que
        desliza, é o sheet que revela o resto por dentro de si mesmo,
-       como um bottom-sheet nativo. Cor igual à do bottom bar. -->
+       como um bottom-sheet nativo. Cor do sheet igual à do bottom bar;
+       cor dos CÍRCULOS dos ícones é a mesma para todos os apps —
+       azul estilo Apple no tema claro, outra cor no escuro. -->
   <div class="apps-sheet">
     <div class="apps-grid-scroll">
       <div class="apps-grid">
         {#each platformApps as app}
           <button class="app-item native-tap" on:click={() => openApp(app)}>
-            <span class="app-icon-circle" style="background-color:{app.color ? app.color : '#8E8E93'} !important">
+            <span class="app-icon-circle">
               <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
             </span>
             <span class="app-label">{app.label}</span>
@@ -452,6 +454,11 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
+  /* Cor única do container, igual para todos os apps: azul estilo
+     Apple (#007AFF, o mesmo tom usado em iOS/SF Symbols) no tema
+     claro; no escuro um azul mais profundo e dessaturado (#0A84FF é
+     o "system blue" da Apple para dark mode) para não ficar
+     estourado contra o fundo escuro do sheet. */
   .app-icon-circle {
     width: 52px;
     height: 52px;
@@ -460,8 +467,12 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    background: #007AFF;
     box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  :global([data-theme="dark"]) .app-icon-circle {
+    background: #0A84FF;
   }
   .app-icon-svg {
     width: 24px;

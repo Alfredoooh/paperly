@@ -124,15 +124,17 @@
   //  (translate + scale) usado pelo AppDrawer, proporcional ao quanto
   //  o sheet já expandiu.
   //
-  //  LIMITE MÁXIMO DE EXPANSÃO (FIX): deixou de ser "topo toca o
-  //  appbar". Passa a ser a altura REAL do conteúdo do sheet (handle
-  //  + grid completo de apps, medida via getBoundingClientRect do
-  //  próprio .apps-sheet-scroll depois de renderizado) — ou seja, o
-  //  sheet para de crescer assim que a ÚLTIMA fila de apps acabou de
-  //  ficar visível, sem sobra de espaço vazio por baixo. O valor
-  //  "topo toca o appbar" (viewportH - appbarHeight) continua a
-  //  existir, mas só como TETO de segurança para ecrãs muito
-  //  pequenos onde o conteúdo todo nem caberia.
+  //  LIMITE MÁXIMO DE EXPANSÃO: a altura REAL do conteúdo do sheet
+  //  (handle + grid completo de apps), medida via getBoundingClientRect
+  //  depois de renderizado — o sheet para de crescer assim que a
+  //  ÚLTIMA fila de apps acabou de ficar visível, sem sobra de espaço
+  //  vazio por baixo E sem cortar a última fila. O padding inferior
+  //  usado no cálculo é lido do CSS de verdade (getComputedStyle),
+  //  nunca chutado como número fixo — isto inclui a safe-area real do
+  //  aparelho. "Topo toca o appbar" (viewportH - appbarHeight)
+  //  continua a existir, mas só como TETO de segurança para ecrãs
+  //  muito pequenos onde o conteúdo todo nem caberia — nesse caso raro
+  //  o scroll interno do sheet assume o resto.
   // ══════════════════════════════════════════════════════════════════
   const BASE_SHEET_HEIGHT = 420; // altura "de repouso" do sheet, em px
   const PUSH_TRANSLATE = -8;
@@ -161,18 +163,21 @@
   // (0), usamos BASE_SHEET_HEIGHT como fallback para não rebentar o
   // cálculo antes do primeiro layout.
   let handleZoneEl;
+  let scrollEl;
   let gridEl;
   let measuredContentHeight = 0;
 
   async function measureContentHeight() {
     await tick();
-    if (!handleZoneEl || !gridEl) return;
+    if (!handleZoneEl || !scrollEl || !gridEl) return;
     const handleH = handleZoneEl.getBoundingClientRect().height;
     const gridH = gridEl.getBoundingClientRect().height;
-    // + padding inferior do scroll (safe-area + espaço da bottom bar),
-    // igual ao valor usado em .apps-sheet-scroll no CSS abaixo.
-    const bottomPad = 78 + 16; // 78 = espaço da bottom bar; 16 = folga
-    measuredContentHeight = handleH + gridH + bottomPad;
+    // Lê o padding-bottom REAL aplicado pelo CSS (.apps-sheet-scroll),
+    // em vez de um valor fixo chutado — isto inclui env(safe-area-inset-
+    // bottom) de verdade no dispositivo. gridH já contém o padding
+    // próprio do .apps-grid, então não é somado de novo aqui.
+    const scrollPadBottom = parseFloat(getComputedStyle(scrollEl).paddingBottom) || 0;
+    measuredContentHeight = handleH + gridH + scrollPadBottom;
   }
 
   $: if (platformApps) measureContentHeight();
@@ -183,6 +188,8 @@
   $: safetyCeilingHeight = Math.max(BASE_SHEET_HEIGHT, viewportH - appbarHeight);
 
   // Alvo real de expansão: a altura do conteúdo, respeitando o teto.
+  // Nunca ultrapassa measuredContentHeight quando este já foi medido —
+  // é isto que impede o sheet de subir além do fim da última fila.
   $: targetExpandedHeight = Math.min(
     safetyCeilingHeight,
     Math.max(BASE_SHEET_HEIGHT, measuredContentHeight || BASE_SHEET_HEIGHT)
@@ -310,7 +317,7 @@
      segurança do appbar. -->
 <div
   class="apps-sheet"
-  style="background:{'rgb(var(--header-glass-rgb))'}; height:{sheetHeightPx}px;"
+  style="height:{sheetHeightPx}px;"
   on:touchstart={onSheetTouchStart}
   on:touchmove={onSheetTouchMove}
   on:touchend={onSheetTouchEnd}
@@ -319,7 +326,7 @@
   <div class="apps-sheet-handle-zone" bind:this={handleZoneEl}>
     <span class="apps-sheet-handle"></span>
   </div>
-  <div class="apps-sheet-scroll">
+  <div class="apps-sheet-scroll" bind:this={scrollEl}>
     <div class="apps-grid" bind:this={gridEl}>
       {#each platformApps as app}
         <button class="app-item native-tap" on:click={() => openApp(app)}>
@@ -578,11 +585,16 @@
      position:fixed, ancorado ao fundo do ecrã (por cima da bottom bar
      nativa). A altura é controlada por JS (sheetHeightPx), entre
      BASE_SHEET_HEIGHT (repouso) e maxSheetHeight (altura real do
-     conteúdo, ver script). O handle no topo é a zona de arrasto. */
+     conteúdo, ver script). O handle no topo é a zona de arrasto.
+     Sem background inline no elemento — SÓ aqui no CSS, para que a
+     regra de tema escuro abaixo (com !important) consiga mesmo
+     vencer. Background inline no elemento sempre vence CSS de classe,
+     !important ou não — por isso o fundo tinha de sair do style=. */
   .apps-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 20;
+    background: rgb(var(--header-glass-rgb));
     border-radius: 28px 28px 0 0;
     box-shadow: 0 -2px 16px rgba(0,0,0,0.10);
     display: flex;

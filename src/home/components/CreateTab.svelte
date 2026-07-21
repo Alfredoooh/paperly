@@ -2,7 +2,7 @@
 <!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
      Não usa AppHeader — este tab é o único caso especial. -->
 <script>
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
 
   export let platformApps = [];
@@ -24,9 +24,9 @@
   // ── Push da tela de trás enquanto o apps-sheet expande ────────────
   // rootEl: o mesmo elemento raiz (.root) que o App.svelte já passa ao
   // AppDrawer para o efeito de push. appbarHeight: altura em px do
-  // appbar desta tela (inclui safe-area), usada para calcular o limite
-  // máximo de subida do sheet (o topo do sheet nunca ultrapassa o
-  // fundo do appbar).
+  // appbar desta tela (inclui safe-area), usada apenas como TETO de
+  // segurança — o sheet nunca cresce mais do que isso, mas o alvo
+  // real de expansão é a altura do próprio conteúdo (ver abaixo).
   export let rootEl = null;
   export let appbarHeight = 56;
 
@@ -122,14 +122,23 @@
   //  partir do próprio sheet, ele EXPANDE em altura (mostrando mais
   //  apps), e a tela por trás (rootEl) recebe o mesmo efeito de push
   //  (translate + scale) usado pelo AppDrawer, proporcional ao quanto
-  //  o sheet já expandiu. O limite máximo de expansão é o topo do
-  //  sheet tocar exatamente no fundo do appbar (nunca ultrapassa).
+  //  o sheet já expandiu.
+  //
+  //  LIMITE MÁXIMO DE EXPANSÃO (FIX): deixou de ser "topo toca o
+  //  appbar". Passa a ser a altura REAL do conteúdo do sheet (handle
+  //  + grid completo de apps, medida via getBoundingClientRect do
+  //  próprio .apps-sheet-scroll depois de renderizado) — ou seja, o
+  //  sheet para de crescer assim que a ÚLTIMA fila de apps acabou de
+  //  ficar visível, sem sobra de espaço vazio por baixo. O valor
+  //  "topo toca o appbar" (viewportH - appbarHeight) continua a
+  //  existir, mas só como TETO de segurança para ecrãs muito
+  //  pequenos onde o conteúdo todo nem caberia.
   // ══════════════════════════════════════════════════════════════════
   const BASE_SHEET_HEIGHT = 420; // altura "de repouso" do sheet, em px
   const PUSH_TRANSLATE = -8;
   const PUSH_SCALE_MIN = 0.98;
 
-  const expand = createBackRecoilTransition(); // valor 0..1 (0 = repouso, 1 = totalmente expandido até ao appbar)
+  const expand = createBackRecoilTransition(); // valor 0..1 (0 = repouso, 1 = totalmente expandido até ao conteúdo)
   let expandValue = 0;
   const unsubscribeExpand = expand.subscribe((v) => {
     expandValue = v;
@@ -146,9 +155,40 @@
   let viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
   function refreshViewportH() { viewportH = window.innerHeight; }
 
-  // Altura máxima possível do sheet: do fundo do ecrã até ao fundo do
-  // appbar (nunca ultrapassa o appbar, conforme pedido).
-  $: maxSheetHeight = Math.max(BASE_SHEET_HEIGHT, viewportH - appbarHeight);
+  // Altura real do conteúdo do sheet (handle-zone + grid), medida
+  // depois de as apps estarem no DOM. Recalculada quando a lista de
+  // apps muda ou o ecrã roda (resize). Enquanto não foi medida ainda
+  // (0), usamos BASE_SHEET_HEIGHT como fallback para não rebentar o
+  // cálculo antes do primeiro layout.
+  let handleZoneEl;
+  let gridEl;
+  let measuredContentHeight = 0;
+
+  async function measureContentHeight() {
+    await tick();
+    if (!handleZoneEl || !gridEl) return;
+    const handleH = handleZoneEl.getBoundingClientRect().height;
+    const gridH = gridEl.getBoundingClientRect().height;
+    // + padding inferior do scroll (safe-area + espaço da bottom bar),
+    // igual ao valor usado em .apps-sheet-scroll no CSS abaixo.
+    const bottomPad = 78 + 16; // 78 = espaço da bottom bar; 16 = folga
+    measuredContentHeight = handleH + gridH + bottomPad;
+  }
+
+  $: if (platformApps) measureContentHeight();
+
+  // Teto de segurança: nunca ultrapassa "topo encosta no appbar",
+  // mesmo que o conteúdo medido seja maior que isso (ex.: muitos apps
+  // num ecrã pequeno) — aí sim o scroll interno do sheet assume.
+  $: safetyCeilingHeight = Math.max(BASE_SHEET_HEIGHT, viewportH - appbarHeight);
+
+  // Alvo real de expansão: a altura do conteúdo, respeitando o teto.
+  $: targetExpandedHeight = Math.min(
+    safetyCeilingHeight,
+    Math.max(BASE_SHEET_HEIGHT, measuredContentHeight || BASE_SHEET_HEIGHT)
+  );
+
+  $: maxSheetHeight = targetExpandedHeight;
   $: sheetHeightPx = BASE_SHEET_HEIGHT + (maxSheetHeight - BASE_SHEET_HEIGHT) * expandValue;
 
   const DRAG_ACTIVATE_PX = 6;
@@ -208,7 +248,7 @@
   });
 </script>
 
-<svelte:window on:resize={refreshViewportH} />
+<svelte:window on:resize={() => { refreshViewportH(); measureContentHeight(); }} />
 
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
      avatar). O título "Criar" só aparece quando o header fica sólido
@@ -265,7 +305,9 @@
 <!-- Sheet fixo, colado ao fundo (acima da bottom bar nativa, que já
      tem o seu próprio espaço reservado via padding-bottom). Ao
      arrastar a partir daqui, expande em altura (drag handle no topo),
-     empurrando a tela por trás — limite máximo: topo toca o appbar. -->
+     empurrando a tela por trás — limite máximo: altura real do
+     conteúdo (grid completo de apps), nunca ultrapassando o teto de
+     segurança do appbar. -->
 <div
   class="apps-sheet"
   style="background:{'rgb(var(--header-glass-rgb))'}; height:{sheetHeightPx}px;"
@@ -274,11 +316,11 @@
   on:touchend={onSheetTouchEnd}
   on:touchcancel={onSheetTouchEnd}
 >
-  <div class="apps-sheet-handle-zone">
+  <div class="apps-sheet-handle-zone" bind:this={handleZoneEl}>
     <span class="apps-sheet-handle"></span>
   </div>
   <div class="apps-sheet-scroll">
-    <div class="apps-grid">
+    <div class="apps-grid" bind:this={gridEl}>
       {#each platformApps as app}
         <button class="app-item native-tap" on:click={() => openApp(app)}>
           <span class="app-icon-circle" style="background:{app.color || '#8E8E93'}">
@@ -535,8 +577,8 @@
   /* Deixa de fazer parte do fluxo normal da página — passa a
      position:fixed, ancorado ao fundo do ecrã (por cima da bottom bar
      nativa). A altura é controlada por JS (sheetHeightPx), entre
-     BASE_SHEET_HEIGHT (repouso) e maxSheetHeight (topo a tocar o
-     fundo do appbar). O handle no topo é a zona de arrasto. */
+     BASE_SHEET_HEIGHT (repouso) e maxSheetHeight (altura real do
+     conteúdo, ver script). O handle no topo é a zona de arrasto. */
   .apps-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;

@@ -155,9 +155,11 @@
        limite de cima do bottom bar. O conteúdo dentro dele tem scroll
        PRÓPRIO (overflow-y no .apps-grid-scroll) — não é a página que
        desliza, é o sheet que revela o resto por dentro de si mesmo,
-       como um bottom-sheet nativo. Cor do sheet igual à do bottom bar;
-       cor dos CÍRCULOS dos ícones é a mesma para todos os apps —
-       azul estilo Apple no tema claro, outra cor no escuro. -->
+       como um bottom-sheet nativo. O fundo do SHEET fica igual ao
+       bottom bar; os CONTAINERS dos ícones são sempre claros/brancos
+       nos dois temas — só o tom de branco varia. Os ÍCONES é que
+       mudam: no claro ficam num azul suave, no escuro ficam escuros
+       (quase pretos) para contrastar com o container claro. -->
   <div class="apps-sheet">
     <div class="apps-grid-scroll">
       <div class="apps-grid">
@@ -454,11 +456,10 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
-  /* Cor única do container, igual para todos os apps: azul estilo
-     Apple (#007AFF, o mesmo tom usado em iOS/SF Symbols) no tema
-     claro; no escuro um azul mais profundo e dessaturado (#0A84FF é
-     o "system blue" da Apple para dark mode) para não ficar
-     estourado contra o fundo escuro do sheet. */
+  /* Container SEMPRE claro nos dois temas — no claro um branco um
+     pouco "fraco" (não puro, ligeiramente acinzentado, para não
+     saltar demasiado contra o fundo do sheet), no escuro um branco
+     quase puro para se destacar bem do fundo escuro do sheet. */
   .app-icon-circle {
     width: 52px;
     height: 52px;
@@ -467,24 +468,32 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: #007AFF;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.55);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   :global([data-theme="dark"]) .app-icon-circle {
-    background: #0A84FF;
+    background: #F2F2F2;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   }
+  /* Ícone: no claro, azul suave (não forte) inspirado no tom
+     dominante da imagem de referência — um azul petróleo desaturado.
+     No escuro, o ícone fica escuro (quase preto) para contrastar
+     com o container agora claro. */
   .app-icon-svg {
     width: 24px;
     height: 24px;
     display: block;
-    background: #fff;
+    background: #3E6B87;
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
+  }
+  :global([data-theme="dark"]) .app-icon-svg {
+    background: #1C1C1E;
   }
   .native-tap:active .app-icon-circle {
     transform: scale(0.86);

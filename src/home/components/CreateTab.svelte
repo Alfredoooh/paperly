@@ -2,7 +2,7 @@
 <!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
      Não usa AppHeader — este tab é o único caso especial. -->
 <script>
-  export let platformApps = [];
+  export let platformApps = null;
   export let onOpenSearch = () => {};
   export let onOpenApp = () => {};
 
@@ -84,7 +84,9 @@
   //  silver appbar vive por cima de tudo, entra com opacity+translateY
   //  assim que heroProgress ultrapassa o mesmo SOLID_THRESHOLD já
   //  usado para o título do header original — reaproveita o sinal que
-  //  já existe, não duplica lógica de scroll.
+  //  já existe, não duplica lógica de scroll. Agora leva também o
+  //  avatar (dentro do próprio appbar, não escondido atrás dele) e um
+  //  botão de pesquisa que substitui a search-bar quando esta some.
   // ══════════════════════════════════════════════════════════════════
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
@@ -151,13 +153,7 @@
   // colunas visíveis num ecrã típico para não "saltar" quando os
   // dados reais chegam.
   const SKELETON_COUNT = 4;
-
-  // ══════════════════════════════════════════════════════════════════
-  //  APPS-GRID: bloco estático, sem modal, sem sheet arrastável, sem
-  //  push na tela de trás. Faz parte do fluxo normal da página, do
-  //  mesmo jeito que a secção de "recentes" acima dela. Ícones no
-  //  tamanho grande (estilo Canva), grid de 4 colunas.
-  // ══════════════════════════════════════════════════════════════════
+  const APPS_SKELETON_COUNT = 6; // 2 filas de 3 colunas
 </script>
 
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
@@ -179,13 +175,35 @@
 </div>
 
 <!-- Silver appbar: elemento NOVO e independente, colocado por cima de
-     tudo. Estilo simples (fundo sólido translúcido tipo "vidro",
-     linha divisória subtil por baixo — como um appbar nativo), só
-     visível ao deslizar (isSolid = heroProgress >= SOLID_THRESHOLD).
-     Não mexe em nada do .create-header original. -->
+     tudo. Título "Criar" agora à ESQUERDA. Avatar passou a viver
+     DENTRO deste appbar (à direita), deixando de ficar escondido
+     atrás dele — o avatar do .create-header original fica coberto
+     visualmente pelo fundo sólido deste appbar quando isSolid, mas
+     este aqui é o que fica visível por cima. Botão de pesquisa
+     aparece à esquerda do avatar assim que a search-bar original
+     desaparece (mesmo sinal heroProgress/isSolid). -->
 <div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
   <div class="silver-appbar-inner">
     <span class="silver-appbar-title">{title}</span>
+    <div class="silver-appbar-actions">
+      <button
+        class="silver-search-btn pulse-tap"
+        class:visible={isSolid}
+        tabindex={isSolid ? 0 : -1}
+        aria-hidden={!isSolid}
+        on:click={handleOpenSearch}
+        aria-label="Pesquisar"
+      >
+        <span class="icon-mask silver-search-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+      </button>
+      <button class="profile-btn pulse-tap solid" on:click={handleMenu} aria-label="Perfil">
+        {#if avatarUrl}
+          <img src={avatarUrl} alt={userName} class="profile-img" />
+        {:else}
+          <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
+        {/if}
+      </button>
+    </div>
   </div>
 </div>
 
@@ -219,18 +237,31 @@
   </button>
 
   <!-- Apps: grid estática, SEM modal, SEM sheet arrastável. Faz parte
-       do fluxo normal da página, tal como os "recentes" acima. Ícones
-       grandes, estilo Canva (grid de 4 colunas). -->
-  <div class="apps-grid">
-    {#each platformApps as app}
-      <button class="app-item native-tap" on:click={() => openApp(app)}>
-        <span class="app-icon-circle" style="background:{app.color || '#8E8E93'}">
-          <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-        </span>
-        <span class="app-label">{app.label}</span>
-      </button>
-    {/each}
-  </div>
+       do fluxo normal da página, tal como os "recentes" abaixo dela.
+       Ícones grandes, estilo Canva (grid de 3 colunas). Skeleton
+       enquanto platformApps === null (a carregar); nada é renderizado
+       se, depois de carregado, vier um array vazio. -->
+  {#if platformApps === null}
+    <div class="apps-grid">
+      {#each Array(APPS_SKELETON_COUNT) as _}
+        <div class="app-item app-item-skeleton">
+          <div class="app-icon-circle recent-skeleton"></div>
+          <span class="recent-skeleton recent-skeleton-line" style="width:60%"></span>
+        </div>
+      {/each}
+    </div>
+  {:else if platformApps.length > 0}
+    <div class="apps-grid">
+      {#each platformApps as app}
+        <button class="app-item native-tap" on:click={() => openApp(app)}>
+          <span class="app-icon-circle" style="background:{app.color || '#8E8E93'}">
+            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
+          </span>
+          <span class="app-label">{app.label}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   <!-- Continuar a criar: projetos recentes do utilizador. Skeleton
        enquanto recentProjects === null (a carregar); nada é
@@ -399,6 +430,8 @@
   }
 
   /* ---------- Silver appbar: NOVO, independente do header acima ---------- */
+  /* Título à esquerda; avatar (+ botão de pesquisa) à direita, DENTRO
+     deste appbar — nada fica escondido atrás dele. */
   .silver-appbar {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -424,7 +457,8 @@
   .silver-appbar-inner {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 12px;
     width: 100%;
     height: 100%;
     max-width: 640px;
@@ -436,9 +470,60 @@
     font-weight: 700;
     letter-spacing: -0.1px;
     color: var(--drawer-text);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+  }
+  .silver-appbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
   }
   @media (min-width: 720px) {
     .silver-appbar-inner { max-width:760px; }
+  }
+
+  /* Botão de pesquisa que aparece no silver appbar assim que a
+     search-bar original desaparece com o scroll (mesmo sinal
+     isSolid). Some/aparece com fade+scale próprios, independentes do
+     fade do appbar em si. */
+  .silver-search-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--row-active, rgba(127,127,127,0.12));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    opacity: 0;
+    transform: scale(0.7);
+    transition:
+      opacity .2s cubic-bezier(0.32, 0.72, 0, 1),
+      transform .2s cubic-bezier(0.34,1.56,0.64,1),
+      background .2s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+  }
+  .silver-search-btn.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  .silver-search-btn:active {
+    background: var(--row-hover, rgba(127,127,127,0.2));
+    transform: scale(0.9);
+  }
+  .silver-search-icon {
+    width: 17px;
+    height: 17px;
+    background: var(--icon-strong);
   }
 
   /* ---------- Conteúdo do Create ---------- */
@@ -554,7 +639,7 @@
   /* ---------- Apps: grid estática, sem modal ---------- */
   .apps-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 22px 8px;
     padding: 22px 14px 8px;
   }
@@ -571,9 +656,12 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
+  .app-item-skeleton {
+    cursor: default;
+  }
   /* Container: cor própria por app (app.color, hex fornecido), igual
      nos dois temas. Tamanho igual ao do canvas na imagem de
-     referência — bem maior que o antigo sheet (52px → 68px). */
+     referência. */
   .app-icon-circle {
     width: 68px;
     height: 68px;
@@ -586,8 +674,7 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   /* Ícone: SEMPRE branco puro, nos dois temas — o contraste vem do
-     container colorido por baixo, não da cor do ícone. Escala junto
-     com o container maior (24px → 30px). */
+     container colorido por baixo, não da cor do ícone. */
   .app-icon-svg {
     width: 30px;
     height: 30px;
@@ -766,5 +853,6 @@
   @media (prefers-reduced-motion: reduce) {
     .search-bar { transition: none !important; }
     .silver-appbar { transition: none !important; }
+    .silver-search-btn { transition: none !important; }
   }
 </style>

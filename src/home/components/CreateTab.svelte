@@ -2,7 +2,7 @@
 <!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
      Não usa AppHeader — este tab é o único caso especial. -->
 <script>
-  import { onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
 
   export let platformApps = [];
@@ -123,6 +123,15 @@
   //  apps), e a tela por trás (rootEl) recebe o mesmo efeito de push
   //  (translate + scale) usado pelo AppDrawer, proporcional ao quanto
   //  o sheet já expandiu.
+  //
+  //  FIX (bug: sheet "voava" e deixava gap entre ele e a bottom bar
+  //  ao arrastar): o .apps-sheet vivia dentro de .root (via
+  //  scroll-root → CreateTab). .root recebe transform em applyPush()
+  //  E no back-recoil do App.svelte — e um pai com transform vira
+  //  containing block para os filhos position:fixed. Isso fazia o
+  //  sheet deixar de colar no ecrã real e passar a colar no .root
+  //  deslocado. Corrigido movendo o node do sheet para document.body
+  //  no onMount, fora da árvore do .root.
   //
   //  LIMITE MÁXIMO DE EXPANSÃO: a altura REAL do conteúdo do sheet
   //  (handle + grid completo de apps), medida via getBoundingClientRect
@@ -249,9 +258,27 @@
     }
   }
 
+  // FIX: o .apps-sheet vivia dentro de .root (via scroll-root), e
+  // .root recebe transform (applyPush aqui + back-recoil no
+  // App.svelte) — um pai com transform vira containing block para
+  // filhos position:fixed, fazendo o sheet "voar" junto com o .root
+  // em vez de ficar colado ao fundo real do ecrã. Corrigido movendo o
+  // node para document.body, fora dessa árvore.
+  let sheetEl;
+
+  onMount(() => {
+    if (sheetEl && sheetEl.parentElement !== document.body) {
+      document.body.appendChild(sheetEl);
+    }
+    refreshViewportH();
+  });
+
   onDestroy(() => {
     unsubscribeExpand?.();
     expand.destroy?.();
+    if (sheetEl && sheetEl.parentElement === document.body) {
+      document.body.removeChild(sheetEl);
+    }
   });
 </script>
 
@@ -314,9 +341,15 @@
      arrastar a partir daqui, expande em altura (drag handle no topo),
      empurrando a tela por trás — limite máximo: altura real do
      conteúdo (grid completo de apps), nunca ultrapassando o teto de
-     segurança do appbar. -->
+     segurança do appbar.
+
+     Nota: este node é movido para document.body no onMount (ver
+     script), por isso NÃO fica visualmente dentro de .create-tab no
+     DOM final — mas continua declarado aqui no markup por ser mais
+     simples de manter dentro do próprio componente. -->
 <div
   class="apps-sheet"
+  bind:this={sheetEl}
   style="height:{sheetHeightPx}px;"
   on:touchstart={onSheetTouchStart}
   on:touchmove={onSheetTouchMove}
@@ -330,7 +363,7 @@
     <div class="apps-grid" bind:this={gridEl}>
       {#each platformApps as app}
         <button class="app-item native-tap" on:click={() => openApp(app)}>
-          <span class="app-icon-circle" style="background:{app.color || '#8E8E93'}">
+          <span class="app-icon-circle" style="background:{app.color || '#862CD4'}">
             <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
           </span>
           <span class="app-label">{app.label}</span>
@@ -480,14 +513,17 @@
     transition: background-image .2s linear;
   }
 
+  /* FIX: gradiente estendido (começa em 45% em vez de 55%, e a etapa
+     intermédia sobe de 88% para 75%) para eliminar a linha/costura
+     dura visível entre o fim do hero e o topo do apps-sheet. */
   .hero-static-fade {
     position: absolute;
     inset: 0;
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--app-bg) 35%, transparent) 88%,
+      transparent 45%,
+      color-mix(in srgb, var(--app-bg) 50%, transparent) 75%,
       var(--app-bg) 100%
     );
     pointer-events: none;
@@ -589,11 +625,16 @@
      Sem background inline no elemento — SÓ aqui no CSS, para que a
      regra de tema escuro abaixo (com !important) consiga mesmo
      vencer. Background inline no elemento sempre vence CSS de classe,
-     !important ou não — por isso o fundo tinha de sair do style=. */
+     !important ou não — por isso o fundo tinha de sair do style=.
+
+     z-index alto (9999) porque este node passa a viver directamente
+     em document.body (ver onMount no script) — precisa de garantir
+     que fica acima de tudo o resto da app, incluindo a bottom bar
+     nativa e qualquer overlay. */
   .apps-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;
-    z-index: 20;
+    z-index: 9999;
     background: rgb(var(--header-glass-rgb));
     border-radius: 28px 28px 0 0;
     box-shadow: 0 -2px 16px rgba(0,0,0,0.10);

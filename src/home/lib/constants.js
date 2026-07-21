@@ -33,12 +33,10 @@ export const OCCUPATION_OPTIONS = [
 ];
 
 // Ícones do grid do tab "Criar" (CreateTab) usam SVGs mascarados a
-// partir de /icons/svg/apps/{id}.svg. Cada app tem agora a SUA
-// PRÓPRIA cor de container (campo `color`, hex fornecido pelo
-// utilizador) — o CSS do CreateTab.svelte deixou de fixar uma única
-// cor de container para todos os apps; o container usa `app.color`
-// como background e o ícone dentro fica sempre BRANCO puro (#FFFFFF),
-// nos dois temas.
+// partir de /icons/svg/apps/{id}.svg. Cada app tem a SUA PRÓPRIA cor
+// de container (campo `color`, hex fornecido) — o container usa
+// `app.color` como background e o ícone dentro fica sempre BRANCO
+// puro (#FFFFFF), nos dois temas.
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/', color: '#D9D9D9' },
   { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/', color: '#862CD4' },
@@ -49,15 +47,14 @@ export const ALL_APPS = [
   { id: 'drive', label: 'Armazenamento', icon: '/icons/svg/apps/drive.svg', path: '/drive/', color: '#D9D9D9' },
   { id: 'forms', label: 'Formulários', icon: '/icons/svg/apps/forms.svg', path: '/forms/', color: '#7C32CA' },
   { id: 'image', label: 'Editor de Imagem', icon: '/icons/svg/apps/image.svg', path: '/image/', color: '#0662EF' },
-  { id: 'mail', label: 'Correio', icon: '/icons/svg/apps/mail.svg', path: '/mail/', color: '#EF3053' },
+  { id: 'mail', label: 'Interface de Email', icon: '/icons/svg/apps/mail.svg', path: '/mail/', color: '#EF3053' },
   { id: 'notes', label: 'Notas', icon: '/icons/svg/apps/notes.svg', path: '/notes/', color: '#FBAD05' },
-  { id: 'profilelens', label: 'Análise de Perfil', icon: '/icons/svg/apps/profilelens.svg', path: '/profilelens/', color: '#02929E' },
+  { id: 'profilelens', label: 'Análise de Perfil Social', icon: '/icons/svg/apps/profilelens.svg', path: '/profilelens/', color: '#02929E' },
   { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/svg/apps/sheets.svg', path: '/sheets/', color: '#23A63F' },
   { id: 'slides', label: 'Apresentações', icon: '/icons/svg/apps/slides.svg', path: '/slides/', color: '#FB6704' },
   { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/svg/apps/whiteboard.svg', path: '/whiteboard/', color: '#7630CA' },
   { id: 'wiki', label: 'Wiki', icon: '/icons/svg/apps/wiki.svg', path: '/wiki/', color: '#035EEE' },
 ];
-
 
 export const PLANS_DATA = {
   basic: {

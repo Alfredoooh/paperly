@@ -2,6 +2,9 @@
 <!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
      Não usa AppHeader — este tab é o único caso especial. -->
 <script>
+  import { onDestroy } from 'svelte';
+  import { createBackRecoilTransition } from '../lib/nav-transition.js';
+
   export let platformApps = [];
   export let onOpenSearch = () => {};
   export let onOpenApp = () => {};
@@ -17,6 +20,15 @@
   export let userName = 'Utilizador';
   export let title = '';
   export let onOpenDrawer = () => {};
+
+  // ── Push da tela de trás enquanto o apps-sheet expande ────────────
+  // rootEl: o mesmo elemento raiz (.root) que o App.svelte já passa ao
+  // AppDrawer para o efeito de push. appbarHeight: altura em px do
+  // appbar desta tela (inclui safe-area), usada para calcular o limite
+  // máximo de subida do sheet (o topo do sheet nunca ultrapassa o
+  // fundo do appbar).
+  export let rootEl = null;
+  export let appbarHeight = 56;
 
   // Imagem do hero conforme o tema — clara usa img.jpg, escura usa
   // img_dark.jpg, ambas na mesma pasta /images/createbg/.
@@ -102,7 +114,101 @@
       onOpenDrawer?.();
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  APPS-SHEET: fixo, ancorado à bottom bar. NÃO é um modal que
+  //  aparece/desaparece — está sempre visível com uma altura base
+  //  (mostra as primeiras linhas de apps). Ao arrastar para cima a
+  //  partir do próprio sheet, ele EXPANDE em altura (mostrando mais
+  //  apps), e a tela por trás (rootEl) recebe o mesmo efeito de push
+  //  (translate + scale) usado pelo AppDrawer, proporcional ao quanto
+  //  o sheet já expandiu. O limite máximo de expansão é o topo do
+  //  sheet tocar exatamente no fundo do appbar (nunca ultrapassa).
+  // ══════════════════════════════════════════════════════════════════
+  const BASE_SHEET_HEIGHT = 420; // altura "de repouso" do sheet, em px
+  const PUSH_TRANSLATE = -8;
+  const PUSH_SCALE_MIN = 0.98;
+
+  const expand = createBackRecoilTransition(); // valor 0..1 (0 = repouso, 1 = totalmente expandido até ao appbar)
+  let expandValue = 0;
+  const unsubscribeExpand = expand.subscribe((v) => {
+    expandValue = v;
+    applyPush(v);
+  });
+
+  function applyPush(v) {
+    if (!rootEl) return;
+    const translate = PUSH_TRANSLATE * v;
+    const scale = 1 - (1 - PUSH_SCALE_MIN) * v;
+    rootEl.style.transform = `translate3d(0, ${translate}%, 0) scale(${scale})`;
+  }
+
+  let viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+  function refreshViewportH() { viewportH = window.innerHeight; }
+
+  // Altura máxima possível do sheet: do fundo do ecrã até ao fundo do
+  // appbar (nunca ultrapassa o appbar, conforme pedido).
+  $: maxSheetHeight = Math.max(BASE_SHEET_HEIGHT, viewportH - appbarHeight);
+  $: sheetHeightPx = BASE_SHEET_HEIGHT + (maxSheetHeight - BASE_SHEET_HEIGHT) * expandValue;
+
+  const DRAG_ACTIVATE_PX = 6;
+  let dragging = false;
+  let dragStartY = 0;
+  let dragStartTime = 0;
+  let dragCurrentY = 0;
+  let dragBaseExpand = 0;
+  let dragRange = 1;
+
+  function onSheetTouchStart(e) {
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    dragging = true;
+    dragStartY = y;
+    dragCurrentY = y;
+    dragStartTime = performance.now();
+    dragBaseExpand = expandValue;
+    dragRange = Math.max(1, maxSheetHeight - BASE_SHEET_HEIGHT);
+  }
+
+  function onSheetTouchMove(e) {
+    if (!dragging) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    dragCurrentY = y;
+    const deltaUp = dragStartY - y; // positivo quando arrasta para cima
+    if (Math.abs(deltaUp) < DRAG_ACTIVATE_PX && dragBaseExpand === 0 && deltaUp <= 0) return;
+    const deltaExpand = deltaUp / dragRange;
+    const next = Math.min(1, Math.max(0, dragBaseExpand + deltaExpand));
+    expand.setDragValue(next);
+    if (Math.abs(deltaUp) > 4) e.preventDefault();
+  }
+
+  function onSheetTouchEnd() {
+    if (!dragging) return;
+    dragging = false;
+    const elapsed = Math.max(1, performance.now() - dragStartTime);
+    const deltaUp = dragStartY - dragCurrentY;
+    const velocity = deltaUp / elapsed; // px/ms para cima
+
+    const OPEN_THRESHOLD = 0.3;
+    const FLING_VELOCITY = 0.5;
+
+    if (expandValue > OPEN_THRESHOLD || velocity > FLING_VELOCITY) {
+      expand.recoil();
+    } else if (expandValue < (1 - OPEN_THRESHOLD) && !(velocity < -FLING_VELOCITY)) {
+      expand.reset();
+    } else if (velocity < -FLING_VELOCITY) {
+      expand.reset();
+    } else {
+      expand.recoil();
+    }
+  }
+
+  onDestroy(() => {
+    unsubscribeExpand?.();
+    expand.destroy?.();
+  });
 </script>
+
+<svelte:window on:resize={refreshViewportH} />
 
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
      avatar). O título "Criar" só aparece quando o header fica sólido
@@ -150,19 +256,32 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <!-- Bottom sheet de apps: SEM scroll próprio e SEM sticky — é só um
-       container comprido (min-height) que faz parte do fluxo normal
-       da página. O scroll para ver todos os apps é o MESMO scroll da
-       página inteira (o que já funcionava antes), evitando qualquer
-       scroll aninhado que possa bloquear o gesto de deslizar. O fundo
-       do SHEET é igual ao bottom bar; os containers dos ícones ficam
-       claros/brancos nos dois temas, e os ícones em si são azuis
-       (claro) ou escuros/quase-pretos (escuro). -->
-  <div class="apps-sheet">
+  <!-- Espaçador: reserva o espaço que o sheet FIXO ocupa por baixo,
+       para o resto do conteúdo da página não ficar coberto quando o
+       sheet está em repouso (altura base). -->
+  <div class="apps-sheet-spacer" style="height:{BASE_SHEET_HEIGHT}px"></div>
+</div>
+
+<!-- Sheet fixo, colado ao fundo (acima da bottom bar nativa, que já
+     tem o seu próprio espaço reservado via padding-bottom). Ao
+     arrastar a partir daqui, expande em altura (drag handle no topo),
+     empurrando a tela por trás — limite máximo: topo toca o appbar. -->
+<div
+  class="apps-sheet"
+  style="background:{'rgb(var(--header-glass-rgb))'}; height:{sheetHeightPx}px;"
+  on:touchstart={onSheetTouchStart}
+  on:touchmove={onSheetTouchMove}
+  on:touchend={onSheetTouchEnd}
+  on:touchcancel={onSheetTouchEnd}
+>
+  <div class="apps-sheet-handle-zone">
+    <span class="apps-sheet-handle"></span>
+  </div>
+  <div class="apps-sheet-scroll">
     <div class="apps-grid">
       {#each platformApps as app}
         <button class="app-item native-tap" on:click={() => openApp(app)}>
-          <span class="app-icon-circle">
+          <span class="app-icon-circle" style="background:{app.color || '#8E8E93'}">
             <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
           </span>
           <span class="app-label">{app.label}</span>
@@ -405,29 +524,63 @@
     color: var(--text-faint);
   }
 
-  /* ---------- Bottom sheet de apps ---------- */
-  /* Sem sticky, sem overflow próprio — apenas parte do fluxo normal
-     da página, com min-height para garantir que o painel fica bem
-     comprido (chega perto do fim mesmo com poucos apps), mas SEM
-     forçar altura fixa: se houver mais apps que couberem no ecrã, o
-     sheet cresce e o scroll natural da página (o mesmo que já existe
-     para o hero e a search-bar) revela o resto. */
+  /* Espaçador do fluxo normal da página: mantém o resto do conteúdo
+     do scroll a começar depois do sheet fixo (que já não faz parte
+     do fluxo, mas sim position:fixed por cima). */
+  .apps-sheet-spacer {
+    width: 100%;
+  }
+
+  /* ---------- Apps-sheet: FIXO, colado à bottom bar ---------- */
+  /* Deixa de fazer parte do fluxo normal da página — passa a
+     position:fixed, ancorado ao fundo do ecrã (por cima da bottom bar
+     nativa). A altura é controlada por JS (sheetHeightPx), entre
+     BASE_SHEET_HEIGHT (repouso) e maxSheetHeight (topo a tocar o
+     fundo do appbar). O handle no topo é a zona de arrasto. */
   .apps-sheet {
-    min-height: calc(100vh - 260px - 78px);
-    margin: 16px 0 0;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 20;
     border-radius: 28px 28px 0 0;
-    background: rgb(var(--header-glass-rgb));
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.10);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    touch-action: pan-y;
   }
   :global([data-theme="dark"]) .apps-sheet {
-    background: var(--drawer-bg-strong);
+    background: var(--drawer-bg-strong) !important;
+  }
+
+  .apps-sheet-handle-zone {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0 6px;
+    touch-action: none;
+  }
+  .apps-sheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--drawer-sep, rgba(127,127,127,0.35));
+  }
+
+  .apps-sheet-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
   }
 
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px 8px;
-    padding: 28px 14px 24px;
+    padding: 4px 14px 24px;
   }
   .app-item {
     display: flex;
@@ -442,10 +595,9 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
-  /* Container SEMPRE claro nos dois temas — no claro um branco um
-     pouco "fraco" (não puro, ligeiramente acinzentado, para não
-     saltar demasiado contra o fundo do sheet), no escuro um branco
-     quase puro para se destacar bem do fundo escuro do sheet. */
+  /* Container: cor própria por app (app.color, hex fornecido), igual
+     nos dois temas — deixou de haver uma única cor fixa de container
+     controlada pelo CSS do tema. */
   .app-icon-circle {
     width: 52px;
     height: 52px;
@@ -454,32 +606,22 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: rgba(255,255,255,0.55);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.14);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  :global([data-theme="dark"]) .app-icon-circle {
-    background: #F2F2F2;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  }
-  /* Ícone: no claro, azul suave (não forte) inspirado no tom
-     dominante da imagem de referência — um azul petróleo desaturado.
-     No escuro, o ícone fica escuro (quase preto) para contrastar
-     com o container agora claro. */
+  /* Ícone: SEMPRE branco puro, nos dois temas — o contraste vem do
+     container colorido por baixo, não da cor do ícone. */
   .app-icon-svg {
     width: 24px;
     height: 24px;
     display: block;
-    background: #3E6B87;
+    background: #FFFFFF;
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-  }
-  :global([data-theme="dark"]) .app-icon-svg {
-    background: #1C1C1E;
   }
   .native-tap:active .app-icon-circle {
     transform: scale(0.86);
@@ -519,5 +661,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .search-bar { transition: none !important; }
+    .apps-sheet { transition: none !important; }
   }
 </style>

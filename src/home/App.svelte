@@ -449,6 +449,8 @@
   {userInitial}
   {userName}
   title={currentTitle}
+  {rootEl}
+  {appbarHeight}
   onOpenDrawer={openDrawer}
   onOpenSearch={openSearch}
   onOpenApp={navigateToApp}

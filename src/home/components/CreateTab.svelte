@@ -30,6 +30,14 @@
   export let rootEl = null;
   export let appbarHeight = 56;
 
+  // Recentes: lista de projetos recentes do utilizador. Cada item
+  // esperado com {id, title, thumbnail, updatedAt}. Enquanto
+  // recentProjects é null/undefined mostramos skeleton loader; um
+  // array vazio [] significa "carregado, sem projetos" (sem
+  // skeleton, sem secção).
+  export let recentProjects = null;
+  export let onOpenProject = () => {};
+
   // Imagem do hero conforme o tema — clara usa img.jpg, escura usa
   // img_dark.jpg, ambas na mesma pasta /images/createbg/.
   $: heroImage = isDark ? '/images/createbg/img_dark.jpg' : '/images/createbg/img.jpg';
@@ -76,7 +84,15 @@
 
   const greetingText = pickGreeting();
 
-  // O título SÓ existe visualmente quando o header está sólido.
+  // ══════════════════════════════════════════════════════════════════
+  //  SILVER APPBAR: header sólido separado, que SÓ aparece ao deslizar
+  //  para cima. É totalmente independente do .create-header original
+  //  (que continua igual, sem nenhuma alteração de estilo/lógica). O
+  //  silver appbar vive por cima de tudo, entra com opacity+translateY
+  //  assim que heroProgress ultrapassa o mesmo SOLID_THRESHOLD já
+  //  usado para o título do header original — reaproveita o sinal que
+  //  já existe, não duplica lógica de scroll.
+  // ══════════════════════════════════════════════════════════════════
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
 
@@ -114,6 +130,34 @@
       onOpenDrawer?.();
     }
   }
+
+  function openProject(p) {
+    try { navigator.vibrate && navigator.vibrate(7); } catch (e) {}
+    onOpenProject(p);
+  }
+
+  // Formata "há X" de forma simples a partir de updatedAt (ISO string
+  // ou timestamp), sem depender de libs externas.
+  function timeAgo(updatedAt) {
+    if (!updatedAt) return '';
+    const then = new Date(updatedAt).getTime();
+    if (Number.isNaN(then)) return '';
+    const diffMs = Date.now() - then;
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'agora';
+    if (min < 60) return `há ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `há ${d}d`;
+    const w = Math.floor(d / 7);
+    return `há ${w}sem`;
+  }
+
+  // Número de placeholders do skeleton — corresponde ao número de
+  // colunas visíveis num ecrã típico para não "saltar" quando os
+  // dados reais chegam.
+  const SKELETON_COUNT = 4;
 
   // ══════════════════════════════════════════════════════════════════
   //  APPS-SHEET: fixo, ancorado à bottom bar. NÃO é um modal que
@@ -260,7 +304,8 @@
 <!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
      avatar). O título "Criar" só aparece quando o header fica sólido
      com o scroll — sólido = idêntico ao fundo do app, sem linha
-     divisória, sem sombra, nos dois temas. -->
+     divisória, sem sombra, nos dois temas.
+     NÃO ALTERADO — mantém exatamente o comportamento/estilo original. -->
 <div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:visible={isSolid}>{isSolid ? title : ''}</h1>
@@ -271,6 +316,17 @@
         <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
       {/if}
     </button>
+  </div>
+</div>
+
+<!-- Silver appbar: elemento NOVO e independente, colocado por cima de
+     tudo. Estilo simples (fundo sólido translúcido tipo "vidro",
+     linha divisória subtil por baixo — como um appbar nativo), só
+     visível ao deslizar (isSolid = heroProgress >= SOLID_THRESHOLD).
+     Não mexe em nada do .create-header original. -->
+<div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
+  <div class="silver-appbar-inner">
+    <span class="silver-appbar-title">{title}</span>
   </div>
 </div>
 
@@ -302,6 +358,50 @@
     <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
+
+  <!-- Continuar a criar: projetos recentes do utilizador. Skeleton
+       enquanto recentProjects === null (a carregar); nada é
+       renderizado se, depois de carregado, vier um array vazio. -->
+  {#if recentProjects === null}
+    <div class="recent-section">
+      <div class="recent-section-head">
+        <span class="recent-skeleton recent-skeleton-title"></span>
+      </div>
+      <div class="recent-row">
+        {#each Array(SKELETON_COUNT) as _}
+          <div class="recent-card recent-card-skeleton">
+            <div class="recent-thumb recent-skeleton"></div>
+            <span class="recent-skeleton recent-skeleton-line" style="width:70%"></span>
+            <span class="recent-skeleton recent-skeleton-line" style="width:45%"></span>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {:else if recentProjects.length > 0}
+    <div class="recent-section">
+      <div class="recent-section-head">
+        <h2 class="recent-section-title">Continue a criar designs</h2>
+        <span class="recent-section-cta">Ver tudo</span>
+      </div>
+      <div class="recent-row">
+        {#each recentProjects as p (p.id)}
+          <button class="recent-card native-tap" on:click={() => openProject(p)}>
+            <div class="recent-thumb">
+              {#if p.thumbnail}
+                <img src={p.thumbnail} alt={p.title} loading="lazy" />
+              {:else}
+                <div class="recent-thumb-fallback" style="background:{p.color || '#8E8E93'}"></div>
+              {/if}
+            </div>
+            <span class="recent-card-title">{p.title}</span>
+            {#if p.updatedAt}
+              <span class="recent-card-time">{timeAgo(p.updatedAt)}</span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- Espaçador: reserva o espaço que o sheet FIXO ocupa por baixo,
        para o resto do conteúdo da página não ficar coberto quando o
@@ -350,6 +450,7 @@
   }
 
   /* ---------- Header próprio do Create ---------- */
+  /* NÃO ALTERADO — nenhuma regra deste bloco foi tocada. */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -457,6 +558,55 @@
   }
   @media (min-width: 720px) {
     .create-header-inner { max-width:760px; }
+  }
+
+  /* ---------- Silver appbar: NOVO, independente do header acima ---------- */
+  /* Estilo "simples" tipo appbar nativo: fundo translúcido sólido +
+     leve blur + linha divisória subtil por baixo. Só entra em cena
+     com opacity/translateY quando isSolid é true (mesmo sinal de
+     scroll que já existe). Não tem título/avatar duplicado — só o
+     título, para não repetir o botão de perfil que já vive no header
+     de baixo (que continua visível por baixo do silver appbar). */
+  .silver-appbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 16;
+    height: calc(env(safe-area-inset-top, 0px) + 52px);
+    background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border-bottom: 1px solid var(--drawer-sep, rgba(127,127,127,0.16));
+    opacity: 0;
+    transform: translateY(-10px) translateZ(0);
+    transition:
+      opacity .24s cubic-bezier(0.32, 0.72, 0, 1),
+      transform .24s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+    contain: layout style paint;
+  }
+  .silver-appbar.visible {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+    pointer-events: auto;
+  }
+  .silver-appbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: env(safe-area-inset-top, 0px) 16px 0;
+  }
+  .silver-appbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.1px;
+    color: var(--drawer-text);
+  }
+  @media (min-width: 720px) {
+    .silver-appbar-inner { max-width:760px; }
   }
 
   /* ---------- Conteúdo do Create ---------- */
@@ -571,6 +721,135 @@
     font-size: 14.5px;
     font-weight: 500;
     color: var(--text-faint);
+  }
+
+  /* ---------- Continuar a criar: projetos recentes ---------- */
+  .recent-section {
+    margin-top: 28px;
+  }
+  .recent-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px 12px;
+  }
+  .recent-section-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: var(--drawer-text);
+    margin: 0;
+  }
+  .recent-section-cta {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-faint);
+  }
+  .recent-row {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 0 14px 4px;
+  }
+  .recent-row::-webkit-scrollbar {
+    display: none;
+  }
+  .recent-card {
+    flex: 0 0 auto;
+    width: 132px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    scroll-snap-align: start;
+    -webkit-tap-highlight-color: transparent;
+    font: inherit;
+    color: var(--drawer-text);
+  }
+  .recent-thumb {
+    width: 132px;
+    height: 132px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--row-active, rgba(127,127,127,0.10));
+    flex-shrink: 0;
+  }
+  .recent-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .recent-thumb-fallback {
+    width: 100%;
+    height: 100%;
+  }
+  .recent-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .recent-card-time {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-faint);
+  }
+  .native-tap:active .recent-thumb {
+    transform: scale(0.97);
+  }
+  .recent-thumb {
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  /* ---------- Skeleton loader ---------- */
+  .recent-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--row-active, rgba(127,127,127,0.12));
+    border-radius: 8px;
+  }
+  .recent-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--drawer-text) 8%, transparent) 50%,
+      transparent 100%
+    );
+    animation: skeleton-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .recent-skeleton-title {
+    width: 160px;
+    height: 17px;
+    border-radius: 5px;
+  }
+  .recent-card-skeleton {
+    cursor: default;
+  }
+  .recent-card-skeleton .recent-thumb {
+    border-radius: 14px;
+  }
+  .recent-skeleton-line {
+    height: 11px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .recent-skeleton::after { animation: none; }
   }
 
   /* Espaçador do fluxo normal da página: mantém o resto do conteúdo
@@ -716,5 +995,6 @@
   @media (prefers-reduced-motion: reduce) {
     .search-bar { transition: none !important; }
     .apps-sheet { transition: none !important; }
+    .silver-appbar { transition: none !important; }
   }
 </style>

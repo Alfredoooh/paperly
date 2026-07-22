@@ -497,7 +497,7 @@
   />
 {/if}
 
-<BottomTabBar {activeTab} onSelect={selectTab} />
+<BottomTabBar {activeTab} onSelect={selectTab} {avatarUrl} {avatarColor} {userInitial} />
 
 <AppDrawer
   {drawerOpen}

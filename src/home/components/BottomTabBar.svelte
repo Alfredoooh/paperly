@@ -5,6 +5,10 @@
   export let activeTab = 'create';
   export let onSelect = () => {};
   
+  export let avatarUrl = '';
+  export let avatarColor = '#FF3B30';
+  export let userInitial = 'U';
+  
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
@@ -25,15 +29,25 @@
       aria-label={tab.label}
       aria-current={activeTab === tab.id ? 'page' : undefined}
     >
-      <span class="tab-icon">
-        <span
-          class="icon-mask icon-outline"
-          style="mask-image:url('{tab.icon}');-webkit-mask-image:url('{tab.icon}')"
-        ></span>
-        <span
-          class="icon-mask icon-filled"
-          style="mask-image:url('{tab.iconFilled}');-webkit-mask-image:url('{tab.iconFilled}')"
-        ></span>
+      <span class="tab-icon" class:tab-icon-avatar={tab.isAvatar}>
+        {#if tab.isAvatar}
+          <span class="tab-avatar" class:active={activeTab === tab.id}>
+            {#if avatarUrl}
+              <img src={avatarUrl} alt={tab.label} class="tab-avatar-img" />
+            {:else}
+              <span class="tab-avatar-initial" style="background:{avatarColor}">{userInitial}</span>
+            {/if}
+          </span>
+        {:else}
+          <span
+            class="icon-mask icon-outline"
+            style="mask-image:url('{tab.icon}');-webkit-mask-image:url('{tab.icon}')"
+          ></span>
+          <span
+            class="icon-mask icon-filled"
+            style="mask-image:url('{tab.iconFilled}');-webkit-mask-image:url('{tab.iconFilled}')"
+          ></span>
+        {/if}
       </span>
       <span class="tab-label">{tab.label}</span>
     </button>
@@ -64,15 +78,10 @@
     -webkit-touch-callout: none;
   }
 
-  /* Modo escuro: usa --drawer-bg-strong (um tom mais escuro que o
-     --drawer-bg do AppDrawer), como pedido. O modo claro fica
-     inalterado, continua em rgb(var(--header-glass-rgb)) acima. */
   :global([data-theme="dark"]) .tab-bar {
     background: var(--drawer-bg-strong);
   }
 
-  /* Camada extra opaca atrás da nav, cobrindo qualquer overscroll/
-     rubber-band do WebView, pra nunca revelar o conteúdo por trás. */
   .tab-bar::after {
     content: '';
     position: absolute;
@@ -120,6 +129,11 @@
     transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  .tab-icon-avatar {
+    width: 22px;
+    height: 22px;
+  }
+
   .tab-btn:active .tab-icon {
     transform: scale(0.88);
   }
@@ -149,6 +163,39 @@
   }
   .tab-btn.active .icon-filled {
     opacity: 1;
+  }
+
+  /* Avatar na bottom bar: círculo com borda que reforça quando ativo,
+     substituindo por completo o antigo ícone de "tools". */
+  .tab-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid transparent;
+    transition: border-color .18s ease;
+  }
+  .tab-avatar.active {
+    border-color: var(--icon-strong);
+  }
+  .tab-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .tab-avatar-initial {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
   }
 
   .tab-label {

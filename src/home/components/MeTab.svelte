@@ -8,7 +8,7 @@
   export let onOpenSettings = () => {};
   export let onLogout = () => {};
   
-  // Ícones Fluent UI (Microsoft) via CDN jsDelivr, 36px, estilo "regular".
+  // Ícones Fluent UI (Microsoft) via CDN jsDelivr, usados a 36px.
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.257/icons';
   const ICON = {
     settings: `${FLUENT_BASE}/settings_24_regular.svg`,
@@ -20,7 +20,7 @@
   };
   
   const menuItems = [
-    { id: 'settings', label: 'Definições', icon: ICON.settings, action: () => onOpenSettings() },
+    { id: 'settings', label: 'Definições', icon: ICON.settings, action: () => onOpenSettings('settings') },
     { id: 'privacy', label: 'Privacidade e segurança', icon: ICON.shield, action: () => onOpenSettings('privacy') },
     { id: 'notifications', label: 'Notificações', icon: ICON.bell, action: () => onOpenSettings('notifications') },
     { id: 'help', label: 'Ajuda e suporte', icon: ICON.help, action: () => onOpenSettings('help') },

@@ -15,7 +15,7 @@
   import CreateTab from './components/CreateTab.svelte';
   import ProjectsTab from './components/ProjectsTab.svelte';
   import TemplatesTab from './components/TemplatesTab.svelte';
-  import ToolsTab from './components/ToolsTab.svelte';
+  import ToolsTab from './components/MeTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
 
@@ -25,7 +25,7 @@
   const dispatch = createEventDispatcher();
 
   const BASE = '/home/';
-  const VALID_ROUTES = ['projects', 'templates', 'tools'];
+  const VALID_ROUTES = ['projects', 'templates', 'me'];
   // 'create' é o rootRoute real do router — a rota raiz '/home/' resolve
   // sempre para 'create', tanto no parseCurrentRoute() como no navigate().
   const router = createRouter(BASE, VALID_ROUTES, 'create');
@@ -460,7 +460,16 @@
     {:else if activeTab === 'templates'}
       <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
     {:else if activeTab === 'tools'}
-      <ToolsTab onOpenApp={navigateToApp} />
+      {:else if activeTab === 'me'}
+      <MeTab
+        {avatarUrl}
+        {avatarColor}
+        {userInitial}
+        {userName}
+        userEmail={user?.email || ''}
+        onOpenSettings={() => {}}
+        onLogout={logout}
+      />
     {/if}
   </div>
 </div>

@@ -31,10 +31,6 @@
   export let recentProjects = null;
   export let onOpenProject = () => {};
 
-  // Imagem do hero conforme o tema — clara usa img.jpg, escura usa
-  // img_dark.jpg, ambas na mesma pasta /images/createbg/.
-  $: heroImage = isDark ? '/images/createbg/img_dark.jpg' : '/images/createbg/img.jpg';
-
   // Saudação rotativa: escolhida UMA vez ao montar. O nome fica numa
   // linha própria, sempre com exclamação.
   const GREETINGS_MANHA = [
@@ -79,14 +75,9 @@
 
   // ══════════════════════════════════════════════════════════════════
   //  SILVER APPBAR: header sólido separado, que SÓ aparece ao deslizar
-  //  para cima. É totalmente independente do .create-header original
-  //  (que continua igual, sem nenhuma alteração de estilo/lógica). O
-  //  silver appbar vive por cima de tudo, entra com opacity+translateY
-  //  assim que heroProgress ultrapassa o mesmo SOLID_THRESHOLD já
-  //  usado para o título do header original — reaproveita o sinal que
-  //  já existe, não duplica lógica de scroll. Agora leva também o
-  //  avatar (dentro do próprio appbar, não escondido atrás dele) e um
-  //  botão de pesquisa que substitui a search-bar quando esta some.
+  //  para cima. Independente do .create-header original. Título à
+  //  esquerda; avatar dentro do próprio appbar; botão de pesquisa que
+  //  aparece quando a search-bar original desaparece.
   // ══════════════════════════════════════════════════════════════════
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
@@ -149,18 +140,11 @@
     return `há ${w}sem`;
   }
 
-  // Número de placeholders do skeleton — corresponde ao número de
-  // colunas visíveis num ecrã típico para não "saltar" quando os
-  // dados reais chegam.
   const SKELETON_COUNT = 4;
   const APPS_SKELETON_COUNT = 6; // 2 filas de 3 colunas
 </script>
 
-<!-- Header próprio do Create: no topo NÃO tem título nenhum (só o
-     avatar). O título "Criar" só aparece quando o header fica sólido
-     com o scroll — sólido = idêntico ao fundo do app, sem linha
-     divisória, sem sombra, nos dois temas.
-     NÃO ALTERADO — mantém exatamente o comportamento/estilo original. -->
+<!-- Header próprio do Create: NÃO ALTERADO. -->
 <div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:visible={isSolid}>{isSolid ? title : ''}</h1>
@@ -174,14 +158,7 @@
   </div>
 </div>
 
-<!-- Silver appbar: elemento NOVO e independente, colocado por cima de
-     tudo. Título "Criar" agora à ESQUERDA. Avatar passou a viver
-     DENTRO deste appbar (à direita), deixando de ficar escondido
-     atrás dele — o avatar do .create-header original fica coberto
-     visualmente pelo fundo sólido deste appbar quando isSolid, mas
-     este aqui é o que fica visível por cima. Botão de pesquisa
-     aparece à esquerda do avatar assim que a search-bar original
-     desaparece (mesmo sinal heroProgress/isSolid). -->
+<!-- Silver appbar: título à esquerda, avatar + botão de pesquisa à direita. -->
 <div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
   <div class="silver-appbar-inner">
     <span class="silver-appbar-title">{title}</span>
@@ -209,18 +186,10 @@
 
 <div class="create-tab">
 
+  <!-- Hero: SEM imagem/foto de fundo e SEM gradiente — apenas o
+       fundo normal da página. Saudação mantida (nome + frase). -->
   <div class="hero-bg">
-    <!-- Camada 1: a foto em si — troca conforme o tema -->
-    <div class="hero-photo" style="background-image:url('{heroImage}')"></div>
-    <!-- Camada 2: gradiente ESTÁTICO, suave — a foto respira mais. -->
-    <div class="hero-static-fade"></div>
-    <!-- Camada 3: cobre a imagem por completo conforme o utilizador
-         desliza para cima — ESTA sim depende do scroll (heroProgress) -->
-    <div class="hero-scroll-solid" style="opacity:{heroProgress}"></div>
-
-    <!-- Bloco de saudação: nome + frase, sempre branco (como no
-         design original) sobre a foto. -->
-    <div class="hero-greeting-block" style="opacity:{1 - heroProgress}">
+    <div class="hero-greeting-block">
       <p class="hero-greeting-name">{userName}!</p>
       <p class="hero-greeting-text">{greetingText}</p>
     </div>
@@ -236,11 +205,7 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <!-- Apps: grid estática, SEM modal, SEM sheet arrastável. Faz parte
-       do fluxo normal da página, tal como os "recentes" abaixo dela.
-       Ícones grandes, estilo Canva (grid de 3 colunas). Skeleton
-       enquanto platformApps === null (a carregar); nada é renderizado
-       se, depois de carregado, vier um array vazio. -->
+  <!-- Apps: grid estática, 3 colunas, com skeleton enquanto carrega. -->
   {#if platformApps === null}
     <div class="apps-grid">
       {#each Array(APPS_SKELETON_COUNT) as _}
@@ -263,9 +228,7 @@
     </div>
   {/if}
 
-  <!-- Continuar a criar: projetos recentes do utilizador. Skeleton
-       enquanto recentProjects === null (a carregar); nada é
-       renderizado se, depois de carregado, vier um array vazio. -->
+  <!-- Continuar a criar -->
   {#if recentProjects === null}
     <div class="recent-section">
       <div class="recent-section-head">
@@ -310,16 +273,7 @@
 </div>
 
 <style>
-  @font-face {
-    font-family: 'BeautyDisplay';
-    src: url('/fonts/beauty/font_1.ttf') format('truetype');
-    font-weight: 400 800;
-    font-style: normal;
-    font-display: swap;
-  }
-
   /* ---------- Header próprio do Create ---------- */
-  /* NÃO ALTERADO — nenhuma regra deste bloco foi tocada. */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -429,9 +383,7 @@
     .create-header-inner { max-width:760px; }
   }
 
-  /* ---------- Silver appbar: NOVO, independente do header acima ---------- */
-  /* Título à esquerda; avatar (+ botão de pesquisa) à direita, DENTRO
-     deste appbar — nada fica escondido atrás dele. */
+  /* ---------- Silver appbar ---------- */
   .silver-appbar {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -486,11 +438,6 @@
   @media (min-width: 720px) {
     .silver-appbar-inner { max-width:760px; }
   }
-
-  /* Botão de pesquisa que aparece no silver appbar assim que a
-     search-bar original desaparece com o scroll (mesmo sinal
-     isSolid). Some/aparece com fade+scale próprios, independentes do
-     fade do appbar em si. */
   .silver-search-btn {
     width: 36px;
     height: 36px;
@@ -531,70 +478,31 @@
     width: 100%;
   }
 
+  /* Hero sem imagem: só espaço para a saudação respirar, no fundo
+     normal da página. */
   .hero-bg {
     position: relative;
     width: 100%;
-    height: 260px;
-    overflow: hidden;
+    padding: calc(env(safe-area-inset-top, 0px) + 84px) 20px 44px;
   }
-
-  .hero-photo {
-    position: absolute;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    transition: background-image .2s linear;
-  }
-
-  .hero-static-fade {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--app-bg) 35%, transparent) 88%,
-      var(--app-bg) 100%
-    );
-    pointer-events: none;
-  }
-
-  .hero-scroll-solid {
-    position: absolute;
-    inset: 0;
-    background: var(--app-bg);
-    pointer-events: none;
-    transition: opacity .05s linear;
-  }
-
   .hero-greeting-block {
-    position: absolute;
-    left: 20px;
-    right: 20px;
-    bottom: 40px;
-    transition: opacity .2s linear;
-    pointer-events: none;
+    position: relative;
   }
   .hero-greeting-name {
     margin: 0 0 4px;
-    font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 38px;
+    font-size: 32px;
     font-weight: 800;
     letter-spacing: -0.5px;
-    line-height: 1.08;
-    color: #fff;
-    text-shadow: 0 2px 14px rgba(0,0,0,0.5);
+    line-height: 1.1;
+    color: var(--drawer-text);
   }
   .hero-greeting-text {
     margin: 0;
-    font-family: 'BeautyDisplay', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 23px;
+    font-size: 19px;
     font-weight: 600;
     letter-spacing: -0.2px;
-    line-height: 1.25;
-    color: rgba(255,255,255,0.92);
-    text-shadow: 0 2px 10px rgba(0,0,0,0.45);
+    line-height: 1.3;
+    color: var(--text-faint);
   }
 
   .search-bar {
@@ -603,7 +511,7 @@
     gap: 10px;
     width: calc(100% - 28px);
     height: 48px;
-    margin: -24px 14px 0;
+    margin: 0 14px 0;
     padding: 0 16px;
     border: none;
     border-radius: 999px;
@@ -659,9 +567,6 @@
   .app-item-skeleton {
     cursor: default;
   }
-  /* Container: cor própria por app (app.color, hex fornecido), igual
-     nos dois temas. Tamanho igual ao do canvas na imagem de
-     referência. */
   .app-icon-circle {
     width: 68px;
     height: 68px;
@@ -673,8 +578,6 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.14);
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  /* Ícone: SEMPRE branco puro, nos dois temas — o contraste vem do
-     container colorido por baixo, não da cor do ícone. */
   .app-icon-svg {
     width: 30px;
     height: 30px;

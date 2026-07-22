@@ -101,12 +101,12 @@ export const TABS = [
     iconFilled: '/icons/svg/templates_filled.svg',
   },
   {
-    id: 'tools',
-    label: 'Ferramentas',
-    title: 'Ferramentas',
-    icon: '/icons/svg/tools.svg',
-    iconFilled: '/icons/svg/tools_filled.svg',
-  },
+  id: 'me',
+  label: 'Mim',
+  title: 'Mim',
+  icon: '/icons/svg/tools.svg',
+  iconFilled: '/icons/svg/tools_filled.svg',
+},
 ];
 
 // Toggle usado no appbar do tab "Templates"

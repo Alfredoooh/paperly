@@ -15,7 +15,7 @@
   import CreateTab from './components/CreateTab.svelte';
   import ProjectsTab from './components/ProjectsTab.svelte';
   import TemplatesTab from './components/TemplatesTab.svelte';
-  import ToolsTab from './components/MeTab.svelte';
+  import MeTab from './components/MeTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
 
@@ -459,8 +459,7 @@
       <ProjectsTab />
     {:else if activeTab === 'templates'}
       <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
-    {:else if activeTab === 'tools'}
-      {:else if activeTab === 'me'}
+    {:else if activeTab === 'me'}
       <MeTab
         {avatarUrl}
         {avatarColor}

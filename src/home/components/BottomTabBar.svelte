@@ -40,12 +40,12 @@
           </span>
         {:else}
           <span
-            class="icon-mask icon-outline"
+            class="icon-mask icon-regular"
             style="mask-image:url('{tab.icon}');-webkit-mask-image:url('{tab.icon}')"
           ></span>
           <span
-            class="icon-mask icon-filled"
-            style="mask-image:url('{tab.iconFilled}');-webkit-mask-image:url('{tab.iconFilled}')"
+            class="icon-mask icon-color"
+            style="mask-image:url('{tab.iconColor || tab.iconFilled}');-webkit-mask-image:url('{tab.iconColor || tab.iconFilled}')"
           ></span>
         {/if}
       </span>
@@ -152,16 +152,16 @@
     transition: opacity .18s ease;
   }
 
-  .icon-outline {
+  .icon-regular {
     opacity: 1;
   }
-  .icon-filled {
+  .icon-color {
     opacity: 0;
   }
-  .tab-btn.active .icon-outline {
+  .tab-btn.active .icon-regular {
     opacity: 0;
   }
-  .tab-btn.active .icon-filled {
+  .tab-btn.active .icon-color {
     opacity: 1;
   }
 

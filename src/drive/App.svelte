@@ -10,7 +10,7 @@
 
   const APP_ID = 'drive';
   const APP_TITLE = 'Nexa Drive';
-  const APP_ICON = '/icons/svg/drive.svg';
+  const APP_ICON = '/icons/svg/regular/drive.svg';
   const BASE = '/drive/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

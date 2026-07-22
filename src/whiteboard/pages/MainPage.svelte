@@ -19,7 +19,7 @@
   export let resourceId = null;
   export let appTitle = 'Nexa Whiteboard';
   export let appId = 'whiteboard';
-  export let iconPath = '/icons/svg/whiteboard.svg';
+  export let iconPath = '/icons/svg/regular/whiteboard.svg';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);

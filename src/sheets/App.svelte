@@ -9,7 +9,7 @@
 
   const APP_ID = 'sheets';
   const APP_TITLE = 'Nexa Sheets';
-  const APP_ICON = '/icons/svg/sheets.svg';
+  const APP_ICON = '/icons/svg/regular/sheets.svg';
   const BASE = '/sheets/';
   const VALID_ROUTES = [];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

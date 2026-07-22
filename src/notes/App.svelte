@@ -10,7 +10,7 @@
 
   const APP_ID = 'notes';
   const APP_TITLE = 'Nexa Notes';
-  const APP_ICON = '/icons/svg/notes.svg';
+  const APP_ICON = '/icons/svg/regular/notes.svg';
   const BASE = '/notes/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

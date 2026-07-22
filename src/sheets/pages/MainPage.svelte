@@ -21,7 +21,7 @@
   export let user = null;
   export let appTitle = 'Nexa Sheets';
   export let appId = 'sheets';
-  export let iconPath = '/icons/svg/sheets.svg';
+  export let iconPath = '/icons/svg/regular/sheets.svg';
 
   const dispatch = createEventDispatcher();
 

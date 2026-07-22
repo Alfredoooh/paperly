@@ -31,7 +31,7 @@
   <div class="header">
     <span class="header-title" style="color:{c.textPrimary}">ProfileLens</span>
     <button class="apps-btn" style="background:{c.appbarBtnBg}" on:click={() => appsPopupOpen=true}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/apps.svg');-webkit-mask-image:url('/icons/svg/apps.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/apps.svg');-webkit-mask-image:url('/icons/svg/regular/apps.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
   </div>
   <div class="body">

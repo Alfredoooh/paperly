@@ -6,7 +6,7 @@
 <div class="projects-tab">
   {#if projects.length === 0}
     <div class="empty-state">
-      <span class="empty-icon-mask" style="mask-image:url('/icons/svg/projects.svg');-webkit-mask-image:url('/icons/svg/projects.svg')"></span>
+      <span class="empty-icon-mask" style="mask-image:url('/icons/svg/regular/projects.svg');-webkit-mask-image:url('/icons/svg/regular/projects.svg')"></span>
       <p class="empty-title">Ainda não tens projetos</p>
       <p class="empty-sub">Os teus projetos guardados vão aparecer aqui.</p>
     </div>

@@ -10,7 +10,7 @@
 
   const APP_ID = 'whiteboard';
   const APP_TITLE = 'Nexa Whiteboard';
-  const APP_ICON = '/icons/svg/whiteboard.svg';
+  const APP_ICON = '/icons/svg/regular/whiteboard.svg';
   const BASE = '/whiteboard/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

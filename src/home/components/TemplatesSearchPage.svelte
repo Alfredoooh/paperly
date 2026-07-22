@@ -69,11 +69,11 @@
 <div class="search-page" class:in={visible}>
   <header class="search-header">
     <button class="back-btn pulse-tap" on:click={handleBack} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back.svg');-webkit-mask-image:url('/icons/svg/back.svg')"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back.svg');-webkit-mask-image:url('/icons/svg/regular/back.svg')"></span>
     </button>
 
     <div class="search-field">
-      <span class="icon-mask search-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+      <span class="icon-mask search-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
       <input
         bind:this={inputEl}
         bind:value={query}
@@ -88,7 +88,7 @@
       />
       {#if query}
         <button class="clear-btn pulse-tap" on:click={clearQuery} aria-label="Limpar pesquisa">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg')"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg')"></span>
         </button>
       {/if}
     </div>
@@ -97,7 +97,7 @@
   <div class="search-body">
     {#if results.length === 0}
       <div class="empty-state">
-        <span class="empty-icon-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+        <span class="empty-icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
         <p class="empty-title">Sem resultados</p>
         <p class="empty-sub">Tenta pesquisar por outro termo.</p>
       </div>
@@ -119,7 +119,7 @@
               <span class="doc-result-icon" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
             </span>
             <span class="doc-result-label">{doc.label}</span>
-            <span class="doc-result-chevron" style="mask-image:url('/icons/svg/chevron-right.svg');-webkit-mask-image:url('/icons/svg/chevron-right.svg')"></span>
+            <span class="doc-result-chevron" style="mask-image:url('/icons/svg/regular/chevron-right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron-right.svg')"></span>
           </button>
         {/each}
       </div>

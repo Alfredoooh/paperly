@@ -81,11 +81,11 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg');width:20px;height:20px;background:{isDark?'#fff':'#000'};"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');width:20px;height:20px;background:{isDark?'#fff':'#000'};"></span>
     </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" disabled={loggingOut} on:click={handleLogout}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');width:18px;height:18px;background:#FF3B30"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/logout.svg');-webkit-mask-image:url('/icons/svg/regular/logout.svg');width:18px;height:18px;background:#FF3B30"></span>
     </button>
   </div>
 
@@ -104,12 +104,12 @@
     <div class="section-label">Conta</div>
     <div class="section">
       <button type="button" class="row" on:click={() => showPlansModal = true}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/tabs.svg');-webkit-mask-image:url('/icons/svg/tabs.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/tabs.svg');-webkit-mask-image:url('/icons/svg/regular/tabs.svg');"></span>
         <span class="row-label">Planos</span>
         <span class="row-sub">Básico e Premium</span>
       </button>
       <div class="row credits-row">
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{creditsColor};"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/clock.svg');-webkit-mask-image:url('/icons/svg/regular/clock.svg');background:{creditsColor};"></span>
         <div class="credits-body">
           <div class="credits-head">
             <span class="row-label" style="flex:none">Saldo</span>
@@ -125,21 +125,21 @@
     <div class="section-label">Preferências</div>
     <div class="section">
       <button type="button" class="row" on:click={(e) => openPopup('theme', e)}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/appearance.svg');-webkit-mask-image:url('/icons/svg/appearance.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/appearance.svg');-webkit-mask-image:url('/icons/svg/regular/appearance.svg');"></span>
         <span class="row-label">Aparência</span>
         <span class="row-trail">{isDark ? 'Escuro' : 'Claro'}</span>
       </button>
       <button type="button" class="row" on:click={(e) => openPopup('lang', e)}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/language.svg');-webkit-mask-image:url('/icons/svg/language.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/language.svg');-webkit-mask-image:url('/icons/svg/regular/language.svg');"></span>
         <span class="row-label">Idioma</span>
         <span class="row-trail">{AVAILABLE_LANGUAGES.find(l=>l.code===currentLanguage)?.name || 'Português'}</span>
       </button>
       <button type="button" class="row" on:click={() => showToast('Privacidade em breve')}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/privacy.svg');-webkit-mask-image:url('/icons/svg/privacy.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/privacy.svg');-webkit-mask-image:url('/icons/svg/regular/privacy.svg');"></span>
         <span class="row-label">Privacidade</span>
       </button>
       <button type="button" class="row" on:click={() => showToast('Segurança em breve')}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/security.svg');-webkit-mask-image:url('/icons/svg/security.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/security.svg');-webkit-mask-image:url('/icons/svg/regular/security.svg');"></span>
         <span class="row-label">Segurança</span>
       </button>
     </div>
@@ -147,15 +147,15 @@
     <div class="section-label">Informação</div>
     <div class="section">
       <button type="button" class="row" on:click={() => showToast('Sobre a app em breve')}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/about.svg');-webkit-mask-image:url('/icons/svg/about.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/about.svg');-webkit-mask-image:url('/icons/svg/regular/about.svg');"></span>
         <span class="row-label">Sobre a app</span>
       </button>
       <button type="button" class="row" on:click={() => showToast('Web & links em breve')}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/web.svg');-webkit-mask-image:url('/icons/svg/web.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/web.svg');-webkit-mask-image:url('/icons/svg/regular/web.svg');"></span>
         <span class="row-label">Web & links</span>
       </button>
       <button type="button" class="row danger" disabled={loggingOut} on:click={handleLogout}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/logout.svg');-webkit-mask-image:url('/icons/svg/logout.svg');background:#FF3B30;"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/logout.svg');-webkit-mask-image:url('/icons/svg/regular/logout.svg');background:#FF3B30;"></span>
         <span class="row-label">{loggingOut ? 'A terminar sessão…' : 'Terminar sessão'}</span>
       </button>
     </div>
@@ -176,7 +176,7 @@
       <button type="button" class="popup-row" class:dark={isDark} on:click={() => { showThemePicker=false; dispatch('themeChange',{isDark:dark}); }}>
         <span class="popup-label" class:dark={isDark}>{label}</span>
         {#if isDark === dark}
-          <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:16px;height:16px;background:#007AFF;"></span>
+          <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');width:16px;height:16px;background:#007AFF;"></span>
         {/if}
       </button>
     {/each}
@@ -200,7 +200,7 @@
               <span class="lang-native" class:dark={isDark}>{lang.native}</span>
             </div>
             {#if lang.code === currentLanguage}
-              <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:16px;height:16px;background:#007AFF;"></span>
+              <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');width:16px;height:16px;background:#007AFF;"></span>
             {/if}
           </button>
         {/each}

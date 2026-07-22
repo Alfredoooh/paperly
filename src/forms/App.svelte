@@ -10,7 +10,7 @@
 
   const APP_ID = 'forms';
   const APP_TITLE = 'Nexa Forms';
-  const APP_ICON = '/icons/svg/forms.svg';
+  const APP_ICON = '/icons/svg/regular/forms.svg';
   const BASE = '/forms/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

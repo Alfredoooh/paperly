@@ -133,11 +133,11 @@
   <div class="search-page search-page-transform" style={containerStyle}>
     <header class="search-header" class:hidden={searchFieldHidden}>
       <button class="back-btn pulse-tap" on:click={handleClose} aria-label="Voltar">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg')"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg')"></span>
       </button>
 
       <div class="search-field">
-        <span class="icon-mask search-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+        <span class="icon-mask search-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
         <input
           bind:this={inputEl}
           bind:value={query}
@@ -152,7 +152,7 @@
         />
         {#if query}
           <button class="clear-btn pulse-tap" on:click={clearQuery} aria-label="Limpar pesquisa">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg')"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg')"></span>
           </button>
         {/if}
       </div>
@@ -161,7 +161,7 @@
     <div class="search-body" bind:this={bodyEl} on:scroll={handleBodyScroll}>
       {#if query.trim().length === 0}
         <div class="search-empty">
-          <span class="icon-mask search-empty-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+          <span class="icon-mask search-empty-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
           <p class="search-empty-title">Pesquisa em toda a Nexa</p>
           <p class="search-empty-sub">Designs, projetos e modelos, tudo num só sítio.</p>
         </div>
@@ -186,11 +186,11 @@
   <div class="search-page" style="transform: translate3d({slideX}%, 0, 0);">
     <header class="search-header" class:hidden={searchFieldHidden}>
       <button class="back-btn pulse-tap" on:click={handleClose} aria-label="Voltar">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg')"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg')"></span>
       </button>
 
       <div class="search-field">
-        <span class="icon-mask search-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+        <span class="icon-mask search-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
         <input
           bind:this={inputEl}
           bind:value={query}
@@ -205,7 +205,7 @@
         />
         {#if query}
           <button class="clear-btn pulse-tap" on:click={clearQuery} aria-label="Limpar pesquisa">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg')"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg')"></span>
           </button>
         {/if}
       </div>
@@ -214,7 +214,7 @@
     <div class="search-body" bind:this={bodyEl} on:scroll={handleBodyScroll}>
       {#if query.trim().length === 0}
         <div class="search-empty">
-          <span class="icon-mask search-empty-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+          <span class="icon-mask search-empty-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
           <p class="search-empty-title">Pesquisa em toda a Nexa</p>
           <p class="search-empty-sub">Designs, projetos e modelos, tudo num só sítio.</p>
         </div>

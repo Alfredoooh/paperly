@@ -237,7 +237,7 @@
         return `<div id="${wid}" class="widget-host"></div>`;
       }
       const safe=escapeHtml(blk.code);
-      const hdr=blk.lang?`<div class="code-block-header"><span class="code-lang-label">${escapeHtml(blk.lang)}</span><button class="code-copy-btn pulse-tap" onclick="window._copyCodeBtn(this)"><span class="icon-mask" style="mask-image:url('/icons/svg/copy.svg');-webkit-mask-image:url('/icons/svg/copy.svg');width:13px;height:13px;background:currentColor;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span></button></div>`:'';
+      const hdr=blk.lang?`<div class="code-block-header"><span class="code-lang-label">${escapeHtml(blk.lang)}</span><button class="code-copy-btn pulse-tap" onclick="window._copyCodeBtn(this)"><span class="icon-mask" style="mask-image:url('/icons/svg/regular/copy.svg');-webkit-mask-image:url('/icons/svg/regular/copy.svg');width:13px;height:13px;background:currentColor;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span></button></div>`:'';
       return `<div class="code-block-wrapper">${hdr}<pre class="code-block"><code>${safe}</code></pre></div>`;
     });
     text = text.replace(/\u0000MB(\d+)\u0000/g,(_,idx)=>{const blk=mathBlocks[Number(idx)];const rendered=renderMathToken(blk.content);return blk.display?`<div class="math-display">${rendered}</div>`:`<span class="math-inline">${rendered}</span>`;});
@@ -1206,30 +1206,30 @@
 
   <div class="appbar">
     <button class="pulse-tap circ w10" style="color:{c.iconTint}" on:click={handleDrawerOpen}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/menu.svg');-webkit-mask-image:url('/icons/svg/menu.svg');width:18px;height:18px;background:{c.iconTint}"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/menu.svg');-webkit-mask-image:url('/icons/svg/regular/menu.svg');width:18px;height:18px;background:{c.iconTint}"></span>
     </button>
     <div class="flex1"></div>
     {#if isIncognito}
       <button class="incognito-pill pulse-tap" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'};color:{c.textPrimary};margin-right:4px" on:click={toggleIncognito}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/incognito.svg');-webkit-mask-image:url('/icons/svg/incognito.svg');width:14px;height:14px;background:{c.textPrimary}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/incognito.svg');-webkit-mask-image:url('/icons/svg/regular/incognito.svg');width:14px;height:14px;background:{c.textPrimary}"></span>
         <span>Privada</span>
       </button>
     {/if}
     {#if !hasMessages && !isIncognito}
       <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={toggleIncognito}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/incognito.svg');-webkit-mask-image:url('/icons/svg/incognito.svg');width:18px;height:18px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/incognito.svg');-webkit-mask-image:url('/icons/svg/regular/incognito.svg');width:18px;height:18px;background:{c.iconTint}"></span>
       </button>
     {/if}
     {#if hasMessages}
       <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={newChat}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/new_chat.svg');-webkit-mask-image:url('/icons/svg/new_chat.svg');width:17px;height:17px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/new_chat.svg');-webkit-mask-image:url('/icons/svg/regular/new_chat.svg');width:17px;height:17px;background:{c.iconTint}"></span>
       </button>
       <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={() => {
         if (!currentConvId) return;
         const conv = conversations.find(cv=>cv.id===currentConvId) || { id:currentConvId, title:currentConvTitle, messages:chatHistory, updatedAt:Date.now(), pinned:false };
         sheetConv = conv; sheetMode='convOptions'; showSheet=true;
       }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/more_vertical.svg');-webkit-mask-image:url('/icons/svg/more_vertical.svg');width:16px;height:16px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_vertical.svg');-webkit-mask-image:url('/icons/svg/regular/more_vertical.svg');width:16px;height:16px;background:{c.iconTint}"></span>
       </button>
     {/if}
   </div>
@@ -1276,7 +1276,7 @@
                         <img src={att.dataUrl} class="att-img" alt="" />
                       {:else}
                         <div class="att-chip" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'}">
-                          <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:14px;height:14px;background:{c.textPrimary}"></span>
+                          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/upload.svg');-webkit-mask-image:url('/icons/svg/regular/upload.svg');width:14px;height:14px;background:{c.textPrimary}"></span>
                           <span style="font-size:12px;color:{c.textPrimary};max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{att.name||'Ficheiro'}</span>
                         </div>
                       {/if}
@@ -1336,7 +1336,7 @@
               <img src={att.dataUrl} class="att-preview-img" alt="" />
             {:else}
               <div class="att-preview-file" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'}">
-                <span class="icon-mask" style="mask-image:url('/icons/svg/upload.svg');-webkit-mask-image:url('/icons/svg/upload.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/regular/upload.svg');-webkit-mask-image:url('/icons/svg/regular/upload.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
               </div>
             {/if}
             <button class="att-remove pulse-tap" on:click={() => { pendingAttachments.splice(i,1); pendingAttachments=[...pendingAttachments]; }}>
@@ -1358,21 +1358,21 @@
     ></textarea>
     <div class="bb-row">
       <button class="add-btn pulse-tap" style="background:{c.addCircleBg};color:{c.iconTint}" on:click={() => { sheetMode='add'; showSheet=true; }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');width:18px;height:18px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');width:18px;height:18px;background:{c.iconTint}"></span>
       </button>
       <div class="flex1"></div>
       <button class="edit-btn pulse-tap" style="background:{c.tabPreviewPillBg};color:{c.textPrimary}" on:click={openAppsPopup}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/preview_filled.svg');-webkit-mask-image:url('/icons/svg/preview_filled.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/filled/preview.svg');-webkit-mask-image:url('/icons/svg/filled/preview.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
         <span class="edit-label">Apps</span>
       </button>
       <div style="width:8px"></div>
       {#if inputText.trim() || pendingAttachments.length}
         <button class="send-btn pulse-tap" style="background:{c.sendBtnColor}" on:click={() => { if(!isStreaming) sendMessage(inputText); }}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:{c.sendIconColor}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/ic_send_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/ic_send_arrow.svg');width:15px;height:15px;background:{c.sendIconColor}"></span>
         </button>
       {:else}
         <button class="send-btn pulse-tap" style="background:{c.sendBtnColor}" on:click={startRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/record.svg');-webkit-mask-image:url('/icons/svg/record.svg');width:18px;height:18px;background:{c.sendIconColor}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/record.svg');-webkit-mask-image:url('/icons/svg/regular/record.svg');width:18px;height:18px;background:{c.sendIconColor}"></span>
         </button>
       {/if}
     </div>
@@ -1392,7 +1392,7 @@
           <img src={app.icon} alt={app.label} class="apps-popup-icon" />
           <span class="apps-popup-label" class:dark={isDark}>{app.label}</span>
           {#if app.id === activeApp}
-            <span class="icon-mask" style="mask-image:url('/icons/svg/check.svg');-webkit-mask-image:url('/icons/svg/check.svg');width:16px;height:16px;background:#007AFF;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0;"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');width:16px;height:16px;background:#007AFF;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;flex-shrink:0;"></span>
           {/if}
         </button>
       {/each}
@@ -1411,7 +1411,7 @@
       {/each}
       <div class="sheet-sep" style="background:{c.divider}"></div>
       <div class="sheet-row pulse-tap" on:click={() => { showSheet=false; setTimeout(()=>{ sheetMode='extras'; showSheet=true; },180); }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/extras.svg');-webkit-mask-image:url('/icons/svg/extras.svg');width:17px;height:17px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/extras.svg');-webkit-mask-image:url('/icons/svg/regular/extras.svg');width:17px;height:17px;background:{c.iconTint}"></span>
         <span style="margin-left:14px;font-size:15px;font-weight:500;color:{c.textPrimary}">Extras</span>
       </div>
       <div style="height:16px"></div>
@@ -1431,7 +1431,7 @@
     {:else if sheetMode === 'convOptions' && sheetConv}
       <div class="conv-opts-header">
         <div class="conv-opts-avatar" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'}">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/new_chat.svg');-webkit-mask-image:url('/icons/svg/new_chat.svg');width:16px;height:16px;background:{c.textPrimary}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/new_chat.svg');-webkit-mask-image:url('/icons/svg/regular/new_chat.svg');width:16px;height:16px;background:{c.textPrimary}"></span>
         </div>
         <div style="flex:1;min-width:0">
           <div class="conv-opts-title" style="color:{c.textPrimary}">{sheetConv.title}</div>
@@ -1517,7 +1517,7 @@
       </div>
       <div class="rec-top-bar">
         <button class="rec-top-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');width:20px;height:20px;background:{isDark ? '#F3F4F6' : '#111827'}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');width:20px;height:20px;background:{isDark ? '#F3F4F6' : '#111827'}"></span>
         </button>
         <span class="rec-timer">{recTimerStr}</span>
         <button class="rec-top-btn pulse-tap" on:click={stopRecording}>

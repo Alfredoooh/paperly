@@ -87,9 +87,9 @@
     <div class="section-label">Conversas</div>
     <div class="section">
       <button type="button" class="row" on:click={toggleConvSection}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/meassage.svg');-webkit-mask-image:url('/icons/svg/meassage.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/meassage.svg');-webkit-mask-image:url('/icons/svg/regular/meassage.svg');"></span>
         <span class="row-label">Histórico</span>
-        <span class="icon-mask row-chevron" class:rotated={!conversationsCollapsed} style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');"></span>
+        <span class="icon-mask row-chevron" class:rotated={!conversationsCollapsed} style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');"></span>
       </button>
       <div class="conv-outer" class:collapsed={conversationsCollapsed}>
         <div class="conv-inner">
@@ -110,7 +110,7 @@
                 on:click={(e) => { lp.click(e); openConv(conv); }}
               >
                 {#if conv.pinned}
-                  <span class="icon-mask pin" style="mask-image:url('/icons/svg/pin_filled.svg');-webkit-mask-image:url('/icons/svg/pin_filled.svg');"></span>
+                  <span class="icon-mask pin" style="mask-image:url('/icons/svg/filled/pin.svg');-webkit-mask-image:url('/icons/svg/filled/pin.svg');"></span>
                 {/if}
                 <span class="conv-title">{conv.title}</span>
               </button>

@@ -7,7 +7,7 @@
   export let user = null;
   export let appTitle = 'Nexa Calendar';
   export let appId = 'calendar';
-  export let iconPath = '/icons/svg/calendar.svg';
+  export let iconPath = '/icons/svg/regular/calendar.svg';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -322,25 +322,25 @@
     <!-- Voltar -->
     <button class="cal-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/back_arrow.svg');-webkit-mask-image:url('/icons/svg/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>
     </button>
 
     <!-- Navegação central -->
     <div class="cal-nav">
       <button class="cal-nav-arrow" on:click={prev}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_left.svg');-webkit-mask-image:url('/icons/svg/chevron_left.svg');background:{c.iconTint};width:17px;height:17px"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:17px;height:17px"></span>
       </button>
       <button class="cal-nav-label-btn" on:click={goToday}>
         <span class="cal-nav-label" style="color:{c.textPrimary}">{navLabel}</span>
       </button>
       <button class="cal-nav-arrow" on:click={next}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');background:{c.iconTint};width:17px;height:17px"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.iconTint};width:17px;height:17px"></span>
       </button>
     </div>
 
     <!-- Pesquisa (substitui o pill do dia) -->
     <button class="cal-icon-btn" style="background:{c.appbarBtnBg}" on:click={openSearch}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg');background:{c.iconTint};width:19px;height:19px"></span>
     </button>
   </div>
 
@@ -486,11 +486,11 @@
       {:else if currentView === 'agenda'}
         {#if agendaDays.length === 0}
           <div class="empty-state" style="color:{c.textSecondary}">
-            <span class="icon-mask empty-icon" style="mask-image:url('/icons/svg/calendar.svg');-webkit-mask-image:url('/icons/svg/calendar.svg');background:{c.textSecondary}"></span>
+            <span class="icon-mask empty-icon" style="mask-image:url('/icons/svg/regular/calendar.svg');-webkit-mask-image:url('/icons/svg/regular/calendar.svg');background:{c.textSecondary}"></span>
             <p>Sem eventos nos próximos 60 dias</p>
             <button class="empty-cta" style="background:{c.primary};color:#fff"
               on:click={()=>openNewEvent(toDateStr(selectedDay))}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');background:#fff;width:14px;height:14px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');background:#fff;width:14px;height:14px"></span>
               Criar evento
             </button>
           </div>
@@ -515,7 +515,7 @@
                     </div>
                     {#if ev.description}<div class="agenda-ev-desc" style="color:{c.textSecondary}">{ev.description}</div>{/if}
                   </div>
-                  <span class="icon-mask agenda-arr" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');background:{c.textSecondary}"></span>
+                  <span class="icon-mask agenda-arr" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.textSecondary}"></span>
                 </button>
               {/each}
             </div>
@@ -529,7 +529,7 @@
   <!-- ══ FAB ═════════════════════════════════════════════════════ -->
   <button class="fab" style="background:{c.primary}"
     on:click={()=>openNewEvent(toDateStr(selectedDay))}>
-    <span class="icon-mask" style="mask-image:url('/icons/svg/add.svg');-webkit-mask-image:url('/icons/svg/add.svg');background:#fff;width:24px;height:24px"></span>
+    <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');background:#fff;width:24px;height:24px"></span>
   </button>
 
   <!-- ══ TAB BAR ══════════════════════════════════════════════════ -->
@@ -556,7 +556,7 @@
       style="background:{c.background}">
       <div class="search-header">
         <div class="search-bar" style="background:{isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.07)'}">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{c.textSecondary};width:16px;height:16px"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg');background:{c.textSecondary};width:16px;height:16px"></span>
           <input
             bind:this={searchInputEl}
             bind:value={searchQuery}
@@ -567,7 +567,7 @@
             on:keydown={e=>e.key==='Escape'&&closeSearch()} />
           {#if searchQuery}
             <button class="search-clear" on:click={()=>searchQuery=''}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.textSecondary};width:13px;height:13px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.textSecondary};width:13px;height:13px"></span>
             </button>
           {/if}
         </div>
@@ -577,12 +577,12 @@
       <div class="search-results">
         {#if searchQuery.trim() && searchResults.length === 0}
           <div class="search-empty" style="color:{c.textSecondary}">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg');background:{c.textSecondary};width:40px;height:40px;opacity:.3"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg');background:{c.textSecondary};width:40px;height:40px;opacity:.3"></span>
             <p>Sem resultados para «{searchQuery}»</p>
           </div>
         {:else if !searchQuery.trim()}
           <div class="search-hint" style="color:{c.textSecondary}">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/calendar.svg');-webkit-mask-image:url('/icons/svg/calendar.svg');background:{c.textSecondary};width:36px;height:36px;opacity:.25"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/calendar.svg');-webkit-mask-image:url('/icons/svg/regular/calendar.svg');background:{c.textSecondary};width:36px;height:36px;opacity:.25"></span>
             <p>Pesquisa por título, local ou descrição</p>
           </div>
         {:else}
@@ -598,7 +598,7 @@
                   {#if ev.location} · 📍 {ev.location}{/if}
                 </div>
               </div>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/chevron_right.svg');-webkit-mask-image:url('/icons/svg/chevron_right.svg');background:{c.textSecondary};width:14px;height:14px;opacity:.4"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.textSecondary};width:14px;height:14px;opacity:.4"></span>
             </button>
           {/each}
         {/if}
@@ -622,47 +622,47 @@
         <div class="detail-title" style="color:{c.textPrimary}">{detailEvent.title}</div>
         <div class="detail-acts">
           <button class="detail-act-btn" on:click={()=>{ openEditEvent(detailEvent); closeDetail(); }}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/edit.svg');-webkit-mask-image:url('/icons/svg/edit.svg');background:{c.primary};width:18px;height:18px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/edit.svg');-webkit-mask-image:url('/icons/svg/regular/edit.svg');background:{c.primary};width:18px;height:18px"></span>
           </button>
           <button class="detail-act-btn" on:click={()=>deleteEvent(detailEvent.id)}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/trash.svg');-webkit-mask-image:url('/icons/svg/trash.svg');background:#FF3B30;width:18px;height:18px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/trash.svg');-webkit-mask-image:url('/icons/svg/regular/trash.svg');background:#FF3B30;width:18px;height:18px"></span>
           </button>
           <button class="detail-act-btn" on:click={closeDetail}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.textSecondary};width:14px;height:14px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.textSecondary};width:14px;height:14px"></span>
           </button>
         </div>
       </div>
 
       <div class="detail-row" style="color:{c.textSecondary}">
-        <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/calendar.svg');-webkit-mask-image:url('/icons/svg/calendar.svg');background:{c.textSecondary}"></span>
+        <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/calendar.svg');-webkit-mask-image:url('/icons/svg/regular/calendar.svg');background:{c.textSecondary}"></span>
         <span>{PT_DAYS_FULL[parseDate(detailEvent.date).getDay()]}, {parseDate(detailEvent.date).getDate()} {PT_MONTHS[parseDate(detailEvent.date).getMonth()]} {parseDate(detailEvent.date).getFullYear()}</span>
       </div>
       {#if detailEvent.allDay}
         <div class="detail-row" style="color:{c.textSecondary}">
-          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{c.textSecondary}"></span>
+          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/clock.svg');-webkit-mask-image:url('/icons/svg/regular/clock.svg');background:{c.textSecondary}"></span>
           <span>Todo o dia</span>
         </div>
       {:else}
         <div class="detail-row" style="color:{c.textSecondary}">
-          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{c.textSecondary}"></span>
+          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/clock.svg');-webkit-mask-image:url('/icons/svg/regular/clock.svg');background:{c.textSecondary}"></span>
           <span>{fmtTime(detailEvent.startTime)} – {fmtTime(detailEvent.endTime)}</span>
         </div>
       {/if}
       {#if detailEvent.location}
         <div class="detail-row" style="color:{c.textSecondary}">
-          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/location.svg');-webkit-mask-image:url('/icons/svg/location.svg');background:{c.textSecondary}"></span>
+          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/location.svg');-webkit-mask-image:url('/icons/svg/regular/location.svg');background:{c.textSecondary}"></span>
           <span>{detailEvent.location}</span>
         </div>
       {/if}
       {#if detailEvent.repeat!=='none'}
         <div class="detail-row" style="color:{c.textSecondary}">
-          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/repeat.svg');-webkit-mask-image:url('/icons/svg/repeat.svg');background:{c.textSecondary}"></span>
+          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/repeat.svg');-webkit-mask-image:url('/icons/svg/regular/repeat.svg');background:{c.textSecondary}"></span>
           <span>{REPEAT_OPTIONS.find(r=>r.value===detailEvent.repeat)?.label}</span>
         </div>
       {/if}
       {#if detailEvent.description}
         <div class="detail-row" style="color:{c.textPrimary};align-items:flex-start">
-          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/note.svg');-webkit-mask-image:url('/icons/svg/note.svg');background:{c.textSecondary};margin-top:2px"></span>
+          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/note.svg');-webkit-mask-image:url('/icons/svg/regular/note.svg');background:{c.textSecondary};margin-top:2px"></span>
           <span>{detailEvent.description}</span>
         </div>
       {/if}
@@ -679,7 +679,7 @@
       <!-- Header da tela -->
       <div class="ev-header" style="border-bottom:0.5px solid {c.divider}">
         <button class="cal-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEventScreen}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/close.svg');-webkit-mask-image:url('/icons/svg/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
         </button>
         <span class="ev-header-title" style="color:{c.textPrimary}">
           {editingEvent ? 'Editar evento' : 'Novo evento'}
@@ -718,7 +718,7 @@
           <!-- Todo o dia -->
           <div class="ev-row">
             <div class="ev-row-left">
-              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{c.textSecondary}"></span>
+              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/clock.svg');-webkit-mask-image:url('/icons/svg/regular/clock.svg');background:{c.textSecondary}"></span>
               <span class="ev-row-lbl" style="color:{c.textPrimary}">Todo o dia</span>
             </div>
             <button class="toggle" role="switch" aria-checked={form.allDay}
@@ -730,7 +730,7 @@
           <!-- Data -->
           <div class="ev-row" style="border-top:0.5px solid {c.divider}">
             <div class="ev-row-left">
-              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/calendar.svg');-webkit-mask-image:url('/icons/svg/calendar.svg');background:{c.textSecondary}"></span>
+              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/calendar.svg');-webkit-mask-image:url('/icons/svg/regular/calendar.svg');background:{c.textSecondary}"></span>
               <span class="ev-row-lbl" style="color:{c.textPrimary}">Data</span>
             </div>
             <input type="date" class="ev-input-right" style="color:{c.textSecondary};background:transparent;border:none" bind:value={form.date} />
@@ -739,7 +739,7 @@
             <!-- Início -->
             <div class="ev-row" style="border-top:0.5px solid {c.divider}">
               <div class="ev-row-left">
-                <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{c.textSecondary};opacity:.5"></span>
+                <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/clock.svg');-webkit-mask-image:url('/icons/svg/regular/clock.svg');background:{c.textSecondary};opacity:.5"></span>
                 <span class="ev-row-lbl" style="color:{c.textPrimary}">Início</span>
               </div>
               <input type="time" class="ev-input-right" style="color:{c.textSecondary};background:transparent;border:none" bind:value={form.startTime} />
@@ -747,7 +747,7 @@
             <!-- Fim -->
             <div class="ev-row" style="border-top:0.5px solid {c.divider}">
               <div class="ev-row-left">
-                <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/clock.svg');-webkit-mask-image:url('/icons/svg/clock.svg');background:{c.textSecondary};opacity:.5"></span>
+                <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/clock.svg');-webkit-mask-image:url('/icons/svg/regular/clock.svg');background:{c.textSecondary};opacity:.5"></span>
                 <span class="ev-row-lbl" style="color:{c.textPrimary}">Fim</span>
               </div>
               <input type="time" class="ev-input-right" style="color:{c.textSecondary};background:transparent;border:none" bind:value={form.endTime} />
@@ -759,7 +759,7 @@
         <div class="ev-group" style="border-bottom:0.5px solid {c.divider}">
           <div class="ev-row">
             <div class="ev-row-left">
-              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/location.svg');-webkit-mask-image:url('/icons/svg/location.svg');background:{c.textSecondary}"></span>
+              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/location.svg');-webkit-mask-image:url('/icons/svg/regular/location.svg');background:{c.textSecondary}"></span>
               <span class="ev-row-lbl" style="color:{c.textPrimary}">Local</span>
             </div>
             <input class="ev-input-right" placeholder="Adicionar local"
@@ -772,7 +772,7 @@
         <div class="ev-group" style="border-bottom:0.5px solid {c.divider}">
           <div class="ev-row">
             <div class="ev-row-left">
-              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/repeat.svg');-webkit-mask-image:url('/icons/svg/repeat.svg');background:{c.textSecondary}"></span>
+              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/repeat.svg');-webkit-mask-image:url('/icons/svg/regular/repeat.svg');background:{c.textSecondary}"></span>
               <span class="ev-row-lbl" style="color:{c.textPrimary}">Repetir</span>
             </div>
             <select class="ev-select" style="color:{c.textSecondary};background:{c.background};border:none" bind:value={form.repeat}>
@@ -786,7 +786,7 @@
         <!-- Notas -->
         <div class="ev-group" style="border-bottom:0.5px solid {c.divider}">
           <div class="ev-row ev-notes-row">
-            <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/note.svg');-webkit-mask-image:url('/icons/svg/note.svg');background:{c.textSecondary};flex-shrink:0;margin-top:1px"></span>
+            <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/note.svg');-webkit-mask-image:url('/icons/svg/regular/note.svg');background:{c.textSecondary};flex-shrink:0;margin-top:1px"></span>
             <textarea class="ev-textarea"
               placeholder="Adicionar notas..."
               style="color:{c.textPrimary};background:transparent;caret-color:{c.primary}"
@@ -799,7 +799,7 @@
         {#if editingEvent}
           <div class="ev-delete-wrap">
             <button class="ev-delete-btn" on:click={()=>deleteEvent(editingEvent.id)}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/trash.svg');-webkit-mask-image:url('/icons/svg/trash.svg');background:#FF3B30;width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/trash.svg');-webkit-mask-image:url('/icons/svg/regular/trash.svg');background:#FF3B30;width:16px;height:16px"></span>
               Eliminar evento
             </button>
           </div>

@@ -98,8 +98,6 @@
     setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
-  const EDGE_ZONE = 24;
-  const OPEN_THRESHOLD = 0.35;
   const CLOSE_THRESHOLD = 0.35;
   const VELOCITY_FLING = 0.55;
 
@@ -116,16 +114,9 @@
     return window.innerWidth;
   }
 
+  // O drawer já não abre por swipe a partir da borda.
   function onEdgeTouchStart(e) {
-    if (drawerOpen) return;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    if (x < window.innerWidth - EDGE_ZONE) return;
-    dragging = true;
-    liveDragActive = false;
-    dragStartX = x;
-    dragCurrentX = x;
-    dragStartTime = performance.now();
-    dragW = getDrawerWidth();
+    return;
   }
 
   function onDrawerTouchStart(e) {
@@ -214,7 +205,7 @@
 
   function bindWindowTouchListeners(node) {
     const opts = { passive: false };
-    const ts = (e) => { if (!drawerOpen) onEdgeTouchStart(e); };
+    const ts = (e) => { if (!drawerOpen) return; };
     const tm = (e) => { if (dragging) onDragMove(e); };
     const te = (e) => { if (dragging) onDragEnd(e); };
     node.addEventListener('touchstart', ts, opts);
@@ -264,7 +255,7 @@
 
       {#if showInstall}
         <button class="drawer-item pulse-tap" on:click={onInstall}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/download.svg');-webkit-mask-image:url('/icons/svg/download.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/download.svg');-webkit-mask-image:url('/icons/svg/regular/download.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Instalar app</span>
         </button>
       {/if}
@@ -272,7 +263,7 @@
       <div class="m3-group">
         <!-- 1º card: cantos superiores grandes (18px), inferiores pequenos (5px) -->
         <button class="m3-item m3-item-first pulse-tap" on:click={goHelp}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/help.svg');-webkit-mask-image:url('/icons/svg/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/help.svg');-webkit-mask-image:url('/icons/svg/regular/help.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Ajuda</span>
         </button>
 
@@ -325,7 +316,7 @@
 
         <!-- 3º card: cantos superiores pequenos (5px), inferiores grandes (18px) -->
         <button class="m3-item m3-item-last pulse-tap" on:click={goOthers}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/more_horiz.svg');-webkit-mask-image:url('/icons/svg/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_horiz.svg');-webkit-mask-image:url('/icons/svg/regular/more_horiz.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Outros</span>
         </button>
       </div>
@@ -345,7 +336,7 @@
         <span class="drawer-logout-label">Terminar sessão</span>
       </button>
       <button class="drawer-settings-btn pulse-tap" on:click={goSettings} aria-label="Definições">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/settings.svg');-webkit-mask-image:url('/icons/svg/settings.svg');width:19px;height:19px;background:var(--drawer-text)"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');width:19px;height:19px;background:var(--drawer-text)"></span>
       </button>
     </div>
   </div>

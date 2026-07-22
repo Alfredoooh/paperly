@@ -41,7 +41,7 @@
 <div class="preview-page" style="transform: translate3d({slideX}%, 0, 0);">
   <header class="preview-header">
     <button class="back-btn pulse-tap" on:click={handleClose} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/arrow_left.svg');-webkit-mask-image:url('/icons/svg/arrow_left.svg')"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg')"></span>
     </button>
     <span class="preview-header-title">{item?.label || ''}</span>
     <span class="preview-header-spacer"></span>

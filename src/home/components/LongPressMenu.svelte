@@ -27,10 +27,10 @@
   const dispatch = createEventDispatcher();
 
   const OPTION_DEFS = [
-    { id: 'share',    icon: '/icons/svg/share.svg',    label: 'Partilhar' },
-    { id: 'pin',       icon: '/icons/svg/pin.svg',       label: 'Fixar' },
-    { id: 'search',    icon: '/icons/svg/search.svg',    label: 'Pesquisar' },
-    { id: 'whatsapp',  icon: '/icons/svg/whatsapp.svg',  label: 'WhatsApp' },
+    { id: 'share',    icon: '/icons/svg/regular/share.svg',    label: 'Partilhar' },
+    { id: 'pin',       icon: '/icons/svg/regular/pin.svg',       label: 'Fixar' },
+    { id: 'search',    icon: '/icons/svg/regular/search.svg',    label: 'Pesquisar' },
+    { id: 'whatsapp',  icon: '/icons/svg/regular/whatsapp.svg',  label: 'WhatsApp' },
   ];
 
   const BUBBLE_DIST = 92;   // px do centro do leque até cada bolha

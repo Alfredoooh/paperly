@@ -64,7 +64,7 @@
       <div class="header-actions">
         {#if showSearchBtn}
           <button class="action-btn pulse-tap" on:click={handleSearch} aria-label="Pesquisar">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
           </button>
         {/if}
         <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">

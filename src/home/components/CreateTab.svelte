@@ -171,7 +171,7 @@
         on:click={handleOpenSearch}
         aria-label="Pesquisar"
       >
-        <span class="icon-mask silver-search-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+        <span class="icon-mask silver-search-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
       </button>
       <button class="profile-btn pulse-tap solid" on:click={handleMenu} aria-label="Perfil">
         {#if avatarUrl}
@@ -201,7 +201,7 @@
     class:search-bar-inert={searchBarInert}
     on:click={handleOpenSearch}
   >
-    <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/search.svg');-webkit-mask-image:url('/icons/svg/search.svg')"></span>
+    <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 

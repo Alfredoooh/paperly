@@ -10,7 +10,7 @@
 
   const APP_ID = 'calendar';
   const APP_TITLE = 'Nexa Calendar';
-  const APP_ICON = '/icons/svg/calendar.svg';
+  const APP_ICON = '/icons/svg/regular/calendar.svg';
   const BASE = '/calendar/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

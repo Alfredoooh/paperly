@@ -40,12 +40,8 @@
           </span>
         {:else}
           <span
-            class="icon-mask icon-regular"
-            style="mask-image:url('{tab.icon}');-webkit-mask-image:url('{tab.icon}')"
-          ></span>
-          <span
-            class="icon-mask icon-color"
-            style="mask-image:url('{tab.iconColor || tab.iconFilled}');-webkit-mask-image:url('{tab.iconColor || tab.iconFilled}')"
+            class="icon-mask"
+            style="mask-image:url('{activeTab === tab.id && tab.iconColor ? tab.iconColor : tab.icon}');-webkit-mask-image:url('{activeTab === tab.id && tab.iconColor ? tab.iconColor : tab.icon}')"
           ></span>
         {/if}
       </span>
@@ -152,18 +148,7 @@
     transition: opacity .18s ease;
   }
 
-  .icon-regular {
-    opacity: 1;
-  }
-  .icon-color {
-    opacity: 0;
-  }
-  .tab-btn.active .icon-regular {
-    opacity: 0;
-  }
-  .tab-btn.active .icon-color {
-    opacity: 1;
-  }
+  /* single-icon render: regular by default, color when active */
 
   /* Avatar na bottom bar: círculo com borda que reforça quando ativo,
      substituindo por completo o antigo ícone de "tools". */

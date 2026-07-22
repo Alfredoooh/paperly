@@ -85,7 +85,6 @@ export const TABS = [
     title: 'Criar',
     icon: '/icons/svg/regular/create.svg',
     iconFilled: '/icons/svg/filled/create.svg',
-    iconColor: '/icons/svg/color/create.svg',
   },
   {
     id: 'projects',
@@ -93,7 +92,6 @@ export const TABS = [
     title: 'Projetos',
     icon: '/icons/svg/regular/projects.svg',
     iconFilled: '/icons/svg/filled/projects.svg',
-    iconColor: '/icons/svg/color/projects.svg',
   },
   {
     id: 'templates',
@@ -101,7 +99,6 @@ export const TABS = [
     title: 'Templates',
     icon: '/icons/svg/regular/templates.svg',
     iconFilled: '/icons/svg/filled/templates.svg',
-    iconColor: '/icons/svg/color/templates.svg',
   },
   {
     id: 'me',

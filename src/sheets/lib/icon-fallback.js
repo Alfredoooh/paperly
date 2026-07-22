@@ -37,7 +37,7 @@ export const FLUENT_ICON_MAP = {
   settings: 'settings_24_regular',
   // 'sheets' NÃO entra aqui: o ícone da app Sheets no ecrã inicial
   // (launcher do home) continua a vir dos ficheiros locais
-  // /icons/svg/regular/sheets.svg, /icons/svg/filled/sheets.svg e
+  // /icons/svg/sheets.svg, /icons/svg/sheets_filled.svg e
   // /icons/svg/apps/sheets.svg, geridos por src/shared/plans.js e
   // src/home/lib/constants.js — esses são "os arquivos do home",
   // ficam fora deste sistema Fluent de propósito.

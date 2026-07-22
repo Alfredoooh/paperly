@@ -98,6 +98,8 @@
     setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
+  const EDGE_ZONE = 24;
+  const OPEN_THRESHOLD = 0.35;
   const CLOSE_THRESHOLD = 0.35;
   const VELOCITY_FLING = 0.55;
 
@@ -114,9 +116,16 @@
     return window.innerWidth;
   }
 
-  // O drawer já não abre por swipe a partir da borda.
   function onEdgeTouchStart(e) {
-    return;
+    if (drawerOpen) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    if (x < window.innerWidth - EDGE_ZONE) return;
+    dragging = true;
+    liveDragActive = false;
+    dragStartX = x;
+    dragCurrentX = x;
+    dragStartTime = performance.now();
+    dragW = getDrawerWidth();
   }
 
   function onDrawerTouchStart(e) {
@@ -205,7 +214,7 @@
 
   function bindWindowTouchListeners(node) {
     const opts = { passive: false };
-    const ts = (e) => { if (!drawerOpen) return; };
+    const ts = (e) => { if (!drawerOpen) onEdgeTouchStart(e); };
     const tm = (e) => { if (dragging) onDragMove(e); };
     const te = (e) => { if (dragging) onDragEnd(e); };
     node.addEventListener('touchstart', ts, opts);

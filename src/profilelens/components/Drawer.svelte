@@ -38,7 +38,7 @@
     <div class="section">
       {#each menuItems as item}
         <button type="button" class="row" class:danger={item.danger} on:click={() => triggerItem(item)}>
-          {#if item.icon}<span class="icon-mask row-icon" style="mask-image:url('/icons/svg/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/{item.icon}.svg');"></span>{/if}
+          {#if item.icon}<span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/{item.icon}.svg');-webkit-mask-image:url('/icons/svg/regular/{item.icon}.svg');"></span>{/if}
           <span class="row-label">{item.label}</span>
         </button>
       {/each}

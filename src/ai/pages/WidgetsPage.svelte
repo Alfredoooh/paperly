@@ -47,7 +47,7 @@
     <div class="section" style="background:{c.dialogBackground}">
       {#each WIDGETS as w, i}
         <button class="row" on:click={() => toggle(w.id)}>
-          <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/{w.icon}.svg');-webkit-mask-image:url('/icons/svg/{w.icon}.svg');background:{c.iconTint};"></span>
+          <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/{w.icon}.svg');-webkit-mask-image:url('/icons/svg/regular/{w.icon}.svg');background:{c.iconTint};"></span>
           <span class="row-label" style="color:{c.textPrimary}">{w.label}</span>
           <div class="toggle" class:on={isEnabled(w.id)}>
             <div class="toggle-thumb"></div>

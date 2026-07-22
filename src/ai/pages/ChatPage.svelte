@@ -1314,7 +1314,7 @@
                   <div class="action-row">
                     {#each [['copy','Copiar',()=>copyText(msg.content)],['thumbs_up','Gosto',()=>{}],['thumbs_down','Não gosto',()=>{}],['share','Partilhar',()=>shareText(msg.content)],['regenerate','Regenerar',regenerate]] as [icon,title,fn]}
                       <button class="action-btn pulse-tap" title={title} style="color:{c.iconTintSecondary}" on:click={fn}>
-                        <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:17px;height:17px;background:{c.iconTintSecondary}"></span>
+                        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/{icon}.svg');-webkit-mask-image:url('/icons/svg/regular/{icon}.svg');width:17px;height:17px;background:{c.iconTintSecondary}"></span>
                       </button>
                     {/each}
                   </div>
@@ -1404,7 +1404,7 @@
       {#each [['image','Enviar Imagem','image'],['upload','Enviar Ficheiro','file']] as [icon,label,kind], i}
         {#if i > 0}<div class="sheet-sep" style="background:{c.divider}"></div>{/if}
         <label class="sheet-row pulse-tap" style="cursor:pointer">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:17px;height:17px;background:{c.iconTint}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/{icon}.svg');-webkit-mask-image:url('/icons/svg/regular/{icon}.svg');width:17px;height:17px;background:{c.iconTint}"></span>
           <span style="margin-left:14px;font-size:15px;font-weight:500;color:{c.textPrimary}">{label}</span>
           <input type="file" accept={kind==='image'?'image/*':'*/*'} style="display:none" on:change={async e=>{const f=e.target.files?.[0];if(f){showSheet=false;await addAttachment(f,kind);}}} />
         </label>
@@ -1418,10 +1418,10 @@
 
     {:else if sheetMode === 'extras'}
       <div class="sheet-title" style="color:{c.textPrimary}">Extras</div>
-      {#each [[flashMode,'Flash','flash','flash_filled',()=>{flashMode=!flashMode;if(flashMode)thinkMoreMode=false;showSheet=false;}],[thinkMoreMode,'Think More','brain','brain_filled',()=>{thinkMoreMode=!thinkMoreMode;if(thinkMoreMode)flashMode=false;showSheet=false;}],[sheetsEnabled,'Sheets','sheets','sheets_filled',()=>{sheetsEnabled=!sheetsEnabled;showSheet=false;}]] as [active,title,iconOff,iconOn,action],i}
+      {#each [[flashMode,'Flash','flash',()=>{flashMode=!flashMode;if(flashMode)thinkMoreMode=false;showSheet=false;}],[thinkMoreMode,'Think More','brain',()=>{thinkMoreMode=!thinkMoreMode;if(thinkMoreMode)flashMode=false;showSheet=false;}],[sheetsEnabled,'Sheets','sheets',()=>{sheetsEnabled=!sheetsEnabled;showSheet=false;}]] as [active,title,iconName,action],i}
         {#if i > 0}<div class="sheet-sep" style="margin-left:60px;background:{c.divider}"></div>{/if}
         <div class="sheet-row pulse-tap" style="background:{active?(isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent'}" on:click={action}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/{active?iconOn:iconOff}.svg');-webkit-mask-image:url('/icons/svg/{active?iconOn:iconOff}.svg');width:17px;height:17px;background:{c.textPrimary}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/{active ? 'filled' : 'regular'}/{iconName}.svg');-webkit-mask-image:url('/icons/svg/{active ? 'filled' : 'regular'}/{iconName}.svg');width:17px;height:17px;background:{c.textPrimary}"></span>
           <span style="margin-left:14px;font-size:14px;font-weight:500;flex:1;color:{c.textPrimary}">{title}</span>
           {#if active}<div style="width:8px;height:8px;border-radius:50%;background:{c.textPrimary}"></div>{/if}
         </div>
@@ -1441,7 +1441,7 @@
       <div class="conv-opts-card" style="background:{isDark?'#1C1C1E':'#F2F2F7'}">
         {#each [
           ['external','Abrir conversa',false,()=>{showSheet=false;setTimeout(()=>{isIncognito=false;currentConvId=sheetConv.id;currentConvTitle=sheetConv.title;titleGenerated=true;chatHistory=[...sheetConv.messages];displayMessages=sheetConv.messages.map(m=>({role:m.role,content:m.content}));},200);}],
-          [sheetConv.pinned?'pin_filled':'pin',sheetConv.pinned?'Desafixar':'Fixar',false,()=>pinConv(sheetConv)],
+          [sheetConv.pinned?'pin':'pin',sheetConv.pinned?'Desafixar':'Fixar',false,()=>pinConv(sheetConv)],
           ['customise','Renomear',false,()=>{renameValue=sheetConv.title;showSheet=false;showCenterDialog=true;centerDialogMode='rename';}],
           ['share','Partilhar',false,()=>{showSheet=false;shareText(sheetConv.title);}],
           ['trash','Eliminar',true,()=>deleteConv(sheetConv)]
@@ -1449,7 +1449,7 @@
           {#if i > 0}<div style="height:1px;margin-left:60px;background:{c.divider}"></div>{/if}
           <div class="conv-opts-row pulse-tap" on:click={action}>
             <div class="conv-opts-icon" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'}">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:16px;height:16px;background:{danger?'#EF4444':c.textPrimary}"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/{icon}.svg');-webkit-mask-image:url('/icons/svg/regular/{icon}.svg');width:16px;height:16px;background:{danger?'#EF4444':c.textPrimary}"></span>
             </div>
             <span class="conv-opts-label" style="color:{danger?'#EF4444':c.textPrimary}">{label}</span>
           </div>
@@ -1467,7 +1467,7 @@
           {#if i > 0}<div style="height:1px;margin-left:60px;background:{c.divider}"></div>{/if}
           <div class="conv-opts-row pulse-tap" on:click={action}>
             <div class="conv-opts-icon" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'}">
-              <span class="icon-mask" style="mask-image:url('/icons/svg/{icon}.svg');-webkit-mask-image:url('/icons/svg/{icon}.svg');width:16px;height:16px;background:{danger?'#EF4444':c.textPrimary}"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/{icon}.svg');-webkit-mask-image:url('/icons/svg/regular/{icon}.svg');width:16px;height:16px;background:{danger?'#EF4444':c.textPrimary}"></span>
             </div>
             <span class="conv-opts-label" style="color:{danger?'#EF4444':c.textPrimary}">{label}</span>
           </div>

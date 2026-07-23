@@ -8,6 +8,7 @@
   export let resolvedValues = {};
   export let c;
   export let selected = false;
+  export let scaleFactor = 1; // escala acumulada de zoom da folha (PinchZoom), para gestos corretos
 
   const dispatch = createEventDispatcher();
 
@@ -17,7 +18,7 @@
     const [fromStr, toStr] = range.split(':');
     const from = parseCellId(fromStr);
     const to = parseCellId(toStr);
-    if (!from || !to) return { rows: [], cols: [] };
+    if (!from || !to) return { rows: [] };
     const r0 = Math.min(from.row, to.row), r1 = Math.max(from.row, to.row);
     const c0 = Math.min(from.col, to.col), c1 = Math.max(from.col, to.col);
     const rows = [];
@@ -29,13 +30,11 @@
       }
       rows.push(row);
     }
-    return { rows, r0, r1, c0, c1 };
+    return { rows };
   }
 
   $: matrix = rangeToMatrix(chart.range);
 
-  // Extrai séries numéricas + rótulos, respeitando as opções de
-  // primeira-linha/primeira-coluna como legendas (tal como o Excel).
   $: parsed = (() => {
     const { rows } = matrix;
     if (!rows.length) return { categories: [], series: [] };
@@ -77,7 +76,7 @@
 
   const PAD = 28;
   $: plotW = Math.max(10, chart.w - PAD * 2);
-  $: plotH = Math.max(10, chart.h - PAD * 2 - 26); // -26 para título
+  $: plotH = Math.max(10, chart.h - PAD * 2 - 26);
 
   function barX(catIdx, seriesIdx, seriesCount) {
     const groupW = plotW / Math.max(1, parsed.categories.length);
@@ -119,55 +118,76 @@
     });
   })();
 
-  // ── Arrastar / redimensionar (estilo objeto flutuante do Excel) ──
+  // ── Arrastar / redimensionar — MESMO padrão de gesto único
+  //    (startX/startY + delta) usado em DocPage.svelte do docs, em
+  //    vez de listeners locais por-instância. O componente pai é
+  //    quem decide start/move/end via eventos; aqui só calculamos
+  //    o delta já ajustado ao scaleFactor recebido do PinchZoom.
 
   let dragging = false;
   let resizing = false;
-  let dragStartX = 0, dragStartY = 0, origX = 0, origY = 0, origW = 0, origH = 0;
+  let startX = 0, startY = 0, origX = 0, origY = 0, origW = 0, origH = 0;
 
-  function onHeaderPointerDown(e) {
+  function pointerXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onHeaderDown(e) {
     dispatch('select', chart.id);
+    const p = pointerXY(e);
     dragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
+    startX = p.x;
+    startY = p.y;
     origX = chart.x;
     origY = chart.y;
     e.stopPropagation();
+    e.preventDefault();
   }
-  function onResizePointerDown(e) {
+  function onResizeDown(e) {
+    const p = pointerXY(e);
     resizing = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
+    startX = p.x;
+    startY = p.y;
     origW = chart.w;
     origH = chart.h;
     e.stopPropagation();
+    e.preventDefault();
   }
-  function onPointerMove(e) {
+  function onMove(e) {
+    if (!dragging && !resizing) return;
+    const p = pointerXY(e);
+    const sf = scaleFactor || 1;
     if (dragging) {
-      const dx = e.clientX - dragStartX;
-      const dy = e.clientY - dragStartY;
+      const dx = (p.x - startX) / sf;
+      const dy = (p.y - startY) / sf;
       dispatch('move', { id: chart.id, x: Math.max(0, origX + dx), y: Math.max(0, origY + dy) });
     } else if (resizing) {
-      const dx = e.clientX - dragStartX;
-      const dy = e.clientY - dragStartY;
+      const dx = (p.x - startX) / sf;
+      const dy = (p.y - startY) / sf;
       dispatch('resize', { id: chart.id, w: Math.max(160, origW + dx), h: Math.max(120, origH + dy) });
     }
+    e.preventDefault();
   }
-  function onPointerUp() {
+  function onUp() {
+    if (dragging || resizing) dispatch('gestureend');
     dragging = false;
     resizing = false;
   }
 </script>
 
-<svelte:window on:pointermove={onPointerMove} on:pointerup={onPointerUp} />
+<svelte:window
+  on:pointermove={onMove} on:pointerup={onUp}
+  on:touchmove|nonpassive={onMove} on:touchend={onUp}
+/>
 
 <div
   class="chart-box"
   class:chart-selected={selected}
-  style="left:{chart.x}px; top:{chart.y}px; width:{chart.w}px; height:{chart.h}px; background:{c.dialogBackground}; border-color:{selected ? c.primary : c.divider};"
+  style="left:{chart.x}px; top:{chart.y}px; width:{chart.w}px; height:{chart.h}px; background:{c.dialogBackground};"
   on:pointerdown={() => dispatch('select', chart.id)}
 >
-  <div class="chart-header" on:pointerdown={onHeaderPointerDown}>
+  <div class="chart-header" on:pointerdown={onHeaderDown} on:touchstart={onHeaderDown}>
     <span class="chart-title" style="color:{c.textPrimary}">{chart.title || 'Gráfico'}</span>
   </div>
 
@@ -228,27 +248,36 @@
   {/if}
 
   {#if selected}
-    <div class="resize-handle" style="background:{c.primary};" on:pointerdown={onResizePointerDown}></div>
+    <div class="resize-handle" on:pointerdown={onResizeDown} on:touchstart={onResizeDown}></div>
   {/if}
 </div>
 
 <style>
+  /* SEM bordas sólidas nem cantos arredondados grandes — mesmo
+     princípio do .float-obj em DocPage.svelte do docs: o único traço
+     visual é um outline fino (não border) quando selecionado, sem
+     border-radius nenhum. O gráfico fica "solto" sobre a folha, tal
+     como um objeto flutuante real do Office. */
   .chart-box {
     position: absolute;
-    border-radius: 14px;
-    border: 1.5px solid;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.10);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     z-index: 5;
     touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
-  .chart-selected { z-index: 6; }
+  .chart-selected {
+    outline: 1.5px solid #2F7BF6;
+    outline-offset: 2px;
+    z-index: 6;
+  }
   .chart-header {
     padding: 8px 10px 2px;
     cursor: grab;
     flex-shrink: 0;
+    touch-action: none;
   }
   .chart-header:active { cursor: grabbing; }
   .chart-title { font-size: 12px; font-weight: 700; }
@@ -265,8 +294,10 @@
   .legend-label { font-size: 10px; font-weight: 600; white-space: nowrap; }
 
   .resize-handle {
-    position: absolute; right: 2px; bottom: 2px;
-    width: 14px; height: 14px; border-radius: 3px;
+    position: absolute; right: -8px; bottom: -8px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #2F7BF6; border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     cursor: nwse-resize;
     touch-action: none;
   }

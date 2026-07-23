@@ -1,7 +1,7 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
-  import { fluentIconUrl } from '../lib/icon-fallback.js';
 
   export let visible = false;
   export let c;
@@ -112,7 +112,7 @@
           {#if currentFormat === f.id}
             <span
               class="format-check"
-              style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.primary};"
+              style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.primary};"
             ></span>
           {/if}
         </button>
@@ -130,7 +130,7 @@
   .overlay.overlay-in { background: rgba(0,0,0,.45); }
   .bottom-sheet {
     position: fixed; bottom: 0; left: 0; right: 0;
-    border-radius: 20px 20px 0 0; z-index: 700;
+    border-radius: 12px 12px 0 0; z-index: 700;
     padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
     will-change: transform;
     box-shadow: 0 -4px 40px rgba(0,0,0,.16);
@@ -142,7 +142,7 @@
   .sheet-body { padding: 4px 10px 4px; }
   .format-row {
     width: 100%; display: flex; align-items: center; gap: 10px;
-    background: none; border: none; padding: 13px 12px; border-radius: 14px;
+    background: none; border: none; padding: 13px 12px; border-radius: 12px;
     text-align: left; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background .14s ease;

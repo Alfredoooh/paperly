@@ -1,21 +1,21 @@
 <!-- components/ChartModal.svelte -->
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
-  import { fluentIconUrl } from '../lib/icon-fallback.js';
 
   export let visible = false;
   export let c;
-  export let defaultRange = ''; // ex: "A1:B5", vem da seleção ativa no grid
-  export let editingChart = null; // se não-nulo, está a editar um gráfico existente
+  export let defaultRange = '';
+  export let editingChart = null;
 
   const dispatch = createEventDispatcher();
 
   const CHART_TYPES = [
-    { id: 'bar', label: 'Coluna', icon: 'chart_bar' },
-    { id: 'line', label: 'Linha', icon: 'chart_line' },
-    { id: 'pie', label: 'Circular', icon: 'chart_pie' },
-    { id: 'donut', label: 'Rosca', icon: 'chart_donut' },
+    { id: 'bar', label: 'Coluna', icon: 'data_bar_vertical_24_regular' },
+    { id: 'line', label: 'Linha', icon: 'chart_multiple_24_regular' },
+    { id: 'pie', label: 'Circular', icon: 'data_pie_24_regular' },
+    { id: 'donut', label: 'Rosca', icon: 'data_pie_24_regular' },
   ];
 
   let chartType = 'bar';
@@ -67,7 +67,7 @@
 
   function confirm() {
     const trimmedRange = dataRange.trim().toUpperCase();
-    if (!/^[A-Z]+\d+:[A-Z]+\d+$/.test(trimmedRange)) return; // validação simples do intervalo
+    if (!/^[A-Z]+\d+:[A-Z]+\d+$/.test(trimmedRange)) return;
     dispatch('confirm', {
       type: chartType,
       range: trimmedRange,
@@ -150,7 +150,7 @@
           >
             <span
               class="type-icon"
-              style="mask-image:url('{fluentIconUrl(t.icon)}');-webkit-mask-image:url('{fluentIconUrl(t.icon)}');background:{chartType === t.id ? c.primary : c.iconTint};"
+              style="mask-image:url('{localIconPath(t.icon)}');-webkit-mask-image:url('{localIconPath(t.icon)}');background:{chartType === t.id ? c.primary : c.iconTint};"
             ></span>
             <span class="type-label" style="color:{chartType === t.id ? c.primary : c.textPrimary}">{t.label}</span>
           </button>
@@ -201,7 +201,7 @@
   .overlay.overlay-in { background: rgba(0,0,0,.45); }
   .bottom-sheet {
     position: fixed; bottom: 0; left: 0; right: 0;
-    border-radius: 20px 20px 0 0; z-index: 700;
+    border-radius: 12px 12px 0 0; z-index: 700;
     padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
     will-change: transform;
     box-shadow: 0 -4px 40px rgba(0,0,0,.16);
@@ -218,7 +218,7 @@
   .type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .type-btn {
     display: flex; flex-direction: column; align-items: center; gap: 6px;
-    padding: 12px 6px; border-radius: 14px; border: 1.5px solid;
+    padding: 12px 6px; border-radius: 12px; border: 1.5px solid;
     background: transparent; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1);
@@ -232,7 +232,7 @@
   .type-label { font-size: 12px; font-weight: 600; }
 
   .text-input {
-    width: 100%; border: none; border-radius: 12px; padding: 12px 14px;
+    width: 100%; border: none; border-radius: 10px; padding: 12px 14px;
     font-size: 14px; font-family: inherit; outline: none;
   }
 

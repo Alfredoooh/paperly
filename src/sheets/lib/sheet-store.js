@@ -4,8 +4,10 @@
 // localStorage sob o prefixo "sheets_". Cada documento tem uma ou
 // mais folhas (abas); cada folha tem a sua própria grelha esparsa
 // (só células não-vazias são guardadas) mais metadados de
-// formatação por célula, e agora também uma lista de gráficos
-// flutuantes (charts[]) ancorados a um intervalo de células.
+// formatação por célula, uma lista de gráficos flutuantes
+// (charts[]) e uma lista de imagens flutuantes (images[]), ambos
+// ancorados livremente sobre a folha (não a um intervalo de células
+// fixo, exceto os gráficos que continuam ancorados a um range).
 
 import {
   evaluateFormula,
@@ -19,9 +21,17 @@ export const STORAGE_PREFIX = 'sheets_';
 const INDEX_KEY = STORAGE_PREFIX + 'index';
 
 export const DEFAULT_ROWS = 60;
-export const DEFAULT_COLS = 26; // A..Z
+// NOTA (colunas): subiu de 26 (A..Z) para 1000 (A..ALL) a pedido
+// explícito — tal como o Excel real, que vai até XFD (16384), mas
+// 1000 já cobre largamente qualquer uso mobile real sem pesar tanto
+// na grelha esparsa. A virtualização em SheetGrid.svelte já só
+// desenha o range visível, por isso subir este número não tem custo
+// de performance por si só — só afeta o comprimento total de scroll
+// horizontal disponível.
+export const DEFAULT_COLS = 1000;
 export const MAX_SHEETS = 40;
 export const MAX_CHARTS_PER_SHEET = 12;
+export const MAX_IMAGES_PER_SHEET = 24;
 
 // ── Estrutura de um documento em memória ────────────────────────
 //
@@ -37,6 +47,10 @@ export const MAX_CHARTS_PER_SHEET = 12;
 //           firstRowLabels: true, firstColLabels: true,
 //           x: 40, y: 40, w: 280, h: 200 },
 //         ...
+//       ],
+//       images: [
+//         { id, src: "data:image/...", x: 40, y: 40, w: 200, h: 140 },
+//         ...
 //       ] },
 //     ...
 //   ],
@@ -51,6 +65,10 @@ function newChartId() {
   return 'chart_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+function newImageId() {
+  return 'img_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
 export function createSheet(name) {
   return {
     id: newSheetId(),
@@ -60,6 +78,7 @@ export function createSheet(name) {
     cells: {},
     colWidths: {},
     charts: [],
+    images: [],
   };
 }
 
@@ -103,10 +122,14 @@ function touchIndex(id, name) {
 // Migra um documento no formato ANTIGO (rows/cols/cells/colWidths na
 // raiz, sem conceito de abas) para o formato novo com `sheets`. Um
 // documento já-migrado (tem `sheets` array) passa direto sem
-// alteração, exceto por garantir que `charts` existe em cada folha
-// (folhas gravadas antes deste campo existir não tinham a chave).
-// Isto garante que folhas criadas antes desta versão continuam a
-// abrir normalmente, como "Folha1" única, agora com charts: [].
+// alteração, exceto por garantir que `charts` e `images` existem em
+// cada folha (folhas gravadas antes destes campos existirem não
+// tinham as chaves). O `cols` de folhas antigas (ex: 26) NÃO é
+// forçado para o novo DEFAULT_COLS — só documentos novos nascem já
+// com 1000; documentos existentes mantêm o número de colunas que já
+// tinham, para não invalidar referências de fórmula/posição já
+// gravadas. Quem quiser mais colunas numa folha antiga usa "Inserir
+// coluna" normalmente.
 function migrateToSheets(parsed, id) {
   if (Array.isArray(parsed.sheets) && parsed.sheets.length > 0) {
     return {
@@ -123,6 +146,7 @@ function migrateToSheets(parsed, id) {
         cells: s.cells || {},
         colWidths: s.colWidths || {},
         charts: Array.isArray(s.charts) ? s.charts : [],
+        images: Array.isArray(s.images) ? s.images : [],
       })),
     };
   }
@@ -135,6 +159,7 @@ function migrateToSheets(parsed, id) {
     cells: parsed.cells || {},
     colWidths: parsed.colWidths || {},
     charts: [],
+    images: [],
   };
   return {
     id,
@@ -198,6 +223,7 @@ export function duplicateDocument(id) {
       cells: JSON.parse(JSON.stringify(s.cells)),
       colWidths: { ...s.colWidths },
       charts: JSON.parse(JSON.stringify(s.charts || [])),
+      images: JSON.parse(JSON.stringify(s.images || [])),
     })),
   };
   persistDocument(copy);
@@ -260,6 +286,7 @@ export function duplicateSheet(doc, sheetId) {
     cells: JSON.parse(JSON.stringify(original.cells)),
     colWidths: { ...original.colWidths },
     charts: JSON.parse(JSON.stringify(original.charts || [])),
+    images: JSON.parse(JSON.stringify(original.images || [])),
   };
   const idx = doc.sheets.findIndex((s) => s.id === sheetId);
   const nextSheets = [...doc.sheets.slice(0, idx + 1), copy, ...doc.sheets.slice(idx + 1)];
@@ -275,10 +302,6 @@ export function setActiveSheet(doc, sheetId) {
 //
 // Mesma convenção de imutabilidade das funções de aba acima: cada
 // função devolve um NOVO `doc`, o chamador reatribui `doc = ...`.
-// Os gráficos vivem dentro da folha (não do documento) porque, tal
-// como no Excel, um gráfico só faz sentido ancorado aos dados da
-// aba onde foi inserido — mudar de aba naturalmente mostra/esconde
-// os gráficos certos sem qualquer filtragem extra necessária.
 
 function patchSheetInDoc(doc, sheetId, patchFn) {
   return {
@@ -325,6 +348,51 @@ export function removeChart(doc, sheetId, chartId) {
   return patchSheetInDoc(doc, sheetId, (s) => ({
     ...s,
     charts: (s.charts || []).filter((ch) => ch.id !== chartId),
+  }));
+}
+
+// ── Gestão de imagens flutuantes dentro de UMA folha ─────────────
+//
+// Espelham exatamente a API dos gráficos acima. Uma imagem pode ser
+// inserida "dentro" da folha (sobre a grelha) ou, tal como pedido,
+// também funciona solta sem estar ancorada a nenhum intervalo de
+// células — por isso não tem `range`, só x/y/w/h livres, à
+// semelhança dos objetos flutuantes do docs (DocPage.svelte).
+
+export function addImage(doc, sheetId, imageConfig) {
+  const sheet = doc.sheets.find((s) => s.id === sheetId);
+  if (!sheet) return doc;
+  if ((sheet.images || []).length >= MAX_IMAGES_PER_SHEET) return doc;
+  const image = {
+    id: newImageId(),
+    src: imageConfig.src,
+    x: imageConfig.x !== undefined ? imageConfig.x : 40,
+    y: imageConfig.y !== undefined ? imageConfig.y : 40,
+    w: imageConfig.w || 200,
+    h: imageConfig.h || 140,
+  };
+  return patchSheetInDoc(doc, sheetId, (s) => ({ ...s, images: [...(s.images || []), image] }));
+}
+
+export function updateImage(doc, sheetId, imageId, patch) {
+  return patchSheetInDoc(doc, sheetId, (s) => ({
+    ...s,
+    images: (s.images || []).map((im) => (im.id === imageId ? { ...im, ...patch } : im)),
+  }));
+}
+
+export function moveImage(doc, sheetId, imageId, x, y) {
+  return updateImage(doc, sheetId, imageId, { x, y });
+}
+
+export function resizeImage(doc, sheetId, imageId, w, h) {
+  return updateImage(doc, sheetId, imageId, { w, h });
+}
+
+export function removeImage(doc, sheetId, imageId) {
+  return patchSheetInDoc(doc, sheetId, (s) => ({
+    ...s,
+    images: (s.images || []).filter((im) => im.id !== imageId),
   }));
 }
 

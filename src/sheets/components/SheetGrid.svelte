@@ -19,23 +19,11 @@
 
   // ── Virtualização ────────────────────────────────────────────
   //
-  // PERFORMANCE: com a grelha por defeito (60 linhas × 26 colunas =
-  // 1.560 células), desenhar todas de uma vez no mount era o que
-  // fazia o Sheets demorar visivelmente mais a abrir do que as outras
-  // apps — 1.560 elementos DOM, cada um com ~7 estilos interpolados
-  // e 4 listeners, criados de uma só vez antes do primeiro paint.
-  //
-  // A partir daqui só se desenham as células realmente visíveis no
-  // "grid-scroller" (mais uma margem de OVERSCAN células para fora de
-  // cada lado, para não haver flash em branco durante scroll rápido).
-  // O "grid-canvas" continua a ter width/height TOTAIS — isso é o que
-  // dá à scrollbar o tamanho real do documento — só o CONTEÚDO dentro
-  // dele é que passa a ser parcial. Toda a lógica de seleção/edição/
-  // navegação por teclado já operava sobre (row,col)/addr, nunca sobre
-  // a existência do elemento DOM, por isso continua a funcionar sem
-  // qualquer mudança de comportamento, mesmo com a célula ativa fora
-  // do viewport (ex: navegação por teclado para lá do que está visível
-  // já chama scrollCellIntoView, que só depende de scrollerEl).
+  // PERFORMANCE: com a grelha por defeito, desenhar todas as células
+  // de uma vez no mount era o que fazia o Sheets demorar visivelmente
+  // mais a abrir do que as outras apps. A partir daqui só se desenham
+  // as células realmente visíveis no "grid-scroller" (mais uma
+  // margem de OVERSCAN células para fora de cada lado).
 
   const OVERSCAN_ROWS = 6;
   const OVERSCAN_COLS = 3;
@@ -80,18 +68,12 @@
     return cell && cell.raw !== undefined && cell.raw !== null ? cell.raw : '';
   }
 
-  function cellMeta(addr) {
-    return doc.cells[addr] || {};
-  }
-
   async function beginEdit(addr, presetValue = null) {
     editingAddr = addr;
     editingValue = presetValue !== null ? presetValue : String(cellRawValue(addr));
     await tick();
     editInputEl && editInputEl.focus();
     if (presetValue === null && editInputEl) {
-      // seleciona tudo ao entrar por duplo-toque, mas não quando se
-      // começou a escrever diretamente por cima (presetValue setado)
       editInputEl.select();
     }
   }
@@ -150,15 +132,13 @@
   // ── Seleção por toque/arrasto ────────────────────────────────
 
   let isSelecting = false;
-  let selectStartAddr = null;
 
   function onCellPointerDown(addr, e) {
     if (editingAddr && editingAddr !== addr) {
       commitEdit();
     }
-    if (editingAddr === addr) return; // já a editar esta célula, deixa o input tratar
+    if (editingAddr === addr) return;
     isSelecting = true;
-    selectStartAddr = addr;
     activeAddr = addr;
     selectionAnchor = addr;
     selectionFocus = addr;
@@ -171,20 +151,14 @@
 
   function onGlobalPointerUp() {
     isSelecting = false;
-    selectStartAddr = null;
   }
 
   function onCellDoubleClick(addr) {
     beginEdit(addr);
   }
 
-  function onCellClick(addr) {
-    // clique simples numa célula já ativa (não em edição) prepara mas não edita —
-    // edição real é por duplo-toque ou por escrever diretamente.
-  }
-
   function handleTypeToEdit(e) {
-    if (editingAddr) return; // já em edição, deixa passar para o input
+    if (editingAddr) return;
     if (!activeAddr) return;
     const key = e.key;
     if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -219,12 +193,6 @@
   $: totalHeight = doc.rows * ROW_H;
 
   // ── Range visível (linhas/colunas), com overscan ─────────────
-  //
-  // Traduz scrollTop/scrollLeft + tamanho do viewport num intervalo
-  // [rowStart,rowEnd) / [colStart,colEnd) de índices a desenhar. Feito
-  // por busca linear sobre colOffsets (poucas dezenas de colunas no
-  // caso normal — não vale a pena busca binária aqui) e por divisão
-  // direta para linhas, já que ROW_H é fixo.
 
   $: firstVisibleRow = Math.max(0, Math.floor(scrollTop / ROW_H));
   $: lastVisibleRow = Math.min(doc.rows - 1, Math.floor((scrollTop + viewportH) / ROW_H));
@@ -247,8 +215,6 @@
   $: colStart = Math.max(0, firstVisibleCol - OVERSCAN_COLS);
   $: colEnd = Math.min(doc.cols - 1, lastVisibleCol + OVERSCAN_COLS);
 
-  // Arrays simples [rowStart..rowEnd] / [colStart..colEnd] para os
-  // #each com key — muito mais baratos que Array(doc.rows) inteiro.
   $: visibleRowIndices = (() => {
     const arr = [];
     for (let r = rowStart; r <= rowEnd; r++) arr.push(r);
@@ -260,9 +226,6 @@
     return arr;
   })();
 
-  // Cabeçalhos de coluna/linha também só desenham o range visível —
-  // mas mantêm um "spacer" invisível antes/depois para a barra de
-  // cabeçalho continuar com o comprimento total e alinhada ao scroll.
   $: colHeaderLeadWidth = colOffsets[colStart];
   $: colHeaderTrailWidth = totalWidth - colOffsets[colEnd + 1];
   $: rowHeaderLeadHeight = rowStart * ROW_H;
@@ -288,9 +251,33 @@
     return selRange && (selRange.r0 !== selRange.r1 || selRange.c0 !== selRange.c1);
   }
 
+  // ══════════════════════════════════════════════════════════════
+  //  FIX (atraso ao aplicar bold/itálico/cor/etc — só refletia
+  //  visualmente depois de fazer scroll): a versão anterior lia a
+  //  formatação de cada célula através de {@const meta = cellMeta(addr)},
+  //  onde cellMeta(addr) chamava doc.cells[addr]. Isso funciona para o
+  //  PRIMEIRO desenho, mas o corpo dos #each só volta a ser
+  //  RE-EXECUTADO quando os arrays de iteração (visibleRowIndices/
+  //  visibleColIndices) mudam de referência — o que só acontece ao
+  //  fazer scroll (scrollTop/scrollLeft mudam). Uma alteração de
+  //  `doc` vinda do pai (ex: aplicar bold) NÃO recria esses arrays,
+  //  por isso o valor de `meta` dentro do loop ficava "congelado" no
+  //  que já lá estava, até o próximo scroll forçar o Svelte a
+  //  reconciliar o bloco inteiro de novo.
+  //
+  //  CORREÇÃO: em vez de indireção por função dentro de {@const},
+  //  cada propriedade de formatação agora lê diretamente
+  //  `doc.cells[addr]?.propriedade` inline no atributo `style` do
+  //  template. O compilador do Svelte rastreia leituras de
+  //  propriedade feitas diretamente no template como dependências
+  //  reativas do elemento em si (não do bloco #each todo), por isso
+  //  cada `<div class="cell">` volta a atualizar o seu próprio style
+  //  assim que `doc` muda, independentemente de scroll.
+  // ══════════════════════════════════════════════════════════════
+
   function displayValueFor(addr) {
     const val = resolvedValues[addr];
-    const format = cellMeta(addr).format;
+    const format = doc.cells[addr] ? doc.cells[addr].format : undefined;
     if (val === undefined) return '';
     return formatDisplayValue(val, format);
   }
@@ -306,7 +293,6 @@
       resizeObserver = new ResizeObserver(() => syncViewportSize());
       resizeObserver.observe(scrollerEl);
     } else {
-      // fallback sem ResizeObserver: recalcula pelo menos no resize da janela
       window.addEventListener('resize', syncViewportSize);
     }
   });
@@ -317,7 +303,6 @@
     else window.removeEventListener('resize', syncViewportSize);
   });
 
-  // Expõe para o pai poder pedir foco/edit programaticamente (ex: barra de fórmulas)
   export function editActiveCell() {
     if (activeAddr) beginEdit(activeAddr);
   }
@@ -331,12 +316,8 @@
 </script>
 
 <div class="grid-shell" style="background:{c.sheetPaperBg};">
-  <!-- Canto superior-esquerdo fixo -->
   <div class="corner" style="background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};width:{ROW_HEADER_W}px;height:{HEADER_H}px;"></div>
 
-  <!-- Cabeçalho de colunas (A, B, C...) — sincroniza scroll horizontal com o corpo.
-       Só desenha colStart..colEnd; os dois spacers mantêm o alinhamento visual
-       e o comprimento total de scroll idêntico ao de antes da virtualização. -->
   <div class="col-header" bind:this={colHeaderEl} style="left:{ROW_HEADER_W}px;height:{HEADER_H}px;background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};">
     <div class="col-header-inner" style="width:{totalWidth}px;">
       <div class="header-spacer" style="width:{colHeaderLeadWidth}px;"></div>
@@ -353,8 +334,6 @@
     </div>
   </div>
 
-  <!-- Cabeçalho de linhas (1, 2, 3...) — sincroniza scroll vertical com o corpo.
-       Mesmo princípio de spacers do cabeçalho de colunas, acima. -->
   <div class="row-header" bind:this={rowHeaderEl} style="top:{HEADER_H}px;width:{ROW_HEADER_W}px;background:{c.sheetHeaderBg || c.dialogBackground};border-color:{c.divider};">
     <div class="row-header-inner" style="height:{totalHeight}px;">
       <div class="header-spacer" style="height:{rowHeaderLeadHeight}px;"></div>
@@ -371,11 +350,6 @@
     </div>
   </div>
 
-  <!-- Corpo da grelha (o "papel" de sheets) — scroll bidirecional.
-       PERFORMANCE: grid-canvas mantém width/height TOTAIS (para a
-       scrollbar refletir o tamanho real do documento), mas só as
-       células dentro de [rowStart,rowEnd] × [colStart,colEnd] são
-       desenhadas — ver bloco "Range visível" acima do <script>. -->
   <div
     class="grid-scroller"
     bind:this={scrollerEl}
@@ -386,7 +360,6 @@
       {#each visibleRowIndices as row (row)}
         {#each visibleColIndices as col (col)}
           {@const addr = cellId(row, col)}
-          {@const meta = cellMeta(addr)}
           <div
             class="cell"
             class:cell-active={activeAddr === addr}
@@ -397,17 +370,16 @@
             style="
               left:{colOffsets[col]}px; top:{row * ROW_H}px;
               width:{colWidth(col)}px; height:{ROW_H}px;
-              border-color:{c.sheetGridLine};
-              font-weight:{meta.bold ? 700 : 400};
-              font-style:{meta.italic ? 'italic' : 'normal'};
-              text-decoration:{meta.underline ? 'underline' : 'none'};
-              text-align:{meta.align || (typeof resolvedValues[addr] === 'number' ? 'right' : 'left')};
-              color:{isErrorCell(addr) ? '#C42B1C' : (meta.color || c.textPrimary)};
-              background:{editingAddr === addr ? c.sheetCellBg : (meta.fill || 'transparent')};
+              border-color:{c.sheetGridLine}66;
+              font-weight:{doc.cells[addr] && doc.cells[addr].bold ? 700 : 400};
+              font-style:{doc.cells[addr] && doc.cells[addr].italic ? 'italic' : 'normal'};
+              text-decoration:{doc.cells[addr] && doc.cells[addr].underline ? 'underline' : 'none'};
+              text-align:{(doc.cells[addr] && doc.cells[addr].align) || (typeof resolvedValues[addr] === 'number' ? 'right' : 'left')};
+              color:{isErrorCell(addr) ? '#C42B1C' : ((doc.cells[addr] && doc.cells[addr].color) || c.textPrimary)};
+              background:{editingAddr === addr ? c.sheetCellBg : ((doc.cells[addr] && doc.cells[addr].fill) || 'transparent')};
             "
             on:pointerdown={(e) => onCellPointerDown(addr, e)}
             on:pointerenter={() => onCellPointerEnter(addr)}
-            on:click={() => onCellClick(addr)}
             on:dblclick={() => onCellDoubleClick(addr)}
           >
             {#if editingAddr === addr}
@@ -426,7 +398,6 @@
         {/each}
       {/each}
 
-      <!-- Retângulo de destaque da seleção múltipla, desenhado por cima -->
       {#if selRange && isSelectionMultiCell()}
         <div
           class="selection-outline"
@@ -440,7 +411,6 @@
         ></div>
       {/if}
 
-      <!-- Contorno da célula ativa -->
       {#if activeAddr}
         {@const activePos = parseCellId(activeAddr)}
         {#if activePos}
@@ -508,6 +478,11 @@
     position: relative;
   }
 
+  /* Linhas de divisão da grelha revistas — antes usavam c.sheetGridLine
+     "puro" (podia vir demasiado forte/escuro consoante o tema), agora
+     aplicamos "66" (~40% opacidade) sobre o token diretamente no
+     style inline, dando um traço mais discreto e consistente com o
+     Excel/Office real, onde as linhas de grelha são muito subtis. */
   .cell {
     position: absolute;
     display: flex; align-items: center;

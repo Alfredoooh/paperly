@@ -1,8 +1,8 @@
 <!-- components/ColorModal.svelte -->
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
-  import { fluentIconUrl } from '../lib/icon-fallback.js';
 
   export let visible = false;
   export let c;
@@ -127,7 +127,7 @@
       <button class="add-color-btn" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={requestAddColor}>
         <span
           class="add-icon"
-          style="mask-image:url('{fluentIconUrl('add')}');-webkit-mask-image:url('{fluentIconUrl('add')}');background:{c.textPrimary};"
+          style="mask-image:url('{localIconPath('add_24_regular')}');-webkit-mask-image:url('{localIconPath('add_24_regular')}');background:{c.textPrimary};"
         ></span>
         Adicionar cor
       </button>
@@ -144,7 +144,7 @@
   .overlay.overlay-in { background: rgba(0,0,0,.45); }
   .bottom-sheet {
     position: fixed; bottom: 0; left: 0; right: 0;
-    border-radius: 20px 20px 0 0; z-index: 700;
+    border-radius: 12px 12px 0 0; z-index: 700;
     padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 24px);
     will-change: transform;
     box-shadow: 0 -4px 40px rgba(0,0,0,.16);

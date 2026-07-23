@@ -5,95 +5,38 @@
 
   import HomeApp from './home/App.svelte';
   import AiApp from './ai/App.svelte';
-  import AnalyticsApp from './analytics/App.svelte';
-  import AuthApp from './auth/App.svelte';
-  import CalendarApp from './calendar/App.svelte';
-  import ProjectsApp from './projects/App.svelte';
-  import ProfileApp from './profile/App.svelte';
-  import DrawApp from './draw/App.svelte';
   import DocsApp from './docs/App.svelte';
-  import DriveApp from './drive/App.svelte';
-  import ImageApp from './image/App.svelte';
-  import MailApp from './mail/App.svelte';
-  import FormsApp from './forms/App.svelte';
-  import NotFoundApp from './notfound/App.svelte';
-  import NotesApp from './notes/App.svelte';
-  import ProfileLensApp from './profilelens/App.svelte';
+  import ProfileApp from './profile/App.svelte';
   import SheetsApp from './sheets/App.svelte';
   import SlidesApp from './slides/App.svelte';
   import WhiteboardApp from './whiteboard/App.svelte';
-  import WikiApp from './wiki/App.svelte';
+  import AuthApp from './auth/App.svelte';
+  import NotFoundApp from './notfound/App.svelte';
 
-  // 'home' NÃO entra aqui — é a base fixa, nunca é uma layer empilhada.
   const APP_DEFS = {
     ai: { component: AiApp, path: '/ai/' },
-    analytics: { component: AnalyticsApp, path: '/analytics/' },
-    auth: { component: AuthApp, path: '/auth/' },
-    calendar: { component: CalendarApp, path: '/calendar/' },
-    projects: { component: ProjectsApp, path: '/projects/' },
-    profile: { component: ProfileApp, path: '/profile/' },
     docs: { component: DocsApp, path: '/docs/' },
-    draw: { component: DrawApp, path: '/draw/' },
-    drive: { component: DriveApp, path: '/drive/' },
-    forms: { component: FormsApp, path: '/forms/' },
-    image: { component: ImageApp, path: '/image/' },
-    mail: { component: MailApp, path: '/mail/' },
-    notfound: { component: NotFoundApp, path: '/404/' },
-    notes: { component: NotesApp, path: '/notes/' },
-    profilelens: { component: ProfileLensApp, path: '/profilelens/' },
+    profile: { component: ProfileApp, path: '/profile/' },
     sheets: { component: SheetsApp, path: '/sheets/' },
     slides: { component: SlidesApp, path: '/slides/' },
     whiteboard: { component: WhiteboardApp, path: '/whiteboard/' },
-    wiki: { component: WikiApp, path: '/wiki/' },
+    auth: { component: AuthApp, path: '/auth/' },
+    notfound: { component: NotFoundApp, path: '/404/' },
   };
 
   const APP_IDS = new Set(Object.keys(APP_DEFS));
-
-  // Pilha de overlays por cima do home — a MESMA "regra de ouro" já
-  // usada pelo drawer/search/preview dentro de home/App.svelte:
-  //   - abrir empurra um estado real (pushState)
-  //   - fechar NUNCA esconde a layer diretamente — só chama
-  //     history.back(); quem esconde de facto é sempre o onPopState
   let layers = [];
   let ready = false;
 
-  // Recuo da camada de baixo (home) — efeito push estilo iOS: a tela
-  // nova entra da direita ENQUANTO a de trás recua para a esquerda,
-  // em simultâneo, com o mesmo motor de spring que home/App.svelte já
-  // usa para o search/preview (createBackRecoilTransition).
   const homeRecoil = createBackRecoilTransition();
   let homeRecoilValue = 0;
   const unsubHomeRecoil = homeRecoil.subscribe((v) => { homeRecoilValue = v; });
-  $: homeRecoilTranslate = -28 * homeRecoilValue; // %
+  $: homeRecoilTranslate = -28 * homeRecoilValue;
 
   function currentPath() {
     return window.location.pathname + window.location.search;
   }
 
-  // FIX (bug: 404 intermitente ao "voltar"):
-  // O home tem o SEU PRÓPRIO router interno (BASE '/home/', com
-  // VALID_ROUTES ['projects','templates','tools']) — quando o
-  // utilizador muda de tab dentro do home, a URL passa a ser
-  // '/home/projects/', '/home/templates/' ou '/home/tools/' (pushState
-  // feito pelo router do PRÓPRIO home, sem o App.svelte raiz saber
-  // disso, porque pushState não dispara popstate).
-  //
-  // Isto sozinho não causava problema — até o utilizador abrir outra
-  // app a partir daí (ex.: tocar no avatar estando na tab Projetos) e
-  // depois carregar em "voltar": o browser recua para essa entrada
-  // '/home/projects/', o onPopState do raiz corre pathToAppId() sobre
-  // ela, e ANTES desta correção isHomePath() só reconhecia o path
-  // EXATO '/home/' ou '/home' — qualquer sub-rota caía no 'seg' não
-  // encontrado em APP_IDS (que nunca inclui 'home', de propósito, ver
-  // comentário acima) e devolvia 'notfound', disparando
-  // window.location.replace('/404/') — um reload inteiro da página.
-  //
-  // Isto explica por que o 404 era "às vezes": só acontecia quando a
-  // tab ativa do home, no momento de abrir outra app, não era a
-  // inicial ('create'). Agora isHomePath() reconhece QUALQUER path que
-  // comece por '/home/' (ou seja exatamente '/home', sem barra) como
-  // pertencendo ao home — exatamente o mesmo tratamento por PREFIXO já
-  // usado abaixo para '/404' e '/auth', só que antes faltava aqui.
   function isHomePath(pathname) {
     if (pathname === '/' || pathname === '' || pathname === '/index.html') return true;
     if (pathname === '/home') return true;
@@ -102,7 +45,7 @@
 
   function pathToAppId(pathname) {
     const path = pathname || '/';
-    if (isHomePath(path)) return null; // null = home, sem overlay nenhum
+    if (isHomePath(path)) return null;
     if (path.startsWith('/404')) return 'notfound';
     if (path.startsWith('/auth')) return 'auth';
     const seg = path.split('/').filter(Boolean)[0] || null;
@@ -114,15 +57,12 @@
     history.pushState({ nexaApp: appId, fromPath: currentPath() }, '', targetPath);
   }
 
-  // Recalcula o recuo do home sempre que a pilha muda: se há pelo
-  // menos uma layer aberta, o home recua; se a pilha esvazia, volta.
   function syncRecoil() {
     const anyPushed = layers.some((l) => l.pushed);
-    if (anyPushed) homeRecoil.recoil(); else homeRecoil.reset();
+    if (anyPushed) homeRecoil.recoil();
+    else homeRecoil.reset();
   }
 
-  // Abre uma app como overlay por cima do home. Sempre empurra
-  // história real — nunca é chamada a partir do onPopState.
   function openApp(appId, opts = {}) {
     const def = APP_DEFS[appId] || APP_DEFS.notfound;
     const currentTop = layers[layers.length - 1];
@@ -163,8 +103,6 @@
     }));
   }
 
-  // Fecho VISUAL puro de uma layer específica — chamado apenas a
-  // partir do onPopState, nunca diretamente por uma ação de UI.
   function closeLayerVisual(layer) {
     if (!layer) return;
     layer.pushed = false;
@@ -178,11 +116,6 @@
     }, 340);
   }
 
-  // Fecha a layer do topo — usado quando o destino de uma navegação
-  // é o próprio home (ou uma app já não faz sentido continuar aberta).
-  // Segue a regra de ouro: só pede history.back(), nunca esconde nada
-  // diretamente, exceto quando não há estado de histórico para voltar
-  // (fallback de segurança).
   function closeTopApp() {
     const top = layers[layers.length - 1];
     if (!top) return;
@@ -228,7 +161,6 @@
   }
 
   onMount(() => {
-    // Normaliza a URL inicial para /home/ sem empurrar história extra.
     if (isHomePath(window.location.pathname)) {
       if (window.location.pathname !== '/home/') {
         history.replaceState({ nexaApp: null }, '', '/home/');
@@ -240,8 +172,6 @@
         return;
       }
       if (initialAppId) {
-        // Abre já "assentada" (sem animação de entrada) porque é o
-        // estado inicial da navegação direta a um URL profundo.
         openApp(initialAppId, { fromPopState: true, force: true });
         const top = layers[layers.length - 1];
         if (top) {
@@ -255,10 +185,6 @@
 
     ready = true;
 
-    // onPopState é a ÚNICA fonte de verdade que esconde layers.
-    // Percorre a pilha da mais profunda para a mais rasa, tal como o
-    // onPopState central de home/App.svelte trata drawer > preview >
-    // search.
     function onPopState() {
       const nextAppId = pathToAppId(window.location.pathname);
 
@@ -270,7 +196,6 @@
       const top = layers[layers.length - 1];
 
       if (!nextAppId) {
-        // Destino é o home: fecha todas as layers empilhadas.
         [...layers].reverse().forEach((layer) => closeLayerVisual(layer));
         return;
       }
@@ -282,8 +207,6 @@
         return;
       }
 
-      // Navegação direta (ex.: forward do browser) para uma app que
-      // ainda não está na pilha — abre-a sem empurrar história nova.
       if (!layers.some((l) => l.id === nextAppId)) {
         openApp(nextAppId, { fromPopState: true, force: true });
       }
@@ -306,10 +229,6 @@
 
 {#if ready}
   <div class="shell">
-    <!-- Base fixa: o home nunca tem animação de entrada própria — é -->
-    <!-- o ecrã por defeito, sempre montado. Só recua (efeito push -->
-    <!-- estilo iOS) quando alguma app abre por cima dele, com o -->
-    <!-- MESMO motor de recoil que search/preview já usam dentro dele. -->
     <div class="home-layer" style="transform: translate3d({homeRecoilTranslate}%, 0, 0);">
       <HomeApp on:nav={handleNav} />
     </div>

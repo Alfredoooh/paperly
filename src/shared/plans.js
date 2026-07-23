@@ -36,20 +36,10 @@ export const OCCUPATION_OPTIONS = [
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/', color: '#D9D9D9' },
   { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/', color: '#862CD4' },
-  { id: 'analytics', label: 'Análises', icon: '/icons/svg/apps/analytics.svg', path: '/analytics/', color: '#015CF1' },
-  { id: 'calendar', label: 'Calendário', icon: '/icons/svg/apps/calendar.svg', path: '/calendar/', color: '#F86202' },
   { id: 'docs', label: 'Editor de Documentos', icon: '/icons/svg/apps/docs.svg', path: '/docs/', color: '#D9D9D9' },
-  { id: 'draw', label: 'Desenho', icon: '/icons/svg/apps/draw.svg', path: '/draw/', color: '#F23263' },
-  { id: 'drive', label: 'Armazenamento', icon: '/icons/svg/apps/drive.svg', path: '/drive/', color: '#D9D9D9' },
-  { id: 'forms', label: 'Formulários', icon: '/icons/svg/apps/forms.svg', path: '/forms/', color: '#7C32CA' },
-  { id: 'image', label: 'Editor de Imagem', icon: '/icons/svg/apps/image.svg', path: '/image/', color: '#0662EF' },
-  { id: 'mail', label: 'Interface de Email', icon: '/icons/svg/apps/mail.svg', path: '/mail/', color: '#EF3053' },
-  { id: 'notes', label: 'Notas', icon: '/icons/svg/apps/notes.svg', path: '/notes/', color: '#FBAD05' },
-  { id: 'profilelens', label: 'Análise de Perfil Social', icon: '/icons/svg/apps/profilelens.svg', path: '/profilelens/', color: '#02929E' },
   { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/svg/apps/sheets.svg', path: '/sheets/', color: '#23A63F' },
   { id: 'slides', label: 'Apresentações', icon: '/icons/svg/apps/slides.svg', path: '/slides/', color: '#FB6704' },
   { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/svg/apps/whiteboard.svg', path: '/whiteboard/', color: '#7630CA' },
-  { id: 'wiki', label: 'Wiki', icon: '/icons/svg/apps/wiki.svg', path: '/wiki/', color: '#035EEE' },
 ];
 
 

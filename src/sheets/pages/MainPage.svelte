@@ -5,6 +5,7 @@
     loadDocument, createDocument, persistDocument, recomputeAll,
     cellId, parseCellId, downloadCsv, duplicateDocument, deleteDocument,
     getActiveSheet, addSheet, removeSheet, renameSheet, duplicateSheet, setActiveSheet,
+    addChart, updateChart, moveChart, resizeChart, removeChart,
     MAX_SHEETS,
   } from '../lib/sheet-store.js';
   import { FormulaError } from '../lib/formula-engine.js';
@@ -17,6 +18,8 @@
   import ColorPickerModal from '../components/ColorPickerModal.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import SheetMenu from '../components/SheetMenu.svelte';
+  import ChartModal from '../components/ChartModal.svelte';
+  import ChartCanvas from '../components/ChartCanvas.svelte';
 
   export let isDark = false;
   export let user = null;
@@ -335,6 +338,10 @@
       deleteColAtActive();
       return;
     }
+    if (id === 'insertchart') {
+      openChartModalForInsert();
+      return;
+    }
   }
 
   function handleColorSelect(e) {
@@ -444,6 +451,82 @@
     scheduleSave();
   }
 
+  // ── Gráficos ──────────────────────────────────────────────────
+  //
+  // Espelham o padrão imutável já usado por abas/histórico: cada
+  // ação chama uma função pura de sheet-store.js que devolve um NOVO
+  // `doc`, seguido de scheduleSave(). Gráficos NÃO entram no
+  // undo/redo de células (são objetos flutuantes, não conteúdo de
+  // célula) — mover/redimensionar um gráfico não deve desfazer texto
+  // escrito na grelha, e vice-versa.
+
+  let chartModalVisible = false;
+  let editingChartId = null;
+  let selectedChartId = null;
+
+  function activeSelectionRange() {
+    const a = parseCellId(selectionAnchor);
+    const b = parseCellId(selectionFocus);
+    if (!a || !b) return '';
+    const r0 = Math.min(a.row, b.row), r1 = Math.max(a.row, b.row);
+    const c0 = Math.min(a.col, b.col), c1 = Math.max(a.col, b.col);
+    return `${cellId(r0, c0)}:${cellId(r1, c1)}`;
+  }
+
+  function openChartModalForInsert() {
+    editingChartId = null;
+    chartModalVisible = true;
+  }
+  function openChartModalForEdit(chartId) {
+    editingChartId = chartId;
+    chartModalVisible = true;
+  }
+  $: editingChartObj = editingChartId && activeSheet
+    ? (activeSheet.charts || []).find((ch) => ch.id === editingChartId)
+    : null;
+  $: chartDefaultRange = (() => {
+    const sel = activeSelectionRange();
+    // exige pelo menos 2 células selecionadas para servir de range por defeito
+    if (!sel) return '';
+    const [from, to] = sel.split(':');
+    return from === to ? '' : sel;
+  })();
+
+  function handleChartConfirm(e) {
+    const cfg = e.detail;
+    if (editingChartId) {
+      doc = updateChart(doc, activeSheet.id, editingChartId, cfg);
+    } else {
+      doc = addChart(doc, activeSheet.id, cfg);
+    }
+    chartModalVisible = false;
+    editingChartId = null;
+    scheduleSave();
+  }
+  function handleChartSelect(chartId) {
+    selectedChartId = chartId;
+  }
+  function handleChartMove(e) {
+    const { id, x, y } = e.detail;
+    doc = moveChart(doc, activeSheet.id, id, x, y);
+  }
+  function handleChartResize(e) {
+    const { id, w, h } = e.detail;
+    doc = resizeChart(doc, activeSheet.id, id, w, h);
+  }
+  function handleChartMoveEnd() {
+    scheduleSave();
+  }
+  function handleRemoveSelectedChart() {
+    if (!selectedChartId) return;
+    doc = removeChart(doc, activeSheet.id, selectedChartId);
+    selectedChartId = null;
+    scheduleSave();
+  }
+  function deselectChartOnGridTap() {
+    if (selectedChartId) selectedChartId = null;
+  }
+
   // ── Abas (folhas) ─────────────────────────────────────────────
 
   let renamingSheetId = null;
@@ -458,6 +541,7 @@
     selectionAnchor = 'A1';
     selectionFocus = 'A1';
     formulaBarFocused = false;
+    selectedChartId = null;
     recompute();
     scheduleSave();
   }
@@ -622,12 +706,25 @@
       {/if}
     </div>
 
+    {#if selectedChartId}
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => openChartModalForEdit(selectedChartId)} aria-label="Editar gráfico">
+        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('settings')}');-webkit-mask-image:url('{fluentIconUrl('settings')}');background:{c.iconTint};width:24px;height:24px;"></span>
+      </button>
+      <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={handleRemoveSelectedChart} aria-label="Remover gráfico">
+        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete')}');-webkit-mask-image:url('{fluentIconUrl('delete')}');background:#C42B1C;width:24px;height:24px;"></span>
+      </button>
+    {/if}
+
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={openMenu} aria-label="Mais opções">
       <span class="icon-mask" style="mask-image:url('{fluentIconUrl('more')}');-webkit-mask-image:url('{fluentIconUrl('more')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
   </div>
 
-  <!-- Barra de fórmulas: mostra endereço da célula ativa + conteúdo bruto editável -->
+  <!-- Barra de fórmulas: mostra endereço da célula ativa + conteúdo bruto
+       editável. Estilo Excel real: SEM texto de exemplo/placeholder no
+       campo — no Office a fx-bar fica simplesmente vazia e em branco
+       quando a célula não tem conteúdo, nunca mostra um texto de ajuda
+       tipo "Valor ou fórmula (ex: ...)" sobreposto ao campo. -->
   {#if docReady}
     <div class="formula-bar" style="background:{c.dialogBackground};border-color:{c.divider};">
       <div class="fx-addr" style="color:{c.textSecondary};border-color:{c.divider};">{activeAddr}</div>
@@ -636,7 +733,6 @@
         class="fx-input"
         style="color:{c.textPrimary};"
         value={formulaBarFocused ? formulaBarDraft : formulaBarValue}
-        placeholder="Valor ou fórmula (ex: =A1+B2)"
         on:focus={onFormulaBarFocus}
         on:input={onFormulaBarInput}
         on:blur={commitFormulaBar}
@@ -650,18 +746,35 @@
 
   <!-- Grelha (o "papel" dedicado a sheets) — recebe a FOLHA ATIVA,
        não o documento inteiro, porque o SheetGrid só entende
-       rows/cols/cells/colWidths de uma única folha. -->
+       rows/cols/cells/colWidths de uma única folha. Os gráficos são
+       desenhados por cima, em camada absoluta, ancorados ao mesmo
+       grid-shell (tal como objetos flutuantes no Excel/Word). -->
   {#if docReady && activeSheet}
-    <SheetGrid
-      bind:this={gridComp}
-      doc={activeSheet}
-      {resolvedValues}
-      {c}
-      bind:activeAddr
-      bind:selectionAnchor
-      bind:selectionFocus
-      on:cellchange={handleCellChange}
-    />
+    <div class="grid-with-charts">
+      <SheetGrid
+        bind:this={gridComp}
+        doc={activeSheet}
+        {resolvedValues}
+        {c}
+        bind:activeAddr
+        bind:selectionAnchor
+        bind:selectionFocus
+        on:cellchange={handleCellChange}
+        on:pointerdown={deselectChartOnGridTap}
+      />
+      {#each (activeSheet.charts || []) as chart (chart.id)}
+        <ChartCanvas
+          {chart}
+          {resolvedValues}
+          {c}
+          selected={selectedChartId === chart.id}
+          on:select={(e) => handleChartSelect(e.detail)}
+          on:move={handleChartMove}
+          on:resize={handleChartResize}
+          on:pointerup={handleChartMoveEnd}
+        />
+      {/each}
+    </div>
   {/if}
 
   <!-- Barra de abas (tabs) — estilo Excel: scroll horizontal, aba
@@ -702,7 +815,7 @@
           disabled={doc.sheets.length >= MAX_SHEETS}
           aria-label="Nova folha"
         >
-          <span class="icon-mask" style="mask-image:url('{fluentIconUrl('add')}');-webkit-mask-image:url('{fluentIconUrl('add')}');background:{c.textSecondary};width:24px;height:24px;"></span>
+          <span class="icon-mask" style="mask-image:url('{fluentIconUrl('add')}');-webkit-mask-image:url('{fluentIconUrl('add')}');background:{c.textSecondary};width:16px;height:16px;"></span>
         </button>
       </div>
 
@@ -718,7 +831,7 @@
             disabled={doc.sheets.length >= MAX_SHEETS}
             aria-label="Duplicar folha"
           >
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('duplicate')}');-webkit-mask-image:url('{fluentIconUrl('duplicate')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('duplicate')}');-webkit-mask-image:url('{fluentIconUrl('duplicate')}');background:{c.iconTint};width:16px;height:16px;"></span>
           </button>
           <button
             class="sheet-tab-action-btn"
@@ -727,7 +840,7 @@
             disabled={doc.sheets.length <= 1}
             aria-label="Apagar folha"
           >
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete')}');-webkit-mask-image:url('{fluentIconUrl('delete')}');background:{doc.sheets.length <= 1 ? c.textSecondary : '#C42B1C'};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete')}');-webkit-mask-image:url('{fluentIconUrl('delete')}');background:{doc.sheets.length <= 1 ? c.textSecondary : '#C42B1C'};width:16px;height:16px;"></span>
           </button>
         </div>
       {/if}
@@ -774,6 +887,15 @@
   currentFormat={activeCellMeta.format || 'general'}
   on:select={handleNumFormatSelect}
   on:close={() => { numFormatModalVisible = false; }}
+/>
+
+<ChartModal
+  visible={chartModalVisible}
+  {c}
+  defaultRange={chartDefaultRange}
+  editingChart={editingChartObj}
+  on:confirm={handleChartConfirm}
+  on:close={() => { chartModalVisible = false; editingChartId = null; }}
 />
 
 <SheetMenu
@@ -861,6 +983,17 @@
     flex-shrink: 0;
   }
 
+  .grid-with-charts {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .grid-with-charts > :global(.grid-shell) {
+    position: absolute;
+    inset: 0;
+  }
+
   .sheet-tabs {
     display: flex; align-items: center; gap: 4px;
     padding: 4px 6px;
@@ -879,7 +1012,7 @@
     padding: 7px 14px; border-radius: 10px 10px 0 0;
     border: none; border-bottom: 2px solid;
     background: none; cursor: pointer; white-space: nowrap;
-    max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+    max-width: 140px; overflow: hidden; text-overflow: ellipsis;
     -webkit-tap-highlight-color: transparent;
     transition: background .12s ease, color .12s ease;
   }
@@ -888,10 +1021,10 @@
     font-size: 13px; font-weight: 600;
     padding: 6px 10px; border-radius: 8px;
     border: 1.5px solid; outline: none; background: none;
-    width: 124px; font-family: inherit;
+    width: 110px; font-family: inherit;
   }
   .sheet-tab-add {
-    flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
     border: none; background: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
@@ -904,7 +1037,7 @@
     padding-left: 4px; border-left: 1px solid rgba(127,127,127,0.16);
   }
   .sheet-tab-action-btn {
-    width: 36px; height: 36px; border: none; border-radius: 10px;
+    width: 30px; height: 30px; border: none; border-radius: 8px;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: transform .12s ease;
@@ -913,14 +1046,8 @@
   .sheet-tab-action-btn:disabled { opacity: 0.35; cursor: default; }
 
   .format-bar-spacer {
-    height: calc(140px + env(safe-area-inset-bottom, 0px));
+    height: calc(52px + env(safe-area-inset-bottom, 0px));
     flex-shrink: 0;
-  }
-
-  @media (min-width: 860px) {
-    .format-bar-spacer {
-      height: calc(118px + env(safe-area-inset-bottom, 0px));
-    }
   }
 
   .icon-mask {
@@ -929,35 +1056,4 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
-
-  @media (max-width: 640px) {
-    .appbar {
-      padding-inline: 10px;
-      gap: 6px;
-    }
-    .appbar-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 12px;
-    }
-    .formula-bar {
-      gap: 6px;
-      padding-inline: 8px;
-    }
-    .sheet-tabs {
-      gap: 3px;
-      padding-inline: 4px;
-    }
-    .sheet-tab {
-      padding-inline: 12px;
-      max-width: 120px;
-    }
-    .sheet-tab-input {
-      width: 96px;
-    }
-    .sheet-tab-actions {
-      gap: 3px;
-    }
-  }
-
 </style>

@@ -4,7 +4,8 @@
 // localStorage sob o prefixo "sheets_". Cada documento tem uma ou
 // mais folhas (abas); cada folha tem a sua própria grelha esparsa
 // (só células não-vazias são guardadas) mais metadados de
-// formatação por célula.
+// formatação por célula, e agora também uma lista de gráficos
+// flutuantes (charts[]) ancorados a um intervalo de células.
 
 import {
   evaluateFormula,
@@ -20,6 +21,7 @@ const INDEX_KEY = STORAGE_PREFIX + 'index';
 export const DEFAULT_ROWS = 60;
 export const DEFAULT_COLS = 26; // A..Z
 export const MAX_SHEETS = 40;
+export const MAX_CHARTS_PER_SHEET = 12;
 
 // ── Estrutura de um documento em memória ────────────────────────
 //
@@ -29,7 +31,13 @@ export const MAX_SHEETS = 40;
 //     { id, name, rows, cols,
 //       cells: { "A1": { raw: "=B1+B2", format: "decimal2", bold: true, italic: false,
 //                         align: "right", color: "", fill: "" } },
-//       colWidths: { "0": 96 } },
+//       colWidths: { "0": 96 },
+//       charts: [
+//         { id, type: "bar"|"line"|"pie"|"donut", range: "A1:B5", title: "",
+//           firstRowLabels: true, firstColLabels: true,
+//           x: 40, y: 40, w: 280, h: 200 },
+//         ...
+//       ] },
 //     ...
 //   ],
 // }
@@ -37,6 +45,10 @@ export const MAX_SHEETS = 40;
 // ID interno de ABA (tab) dentro de um documento.
 function newSheetId() {
   return 'tab_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function newChartId() {
+  return 'chart_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
 export function createSheet(name) {
@@ -47,6 +59,7 @@ export function createSheet(name) {
     cols: DEFAULT_COLS,
     cells: {},
     colWidths: {},
+    charts: [],
   };
 }
 
@@ -90,8 +103,10 @@ function touchIndex(id, name) {
 // Migra um documento no formato ANTIGO (rows/cols/cells/colWidths na
 // raiz, sem conceito de abas) para o formato novo com `sheets`. Um
 // documento já-migrado (tem `sheets` array) passa direto sem
-// alteração. Isto garante que folhas criadas antes desta versão
-// continuam a abrir normalmente, como "Folha1" única.
+// alteração, exceto por garantir que `charts` existe em cada folha
+// (folhas gravadas antes deste campo existir não tinham a chave).
+// Isto garante que folhas criadas antes desta versão continuam a
+// abrir normalmente, como "Folha1" única, agora com charts: [].
 function migrateToSheets(parsed, id) {
   if (Array.isArray(parsed.sheets) && parsed.sheets.length > 0) {
     return {
@@ -107,6 +122,7 @@ function migrateToSheets(parsed, id) {
         cols: s.cols || DEFAULT_COLS,
         cells: s.cells || {},
         colWidths: s.colWidths || {},
+        charts: Array.isArray(s.charts) ? s.charts : [],
       })),
     };
   }
@@ -118,6 +134,7 @@ function migrateToSheets(parsed, id) {
     cols: parsed.cols || DEFAULT_COLS,
     cells: parsed.cells || {},
     colWidths: parsed.colWidths || {},
+    charts: [],
   };
   return {
     id,
@@ -180,6 +197,7 @@ export function duplicateDocument(id) {
       ...s,
       cells: JSON.parse(JSON.stringify(s.cells)),
       colWidths: { ...s.colWidths },
+      charts: JSON.parse(JSON.stringify(s.charts || [])),
     })),
   };
   persistDocument(copy);
@@ -241,6 +259,7 @@ export function duplicateSheet(doc, sheetId) {
       : original.name + ' (cópia)',
     cells: JSON.parse(JSON.stringify(original.cells)),
     colWidths: { ...original.colWidths },
+    charts: JSON.parse(JSON.stringify(original.charts || [])),
   };
   const idx = doc.sheets.findIndex((s) => s.id === sheetId);
   const nextSheets = [...doc.sheets.slice(0, idx + 1), copy, ...doc.sheets.slice(idx + 1)];
@@ -250,6 +269,63 @@ export function duplicateSheet(doc, sheetId) {
 export function setActiveSheet(doc, sheetId) {
   if (!doc.sheets.some((s) => s.id === sheetId)) return doc;
   return { ...doc, activeSheetId: sheetId };
+}
+
+// ── Gestão de gráficos dentro de UMA folha ───────────────────────
+//
+// Mesma convenção de imutabilidade das funções de aba acima: cada
+// função devolve um NOVO `doc`, o chamador reatribui `doc = ...`.
+// Os gráficos vivem dentro da folha (não do documento) porque, tal
+// como no Excel, um gráfico só faz sentido ancorado aos dados da
+// aba onde foi inserido — mudar de aba naturalmente mostra/esconde
+// os gráficos certos sem qualquer filtragem extra necessária.
+
+function patchSheetInDoc(doc, sheetId, patchFn) {
+  return {
+    ...doc,
+    sheets: doc.sheets.map((s) => (s.id === sheetId ? patchFn(s) : s)),
+  };
+}
+
+export function addChart(doc, sheetId, chartConfig) {
+  const sheet = doc.sheets.find((s) => s.id === sheetId);
+  if (!sheet) return doc;
+  if ((sheet.charts || []).length >= MAX_CHARTS_PER_SHEET) return doc;
+  const chart = {
+    id: newChartId(),
+    type: chartConfig.type,
+    range: chartConfig.range,
+    title: chartConfig.title || '',
+    firstRowLabels: chartConfig.firstRowLabels !== false,
+    firstColLabels: chartConfig.firstColLabels !== false,
+    x: chartConfig.x !== undefined ? chartConfig.x : 40,
+    y: chartConfig.y !== undefined ? chartConfig.y : 40,
+    w: chartConfig.w || 280,
+    h: chartConfig.h || 200,
+  };
+  return patchSheetInDoc(doc, sheetId, (s) => ({ ...s, charts: [...(s.charts || []), chart] }));
+}
+
+export function updateChart(doc, sheetId, chartId, patch) {
+  return patchSheetInDoc(doc, sheetId, (s) => ({
+    ...s,
+    charts: (s.charts || []).map((ch) => (ch.id === chartId ? { ...ch, ...patch } : ch)),
+  }));
+}
+
+export function moveChart(doc, sheetId, chartId, x, y) {
+  return updateChart(doc, sheetId, chartId, { x, y });
+}
+
+export function resizeChart(doc, sheetId, chartId, w, h) {
+  return updateChart(doc, sheetId, chartId, { w, h });
+}
+
+export function removeChart(doc, sheetId, chartId) {
+  return patchSheetInDoc(doc, sheetId, (s) => ({
+    ...s,
+    charts: (s.charts || []).filter((ch) => ch.id !== chartId),
+  }));
 }
 
 // ── Recálculo em cascata com deteção de ciclos ──────────────────

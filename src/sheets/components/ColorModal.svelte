@@ -2,6 +2,7 @@
 <script>
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
+  import { fluentIconUrl } from '../lib/icon-fallback.js';
 
   export let visible = false;
   export let c;
@@ -124,7 +125,10 @@
       {/if}
 
       <button class="add-color-btn" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={requestAddColor}>
-        <span class="add-plus">+</span>
+        <span
+          class="add-icon"
+          style="mask-image:url('{fluentIconUrl('add')}');-webkit-mask-image:url('{fluentIconUrl('add')}');background:{c.textPrimary};"
+        ></span>
         Adicionar cor
       </button>
     </div>
@@ -161,12 +165,16 @@
   .add-color-btn {
     width: 100%; margin-top: 18px; border: none; border-radius: 999px;
     padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .add-color-btn:active { transform: scale(0.97); }
-  .add-plus { font-size: 17px; font-weight: 700; line-height: 1; }
+  .add-icon {
+    width: 20px; height: 20px; flex-shrink: 0; display: block;
+    mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .overlay, .bottom-sheet, .color-dot, .add-color-btn { transition: none !important; }

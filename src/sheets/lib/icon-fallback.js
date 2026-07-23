@@ -6,16 +6,16 @@ export const FLUENT_ICON_MAP = {
   more: 'more_vertical',
   undo: 'arrow_undo',
   redo: 'arrow_redo',
-  text_color: '/icons/svg/docs/text_color.svg',
-  fill_color: 'table_simple_include',
-  align_left: 'align_left',
-  align_center: 'align_center_horizontal',
-  align_right: 'align_right',
+  text_color: 'text_color',
+  fill_color: 'paint_bucket',
+  align_left: 'text_align_left',
+  align_center: 'text_align_center',
+  align_right: 'text_align_right',
   number_format: 'number_symbol',
-  insert_row: 'table_bottom_row',
-  insert_col: 'column',
-  delete_row: 'delete',
-  delete_col: 'delete',
+  insert_row: 'table_insert_row',
+  insert_col: 'table_insert_column',
+  delete_row: 'table_delete_row',
+  delete_col: 'table_delete_column',
   check: 'checkmark',
   duplicate: 'copy',
   export: 'arrow_download',
@@ -23,10 +23,18 @@ export const FLUENT_ICON_MAP = {
   close: 'dismiss',
   settings: 'settings',
   add: 'add',
+  bold: 'text_bold',
+  italic: 'text_italic',
+  underline: 'text_underline',
+  chart: 'chart_multiple',
+  chart_bar: 'data_bar_vertical',
+  chart_line: 'chart_multiple',
+  chart_pie: 'data_pie',
+  chart_donut: 'data_pie',
+  resize: 'resize',
 };
 
 export function fluentIconUrl(semanticName) {
-  const icon = FLUENT_ICON_MAP[semanticName] || 'question_circle';
-  if (icon.startsWith('/')) return icon;
-  return `/icons/svg/regular/${icon}.svg`;
+  const name = FLUENT_ICON_MAP[semanticName] || 'question_circle';
+  return `/icons/svg/regular/${name}.svg`;
 }

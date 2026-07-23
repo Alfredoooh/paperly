@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
+  import { fluentIconUrl } from '../lib/icon-fallback.js';
 
   export let visible = false;
   export let c;
@@ -109,7 +110,10 @@
           <span class="format-label" style="color:{c.textPrimary}">{f.label}</span>
           <span class="format-sample" style="color:{c.textSecondary}">{f.sample}</span>
           {#if currentFormat === f.id}
-            <span class="format-check" style="color:{c.primary}">✓</span>
+            <span
+              class="format-check"
+              style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.primary};"
+            ></span>
           {/if}
         </button>
       {/each}
@@ -146,7 +150,11 @@
   .format-row:active { background: rgba(127,127,127,0.10); }
   .format-label { font-size: 14px; font-weight: 600; flex-shrink: 0; min-width: 150px; }
   .format-sample { font-size: 13px; flex: 1; text-align: right; }
-  .format-check { font-weight: 700; flex-shrink: 0; }
+  .format-check {
+    width: 24px; height: 24px; flex-shrink: 0; display: block;
+    mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .overlay, .bottom-sheet, .format-row { transition: none !important; }

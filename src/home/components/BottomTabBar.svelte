@@ -39,10 +39,14 @@
             {/if}
           </span>
         {:else}
-          <span
-            class="icon-mask"
-            style="mask-image:url('{activeTab === tab.id && tab.iconColor ? tab.iconColor : tab.icon}');-webkit-mask-image:url('{activeTab === tab.id && tab.iconColor ? tab.iconColor : tab.icon}')"
-          ></span>
+          {#if activeTab === tab.id && tab.iconColor}
+            <img src={tab.iconColor} alt="" aria-hidden="true" class="tab-icon-img" />
+          {:else}
+            <span
+              class="icon-mask"
+              style="mask-image:url('{tab.icon}');-webkit-mask-image:url('{tab.icon}')"
+            ></span>
+          {/if}
         {/if}
       </span>
       <span class="tab-label">{tab.label}</span>
@@ -146,6 +150,15 @@
     mask-position: center;
     -webkit-mask-position: center;
     transition: opacity .18s ease;
+  }
+
+  .tab-icon-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
   }
 
   /* single-icon render: regular by default, color when active */

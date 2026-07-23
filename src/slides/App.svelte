@@ -10,7 +10,7 @@
 
   const APP_ID = 'slides';
   const APP_TITLE = 'Nexa Slides';
-  const APP_ICON = '/icons/svg/regular/slides.svg';
+  const APP_ICON = '/icons/svg/apps/slides.svg';
   const BASE = '/slides/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

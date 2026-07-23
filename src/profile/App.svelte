@@ -10,7 +10,7 @@
   
   const APP_ID = 'profile';
   const APP_TITLE = 'Perfil';
-  const APP_ICON = '/icons/svg/regular/user.svg';
+  const APP_ICON = '/icons/svg/regular/person.svg';
   const BASE = '/profile/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

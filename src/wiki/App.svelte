@@ -10,7 +10,7 @@
 
   const APP_ID = 'wiki';
   const APP_TITLE = 'Nexa Wiki';
-  const APP_ICON = '/icons/svg/regular/wiki.svg';
+  const APP_ICON = '/icons/svg/apps/wiki.svg';
   const BASE = '/wiki/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

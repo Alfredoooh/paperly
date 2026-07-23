@@ -7,7 +7,7 @@
   export let user = null;
   export let appTitle = 'Nexa Drive';
   export let appId = 'drive';
-  export let iconPath = '/icons/svg/regular/drive.svg';
+  export let iconPath = '/icons/svg/apps/drive.svg';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -26,7 +26,7 @@
 <div class="root" style="background:{c.background};color:{c.textPrimary}">
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'home' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
     <span class="appbar-title" style="color:{c.textPrimary}">{appTitle}</span>
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'settings' })}>

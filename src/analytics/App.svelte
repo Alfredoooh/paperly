@@ -10,7 +10,7 @@
 
   const APP_ID = 'analytics';
   const APP_TITLE = 'Nexa Analytics';
-  const APP_ICON = '/icons/svg/regular/analytics.svg';
+  const APP_ICON = '/icons/svg/regular/data_trending.svg';
   const BASE = '/analytics/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

@@ -9,7 +9,7 @@
 
   const APP_ID = 'docs';
   const APP_TITLE = 'Nexa Docs';
-  const APP_ICON = '/icons/svg/regular/docs.svg';
+  const APP_ICON = '/icons/svg/apps/docs.svg';
   const BASE = '/docs/';
   const VALID_ROUTES = [];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

@@ -702,7 +702,7 @@
           disabled={doc.sheets.length >= MAX_SHEETS}
           aria-label="Nova folha"
         >
-          <span class="icon-mask" style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.textSecondary};width:16px;height:16px;transform:rotate(45deg);"></span>
+          <span class="icon-mask" style="mask-image:url('{fluentIconUrl('add')}');-webkit-mask-image:url('{fluentIconUrl('add')}');background:{c.textSecondary};width:24px;height:24px;"></span>
         </button>
       </div>
 
@@ -718,7 +718,7 @@
             disabled={doc.sheets.length >= MAX_SHEETS}
             aria-label="Duplicar folha"
           >
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('duplicate')}');-webkit-mask-image:url('{fluentIconUrl('duplicate')}');background:{c.iconTint};width:16px;height:16px;"></span>
+            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('duplicate')}');-webkit-mask-image:url('{fluentIconUrl('duplicate')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button
             class="sheet-tab-action-btn"
@@ -727,7 +727,7 @@
             disabled={doc.sheets.length <= 1}
             aria-label="Apagar folha"
           >
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete')}');-webkit-mask-image:url('{fluentIconUrl('delete')}');background:{doc.sheets.length <= 1 ? c.textSecondary : '#C42B1C'};width:16px;height:16px;"></span>
+            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete')}');-webkit-mask-image:url('{fluentIconUrl('delete')}');background:{doc.sheets.length <= 1 ? c.textSecondary : '#C42B1C'};width:24px;height:24px;"></span>
           </button>
         </div>
       {/if}
@@ -879,7 +879,7 @@
     padding: 7px 14px; border-radius: 10px 10px 0 0;
     border: none; border-bottom: 2px solid;
     background: none; cursor: pointer; white-space: nowrap;
-    max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis;
     -webkit-tap-highlight-color: transparent;
     transition: background .12s ease, color .12s ease;
   }
@@ -888,10 +888,10 @@
     font-size: 13px; font-weight: 600;
     padding: 6px 10px; border-radius: 8px;
     border: 1.5px solid; outline: none; background: none;
-    width: 110px; font-family: inherit;
+    width: 124px; font-family: inherit;
   }
   .sheet-tab-add {
-    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
     border: none; background: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
@@ -904,7 +904,7 @@
     padding-left: 4px; border-left: 1px solid rgba(127,127,127,0.16);
   }
   .sheet-tab-action-btn {
-    width: 30px; height: 30px; border: none; border-radius: 8px;
+    width: 36px; height: 36px; border: none; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: transform .12s ease;
@@ -913,8 +913,14 @@
   .sheet-tab-action-btn:disabled { opacity: 0.35; cursor: default; }
 
   .format-bar-spacer {
-    height: calc(46px + env(safe-area-inset-bottom, 0px) + 14px);
+    height: calc(140px + env(safe-area-inset-bottom, 0px));
     flex-shrink: 0;
+  }
+
+  @media (min-width: 860px) {
+    .format-bar-spacer {
+      height: calc(118px + env(safe-area-inset-bottom, 0px));
+    }
   }
 
   .icon-mask {
@@ -923,4 +929,35 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
+
+  @media (max-width: 640px) {
+    .appbar {
+      padding-inline: 10px;
+      gap: 6px;
+    }
+    .appbar-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+    }
+    .formula-bar {
+      gap: 6px;
+      padding-inline: 8px;
+    }
+    .sheet-tabs {
+      gap: 3px;
+      padding-inline: 4px;
+    }
+    .sheet-tab {
+      padding-inline: 12px;
+      max-width: 120px;
+    }
+    .sheet-tab-input {
+      width: 96px;
+    }
+    .sheet-tab-actions {
+      gap: 3px;
+    }
+  }
+
 </style>

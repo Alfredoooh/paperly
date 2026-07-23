@@ -91,10 +91,10 @@
   }
   .anchor-menu {
     position: fixed;
-    min-width: 200px;
-    border-radius: 18px;
+    min-width: 220px; width: min(240px, calc(100vw - 24px));
+    border-radius: 22px;
     border: 1px solid;
-    padding: 6px;
+    padding: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.16);
     z-index: 81;
     transform-origin: top right;
@@ -106,16 +106,18 @@
   }
   .anchor-item {
     width: 100%; display: flex; align-items: center; gap: 12px;
-    background: none; border: none; padding: 13px 14px; border-radius: 12px;
-    font-size: 15px; font-weight: 500; text-align: left; cursor: pointer;
+    background: none; border: none; padding: 12px 14px; border-radius: 14px;
+    font-size: 15px; font-weight: 600; text-align: left; cursor: pointer;
     -webkit-tap-highlight-color: transparent; transition: background .12s;
   }
   .anchor-item:active { background: rgba(127,127,127,0.10); }
   .anchor-danger { color: #C42B1C; }
   .anchor-divider { height: 1px; margin: 0 10px; }
 
+  .anchor-menu { overflow: hidden; }
+
   .anchor-icon {
-    width: 18px; height: 18px; flex-shrink: 0; display: block;
+    width: 24px; height: 24px; flex-shrink: 0; display: block;
     mask-repeat: no-repeat; mask-position: center; mask-size: contain;
     -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
   }

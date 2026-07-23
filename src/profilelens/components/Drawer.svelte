@@ -31,7 +31,7 @@
   <div class="header">
     <span class="header-title" style="color:{c.textPrimary}">ProfileLens</span>
     <button class="apps-btn" style="background:{c.appbarBtnBg}" on:click={() => appsPopupOpen=true}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/apps.svg');-webkit-mask-image:url('/icons/svg/regular/apps.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/apps.svg');-webkit-mask-image:url('/icons/svg/regular/apps.svg');background:{c.iconTint};width:24px;height:24px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
   </div>
   <div class="body">
@@ -72,7 +72,7 @@
   .row:active { background:rgba(0,0,0,0.05); }
   .dark .row:active { background:rgba(255,255,255,0.06); }
   .row.danger { color:#FF3B30; }
-  .row-icon { width:18px;height:18px;background:rgba(60,60,67,0.55);flex-shrink:0;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center; }
+  .row-icon { width:24px;height:24px;background:rgba(60,60,67,0.55);flex-shrink:0;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center; }
   .dark .row-icon { background:rgba(235,235,245,0.55); }
   .row-label { flex:1;font-size:15px;font-weight:400; }
   .user-footer { position:relative;z-index:102;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:0.5px solid rgba(0,0,0,0.07);border-left:none;border-right:none;border-bottom:none;background:#fff;width:100%;cursor:pointer;text-align:left;transition:background .12s; }

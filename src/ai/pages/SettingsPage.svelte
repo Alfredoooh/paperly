@@ -5,7 +5,7 @@
   import { AuthApiService } from '$shared/api.js';
   import { showToast } from '$shared/utils.js';
   import { AVAILABLE_LANGUAGES } from '$shared/plans.js';
-  import { setLanguage } from '$shared/i18n.js';
+  import { language, setLanguage } from '$shared/i18n.js';
   import PlansModal from '../components/PlansModal.svelte';
 
   export let isDark = false;
@@ -40,7 +40,8 @@
   let showLangPicker  = false;
   let showPlansModal  = false;
   let langSearch      = '';
-  let currentLanguage = localStorage.getItem('nexa_language') || 'pt';
+  let currentLanguage;
+  $: currentLanguage = $language;
   let loggingOut      = false;
 
   let popupPos = { top: 0, right: 0, maxHeight: 340 };
@@ -63,8 +64,7 @@
   }
 
   function setLang(code) {
-    currentLanguage = code;
-    localStorage.setItem('nexa_language', code);
+    setLanguage(code);
     showLangPicker = false;
   }
 
@@ -82,11 +82,11 @@
 
   <div class="header">
     <button type="button" class="back-btn" on:click={() => dispatch('close')}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');width:20px;height:20px;background:{isDark?'#fff':'#000'};"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');width:24px;height:24px;background:{isDark?'#fff':'#000'};"></span>
     </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" disabled={loggingOut} on:click={handleLogout}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_exit.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_exit.svg');width:18px;height:18px;background:var(--danger)"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_exit.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_exit.svg');width:24px;height:24px;background:var(--danger)"></span>
     </button>
   </div>
 

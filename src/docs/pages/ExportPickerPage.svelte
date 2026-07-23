@@ -1,7 +1,5 @@
 <!-- docs/pages/ExportPickerPage.svelte -->
 <script>
-  import { localIconPath } from '$shared/local-icon.js';
-
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
   import { localIconPath } from '$shared/local-icon.js';
@@ -173,7 +171,7 @@
 
   <div class="appbar">
     <button class="appbar-btn pulse-tap" on:click={goBackFolder} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_left_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};"></span>
+      <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_left_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_left_24_regular')}');background:{c.iconTint};"></span>
     </button>
     <div class="appbar-title" style="color:{c.textPrimary}">
       {mode === 'share' ? 'Partilhar' : 'Exportar'} "{docName}"
@@ -225,7 +223,7 @@
       {:else}
         {#each entries as folder (folder.path)}
           <button class="folder-row" on:click={() => openFolder(folder)}>
-            <span class="folder-icon icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:var(--accent-primary);"></span>
+            <span class="folder-icon icon-mask" style="mask-image:url('{localIconPath('folder')}');-webkit-mask-image:url('{localIconPath('folder')}');background:var(--accent-primary);"></span>
             <span class="folder-name" style="color:{c.textPrimary}">{folder.name}</span>
           </button>
         {/each}

@@ -88,24 +88,6 @@
     drawerPushed = true;
   }
 
-  // Chamado pelo AppDrawer quando o gesto de arrastar começa ('live')
-  // ou termina com sucesso ('commit'). 'live' só monta o drawer no DOM
-  // (para o dedo já poder controlá-lo via setDragValue no mesmo frame),
-  // sem ainda tocar no histórico. 'commit' empurra o histórico real,
-  // assim que o gesto decide definitivamente abrir — exatamente o
-  // ponto em que search/preview empurram o deles.
-  function openDrawerFromGesture(phase) {
-    if (phase === 'live') {
-      if (drawerOpen) return;
-      drawerOpen = true;
-      return;
-    }
-    if (phase === 'commit') {
-      drawerPushed = true;
-      if (history.state && history.state.nexaDrawer) return;
-      pushOverlayState('drawer', { nexaDrawer: true });
-    }
-  }
 
   // Fecho visual puro — chamado a partir de onPopState. Espelha
   // exatamente closePreviewVisual()/closeSearchVisual(): desliga
@@ -514,7 +496,6 @@
   onLogout={logout}
   onInstall={handleInstall}
   onOpenProfile={openProfile}
-  onOpenViaGesture={openDrawerFromGesture}
 />
 
 <style>

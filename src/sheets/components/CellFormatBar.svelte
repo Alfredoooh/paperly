@@ -32,10 +32,10 @@
 >
   <div class="fb-pill" style="background:{c.toolbarSolidBg || c.dialogBackground}; border-color:{c.divider};">
     <button class="fb-btn" disabled={!canUndo} on:click={() => press('undo')} aria-label="Desfazer">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('undo')}');-webkit-mask-image:url('{fluentIconUrl('undo')}');background:{c.iconTint};width:18px;height:18px;opacity:{canUndo ? 1 : 0.32};"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('undo')}');-webkit-mask-image:url('{fluentIconUrl('undo')}');background:{c.iconTint};width:24px;height:24px;opacity:{canUndo ? 1 : 0.32};"></span>
     </button>
     <button class="fb-btn" disabled={!canRedo} on:click={() => press('redo')} aria-label="Refazer">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('redo')}');-webkit-mask-image:url('{fluentIconUrl('redo')}');background:{c.iconTint};width:18px;height:18px;opacity:{canRedo ? 1 : 0.32};"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('redo')}');-webkit-mask-image:url('{fluentIconUrl('redo')}');background:{c.iconTint};width:24px;height:24px;opacity:{canRedo ? 1 : 0.32};"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
@@ -53,40 +53,40 @@
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={() => press('textcolor')} aria-label="Cor do texto">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_color')}');-webkit-mask-image:url('{fluentIconUrl('text_color')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_color')}');-webkit-mask-image:url('{fluentIconUrl('text_color')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('fillcolor')} aria-label="Cor de preenchimento">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('fill_color')}');-webkit-mask-image:url('{fluentIconUrl('fill_color')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('fill_color')}');-webkit-mask-image:url('{fluentIconUrl('fill_color')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={cycleAlign} aria-label="Alinhamento">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl(ALIGN_ICONS[activeMeta.align || 'left'])}');-webkit-mask-image:url('{fluentIconUrl(ALIGN_ICONS[activeMeta.align || 'left'])}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl(ALIGN_ICONS[activeMeta.align || 'left'])}');-webkit-mask-image:url('{fluentIconUrl(ALIGN_ICONS[activeMeta.align || 'left'])}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('numformat')} aria-label="Formato numérico">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('number_format')}');-webkit-mask-image:url('{fluentIconUrl('number_format')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('number_format')}');-webkit-mask-image:url('{fluentIconUrl('number_format')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn" on:click={() => press('insertrow')} aria-label="Inserir linha">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('insert_row')}');-webkit-mask-image:url('{fluentIconUrl('insert_row')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('insert_row')}');-webkit-mask-image:url('{fluentIconUrl('insert_row')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('insertcol')} aria-label="Inserir coluna">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('insert_col')}');-webkit-mask-image:url('{fluentIconUrl('insert_col')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('insert_col')}');-webkit-mask-image:url('{fluentIconUrl('insert_col')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('deleterow')} aria-label="Apagar linha">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete_row')}');-webkit-mask-image:url('{fluentIconUrl('delete_row')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete_row')}');-webkit-mask-image:url('{fluentIconUrl('delete_row')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
     <button class="fb-btn" on:click={() => press('deletecol')} aria-label="Apagar coluna">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete_col')}');-webkit-mask-image:url('{fluentIconUrl('delete_col')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('delete_col')}');-webkit-mask-image:url('{fluentIconUrl('delete_col')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
 
     <div class="fb-divider" style="background:{c.divider}"></div>
 
     <button class="fb-btn fb-done" on:click={() => press('done')} aria-label="Concluir edição">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.iconTint};width:18px;height:18px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('check')}');-webkit-mask-image:url('{fluentIconUrl('check')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
   </div>
 </div>
@@ -120,7 +120,7 @@
   }
   .fb-pill::-webkit-scrollbar { display: none; }
   .fb-btn {
-    width: 36px; height: 36px; border: none; background: transparent; border-radius: 50%;
+    width: 36px; height: 36px; border: none; background: transparent; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background .15s cubic-bezier(0.34,1.56,0.64,1), transform .12s cubic-bezier(0.34,1.56,0.64,1);

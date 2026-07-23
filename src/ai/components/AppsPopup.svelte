@@ -31,7 +31,7 @@
         >
           <div class="app-icon-wrap" style="background:{isDark ? '#2C2C2E' : '#F0F0F5'}">
             {#if app.icon.endsWith('.svg')}
-              <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');background:{app.id === currentAppId ? '#2F7BF6' : c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+              <span class="icon-mask" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}');background:{app.id === currentAppId ? '#2F7BF6' : c.iconTint};width:24px;height:24px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
             {:else}
               <img src={app.icon} class="app-img" alt={app.label} />
             {/if}

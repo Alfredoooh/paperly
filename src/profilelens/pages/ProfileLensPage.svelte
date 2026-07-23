@@ -25,7 +25,7 @@
 
   <div class="appbar" style="border-bottom:0.5px solid {c.divider}">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={() => drawerOpen=true}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/line_horizontal_3.svg');-webkit-mask-image:url('/icons/svg/regular/line_horizontal_3.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/line_horizontal_3.svg');-webkit-mask-image:url('/icons/svg/regular/line_horizontal_3.svg');background:{c.iconTint};width:24px;height:24px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
     <span class="appbar-title" style="color:{c.textPrimary}">ProfileLens</span>
     <div style="width:36px"></div>

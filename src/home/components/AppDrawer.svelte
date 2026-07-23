@@ -87,8 +87,6 @@
     setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
-  const EDGE_ZONE = 24;
-  const OPEN_THRESHOLD = 0.35;
   const CLOSE_THRESHOLD = 0.35;
   const VELOCITY_FLING = 0.55;
 
@@ -117,41 +115,20 @@
   }
 
   function onDragMove(e) {
-    if (!dragging) return;
+    if (!dragging || !drawerOpen) return;
     const x = e.touches ? e.touches[0].clientX : e.clientX;
     dragCurrentX = x;
     const delta = x - dragStartX;
 
-    if (!drawerOpen) {
-      if (delta > 6 && !liveDragActive) return;
-      if (delta >= -6) {
-        if (!liveDragActive) {
-          liveDragActive = true;
-          document.documentElement.style.touchAction = 'none';
-          onOpenLiveStart();
-        }
-        const progress = Math.min(1, Math.max(0, -delta / dragW));
-        slide.setDragValue((1 - progress) * 100);
-        e.preventDefault();
-      }
-    } else {
-      if (delta < -6 && !liveDragActive) return;
-      if (delta <= 6) return;
-      if (!liveDragActive) {
-        liveDragActive = true;
-        document.documentElement.style.touchAction = 'none';
-      }
-      const progress = Math.min(1, Math.max(0, delta / dragW));
-      slide.setDragValue(progress * 100);
-      e.preventDefault();
+    if (delta < -6 && !liveDragActive) return;
+    if (delta <= 6) return;
+    if (!liveDragActive) {
+      liveDragActive = true;
+      document.documentElement.style.touchAction = 'none';
     }
-  }
-
-  let liveOpenAnnounced = false;
-  function onOpenLiveStart() {
-    if (liveOpenAnnounced) return;
-    liveOpenAnnounced = true;
-    onOpenViaGesture('live');
+    const progress = Math.min(1, Math.max(0, delta / dragW));
+    slide.setDragValue(progress * 100);
+    e.preventDefault();
   }
 
   function onDragEnd(e) {
@@ -167,40 +144,25 @@
       return;
     }
     liveDragActive = false;
-    liveOpenAnnounced = false;
 
-    if (!drawerOpen) {
-      const openedFraction = Math.min(1, Math.max(0, -delta / dragW));
-      const shouldOpen = openedFraction > OPEN_THRESHOLD || (delta < 0 && velocity > VELOCITY_FLING);
-      if (shouldOpen) {
-        slide.releaseDragTo('open');
-        onOpenViaGesture('commit');
-      } else {
-        slide.releaseDragTo('closed');
-      }
+    const closedFraction = Math.min(1, Math.max(0, delta / dragW));
+    const shouldClose = closedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
+    if (shouldClose) {
+      onClose();
     } else {
-      const closedFraction = Math.min(1, Math.max(0, delta / dragW));
-      const shouldClose = closedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
-      if (shouldClose) {
-        onClose();
-      } else {
-        slide.releaseDragTo('open');
-      }
+      slide.releaseDragTo('open');
     }
   }
 
   function bindWindowTouchListeners(node) {
     const opts = { passive: false };
-    const ts = (e) => { if (drawerOpen) return; };
     const tm = (e) => { if (dragging) onDragMove(e); };
     const te = (e) => { if (dragging) onDragEnd(e); };
-    node.addEventListener('touchstart', ts, opts);
     node.addEventListener('touchmove', tm, opts);
     node.addEventListener('touchend', te, opts);
     node.addEventListener('touchcancel', te, opts);
     return {
       destroy() {
-        node.removeEventListener('touchstart', ts, opts);
         node.removeEventListener('touchmove', tm, opts);
         node.removeEventListener('touchend', te, opts);
         node.removeEventListener('touchcancel', te, opts);
@@ -240,7 +202,7 @@
 
       {#if showInstall}
         <button class="drawer-item pulse-tap" on:click={onInstall}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Instalar app</span>
         </button>
       {/if}
@@ -248,7 +210,7 @@
       <div class="m3-group">
         <!-- 1º card: cantos superiores grandes (18px), inferiores pequenos (5px) -->
         <button class="m3-item m3-item-first pulse-tap" on:click={goHelp}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/info.svg');-webkit-mask-image:url('/icons/svg/regular/info.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/info.svg');-webkit-mask-image:url('/icons/svg/regular/info.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Ajuda</span>
         </button>
 
@@ -301,7 +263,7 @@
 
         <!-- 3º card: cantos superiores pequenos (5px), inferiores grandes (18px) -->
         <button class="m3-item m3-item-last pulse-tap" on:click={goOthers}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_horizontal.svg');-webkit-mask-image:url('/icons/svg/regular/more_horizontal.svg');width:20px;height:20px;background:var(--drawer-text)"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_horizontal.svg');-webkit-mask-image:url('/icons/svg/regular/more_horizontal.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
           <span class="drawer-item-label" style="flex:1">Outros</span>
         </button>
       </div>
@@ -309,7 +271,7 @@
       {#each DRAWER_ITEMS as item}
         <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
           {#if item.icon}
-            <span class="icon-mask" style="mask-image:url('{item.icon}');-webkit-mask-image:url('{item.icon}');width:20px;height:20px;background:var(--drawer-text)"></span>
+            <span class="icon-mask" style="mask-image:url('{item.icon}');-webkit-mask-image:url('{item.icon}');width:24px;height:24px;background:var(--drawer-text)"></span>
           {/if}
           <span class="drawer-item-label" style="flex:1">{item.label}</span>
         </button>
@@ -321,11 +283,13 @@
         <span class="drawer-logout-label">Terminar sessão</span>
       </button>
       <button class="drawer-settings-btn pulse-tap" on:click={goSettings} aria-label="Definições">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');width:19px;height:19px;background:var(--drawer-text)"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
       </button>
     </div>
   </div>
 {/if}
+
+<svelte:body use:bindWindowTouchListeners />
 
 {#if showLogoutDialog}
   <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}>
@@ -586,7 +550,7 @@
     flex-shrink: 0;
     width: 54px;
     height: 54px;
-    border-radius: 50%;
+    border-radius: 10px;
     border: 0.5px solid var(--border-soft);
     background: var(--btn-bg);
     display: flex;

@@ -87,7 +87,7 @@
     <div class="section-label">Conversas</div>
     <div class="section">
       <button type="button" class="row" on:click={toggleConvSection}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/chat.svg');-webkit-mask-image:url('/icons/svg/regular/chat.svg');"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/meassage.svg');-webkit-mask-image:url('/icons/svg/regular/meassage.svg');"></span>
         <span class="row-label">Histórico</span>
         <span class="icon-mask row-chevron" class:rotated={!conversationsCollapsed} style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');"></span>
       </button>

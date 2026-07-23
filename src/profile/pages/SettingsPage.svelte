@@ -216,7 +216,7 @@
 <div class="st-root" bind:this={rootEl} style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
   <div class="st-header">
     <button class="st-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>
     </button>
     <span class="st-header-title" style="color:{c.textPrimary}">Definições gerais</span>
     <div style="width:36px"></div>
@@ -241,7 +241,7 @@
         <button class="st-row" on:click={() => setThemeValue(opt.id)}>
           <span class="st-row-label" style="color:{c.textPrimary}">{opt.label}</span>
           {#if themeValue === opt.id}
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.primary};width:16px;height:16px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');background:{c.primary};width:16px;height:16px"></span>
           {/if}
         </button>
         {#if i < THEME_OPTIONS.length - 1}<div class="st-divider" style="background:{c.divider}"></div>{/if}
@@ -293,7 +293,7 @@
           <button class="sheet-opt" on:click={() => selectLang(lang.code)}>
             <span class="sheet-opt-label" style="color:{c.textPrimary}">{lang.native}</span>
             {#if currentLang === lang.code}
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.primary};width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');background:{c.primary};width:16px;height:16px"></span>
             {/if}
           </button>
         {/each}

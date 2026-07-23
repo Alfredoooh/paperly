@@ -1,6 +1,7 @@
 <script>
   export let pushed = false;
   import { onMount, createEventDispatcher } from 'svelte';
+  import '$shared/theme.css';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
@@ -10,7 +11,7 @@
   
   const APP_ID = 'profile';
   const APP_TITLE = 'Perfil';
-  const APP_ICON = '/icons/svg/regular/person.svg';
+  const APP_ICON = '/icons/svg/regular/user.svg';
   const BASE = '/profile/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

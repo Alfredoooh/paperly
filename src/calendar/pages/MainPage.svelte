@@ -322,7 +322,7 @@
     <!-- Voltar -->
     <button class="cal-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>
     </button>
 
     <!-- Navegação central -->
@@ -567,7 +567,7 @@
             on:keydown={e=>e.key==='Escape'&&closeSearch()} />
           {#if searchQuery}
             <button class="search-clear" on:click={()=>searchQuery=''}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');background:{c.textSecondary};width:13px;height:13px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.textSecondary};width:13px;height:13px"></span>
             </button>
           {/if}
         </div>
@@ -625,10 +625,10 @@
             <span class="icon-mask" style="mask-image:url('/icons/svg/regular/edit.svg');-webkit-mask-image:url('/icons/svg/regular/edit.svg');background:{c.primary};width:18px;height:18px"></span>
           </button>
           <button class="detail-act-btn" on:click={()=>deleteEvent(detailEvent.id)}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/delete.svg');-webkit-mask-image:url('/icons/svg/regular/delete.svg');background:#FF3B30;width:18px;height:18px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/trash.svg');-webkit-mask-image:url('/icons/svg/regular/trash.svg');background:#FF3B30;width:18px;height:18px"></span>
           </button>
           <button class="detail-act-btn" on:click={closeDetail}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');background:{c.textSecondary};width:14px;height:14px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.textSecondary};width:14px;height:14px"></span>
           </button>
         </div>
       </div>
@@ -656,7 +656,7 @@
       {/if}
       {#if detailEvent.repeat!=='none'}
         <div class="detail-row" style="color:{c.textSecondary}">
-          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/arrow_repeat_all.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_repeat_all.svg');background:{c.textSecondary}"></span>
+          <span class="icon-mask detail-row-ic" style="mask-image:url('/icons/svg/regular/repeat.svg');-webkit-mask-image:url('/icons/svg/regular/repeat.svg');background:{c.textSecondary}"></span>
           <span>{REPEAT_OPTIONS.find(r=>r.value===detailEvent.repeat)?.label}</span>
         </div>
       {/if}
@@ -679,7 +679,7 @@
       <!-- Header da tela -->
       <div class="ev-header" style="border-bottom:0.5px solid {c.divider}">
         <button class="cal-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEventScreen}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');background:{c.iconTint};width:16px;height:16px"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
         </button>
         <span class="ev-header-title" style="color:{c.textPrimary}">
           {editingEvent ? 'Editar evento' : 'Novo evento'}
@@ -772,7 +772,7 @@
         <div class="ev-group" style="border-bottom:0.5px solid {c.divider}">
           <div class="ev-row">
             <div class="ev-row-left">
-              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/arrow_repeat_all.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_repeat_all.svg');background:{c.textSecondary}"></span>
+              <span class="icon-mask ev-row-ic" style="mask-image:url('/icons/svg/regular/repeat.svg');-webkit-mask-image:url('/icons/svg/regular/repeat.svg');background:{c.textSecondary}"></span>
               <span class="ev-row-lbl" style="color:{c.textPrimary}">Repetir</span>
             </div>
             <select class="ev-select" style="color:{c.textSecondary};background:{c.background};border:none" bind:value={form.repeat}>
@@ -799,7 +799,7 @@
         {#if editingEvent}
           <div class="ev-delete-wrap">
             <button class="ev-delete-btn" on:click={()=>deleteEvent(editingEvent.id)}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/delete.svg');-webkit-mask-image:url('/icons/svg/regular/delete.svg');background:#FF3B30;width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/trash.svg');-webkit-mask-image:url('/icons/svg/regular/trash.svg');background:#FF3B30;width:16px;height:16px"></span>
               Eliminar evento
             </button>
           </div>

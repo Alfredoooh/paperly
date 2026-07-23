@@ -2,6 +2,7 @@
   export let pushed = false;
   // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
+  import '$shared/theme.css';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { getUser } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';

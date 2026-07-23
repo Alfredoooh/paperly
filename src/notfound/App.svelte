@@ -3,6 +3,7 @@
   export let pushed = false;
   // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
+  import '$shared/theme.css';
 
   function goHome() {
     dispatch('nav', { to: 'home' });

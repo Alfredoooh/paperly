@@ -83,22 +83,22 @@ export const TABS = [
     id: 'create',
     label: 'Criar',
     title: 'Criar',
-    icon: '/icons/svg/regular/compose.svg',
-    iconColor: '/icons/svg/color/apps.svg',
+    icon: '/icons/svg/regular/add_circle.svg',
+    iconFilled: '/icons/svg/filled/add_circle.svg',
   },
   {
     id: 'projects',
     label: 'Projetos',
     title: 'Projetos',
-    icon: '/icons/svg/regular/apps.svg',
-    iconColor: '/icons/svg/color/apps.svg',
+    icon: '/icons/svg/regular/folder.svg',
+    iconFilled: '/icons/svg/filled/folder.svg',
   },
   {
     id: 'templates',
     label: 'Templates',
     title: 'Templates',
-    icon: '/icons/svg/regular/table_simple.svg',
-    iconColor: null,
+    icon: '/icons/svg/regular/board.svg',
+    iconFilled: '/icons/svg/filled/board.svg',
   },
   {
     id: 'me',
@@ -116,11 +116,11 @@ export const TEMPLATE_VIEWS = [
 
 // Modelos de documentos apresentados no toggle "Documentos" do tab Templates.
 export const DOC_MODELS = [
-  { id: 'doc-cv', label: 'Currículo', icon: '/icons/svg/regular/document.svg', prompt: 'Cria um currículo profissional para ' },
-  { id: 'doc-carta', label: 'Carta de Apresentação', icon: '/icons/svg/regular/document.svg', prompt: 'Escreve uma carta de apresentação para ' },
-  { id: 'doc-relatorio', label: 'Relatório', icon: '/icons/svg/regular/document.svg', prompt: 'Cria um relatório sobre ' },
-  { id: 'doc-contrato', label: 'Contrato', icon: '/icons/svg/regular/document.svg', prompt: 'Redige um modelo de contrato de ' },
-  { id: 'doc-ata', label: 'Ata de Reunião', icon: '/icons/svg/regular/document.svg', prompt: 'Cria uma ata de reunião sobre ' },
+  { id: 'doc-cv', label: 'Currículo', icon: '/icons/svg/regular/pdf.svg', prompt: 'Cria um currículo profissional para ' },
+  { id: 'doc-carta', label: 'Carta de Apresentação', icon: '/icons/svg/regular/pdf.svg', prompt: 'Escreve uma carta de apresentação para ' },
+  { id: 'doc-relatorio', label: 'Relatório', icon: '/icons/svg/regular/pdf.svg', prompt: 'Cria um relatório sobre ' },
+  { id: 'doc-contrato', label: 'Contrato', icon: '/icons/svg/regular/pdf.svg', prompt: 'Redige um modelo de contrato de ' },
+  { id: 'doc-ata', label: 'Ata de Reunião', icon: '/icons/svg/regular/pdf.svg', prompt: 'Cria uma ata de reunião sobre ' },
 ];
 
 // Modelos de imagem apresentados no toggle "Imagens" do tab Templates.

@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import '$shared/theme.css';
   import { createSlideTransition, createBackRecoilTransition } from './home/lib/nav-transition.js';
 
   import HomeApp from './home/App.svelte';

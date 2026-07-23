@@ -9,17 +9,17 @@
   $: c = getThemeColors(isDark);
   
   const WIDGETS = [
-    { id: 'widget_table', label: 'Tabela', icon: 'table_simple' },
+    { id: 'widget_table', label: 'Tabela', icon: 'sheets' },
     { id: 'widget_code', label: 'Código', icon: 'desktop' },
-    { id: 'widget_bar', label: 'Gráfico Barras', icon: 'apps' },
-    { id: 'widget_pie', label: 'Gráfico Pizza', icon: 'apps' },
-    { id: 'widget_sheet', label: 'Folha', icon: 'table_simple' },
-    { id: 'widget_market', label: 'Mercado', icon: 'data_trending' },
+    { id: 'widget_bar', label: 'Gráfico Barras', icon: 'extras' },
+    { id: 'widget_pie', label: 'Gráfico Pizza', icon: 'extras' },
+    { id: 'widget_sheet', label: 'Folha', icon: 'sheets' },
+    { id: 'widget_market', label: 'Mercado', icon: 'flash' },
     { id: 'widget_calendar', label: 'Calendário', icon: 'history' },
     { id: 'widget_timer', label: 'Temporizador', icon: 'record' },
     { id: 'widget_mindmap', label: 'Mapa Mental', icon: 'brain' },
-    { id: 'widget_graph', label: 'Gráfico Função', icon: 'search' },
-    { id: 'widget_map', label: 'Mapa', icon: 'search_sparkle' },
+    { id: 'widget_graph', label: 'Gráfico Função', icon: 'find' },
+    { id: 'widget_map', label: 'Mapa', icon: 'search_engine' },
   ];
   
   let settings = {};
@@ -37,7 +37,7 @@
 <div class="widgets-root" style="background:{c.background}">
   <div class="topbar">
     <button class="back-btn" style="background:{c.appbarBtnBg}" on:click={()=> dispatch('nav', { to: 'settings' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
     <span class="topbar-title" style="color:{c.textPrimary}">Widgets</span>
     <div style="width:36px"></div>

@@ -39,14 +39,10 @@
             {/if}
           </span>
         {:else}
-          {#if activeTab === tab.id && tab.iconColor}
-            <img src={tab.iconColor} alt="" aria-hidden="true" class="tab-icon-img" />
-          {:else}
-            <span
-              class="icon-mask"
-              style="mask-image:url('{tab.icon}');-webkit-mask-image:url('{tab.icon}')"
-            ></span>
-          {/if}
+          <span
+            class="icon-mask"
+            style="mask-image:url('{activeTab === tab.id && tab.iconFilled ? tab.iconFilled : tab.icon}');-webkit-mask-image:url('{activeTab === tab.id && tab.iconFilled ? tab.iconFilled : tab.icon}')"
+          ></span>
         {/if}
       </span>
       <span class="tab-label">{tab.label}</span>
@@ -117,12 +113,12 @@
     user-select: none;
   }
 
-  .tab-btn.active { color: var(--icon-strong); }
+  .tab-btn.active { color: var(--accent-primary); }
 
   .tab-icon {
     position: relative;
-    width: 19px;
-    height: 19px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,8 +126,8 @@
   }
 
   .tab-icon-avatar {
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
   }
 
   .tab-btn:active .tab-icon {
@@ -152,19 +148,9 @@
     transition: opacity .18s ease;
   }
 
-  .tab-icon-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-  }
+  /* ícone: regular por padrão, filled quando ativo; cor ativa vem
+     de var(--accent-primary), definida em src/shared/theme.css */
 
-  /* single-icon render: regular by default, color when active */
-
-  /* Avatar na bottom bar: círculo com borda que reforça quando ativo,
-     substituindo por completo o antigo ícone de "tools". */
   .tab-avatar {
     width: 100%;
     height: 100%;
@@ -177,7 +163,7 @@
     transition: border-color .18s ease;
   }
   .tab-avatar.active {
-    border-color: var(--icon-strong);
+    border-color: var(--accent-primary);
   }
   .tab-avatar-img {
     width: 100%;

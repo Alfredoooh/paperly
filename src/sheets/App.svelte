@@ -2,6 +2,7 @@
   export let pushed = false;
   // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
+  import '$shared/theme.css';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
@@ -9,7 +10,7 @@
 
   const APP_ID = 'sheets';
   const APP_TITLE = 'Nexa Sheets';
-  const APP_ICON = '/icons/svg/apps/sheets.svg';
+  const APP_ICON = '/icons/svg/regular/sheets.svg';
   const BASE = '/sheets/';
   const VALID_ROUTES = [];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

@@ -4,6 +4,7 @@
   import { requireAuth, logout } from '$shared/auth-guard.js';
   import { ALL_APPS } from '$shared/plans.js';
   import { getTheme, syncTheme } from '$shared/theme.js';
+  import '$shared/theme.css';
   import { createRouter } from '$shared/router.js';
   import { initPwaInstall, onPwaInstallAvailable, promptPwaInstall } from '$shared/pwa-install.js';
 
@@ -523,68 +524,6 @@
     overscroll-behavior: none;
     height: 100%;
     width: 100%;
-  }
-  :global([data-theme="dark"]) {
-    --app-bg: #0F0F0F;
-    --header-glass-rgb: 15,15,15;
-    --surface: #0F0F0F;
-    --surface-strong: #0F0F0F;
-    --surface-apps-tab: #171717;
-    --border-soft: rgba(255,255,255,0.12);
-    --border-faint: rgba(255,255,255,0.09);
-    --icon-strong: rgba(255,255,255,0.88);
-    --icon-faint: rgba(255,255,255,0.30);
-    --text-faint: rgba(255,255,255,0.38);
-    --row-active: rgba(255,255,255,0.07);
-    --btn-bg: rgba(255,255,255,0.10);
-    --btn-bg-active: rgba(255,255,255,0.18);
-    --drawer-bg: #1C1C1E;
-    --drawer-bg-strong: #141416;
-    --drawer-border: rgba(255,255,255,0.09);
-    --drawer-shadow: rgba(0,0,0,0.45);
-    --drawer-text: rgba(255,255,255,0.86);
-    --drawer-text-faint: rgba(255,255,255,0.38);
-    --drawer-sep: rgba(255,255,255,0.11);
-    --drawer-overlay-in: rgba(0,0,0,0.35);
-    --logout-icon: #FF453A;
-    --btn-solid-bg: #f5f5f5;
-    --btn-solid-bg-active: #e0e0e0;
-    --btn-solid-text: #1a1a1a;
-    --danger: #FF453A;
-    --danger-active: #E0342A;
-    --accent-primary: #0A84FF;
-    --accent-primary-active: #0070E0;
-  }
-  :global([data-theme="light"]) {
-    --app-bg: #FFFFFF;
-    --header-glass-rgb: 255,255,255;
-    --surface: #FFFFFF;
-    --surface-strong: #FFFFFF;
-    --surface-apps-tab: #FFFFFF;
-    --border-soft: rgba(0,0,0,0.09);
-    --border-faint: rgba(0,0,0,0.07);
-    --icon-strong: rgba(20,20,20,0.85);
-    --icon-faint: rgba(20,20,20,0.28);
-    --text-faint: rgba(20,20,20,0.40);
-    --row-active: rgba(0,0,0,0.05);
-    --btn-bg: rgba(0,0,0,0.06);
-    --btn-bg-active: rgba(0,0,0,0.11);
-    --drawer-bg: #ffffff;
-    --drawer-bg-strong: #ffffff;
-    --drawer-border: rgba(0,0,0,0.07);
-    --drawer-shadow: rgba(0,0,0,0.13);
-    --drawer-text: #111111;
-    --drawer-text-faint: rgba(0,0,0,0.30);
-    --drawer-sep: rgba(0,0,0,0.09);
-    --drawer-overlay-in: rgba(0,0,0,0.20);
-    --logout-icon: #E0342A;
-    --btn-solid-bg: #2a2a2a;
-    --btn-solid-bg-active: #1e1e1e;
-    --btn-solid-text: #ffffff;
-    --danger: #FF3B30;
-    --danger-active: #E0342A;
-    --accent-primary: #007AFF;
-    --accent-primary-active: #0062CC;
   }
 
   .root {

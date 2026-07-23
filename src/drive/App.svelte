@@ -2,6 +2,7 @@
   export let pushed = false;
   // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
   import { onMount, createEventDispatcher } from 'svelte';
+  import '$shared/theme.css';
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
@@ -10,7 +11,7 @@
 
   const APP_ID = 'drive';
   const APP_TITLE = 'Nexa Drive';
-  const APP_ICON = '/icons/svg/apps/drive.svg';
+  const APP_ICON = '/icons/svg/regular/drive.svg';
   const BASE = '/drive/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

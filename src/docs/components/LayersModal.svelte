@@ -1,5 +1,7 @@
 <!-- docs/components/LayersModal.svelte -->
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -8,8 +10,6 @@
   export let layers = []; // [{ id, type:'image'|'table'|'shape', label }]
 
   const dispatch = createEventDispatcher();
-
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   const slide = createSlideTransition({});
   let sheetY = 100;
@@ -116,14 +116,14 @@
           <button class="layer-row" on:click={() => selectLayer(layer)}>
             <span
               class="layer-icon icon-mask"
-              style="mask-image:url('{FLUENT_CDN}{TYPE_ICONS[layer.type] || 'image_24_regular'}.svg');-webkit-mask-image:url('{FLUENT_CDN}{TYPE_ICONS[layer.type] || 'image_24_regular'}.svg');background:{c.iconTint};width:20px;height:20px;"
+              style="mask-image:url('{localIconPath(TYPE_ICONS[layer.type] || 'image_24_regular')}');-webkit-mask-image:url('{localIconPath(TYPE_ICONS[layer.type] || 'image_24_regular')}');background:{c.iconTint};width:24px;height:24px;"
             ></span>
             <span class="layer-label" style="color:{c.textPrimary}">{layer.label}</span>
             <button
               class="layer-delete"
               on:click={(e) => deleteLayer(e, layer)}
               aria-label="Remover"
-              style="color:#FF3B30"
+              style="color:var(--danger)"
             >×</button>
           </button>
         {/each}

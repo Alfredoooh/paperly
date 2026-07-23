@@ -5,6 +5,7 @@
   import { AuthApiService } from '$shared/api.js';
   import { showToast } from '$shared/utils.js';
   import { AVAILABLE_LANGUAGES } from '$shared/plans.js';
+  import { setLanguage } from '$shared/i18n.js';
   import PlansModal from '../components/PlansModal.svelte';
 
   export let isDark = false;
@@ -16,12 +17,12 @@
   $: credits      = user?.credits ?? 0;
   $: maxCredits   = 100;
   $: creditsPct   = Math.min(Math.max(credits / maxCredits, 0), 1);
-  $: creditsColor = credits <= 10 ? '#FF3B30' : credits <= 30 ? '#FF9500' : '#007AFF';
+  $: creditsColor = credits <= 10 ? 'var(--danger)' : credits <= 30 ? 'var(--accent-primary)' : 'var(--accent-primary)';
   $: creditsLabel = credits <= 10 ? 'A acabar' : `${credits} créditos`;
 
   const AVATAR_COLORS = [
-    '#FF3B30','#FF9500','#FFCC00','#34C759',
-    '#00C7BE','#007AFF','#5856D6','#AF52DE',
+    'var(--danger)','var(--accent-primary)','#FFCC00','#34C759',
+    '#00C7BE','var(--accent-primary)','#5856D6','#AF52DE',
     '#FF2D55','#A2845E'
   ];
   function getAvatarColor(str) {
@@ -85,7 +86,7 @@
     </button>
     <span class="header-title">Definições</span>
     <button type="button" class="logout-btn" disabled={loggingOut} on:click={handleLogout}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_exit.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_exit.svg');width:18px;height:18px;background:#FF3B30"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_exit.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_exit.svg');width:18px;height:18px;background:var(--danger)"></span>
     </button>
   </div>
 
@@ -155,7 +156,7 @@
         <span class="row-label">Web & links</span>
       </button>
       <button type="button" class="row danger" disabled={loggingOut} on:click={handleLogout}>
-        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/arrow_exit.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_exit.svg');background:#FF3B30;"></span>
+        <span class="icon-mask row-icon" style="mask-image:url('/icons/svg/regular/arrow_exit.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_exit.svg');background:var(--danger);"></span>
         <span class="row-label">{loggingOut ? 'A terminar sessão…' : 'Terminar sessão'}</span>
       </button>
     </div>
@@ -176,7 +177,7 @@
       <button type="button" class="popup-row" class:dark={isDark} on:click={() => { showThemePicker=false; dispatch('themeChange',{isDark:dark}); }}>
         <span class="popup-label" class:dark={isDark}>{label}</span>
         {#if isDark === dark}
-          <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');width:16px;height:16px;background:#007AFF;"></span>
+          <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');width:16px;height:16px;background:var(--accent-primary);"></span>
         {/if}
       </button>
     {/each}
@@ -200,7 +201,7 @@
               <span class="lang-native" class:dark={isDark}>{lang.native}</span>
             </div>
             {#if lang.code === currentLanguage}
-              <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');width:16px;height:16px;background:#007AFF;"></span>
+              <span class="icon-mask check-icon" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');width:16px;height:16px;background:var(--accent-primary);"></span>
             {/if}
           </button>
         {/each}
@@ -216,7 +217,7 @@
   .header { display:flex; align-items:center; gap:8px; padding:16px 16px 10px; padding-top:calc(16px + env(safe-area-inset-top)); flex-shrink:0; }
   .header-title { flex:1; font-size:17px; font-weight:600; color:#000; text-align:center; letter-spacing:-.3px; }
   .page.dark .header-title { color:#fff; }
-  .back-btn, .logout-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; border-radius:50%; transition:background .12s; }
+  .back-btn, .logout-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; border-radius:10px; transition:background .12s; }
   .back-btn:active { background:rgba(0,0,0,.06); }
   .logout-btn:active { background:rgba(255,59,48,.08); }
   .logout-btn:disabled { opacity:.5; }
@@ -225,7 +226,7 @@
   .body { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:8px 0 40px; display:flex; flex-direction:column; }
 
   .user-block { display:flex; align-items:center; gap:12px; padding:16px 20px 20px; }
-  .avatar { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0; }
+  .avatar { width:52px; height:52px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0; }
   .user-info { display:flex; flex-direction:column; min-width:0; }
   .user-name { font-size:16px; font-weight:600; color:#000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .page.dark .user-name { color:#fff; }
@@ -240,13 +241,13 @@
   .page.dark .row { color:#fff; }
   .row:active { background:rgba(0,0,0,.05); }
   .page.dark .row:active { background:rgba(255,255,255,.06); }
-  .row.danger { color:#FF3B30; }
+  .row.danger { color:var(--danger); }
   .row:disabled { opacity:.55; cursor:default; }
   .row-icon { width:17px; height:17px; background:rgba(60,60,67,.55); flex-shrink:0; display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; }
   .page.dark .row-icon { background:rgba(235,235,245,.55); }
-  .danger .row-icon { background:#FF3B30 !important; }
+  .danger .row-icon { background:var(--danger) !important; }
   .row-label { flex:1; font-size:15px; font-weight:400; min-width:0; }
-  .row.danger .row-label { color:#FF3B30; }
+  .row.danger .row-label { color:var(--danger); }
   .row-sub   { font-size:13px; color:rgba(60,60,67,.45); flex-shrink:0; }
   .row-trail { font-size:13px; color:rgba(60,60,67,.45); flex-shrink:0; }
   .page.dark .row-sub, .page.dark .row-trail { color:rgba(235,235,245,.35); }
@@ -283,10 +284,10 @@
   .lang-info { display:flex; flex-direction:column; text-align:left; }
   .lang-name { font-size:15px; font-weight:400; color:#000; }
   .lang-name.dark { color:#fff; }
-  .lang-name.active { color:#007AFF; font-weight:600; }
+  .lang-name.active { color:var(--accent-primary); font-weight:600; }
   .lang-native { font-size:12px; color:rgba(60,60,67,.5); margin-top:1px; }
   .lang-native.dark { color:rgba(235,235,245,.35); }
 
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
-  .check-icon { background:#007AFF; }
+  .check-icon { background:var(--accent-primary); }
 </style>

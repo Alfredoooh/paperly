@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -8,8 +10,6 @@
   export let isDark = false;
 
   const dispatch = createEventDispatcher();
-
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   const ITEMS = [
     { id: 'duplicate', label: 'Duplicar', icon: 'copy_24_regular' },
@@ -72,7 +72,7 @@
     <div class="dm-handle" style="background:{c.divider}"></div>
     {#each ITEMS as item, i}
       <button class="dm-item" class:dm-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
-        <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{item.danger ? '#FF3B30' : c.iconTint};width:22px;height:22px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath(item.icon)}');-webkit-mask-image:url('{localIconPath(item.icon)}');background:{item.danger ? 'var(--danger)' : c.iconTint};width:24px;height:24px;"></span>
         <span>{item.label}</span>
       </button>
       {#if i < ITEMS.length - 1}
@@ -114,7 +114,7 @@
     -webkit-tap-highlight-color: transparent; transition: background .12s;
   }
   .dm-item:active { background: rgba(127,127,127,0.10); }
-  .dm-danger { color: #FF3B30; }
+  .dm-danger { color: var(--danger); }
   .dm-divider { height: 1px; margin: 0 10px; }
   .dm-safe-bottom { height: env(safe-area-inset-bottom, 0px); }
 

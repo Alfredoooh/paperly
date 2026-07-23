@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher } from 'svelte';
   
   export let c;
@@ -6,9 +8,7 @@
   export let visible = false;
   
   const dispatch = createEventDispatcher();
-
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
-  const ICON_PX = 512;
+  const ICON_PX = 24;
   
   // Todas as opções acessíveis por scroll horizontal — sem chevron
   // "mais opções" a esconder itens. A barra é full-width, colada ao
@@ -55,7 +55,7 @@
       >
         <span
           class="icon-mask"
-          style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:20px;max-height:20px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+          style="mask-image:url('{localIconPath(item.icon)}');-webkit-mask-image:url('{localIconPath(item.icon)}');background:{c.iconTint};width:24px;height:24px;max-width:24px;max-height:24px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
         ></span>
       </button>
     {/each}
@@ -99,7 +99,7 @@
   .tb-btn:active { opacity: .55; }
   .tb-btn:disabled { cursor: default; }
   .tb-btn:disabled:active { opacity: .32; }
-  .tb-active .icon-mask { background: #2F7BF6 !important; }
+  .tb-active .icon-mask { background: var(--accent-primary) !important; }
 
   .icon-mask {
     display: block; mask-size: contain; -webkit-mask-size: contain;

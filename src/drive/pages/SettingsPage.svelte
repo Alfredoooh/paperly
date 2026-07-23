@@ -26,7 +26,7 @@
 <div class="settings-root" style="background:{c.background}">
   <div class="topbar">
     <button class="back-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
     <span class="topbar-title" style="color:{c.textPrimary}">{appTitle} • Definições</span>
     <div style="width:36px"></div>
@@ -68,15 +68,15 @@
   .topbar-title { font-size:16px; font-weight:700; text-align:center; flex:1; }
   .content { flex:1; overflow-y:auto; padding:8px 16px 16px; }
   .profile-card { display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:24px; }
-  .avatar { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#fff; flex-shrink:0; }
+  .avatar { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#fff; flex-shrink:0; }
   .profile-name { font-size:16px; font-weight:700; }
   .profile-email { font-size:13px; margin-top:2px; }
   .section-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:0 2px 10px; }
   .section { border-radius:18px; overflow:hidden; margin-bottom:20px; }
   .row { width:100%; background:transparent; border:none; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; font-size:15px; cursor:pointer; }
   .row:active { opacity:.7; }
-  .row.danger { color:#FF3B30; justify-content:flex-start; }
-  .check { color:#2F7BF6; font-weight:700; }
+  .row.danger { color:var(--danger); justify-content:flex-start; }
+  .check { color:var(--accent-primary); font-weight:700; }
   .divider { height:1px; margin:0 16px; }
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 </style>

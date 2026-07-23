@@ -8,15 +8,15 @@
   export let onOpenSettings = () => {};
   export let onLogout = () => {};
   
-  // Ícones Fluent UI (Microsoft) via CDN jsDelivr, usados a 36px.
-  const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.257/icons';
+  import { localIconPath } from '$shared/local-icon.js';
+
   const ICON = {
-    settings: `${FLUENT_BASE}/settings_24_regular.svg`,
-    shield: `${FLUENT_BASE}/shield_24_regular.svg`,
-    bell: `${FLUENT_BASE}/alert_24_regular.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
-    signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
-    chevron: `${FLUENT_BASE}/chevron_right_24_regular.svg`,
+    settings: localIconPath('settings_24_regular'),
+    shield: localIconPath('shield_24_regular'),
+    bell: localIconPath('alert_24_regular'),
+    help: localIconPath('question_circle_24_regular'),
+    signout: localIconPath('arrow_exit_24_regular'),
+    chevron: localIconPath('chevron_right_24_regular'),
   };
   
   const menuItems = [

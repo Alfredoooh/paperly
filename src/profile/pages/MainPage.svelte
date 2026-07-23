@@ -132,7 +132,7 @@
   $: avatarViewerStyle = avatarViewerRect
     ? (avatarViewerVisible
         ? 'top:0; left:0; width:100vw; height:100dvh; border-radius:0;'
-        : `top:${avatarViewerRect.top}px; left:${avatarViewerRect.left}px; width:${avatarViewerRect.width}px; height:${avatarViewerRect.height}px; border-radius:50%;`)
+        : `top:${avatarViewerRect.top}px; left:${avatarViewerRect.left}px; width:${avatarViewerRect.width}px; height:${avatarViewerRect.height}px; border-radius:10px;`)
     : '';
 
   // ══════════════════════════════════════════════════════════════════
@@ -370,12 +370,12 @@
   <div class="pf-header">
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
     <span class="pf-header-title" style="color:{c.textPrimary}">{appTitle}</span>
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'settings'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
   </div>
 
@@ -479,7 +479,7 @@
       <img class="avatar-viewer-img" src={user.avatar} alt={userName} />
     </div>
     <button class="avatar-viewer-back" class:avatar-viewer-back-in={avatarViewerVisible} on:click={closeAvatarViewer} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:#fff;width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:#fff;width:24px;height:24px"></span>
     </button>
   {/if}
 
@@ -507,7 +507,7 @@
             {#if saving}
               <span class="edit-save-spinner" style="border-color:{c.divider};border-top-color:{c.iconTint}"></span>
             {:else}
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.iconTint};width:17px;height:17px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.iconTint};width:24px;height:24px"></span>
             {/if}
           </button>
         </div>
@@ -640,7 +640,7 @@
     flex-shrink: 0;
   }
   .pf-icon-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+    width: 36px; height: 36px; border-radius:10px; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
@@ -660,7 +660,7 @@
   /* ── Hero ─────────────────────────────────────────────────────────── */
   .pf-hero { padding: 24px 16px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
   .pf-avatar-wrap {
-    position: relative; width: 92px; height: 92px; border-radius: 50%;
+    position: relative; width: 92px; height: 92px; border-radius:10px;
     display: flex; align-items: center; justify-content: center; overflow: visible;
     border: none; padding: 0; cursor: pointer;
     box-shadow: 0 4px 16px rgba(0,0,0,0.1);
@@ -668,16 +668,16 @@
   }
   .pf-avatar-wrap:active { transform: scale(0.96); }
   .pf-avatar-wrap img {
-    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+    width: 100%; height: 100%; object-fit: cover; border-radius:10px;
     display: block;
   }
   .pf-avatar-initial { font-size: 34px; font-weight: 700; color: #fff; }
   .pf-avatar-loading {
-    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius: 50%;
+    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius:10px;
     display: flex; align-items: center; justify-content: center;
   }
   .pf-spinner {
-    width: 22px; height: 22px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius:10px;
     border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff;
     animation: pf-spin .7s linear infinite;
   }
@@ -690,7 +690,7 @@
   .pf-avatar-edit-badge {
     position: absolute; bottom: -2px; right: -2px; z-index: 3;
     width: 30px; height: 30px;
-    border-radius: 50%; border: 2.5px solid;
+    border-radius:10px; border: 2.5px solid;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
@@ -765,7 +765,7 @@
   .avatar-viewer-back {
     position: fixed; z-index: 552;
     top: calc(env(safe-area-inset-top,0px) + 14px); left: 14px;
-    width: 40px; height: 40px; border-radius: 50%;
+    width: 40px; height: 40px; border-radius:10px;
     border: none; background: rgba(0,0,0,.4);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
@@ -800,7 +800,7 @@
   .edit-save-icon-btn { position: relative; }
   .edit-save-icon-btn:disabled { opacity: .55; }
   .edit-save-spinner {
-    width: 15px; height: 15px; border-radius: 50%;
+    width: 15px; height: 15px; border-radius:10px;
     border: 2px solid; border-top-color: transparent;
     animation: pf-spin .7s linear infinite;
   }

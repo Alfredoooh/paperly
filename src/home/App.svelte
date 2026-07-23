@@ -417,7 +417,7 @@
 >
   <div class="bg-layer"></div>
 
-  {#if activeTab !== 'create'}
+  {#if activeTab !== 'create' && activeTab !== 'me'}
     <AppHeader
       {mounted}
       bind:topPanelEl
@@ -438,7 +438,7 @@
     />
   {/if}
 
-  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{activeTab === 'create' ? 0 : appbarHeight}px;">
+  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{activeTab === 'create' || activeTab === 'me' ? 0 : appbarHeight}px;">
     {#if activeTab === 'create'}
       <CreateTab
         {platformApps}

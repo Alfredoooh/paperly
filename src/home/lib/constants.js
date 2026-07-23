@@ -102,8 +102,8 @@ export const TABS = [
   },
   {
     id: 'me',
-    label: 'Mim',
-    title: 'Mim',
+    label: 'Eu',
+    title: 'Eu',
     isAvatar: true,
   },
 ];

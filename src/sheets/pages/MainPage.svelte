@@ -8,6 +8,7 @@
     MAX_SHEETS,
   } from '../lib/sheet-store.js';
   import { FormulaError } from '../lib/formula-engine.js';
+  import { getThemeColors } from '$shared/theme.js';
   import { fluentIconUrl } from '../lib/icon-fallback.js';
   import SheetGrid from '../components/SheetGrid.svelte';
   import CellFormatBar from '../components/CellFormatBar.svelte';
@@ -25,49 +26,7 @@
 
   const dispatch = createEventDispatcher();
 
-  // ── Tema ─────────────────────────────────────────────────────
-  //
-  // Paleta "estilo Office": verde Excel como cor primária (em vez do
-  // azul genérico anterior), appbar/toolbar sempre em branco/cinza-
-  // escuro puro (dialogBackground), NUNCA no mesmo tom do fundo da
-  // página — é isso que dava o efeito "appbar cinza sem
-  // profissionalismo" antes.
-
-  $: c = isDark
-    ? {
-        background: '#0B0D10',
-        textPrimary: '#F2F3F5',
-        textSecondary: '#9AA0A8',
-        divider: 'rgba(255,255,255,0.10)',
-        appbarBtnBg: 'rgba(255,255,255,0.08)',
-        appbarBtnBgActive: 'rgba(255,255,255,0.14)',
-        iconTint: '#F2F3F5',
-        dialogBackground: '#1B1E23',
-        toolbarSolidBg: '#1B1E23',
-        primary: '#21A366',
-        primaryDark: '#146C43',
-        sheetPaperBg: '#14161A',
-        sheetCellBg: '#181B20',
-        sheetGridLine: 'rgba(255,255,255,0.10)',
-        sheetHeaderBg: '#20242B',
-      }
-    : {
-        background: '#F3F2F1',
-        textPrimary: '#15181D',
-        textSecondary: '#6B7280',
-        divider: 'rgba(0,0,0,0.10)',
-        appbarBtnBg: 'rgba(0,0,0,0.05)',
-        appbarBtnBgActive: 'rgba(0,0,0,0.09)',
-        iconTint: '#15181D',
-        dialogBackground: '#FFFFFF',
-        toolbarSolidBg: '#FFFFFF',
-        primary: '#21A366',
-        primaryDark: '#146C43',
-        sheetPaperBg: '#E8EAED',
-        sheetCellBg: '#FFFFFF',
-        sheetGridLine: 'rgba(0,0,0,0.10)',
-        sheetHeaderBg: '#F7F8FA',
-      };
+  $: c = getThemeColors(isDark);
 
   // ── Documento ────────────────────────────────────────────────
   //
@@ -643,7 +602,7 @@
        de "barra de ferramentas" que o Excel/Office sempre tem. -->
   <div class="appbar" style="background:{c.dialogBackground};border-color:{c.divider};">
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={goBack} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('back')}');-webkit-mask-image:url('{fluentIconUrl('back')}');background:{c.iconTint};width:20px;height:20px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('back')}');-webkit-mask-image:url('{fluentIconUrl('back')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
 
     <div class="appbar-title">
@@ -664,7 +623,7 @@
     </div>
 
     <button class="appbar-btn" style="background:{c.appbarBtnBg}" on:click={openMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('more')}');-webkit-mask-image:url('{fluentIconUrl('more')}');background:{c.iconTint};width:20px;height:20px;"></span>
+      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('more')}');-webkit-mask-image:url('{fluentIconUrl('more')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
   </div>
 
@@ -861,7 +820,7 @@
     flex-shrink: 0;
   }
   .appbar-btn {
-    width: 38px; height: 38px; border: none; border-radius: 50%;
+    width: 38px; height: 38px; border: none; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), background .14s ease;

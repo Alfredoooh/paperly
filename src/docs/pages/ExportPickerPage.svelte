@@ -1,7 +1,10 @@
 <!-- docs/pages/ExportPickerPage.svelte -->
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { getThemeColors } from '$shared/theme.js';
+  import { localIconPath } from '$shared/local-icon.js';
   import { showToast } from '$shared/utils.js';
 
   export let isDark = false;
@@ -14,8 +17,6 @@
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
-
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   let selectedFormat = 'docx';
   let currentPath = '';
@@ -172,7 +173,7 @@
 
   <div class="appbar">
     <button class="appbar-btn pulse-tap" on:click={goBackFolder} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}arrow_left_24_regular.svg');background:{c.iconTint};"></span>
+      <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_left_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};"></span>
     </button>
     <div class="appbar-title" style="color:{c.textPrimary}">
       {mode === 'share' ? 'Partilhar' : 'Exportar'} "{docName}"
@@ -224,7 +225,7 @@
       {:else}
         {#each entries as folder (folder.path)}
           <button class="folder-row" on:click={() => openFolder(folder)}>
-            <span class="folder-icon icon-mask" style="mask-image:url('{FLUENT_CDN}folder_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}folder_24_regular.svg');background:#2F7BF6;"></span>
+            <span class="folder-icon icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:var(--accent-primary);"></span>
             <span class="folder-name" style="color:{c.textPrimary}">{folder.name}</span>
           </button>
         {/each}
@@ -257,7 +258,7 @@
     flex-shrink: 0;
   }
   .appbar-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+    width: 36px; height: 36px; border-radius: 10px; border: none;
     background: var(--btn-bg);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; flex-shrink: 0; padding: 0;
@@ -285,7 +286,7 @@
   .permission-text { font-size: 14px; line-height: 1.5; }
   .primary-btn {
     border: none; border-radius: 999px; padding: 14px 28px;
-    background: var(--accent-primary, #2F7BF6); color: #fff;
+    background: var(--accent-primary, var(--accent-primary)); color: #fff;
     font-size: 15px; font-weight: 700; cursor: pointer;
   }
 
@@ -322,7 +323,7 @@
   .new-folder-btn {
     background: none; border: none; text-align: left;
     padding: 4px 16px 10px; font-size: 14px; font-weight: 700;
-    color: var(--accent-primary, #2F7BF6); cursor: pointer;
+    color: var(--accent-primary, var(--accent-primary)); cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
   .new-folder-form { display: flex; gap: 8px; padding: 0 16px 12px; }
@@ -333,7 +334,7 @@
   }
   .new-folder-confirm {
     background: none; border: none; font-size: 14px; font-weight: 700;
-    color: var(--accent-primary, #2F7BF6); cursor: pointer; padding: 0 8px;
+    color: var(--accent-primary, var(--accent-primary)); cursor: pointer; padding: 0 8px;
   }
 
   .folder-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 8px; }
@@ -363,7 +364,7 @@
   .confirm-bar { padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px); flex-shrink: 0; }
   .confirm-btn {
     width: 100%; border: none; border-radius: 999px; padding: 15px;
-    background: var(--accent-primary, #2F7BF6); color: #fff;
+    background: var(--accent-primary, var(--accent-primary)); color: #fff;
     font-size: 15px; font-weight: 700; cursor: pointer;
   }
   .confirm-btn:disabled { opacity: 0.6; }

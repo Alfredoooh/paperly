@@ -1,13 +1,13 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher } from 'svelte';
 
   export let c;
   export let visible = true;
 
   const dispatch = createEventDispatcher();
-
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
-  const ICON_PX = 512;
+  const ICON_PX = 24;
 
   const TOOLS = [
     { id: 'devicelayout', icon: 'phone_24_regular', label: 'Vista Para Dispositiv...' },
@@ -42,7 +42,7 @@
     >
       <span
         class="icon-mask"
-        style="mask-image:url('{FLUENT_CDN}{item.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{item.icon}.svg');background:{c.iconTint};width:{ICON_PX}px;height:{ICON_PX}px;max-width:26px;max-height:26px;"
+        style="mask-image:url('{localIconPath(item.icon)}');-webkit-mask-image:url('{localIconPath(item.icon)}');background:{c.iconTint};width:24px;height:24px;max-width:24px;max-height:24px;"
       ></span>
       <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
     </button>

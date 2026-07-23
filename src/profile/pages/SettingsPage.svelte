@@ -4,6 +4,7 @@
   import { logout } from '$shared/auth-guard.js';
   import { AuthApiService } from '$shared/api.js';
   import { AVAILABLE_LANGUAGES } from '$shared/plans.js';
+  import { setLanguage } from '$shared/i18n.js';
   import { showToast } from '$shared/utils.js';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -119,7 +120,7 @@
   }
   function selectLang(code) {
     currentLang = code;
-    localStorage.setItem('nexa_lang', code);
+    setLanguage(code);
     closeLangSheet();
     showToast('Idioma atualizado');
   }
@@ -216,7 +217,7 @@
 <div class="st-root" bind:this={rootEl} style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
   <div class="st-header">
     <button class="st-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
     <span class="st-header-title" style="color:{c.textPrimary}">Definições gerais</span>
     <div style="width:36px"></div>
@@ -335,7 +336,7 @@
     padding: calc(env(safe-area-inset-top,0px) + 14px) 16px 12px; flex-shrink: 0;
   }
   .st-icon-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+    width: 36px; height: 36px; border-radius: 10px; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
@@ -346,8 +347,8 @@
     display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 20px; margin-bottom: 26px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
-  .st-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0; }
-  .st-avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .st-avatar { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .st-avatar-img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
   .st-profile-name { font-size: 16px; font-weight: 700; }
   .st-profile-email { font-size: 13px; margin-top: 2px; }
   .st-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 0 4px 10px; }
@@ -361,7 +362,7 @@
     transition: opacity .16s ease, background-color .16s ease;
   }
   .st-row:active { opacity: .7; }
-  .st-danger { color: #FF3B30; justify-content: flex-start; }
+  .st-danger { color: var(--danger); justify-content: flex-start; }
   .st-row-value { font-size: 13px; }
   .st-divider { height: 1px; margin: 0 16px; opacity: .7; }
 
@@ -440,7 +441,7 @@
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .logout-btn-cancel:active { transform: scale(0.96); }
-  .logout-btn-confirm { background: #FF3B30; color: white; }
+  .logout-btn-confirm { background: var(--danger); color: white; }
   .logout-btn-confirm:active { background: #E0342A; transform: scale(0.96); }
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 

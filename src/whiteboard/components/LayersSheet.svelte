@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -8,7 +10,6 @@
   export let selectedId = null;
 
   const dispatch = createEventDispatcher();
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   function typeLabel(el) {
     if (el.type === 'text') return (el.text || '').slice(0, 22) || 'Texto vazio';
@@ -86,15 +87,15 @@
               <div class="layer-thumb"><img src={el.src} alt="" /></div>
             {:else if el.type === 'shape'}
               <div class="layer-thumb" style="background:{c.appbarBtnBg}">
-                <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}{el.shape}.svg');-webkit-mask-image:url('{FLUENT_CDN}{el.shape}.svg');background:{el.fill === 'transparent' ? c.iconTint : el.fill};width:16px;height:16px;"></span>
+                <span class="icon-mask" style="mask-image:url('{localIconPath(el.shape)}');-webkit-mask-image:url('{localIconPath(el.shape)}');background:{el.fill === 'transparent' ? c.iconTint : el.fill};width:24px;height:24px;"></span>
               </div>
             {:else}
               <div class="layer-thumb" style="background:{c.appbarBtnBg}">
-                <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_add_space_before_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_add_space_before_24_regular.svg');background:{c.iconTint};width:16px;height:16px;"></span>
+                <span class="icon-mask" style="mask-image:url('{localIconPath(el.shape)}');-webkit-mask-image:url('{localIconPath(el.shape)}');background:{c.iconTint};width:24px;height:24px;"></span>
               </div>
             {/if}
             <span class="layer-label" style="color:{c.textPrimary}">{typeLabel(el)}</span>
-            <button class="layer-delete" on:click={(e) => deleteLayer(e, el.id)} aria-label="Remover" style="color:#FF3B30">×</button>
+            <button class="layer-delete" on:click={(e) => deleteLayer(e, el.id)} aria-label="Remover" style="color:var(--danger)">×</button>
           </button>
         {/each}
       {/if}

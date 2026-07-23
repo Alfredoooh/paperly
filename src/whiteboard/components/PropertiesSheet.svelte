@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -9,8 +11,7 @@
   const dispatch = createEventDispatcher();
 
   const BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'color-dodge'];
-  const PRESET_COLORS = ['transparent', '#000000', '#FFFFFF', '#3C3C43', '#8E8E93', '#F0384A', '#E8720F', '#F5B700', '#1FA34A', '#0FA3A3', '#2F7BF6', '#5856D6', '#8B3FE0', '#D63384'];
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
+  const PRESET_COLORS = ['transparent', '#000000', '#FFFFFF', '#3C3C43', '#8E8E93', '#F0384A', '#E8720F', '#F5B700', '#1FA34A', '#0FA3A3', 'var(--accent-primary)', '#5856D6', '#8B3FE0', '#D63384'];
 
   function update(patch) { dispatch('update', patch); }
   function commit() { dispatch('commit'); }
@@ -145,7 +146,7 @@
       {:else if activePanel === 'blend'}
         <div class="opt-grid">
           {#each BLEND_MODES as mode}
-            <button class="opt-chip" style="background:{element.blend === mode ? '#2F7BF6' : c.appbarBtnBg};color:{element.blend === mode ? '#fff' : c.textPrimary}" on:click={() => updateAndCommit({ blend: mode })}>{mode}</button>
+            <button class="opt-chip" style="background:{element.blend === mode ? 'var(--accent-primary)' : c.appbarBtnBg};color:{element.blend === mode ? '#fff' : c.textPrimary}" on:click={() => updateAndCommit({ blend: mode })}>{mode}</button>
           {/each}
         </div>
 
@@ -156,19 +157,19 @@
         <div class="field-label" style="color:{c.textSecondary}">Alinhamento</div>
         <div class="opt-grid">
           <button class="opt-icon-btn" style="background:{element.align === 'left' ? 'rgba(47,123,246,0.16)' : c.appbarBtnBg}" on:click={() => updateAndCommit({ align: 'left' })}>
-            <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_left_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_left_24_regular.svg');background:{c.iconTint};width:19px;height:19px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_align_left_24_regular')}');-webkit-mask-image:url('{localIconPath('text_align_center_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button class="opt-icon-btn" style="background:{element.align === 'center' ? 'rgba(47,123,246,0.16)' : c.appbarBtnBg}" on:click={() => updateAndCommit({ align: 'center' })}>
-            <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_center_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_center_24_regular.svg');background:{c.iconTint};width:19px;height:19px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_align_right_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button class="opt-icon-btn" style="background:{element.align === 'right' ? 'rgba(47,123,246,0.16)' : c.appbarBtnBg}" on:click={() => updateAndCommit({ align: 'right' })}>
-            <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_align_right_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_align_right_24_regular.svg');background:{c.iconTint};width:19px;height:19px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
         </div>
         <div class="field-label" style="color:{c.textSecondary}">Peso</div>
         <div class="opt-grid">
           {#each [['400','Normal'],['600','Semi'],['800','Negrito']] as [w, label]}
-            <button class="opt-chip" style="background:{element.weight === w ? '#2F7BF6' : c.appbarBtnBg};color:{element.weight === w ? '#fff' : c.textPrimary}" on:click={() => updateAndCommit({ weight: w })}>{label}</button>
+            <button class="opt-chip" style="background:{element.weight === w ? 'var(--accent-primary)' : c.appbarBtnBg};color:{element.weight === w ? '#fff' : c.textPrimary}" on:click={() => updateAndCommit({ weight: w })}>{label}</button>
           {/each}
         </div>
 
@@ -202,25 +203,25 @@
   .field-label { font-size:12px; font-weight:600; margin:14px 0 10px; text-transform:uppercase; letter-spacing:.04em; }
   .range-slider { width:100%; height:34px; -webkit-appearance:none; appearance:none; background:transparent; margin:0 0 4px; }
   .range-slider::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:rgba(127,127,127,0.28); }
-  .range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#2F7BF6; margin-top:-9px; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+  .range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:10px; background:var(--accent-primary); margin-top:-9px; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
   .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:14px 2px 4px; font-size:14px; font-weight:600; }
   .toggle-row input[type="checkbox"] { width:20px; height:20px; }
 
   .opt-grid { display:flex; flex-wrap:wrap; gap:8px; padding:2px 0 4px; }
   .opt-chip { border:none; border-radius:999px; padding:10px 15px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
   .opt-chip:active { transform:scale(0.95); }
-  .opt-icon-btn { width:46px; height:46px; border:none; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
+  .opt-icon-btn { width:46px; height:46px; border:none; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
   .opt-icon-btn:active { transform:scale(0.9); }
 
   .color-grid { display:flex; flex-wrap:wrap; gap:10px; padding:2px 0 4px; }
-  .color-dot { width:34px; height:34px; border-radius:50%; border:2px solid rgba(127,127,127,0.18); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
+  .color-dot { width:34px; height:34px; border-radius:10px; border:2px solid rgba(127,127,127,0.18); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
   .color-dot:active { transform:scale(0.86); }
-  .color-dot-custom { display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#2F7BF6; background:rgba(47,123,246,0.1); }
+  .color-dot-custom { display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:var(--accent-primary); background:rgba(47,123,246,0.1); }
 
   .crop-hint { font-size:12.5px; line-height:1.5; margin-bottom:6px; }
   .crop-preview-wrap { position:relative; width:100%; aspect-ratio:1; border-radius:14px; overflow:hidden; margin-top:14px; background:#111; touch-action:none; }
   .crop-preview-wrap img { position:absolute; max-width:none; pointer-events:none; }
-  .crop-frame { position:absolute; inset:0; border:2px solid #2F7BF6; border-radius:14px; pointer-events:none; box-shadow:0 0 0 2000px rgba(0,0,0,0.35); }
+  .crop-frame { position:absolute; inset:0; border:2px solid var(--accent-primary); border-radius:14px; pointer-events:none; box-shadow:0 0 0 2000px rgba(0,0,0,0.35); }
 
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 

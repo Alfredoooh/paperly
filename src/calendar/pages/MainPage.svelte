@@ -322,25 +322,25 @@
     <!-- Voltar -->
     <button class="cal-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
 
     <!-- Navegação central -->
     <div class="cal-nav">
       <button class="cal-nav-arrow" on:click={prev}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:17px;height:17px"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px"></span>
       </button>
       <button class="cal-nav-label-btn" on:click={goToday}>
         <span class="cal-nav-label" style="color:{c.textPrimary}">{navLabel}</span>
       </button>
       <button class="cal-nav-arrow" on:click={next}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.iconTint};width:17px;height:17px"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.iconTint};width:24px;height:24px"></span>
       </button>
     </div>
 
     <!-- Pesquisa (substitui o pill do dia) -->
     <button class="cal-icon-btn" style="background:{c.appbarBtnBg}" on:click={openSearch}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
   </div>
 
@@ -359,7 +359,7 @@
         <div class="month-wrap">
           <div class="week-header-row">
             {#each PT_DAYS_SHORT as d, i}
-              <div class="wh-cell" style="color:{i===0||i===6?'#FF3B30':c.textSecondary}">{d}</div>
+              <div class="wh-cell" style="color:{i===0||i===6?'var(--danger)':c.textSecondary}">{d}</div>
             {/each}
           </div>
           <div class="month-grid">
@@ -374,7 +374,7 @@
                 <div class="month-cell-inner" style="opacity:{inMonth?1:0.28}">
                   <div class="day-num-wrap">
                     <span class="day-num"
-                      style="background:{todayFlag?c.primary:'transparent'};color:{todayFlag?'#fff':(day.getDay()===0||day.getDay()===6?'#FF3B30':c.textPrimary)}">
+                      style="background:{todayFlag?c.primary:'transparent'};color:{todayFlag?'#fff':(day.getDay()===0||day.getDay()===6?'var(--danger)':c.textPrimary)}">
                       {day.getDate()}
                     </span>
                   </div>
@@ -406,8 +406,8 @@
             {#each weekDays as d}
               {@const todayFlag = isToday(d)}
               <button class="wcol-head" on:click={() => { selectedDay=new Date(d); setView('day'); }}>
-                <div class="wday-name" style="color:{d.getDay()===0||d.getDay()===6?'#FF3B30':c.textSecondary}">{PT_DAYS_SHORT[d.getDay()]}</div>
-                <div class="wday-num" style="background:{todayFlag?c.primary:'transparent'};color:{todayFlag?'#fff':(d.getDay()===0||d.getDay()===6?'#FF3B30':c.textPrimary)}">{d.getDate()}</div>
+                <div class="wday-name" style="color:{d.getDay()===0||d.getDay()===6?'var(--danger)':c.textSecondary}">{PT_DAYS_SHORT[d.getDay()]}</div>
+                <div class="wday-num" style="background:{todayFlag?c.primary:'transparent'};color:{todayFlag?'#fff':(d.getDay()===0||d.getDay()===6?'var(--danger)':c.textPrimary)}">{d.getDate()}</div>
               </button>
             {/each}
           </div>
@@ -622,10 +622,10 @@
         <div class="detail-title" style="color:{c.textPrimary}">{detailEvent.title}</div>
         <div class="detail-acts">
           <button class="detail-act-btn" on:click={()=>{ openEditEvent(detailEvent); closeDetail(); }}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/edit.svg');-webkit-mask-image:url('/icons/svg/regular/edit.svg');background:{c.primary};width:18px;height:18px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/edit.svg');-webkit-mask-image:url('/icons/svg/regular/edit.svg');background:{c.primary};width:24px;height:24px"></span>
           </button>
           <button class="detail-act-btn" on:click={()=>deleteEvent(detailEvent.id)}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/delete.svg');-webkit-mask-image:url('/icons/svg/regular/delete.svg');background:#FF3B30;width:18px;height:18px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/delete.svg');-webkit-mask-image:url('/icons/svg/regular/delete.svg');background:var(--danger);width:24px;height:24px"></span>
           </button>
           <button class="detail-act-btn" on:click={closeDetail}>
             <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');background:{c.textSecondary};width:14px;height:14px"></span>
@@ -799,7 +799,7 @@
         {#if editingEvent}
           <div class="ev-delete-wrap">
             <button class="ev-delete-btn" on:click={()=>deleteEvent(editingEvent.id)}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/delete.svg');-webkit-mask-image:url('/icons/svg/regular/delete.svg');background:#FF3B30;width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/delete.svg');-webkit-mask-image:url('/icons/svg/regular/delete.svg');background:var(--danger);width:16px;height:16px"></span>
               Eliminar evento
             </button>
           </div>
@@ -839,7 +839,7 @@
     flex-shrink: 0;
   }
   .cal-icon-btn {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
+    width: 36px; height: 36px; border-radius:10px; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
@@ -852,7 +852,7 @@
   .cal-nav-arrow {
     width: 32px; height: 32px; border: none; background: transparent;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; border-radius: 50%;
+    cursor: pointer; border-radius:10px;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .cal-nav-arrow:active { transform: scale(0.80); }
@@ -893,7 +893,7 @@
   .month-cell-inner { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .day-num-wrap { display: flex; justify-content: center; margin-bottom: 1px; }
   .day-num {
-    width: 23px; height: 23px; border-radius: 50%;
+    width: 23px; height: 23px; border-radius:10px;
     display: flex; align-items: center; justify-content: center;
     font-size: 11.5px; font-weight: 600;
     transition: background .2s;
@@ -920,7 +920,7 @@
   .wcol-head:active { opacity: .6; }
   .wday-name { font-size: 10px; font-weight: 700; text-transform: uppercase; }
   .wday-num {
-    width: 26px; height: 26px; border-radius: 50%;
+    width: 26px; height: 26px; border-radius:10px;
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; font-weight: 700;
   }
@@ -942,7 +942,7 @@
 
   /* Linha da hora atual */
   .now-bar { position: absolute; height: 2px; left: 0; right: 0; border-radius: 2px; z-index: 5; pointer-events: none; }
-  .now-dot { width: 9px; height: 9px; border-radius: 50%; position: absolute; left: -4px; top: -3.5px; }
+  .now-dot { width: 9px; height: 9px; border-radius:10px; position: absolute; left: -4px; top: -3.5px; }
 
   /* ── Vista Diária ─────────────────────────────────────────────────── */
   .day-wrap { overflow-y: auto; }
@@ -973,7 +973,7 @@
   }
   .agenda-day-name { font-size: 11px; font-weight: 800; text-transform: uppercase; width: 22px; }
   .agenda-day-num {
-    width: 26px; height: 26px; border-radius: 50%;
+    width: 26px; height: 26px; border-radius:10px;
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; font-weight: 700;
   }
@@ -987,7 +987,7 @@
     transition: opacity .12s, transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
   .agenda-ev:active { opacity: .7; transform: scale(.98); }
-  .agenda-ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .agenda-ev-dot { width: 8px; height: 8px; border-radius:10px; flex-shrink: 0; }
   .agenda-ev-body { flex: 1; min-width: 0; }
   .agenda-ev-title { font-size: 14px; font-weight: 700; }
   .agenda-ev-meta  { font-size: 12px; margin-top: 2px; }
@@ -1010,7 +1010,7 @@
   .fab {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom,0px) + 80px); right: 18px;
-    width: 52px; height: 52px; border-radius: 50%; border: none;
+    width: 52px; height: 52px; border-radius:10px; border: none;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,.22); z-index: 100;
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1);
@@ -1071,7 +1071,7 @@
   .detail-act-btn {
     width: 34px; height: 34px; border: none; background: transparent;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; border-radius: 50%;
+    cursor: pointer; border-radius:10px;
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
   .detail-act-btn:active { transform: scale(0.82); opacity: .6; }
@@ -1121,7 +1121,7 @@
 
   .color-picker { display: flex; gap: 10px; flex-wrap: wrap; }
   .color-swatch {
-    width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0;
+    width: 28px; height: 28px; border-radius:10px; border: none; cursor: pointer; flex-shrink: 0;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .2s;
   }
   .color-swatch:active { transform: scale(0.80); }
@@ -1143,7 +1143,7 @@
     transition: background .22s cubic-bezier(0.16,1,0.3,1); border: none; padding: 0; flex-shrink: 0;
   }
   .toggle-knob {
-    width: 20px; height: 20px; background: #fff; border-radius: 50%;
+    width: 20px; height: 20px; background: #fff; border-radius:10px;
     position: absolute; top: 2px;
     transition: transform .22s cubic-bezier(0.34,1.56,0.64,1);
     box-shadow: 0 1px 4px rgba(0,0,0,.22);
@@ -1157,7 +1157,7 @@
   .ev-delete-wrap { padding: 20px 18px; }
   .ev-delete-btn {
     display: flex; align-items: center; gap: 8px; justify-content: center;
-    width: 100%; background: none; border: 1px solid #FF3B30; color: #FF3B30;
+    width: 100%; background: none; border: 1px solid var(--danger); color: var(--danger);
     border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer;
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
   }
@@ -1207,7 +1207,7 @@
     transition: opacity .12s;
   }
   .search-result-row:active { opacity: .65; }
-  .search-result-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .search-result-dot { width: 10px; height: 10px; border-radius:10px; flex-shrink: 0; }
   .search-result-info { flex: 1; min-width: 0; }
   .search-result-title { font-size: 14px; font-weight: 700; }
   .search-result-meta  { font-size: 12px; margin-top: 2px; opacity: .7; }

@@ -21,15 +21,11 @@
   export let onLogout;
   export let onInstall;
   export let onOpenProfile = () => {};
-  export let onOpenViaGesture = () => {};
 
   const dispatch = createEventDispatcher();
 
   let showLogoutDialog = false;
   let dialogVisible = false;
-
-  const PUSH_TRANSLATE = -10;
-  const PUSH_SCALE_MIN = 0.965;
 
   const slide = createSlideTransition({
     onSettleClosed: () => { onClose && closeSettled(); }
@@ -37,15 +33,10 @@
   let slideX = 100;
   const unsubscribeSlide = slide.subscribe((v) => {
     slideX = v;
-    applyRootPush(v);
   });
 
   function applyRootPush(x) {
-    if (!rootEl) return;
-    const openFraction = 1 - x / 100;
-    const translate = PUSH_TRANSLATE * openFraction;
-    const scale = 1 - (1 - PUSH_SCALE_MIN) * openFraction;
-    rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
+    return x;
   }
 
   let lastPushed = null;
@@ -55,9 +46,7 @@
     else slide.close();
   }
 
-  function closeSettled() {
-    if (rootEl) rootEl.style.transform = '';
-  }
+  function closeSettled() {}
 
   function goProfile() { onOpenProfile(); }
 
@@ -114,18 +103,6 @@
   function getDrawerWidth() {
     if (drawerEl) return drawerEl.getBoundingClientRect().width;
     return window.innerWidth;
-  }
-
-  function onEdgeTouchStart(e) {
-    if (drawerOpen) return;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    if (x < window.innerWidth - EDGE_ZONE) return;
-    dragging = true;
-    liveDragActive = false;
-    dragStartX = x;
-    dragCurrentX = x;
-    dragStartTime = performance.now();
-    dragW = getDrawerWidth();
   }
 
   function onDrawerTouchStart(e) {
@@ -214,7 +191,7 @@
 
   function bindWindowTouchListeners(node) {
     const opts = { passive: false };
-    const ts = (e) => { if (!drawerOpen) onEdgeTouchStart(e); };
+    const ts = (e) => { if (drawerOpen) return; };
     const tm = (e) => { if (dragging) onDragMove(e); };
     const te = (e) => { if (dragging) onDragEnd(e); };
     node.addEventListener('touchstart', ts, opts);
@@ -237,7 +214,6 @@
   });
 </script>
 
-<svelte:body use:bindWindowTouchListeners />
 
 {#if drawerOpen}
   <div

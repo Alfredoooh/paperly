@@ -578,7 +578,7 @@
     const type=json.type||'forex',symbol=json.symbol||'USDEUR',name=json.name||symbol;
     const wrap=document.createElement('div');
     wrap.style.cssText='width:min(92vw,420px);background:#111318;border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.22);margin:6px auto;';
-    wrap.innerHTML=`<div id="mktStatus_${symbol}" style="text-align:center;padding:40px 16px;font-size:13px;color:#555;font-family:Arial,sans-serif;"><div style="width:20px;height:20px;border:2px solid #222;border-top-color:#6F5AF6;border-radius:50%;animation:mktSpin 0.7s linear infinite;margin:0 auto 10px;"></div>A carregar...</div><div id="mktBlock_${symbol}" style="display:none;"><div style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 8px;"><div style="display:flex;align-items:center;gap:12px;"><img id="mktLogo_${symbol}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:#1e2128;" src="" alt="" onerror="this.style.display='none';document.getElementById('mktFallback_${symbol}').style.display='flex';" /><div id="mktFallback_${symbol}" style="width:44px;height:44px;border-radius:50%;background:#1e2128;display:none;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;"></div><div><div id="mktName_${symbol}" style="font-size:15px;font-weight:700;color:#fff;font-family:Arial,sans-serif;"></div><div id="mktSym_${symbol}" style="font-size:12px;color:#555;margin-top:2px;font-family:Arial,sans-serif;"></div></div></div><div style="text-align:right;"><div id="mktPrice_${symbol}" style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;font-family:Arial,sans-serif;"></div><div id="mktChange_${symbol}" style="display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;margin-top:4px;font-family:Arial,sans-serif;"></div></div></div><div style="padding:8px 10px 4px;"><canvas id="mktCanvas_${symbol}" style="width:100%;height:150px;display:block;border-radius:12px;"></canvas></div><div style="display:flex;justify-content:center;gap:4px;padding:8px 16px 16px;">${['1D','1S','1M','3M','1A'].map((tf,i)=>`<button onclick="mktSetTf_${symbol}(this,'${tf}')" style="background:${i===0?'#1e2128':'none'};border:none;color:${i===0?'#fff':'#444'};font-size:12px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:Arial,sans-serif;">${tf}</button>`).join('')}</div></div>`;
+    wrap.innerHTML=`<div id="mktStatus_${symbol}" style="text-align:center;padding:40px 16px;font-size:13px;color:#555;font-family:Arial,sans-serif;"><div style="width:24px;height:24px;border:2px solid #222;border-top-color:#6F5AF6;border-radius:50%;animation:mktSpin 0.7s linear infinite;margin:0 auto 10px;"></div>A carregar...</div><div id="mktBlock_${symbol}" style="display:none;"><div style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 8px;"><div style="display:flex;align-items:center;gap:12px;"><img id="mktLogo_${symbol}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:#1e2128;" src="" alt="" onerror="this.style.display='none';document.getElementById('mktFallback_${symbol}').style.display='flex';" /><div id="mktFallback_${symbol}" style="width:44px;height:44px;border-radius:50%;background:#1e2128;display:none;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;"></div><div><div id="mktName_${symbol}" style="font-size:15px;font-weight:700;color:#fff;font-family:Arial,sans-serif;"></div><div id="mktSym_${symbol}" style="font-size:12px;color:#555;margin-top:2px;font-family:Arial,sans-serif;"></div></div></div><div style="text-align:right;"><div id="mktPrice_${symbol}" style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;font-family:Arial,sans-serif;"></div><div id="mktChange_${symbol}" style="display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;margin-top:4px;font-family:Arial,sans-serif;"></div></div></div><div style="padding:8px 10px 4px;"><canvas id="mktCanvas_${symbol}" style="width:100%;height:150px;display:block;border-radius:12px;"></canvas></div><div style="display:flex;justify-content:center;gap:4px;padding:8px 16px 16px;">${['1D','1S','1M','3M','1A'].map((tf,i)=>`<button onclick="mktSetTf_${symbol}(this,'${tf}')" style="background:${i===0?'#1e2128':'none'};border:none;color:${i===0?'#fff':'#444'};font-size:12px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:Arial,sans-serif;">${tf}</button>`).join('')}</div></div>`;
     _ensureStyle('mktSpinStyle','@keyframes mktSpin { to { transform:rotate(360deg); } }');
     container.appendChild(wrap);
     const TF={'1D':{days:1,points:96,vol:0.003},'1S':{days:7,points:168,vol:0.005},'1M':{days:30,points:120,vol:0.008},'3M':{days:90,points:90,vol:0.010},'1A':{days:365,points:120,vol:0.015}};
@@ -622,7 +622,7 @@
     }
     function showError(msg){const el=document.getElementById(`mktStatus_${symbol}`);el.innerHTML=`<div style="color:#ef4444;font-size:13px;font-family:Arial,sans-serif;">${msg}</div>`;}
     async function load(tf){
-      document.getElementById(`mktStatus_${symbol}`).innerHTML='<div style="width:20px;height:20px;border:2px solid #222;border-top-color:#6F5AF6;border-radius:50%;animation:mktSpin 0.7s linear infinite;margin:0 auto 10px;"></div>A carregar...';
+      document.getElementById(`mktStatus_${symbol}`).innerHTML='<div style="width:24px;height:24px;border:2px solid #222;border-top-color:#6F5AF6;border-radius:50%;animation:mktSpin 0.7s linear infinite;margin:0 auto 10px;"></div>A carregar...';
       document.getElementById(`mktStatus_${symbol}`).style.display='block';
       document.getElementById(`mktBlock_${symbol}`).style.display='none';
       try{
@@ -715,7 +715,7 @@
   function renderNativeTimer(container, json) {
     const dark=_wIsDark();
     const bg=dark?'#1b1b1b':'#ffffff',bdr=dark?'#2a2a2a':'#e5e5ea';
-    const textClr=dark?'#f2f2f2':'#000',mutedClr=dark?'#939393':'#888',primary='#2F7BF6';
+    const textClr=dark?'#f2f2f2':'#000',mutedClr=dark?'#939393':'#888',primary='var(--accent-primary)';
     let total=json.seconds||json.duration||60,remaining=total,running=false,interval=null;
     const wrap=document.createElement('div');
     wrap.style.cssText=`width:min(92vw,320px);background:${bg};border:1.5px solid ${bdr};border-radius:24px;padding:28px 20px;text-align:center;margin:6px auto;font-family:'Segoe UI',system-ui,sans-serif;`;
@@ -758,7 +758,7 @@
     backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;background:rgba(0,0,0,0.45);color:#fff;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;`;
     backBtn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
     wrap.appendChild(backBtn);container.appendChild(wrap);
-    const treeData=json.tree||json.data||{id:'root',label:json.title||'Root',color:'#2F7BF6',children:[]};
+    const treeData=json.tree||json.data||{id:'root',label:json.title||'Root',color:'var(--accent-primary)',children:[]};
     let collapsedNodes={},panX=0,panY=0,scale=1,nodePositions={};
     const levelWidth=170,nodeH=40,vSpacing=nodeH+28;
     let isExpanded=false,touchMoved=false;
@@ -769,7 +769,7 @@
     function render(){
       nodePositions=layout(treeData,0,0);mainG.innerHTML='';
       function drawLinks(node){if(!collapsedNodes[node.id]&&node.children){node.children.forEach(child=>{const fr=nodePositions[node.id],to=nodePositions[child.id];if(fr&&to){const path=document.createElementNS(svgNs,'path');const dx=to.x-fr.x;path.setAttribute('d',`M${fr.x},${fr.y} C${fr.x+dx*0.5},${fr.y} ${to.x-dx*0.5},${to.y} ${to.x},${to.y}`);path.setAttribute('fill','none');path.setAttribute('stroke',linkClr);path.setAttribute('stroke-width','1.8');path.setAttribute('stroke-linecap','round');mainG.appendChild(path);}drawLinks(child);});}}
-      function drawNodes(node){if(!nodePositions[node.id])return;const{x,y}=nodePositions[node.id];const g=document.createElementNS(svgNs,'g');g.setAttribute('transform',`translate(${x},${y})`);const textLen=(node.label||'').length*7+24,rW=Math.max(70,textLen);const rect=document.createElementNS(svgNs,'rect');rect.setAttribute('x',-rW/2);rect.setAttribute('y',-nodeH/2);rect.setAttribute('width',rW);rect.setAttribute('height',nodeH);rect.setAttribute('fill',node.color||'#2F7BF6');rect.setAttribute('rx','8');const text=document.createElementNS(svgNs,'text');text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','central');text.style.cssText='fill:#fff;font-size:12px;font-weight:600;pointer-events:none;';text.textContent=node.label;g.appendChild(rect);g.appendChild(text);g.style.cursor='pointer';g.onclick=(e)=>{e.stopPropagation();if(node.children?.length){collapsedNodes[node.id]=!collapsedNodes[node.id];render();fit();}};mainG.appendChild(g);if(!collapsedNodes[node.id]&&node.children)node.children.forEach(drawNodes);}
+      function drawNodes(node){if(!nodePositions[node.id])return;const{x,y}=nodePositions[node.id];const g=document.createElementNS(svgNs,'g');g.setAttribute('transform',`translate(${x},${y})`);const textLen=(node.label||'').length*7+24,rW=Math.max(70,textLen);const rect=document.createElementNS(svgNs,'rect');rect.setAttribute('x',-rW/2);rect.setAttribute('y',-nodeH/2);rect.setAttribute('width',rW);rect.setAttribute('height',nodeH);rect.setAttribute('fill',node.color||'var(--accent-primary)');rect.setAttribute('rx','8');const text=document.createElementNS(svgNs,'text');text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','central');text.style.cssText='fill:#fff;font-size:12px;font-weight:600;pointer-events:none;';text.textContent=node.label;g.appendChild(rect);g.appendChild(text);g.style.cursor='pointer';g.onclick=(e)=>{e.stopPropagation();if(node.children?.length){collapsedNodes[node.id]=!collapsedNodes[node.id];render();fit();}};mainG.appendChild(g);if(!collapsedNodes[node.id]&&node.children)node.children.forEach(drawNodes);}
       drawLinks(treeData);drawNodes(treeData);applyTransform();
     }
     function setExpanded(value){
@@ -861,7 +861,7 @@
     function initMap(){
       if(mapInstance||!window.maplibregl)return;
       mapInstance=new maplibregl.Map({container:uid,style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom,pitch:50,bearing:0,attributionControl:false,antialias:true});
-      mapInstance.on('load',()=>{mapInstance.flyTo({center:[lng,lat],zoom:zoom+0.5,pitch:55,speed:0.6});if(json.marker!==false)new maplibregl.Marker({color:'#2F7BF6'}).setLngLat([lng,lat]).addTo(mapInstance);});
+      mapInstance.on('load',()=>{mapInstance.flyTo({center:[lng,lat],zoom:zoom+0.5,pitch:55,speed:0.6});if(json.marker!==false)new maplibregl.Marker({color:'var(--accent-primary)'}).setLngLat([lng,lat]).addTo(mapInstance);});
       if(!window._mapInstances)window._mapInstances={};window._mapInstances[uid]=mapInstance;
       _ensureStyle('mapLibreHideAttrib','.maplibregl-ctrl-logo,.maplibregl-ctrl-attrib,.maplibregl-ctrl-group{display:none!important;}');
     }
@@ -1205,8 +1205,8 @@
   <div class="appbar-gradient" class:dark={isDark}></div>
 
   <div class="appbar">
-    <button class="pulse-tap circ w10" style="color:{c.iconTint}" on:click={handleDrawerOpen}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/line_horizontal_3.svg');-webkit-mask-image:url('/icons/svg/regular/line_horizontal_3.svg');width:18px;height:18px;background:{c.iconTint}"></span>
+    <button class="pulse-tap w10" style="color:{c.iconTint}" on:click={handleDrawerOpen}>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/line_horizontal_3.svg');-webkit-mask-image:url('/icons/svg/regular/line_horizontal_3.svg');width:24px;height:24px;background:{c.iconTint}"></span>
     </button>
     <div class="flex1"></div>
     {#if isIncognito}
@@ -1216,15 +1216,15 @@
       </button>
     {/if}
     {#if !hasMessages && !isIncognito}
-      <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={toggleIncognito}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/incognito.svg');-webkit-mask-image:url('/icons/svg/regular/incognito.svg');width:18px;height:18px;background:{c.iconTint}"></span>
+      <button class="pulse-tap w10 px2" style="color:{c.iconTint}" on:click={toggleIncognito}>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/incognito.svg');-webkit-mask-image:url('/icons/svg/regular/incognito.svg');width:24px;height:24px;background:{c.iconTint}"></span>
       </button>
     {/if}
     {#if hasMessages}
-      <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={newChat}>
+      <button class="pulse-tap w10 px2" style="color:{c.iconTint}" on:click={newChat}>
         <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chat_add.svg');-webkit-mask-image:url('/icons/svg/regular/chat_add.svg');width:17px;height:17px;background:{c.iconTint}"></span>
       </button>
-      <button class="pulse-tap circ w10 px2" style="color:{c.iconTint}" on:click={() => {
+      <button class="pulse-tap w10 px2" style="color:{c.iconTint}" on:click={() => {
         if (!currentConvId) return;
         const conv = conversations.find(cv=>cv.id===currentConvId) || { id:currentConvId, title:currentConvTitle, messages:chatHistory, updatedAt:Date.now(), pinned:false };
         sheetConv = conv; sheetMode='convOptions'; showSheet=true;
@@ -1336,7 +1336,7 @@
               <img src={att.dataUrl} class="att-preview-img" alt="" />
             {:else}
               <div class="att-preview-file" style="background:{isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'}">
-                <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
+                <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');width:24px;height:24px;background:{c.textPrimary}"></span>
               </div>
             {/if}
             <button class="att-remove pulse-tap" on:click={() => { pendingAttachments.splice(i,1); pendingAttachments=[...pendingAttachments]; }}>
@@ -1358,11 +1358,11 @@
     ></textarea>
     <div class="bb-row">
       <button class="add-btn pulse-tap" style="background:{c.addCircleBg};color:{c.iconTint}" on:click={() => { sheetMode='add'; showSheet=true; }}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');width:18px;height:18px;background:{c.iconTint}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');width:24px;height:24px;background:{c.iconTint}"></span>
       </button>
       <div class="flex1"></div>
       <button class="edit-btn pulse-tap" style="background:{c.tabPreviewPillBg};color:{c.textPrimary}" on:click={openAppsPopup}>
-        <span class="icon-mask" style="mask-image:url('/icons/svg/filled/eye.svg');-webkit-mask-image:url('/icons/svg/filled/eye.svg');width:20px;height:20px;background:{c.textPrimary}"></span>
+        <span class="icon-mask" style="mask-image:url('/icons/svg/filled/eye.svg');-webkit-mask-image:url('/icons/svg/filled/eye.svg');width:24px;height:24px;background:{c.textPrimary}"></span>
         <span class="edit-label">Apps</span>
       </button>
       <div style="width:8px"></div>
@@ -1372,7 +1372,7 @@
         </button>
       {:else}
         <button class="send-btn pulse-tap" style="background:{c.sendBtnColor}" on:click={startRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/record.svg');-webkit-mask-image:url('/icons/svg/regular/record.svg');width:18px;height:18px;background:{c.sendIconColor}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/record.svg');-webkit-mask-image:url('/icons/svg/regular/record.svg');width:24px;height:24px;background:{c.sendIconColor}"></span>
         </button>
       {/if}
     </div>
@@ -1517,7 +1517,7 @@
       </div>
       <div class="rec-top-bar">
         <button class="rec-top-btn pulse-tap" on:click={cancelRecording}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');width:20px;height:20px;background:{isDark ? '#F3F4F6' : '#111827'}"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');width:24px;height:24px;background:{isDark ? '#F3F4F6' : '#111827'}"></span>
         </button>
         <span class="rec-timer">{recTimerStr}</span>
         <button class="rec-top-btn pulse-tap" on:click={stopRecording}>
@@ -1530,21 +1530,21 @@
 </div>
 
 <style>
-  .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; background:var(--bg-light); }
-  .chat-root.dark { background:var(--bg-dark); }
+  .chat-root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; background:var(--app-bg); }
+  .chat-root.dark { background:var(--app-bg); }
 
-  .appbar-gradient { position:absolute; top:0; left:0; right:0; height:90px; pointer-events:none; z-index:39; }
+  .appbar-gradient { position:absolute; top:0; left:0; right:0; height:110px; pointer-events:none; z-index:39; }
   .appbar-gradient:not(.dark) { background:linear-gradient(to bottom,rgba(255,255,255,1) 0%,rgba(255,255,255,.97) 50%,rgba(255,255,255,0) 100%); }
   .appbar-gradient.dark { background:linear-gradient(to bottom,rgba(15,15,15,1) 0%,rgba(15,15,15,.95) 45%,rgba(15,15,15,0) 100%); }
 
-  .appbar { position:absolute; top:0; left:0; right:0; z-index:40; height:60px; display:flex; align-items:center; padding:0 8px; background:transparent; }
+  .appbar { position:absolute; top:0; left:0; right:0; z-index:40; height:60px; display:flex; align-items:center; padding:calc(env(safe-area-inset-top, 0px) + 10px) 8px 0; background:transparent; }
   .incognito-pill { display:flex; align-items:center; gap:6px; padding:5px 12px 5px 10px; border-radius:16px; font-size:12px; font-weight:600; border:none; cursor:pointer; font-family:inherit; }
   .flex1 { flex:1; }
   .w10 { width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:none; border:none; }
   .px2 { padding:0 8px; }
-  .circ { border-radius:50%; overflow:hidden; }
+  .circ { border-radius:10px; overflow:hidden; }
 
-  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:68px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior:contain; }
+  .messages-wrap { flex:1; overflow-y:auto; overflow-x:hidden; padding-top:88px; padding-bottom:170px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior:contain; }
   .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; min-height:100%; }
   .empty-logo { width:72px; height:72px; margin-bottom:16px; }
   .greeting { font-size:48px; font-weight:700; text-align:center; margin:0 0 8px; }
@@ -1580,8 +1580,8 @@
   .assistant-content :global(.code-copy-btn) { background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background .15s; }
   .assistant-content :global(.code-copy-btn:hover) { background:rgba(127,127,127,.12); }
   .assistant-content :global(.code-block) { margin:0; padding:12px 14px; overflow-x:auto; font-family:'Courier New',Courier,monospace; font-size:13px; line-height:1.6; background:rgba(127,127,127,.06); white-space:pre; }
-  .assistant-content :global(a.md-link) { color:#2F7BF6; text-decoration:underline; text-decoration-color:rgba(79,70,229,.4); }
-  .assistant-content :global(.md-blockquote) { border-left:3px solid #2F7BF6; margin:8px 0 12px; padding:6px 14px; opacity:.85; font-style:italic; }
+  .assistant-content :global(a.md-link) { color:var(--accent-primary); text-decoration:underline; text-decoration-color:rgba(79,70,229,.4); }
+  .assistant-content :global(.md-blockquote) { border-left:3px solid var(--accent-primary); margin:8px 0 12px; padding:6px 14px; opacity:.85; font-style:italic; }
   .assistant-content :global(.md-table-wrapper) { overflow-x:auto; margin:8px 0 12px; }
   .assistant-content :global(.md-table) { border-collapse:collapse; min-width:100%; font-size:14px; }
   .assistant-content :global(.md-table th) { padding:8px 12px; font-weight:600; border-bottom:2px solid rgba(127,127,127,.2); text-align:left; }
@@ -1596,7 +1596,7 @@
   .assistant-content :global(.math-inline) { display:inline; }
   .assistant-content :global(.widget-host) { display:block; min-height:4px; }
 
-  .cursor-blink::after { content:'|'; animation:blink 1s step-end infinite; color:#2F7BF6; font-weight:300; }
+  .cursor-blink::after { content:'|'; animation:blink 1s step-end infinite; color:var(--accent-primary); font-weight:300; }
   @keyframes blink { 50%{opacity:0} }
 
   .action-row { display:flex; align-items:center; gap:2px; margin-top:8px; padding-top:2px; }

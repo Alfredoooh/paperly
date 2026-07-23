@@ -13,7 +13,7 @@
   $: userName    = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userEmail   = user?.email || '';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
-  const AVATAR_COLORS = ['#FF3B30','#FF9500','#FFCC00','#34C759','#00C7BE','#007AFF','#5856D6','#AF52DE'];
+  const AVATAR_COLORS = ['var(--danger)','#FF9500','#FFCC00','#34C759','#00C7BE','#007AFF','#5856D6','#AF52DE'];
   function getAvatarColor(str) { if(!str)return AVATAR_COLORS[0];let h=0;for(let i=0;i<str.length;i++)h=str.charCodeAt(i)+((h<<5)-h);return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length]; }
   $: avatarColor = getAvatarColor(userName);
 
@@ -28,7 +28,7 @@
 <div class="settings-root" style="background:{c.background}">
   <div class="topbar">
     <button class="back-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:20px;height:20px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px;display:block;mask-size:contain;-webkit-mask-size:contain;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;"></span>
     </button>
     <span class="topbar-title" style="color:{c.textPrimary}">Definições</span>
     <div style="width:36px"></div>
@@ -46,7 +46,7 @@
       {#each [['light','Claro'],['dark','Escuro'],['system','Sistema']] as [v, label], i}
         <button class="row" on:click={() => setThemeValue(v)}>
           <span class="row-label" style="color:{c.textPrimary}">{label}</span>
-          {#if themeValue === v}<span style="color:#2F7BF6">✓</span>{/if}
+          {#if themeValue === v}<span style="color:var(--accent-primary)">✓</span>{/if}
         </button>
         {#if i < 2}<div class="divider" style="background:{c.divider}"></div>{/if}
       {/each}
@@ -54,7 +54,7 @@
     <div class="section-label" style="color:{c.settings_section_label}">Conta</div>
     <div class="section" style="background:{c.dialogBackground}">
       <button class="row" on:click={() => logout()}>
-        <span class="row-label" style="color:#FF3B30">Terminar sessão</span>
+        <span class="row-label" style="color:var(--danger)">Terminar sessão</span>
       </button>
     </div>
   </div>
@@ -68,7 +68,7 @@
   .topbar-title { font-size:17px;font-weight:600; }
   .content { flex:1;overflow-y:auto;padding:8px 16px; }
   .profile-card { display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;margin-bottom:24px; }
-  .avatar { width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0; }
+  .avatar { width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0; }
   .profile-info { display:flex;flex-direction:column;min-width:0; }
   .profile-name { font-size:16px;font-weight:600; }
   .profile-email { font-size:13px;margin-top:2px; }

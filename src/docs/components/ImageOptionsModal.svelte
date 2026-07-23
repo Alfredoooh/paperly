@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -7,8 +9,6 @@
   export let state = { width: 200, height: 120, rotation: 0, wrap: 'front' };
 
   const dispatch = createEventDispatcher();
-
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   let width = 200;
   let rotationLabel = 0;
@@ -140,8 +140,8 @@
             style="background:{wrapMode === opt.id ? 'rgba(47,123,246,0.14)' : c.appbarBtnBg}"
             on:click={() => setLayer(opt.id)}
           >
-            <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}{opt.icon}.svg');-webkit-mask-image:url('{FLUENT_CDN}{opt.icon}.svg');background:{wrapMode === opt.id ? '#2F7BF6' : c.iconTint};width:22px;height:22px;"></span>
-            <span class="wrap-label" style="color:{wrapMode === opt.id ? '#2F7BF6' : c.textPrimary}">{opt.label}</span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath(opt.icon)}');-webkit-mask-image:url('{localIconPath(opt.icon)}');background:{wrapMode === opt.id ? 'var(--accent-primary)' : c.iconTint};width:24px;height:24px;"></span>
+            <span class="wrap-label" style="color:{wrapMode === opt.id ? 'var(--accent-primary)' : c.textPrimary}">{opt.label}</span>
           </button>
         {/each}
       </div>
@@ -183,8 +183,8 @@
     height: 4px; border-radius: 2px; background: rgba(127,127,127,0.28);
   }
   .width-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-    background: #2F7BF6; margin-top: -9px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 10px;
+    background: var(--accent-primary); margin-top: -9px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   }
 
   .wrap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -205,7 +205,7 @@
   .delete-btn {
     width: 100%; margin: 18px 0 4px; border: none; border-radius: 999px;
     padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
-    background: rgba(255,59,48,0.12); color: #FF3B30;
+    background: rgba(255,59,48,0.12); color: var(--danger);
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }

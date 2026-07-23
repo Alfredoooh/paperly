@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -9,7 +11,6 @@
   export let background = { type: 'color', color: '#FFFFFF', image: null, opacity: 1 };
 
   const dispatch = createEventDispatcher();
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   const CM_TO_PX = 96 / 2.54;
   function cmToPx(cm) { return cm * CM_TO_PX; }
@@ -129,8 +130,8 @@
     </div>
     <div class="sheet-body">
       <div class="unit-switch" style="background:{c.appbarBtnBg}">
-        <button class="unit-btn" style={sizeUnit === 'px' ? 'background:#2F7BF6;color:#fff' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('px')}>px</button>
-        <button class="unit-btn" style={sizeUnit === 'cm' ? 'background:#2F7BF6;color:#fff' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('cm')}>cm</button>
+        <button class="unit-btn" style={sizeUnit === 'px' ? 'background:var(--accent-primary);color:#fff' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('px')}>px</button>
+        <button class="unit-btn" style={sizeUnit === 'cm' ? 'background:var(--accent-primary);color:#fff' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('cm')}>cm</button>
       </div>
 
       <div class="custom-size-row">
@@ -177,7 +178,7 @@
         </div>
       {:else}
         <button class="bg-image-btn" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={triggerBgImagePicker}>
-          <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}image_add_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}image_add_24_regular.svg');background:{c.iconTint};width:18px;height:18px;"></span>
+          <span class="icon-mask" style="mask-image:url('{localIconPath('image_add_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           Usar imagem de fundo
         </button>
       {/if}
@@ -207,7 +208,7 @@
   .field-col label { font-size:11px; font-weight:600; }
   .field-col input[type="number"] { width:100%; padding:11px 12px; border:none; border-radius:12px; font-size:15px; box-sizing:border-box; }
   .size-x { font-size:16px; font-weight:600; padding-bottom:11px; }
-  .apply-btn { width:100%; margin-top:14px; border:none; border-radius:999px; padding:13px 16px; font-size:14px; font-weight:700; cursor:pointer; background:#2F7BF6; color:#fff; -webkit-tap-highlight-color:transparent; transition:transform .16s cubic-bezier(0.34,1.56,0.64,1); }
+  .apply-btn { width:100%; margin-top:14px; border:none; border-radius:999px; padding:13px 16px; font-size:14px; font-weight:700; cursor:pointer; background:var(--accent-primary); color:#fff; -webkit-tap-highlight-color:transparent; transition:transform .16s cubic-bezier(0.34,1.56,0.64,1); }
   .apply-btn:active { transform:scale(0.97); }
   .section-label { font-size:12px; font-weight:700; margin:18px 0 8px; text-transform:uppercase; letter-spacing:.04em; }
   .field-label { font-size:12px; font-weight:600; margin:14px 0 10px; text-transform:uppercase; letter-spacing:.04em; }
@@ -220,20 +221,20 @@
   .preset-preview { border:1.5px solid; border-radius:3px; flex-shrink:0; background:rgba(127,127,127,0.08); }
 
   .color-grid { display:flex; flex-wrap:wrap; gap:10px; padding:2px 0 4px; }
-  .color-dot { width:34px; height:34px; border-radius:50%; border:2px solid rgba(127,127,127,0.18); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
+  .color-dot { width:34px; height:34px; border-radius:10px; border:2px solid rgba(127,127,127,0.18); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .14s cubic-bezier(0.34,1.56,0.64,1); }
   .color-dot:active { transform:scale(0.86); }
-  .swatch-active { box-shadow:0 0 0 2px #2F7BF6; }
+  .swatch-active { box-shadow:0 0 0 2px var(--accent-primary); }
   .color-dot-transparent-swatch { background-image:linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%); background-size:8px 8px; background-position:0 0, 0 4px, 4px -4px, -4px 0px; }
-  .color-dot-custom { display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#2F7BF6; background:rgba(47,123,246,0.1); }
+  .color-dot-custom { display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:var(--accent-primary); background:rgba(47,123,246,0.1); }
 
   .bg-image-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:999px; padding:13px 16px; font-size:14px; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .bg-image-preview { display:flex; flex-direction:column; gap:8px; }
   .bg-image-preview img { width:100%; height:100px; object-fit:cover; border-radius:12px; }
-  .bg-image-remove { border:none; background:rgba(255,59,48,0.12); color:#FF3B30; border-radius:999px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; }
+  .bg-image-remove { border:none; background:rgba(255,59,48,0.12); color:var(--danger); border-radius:999px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; }
 
   .range-slider { width:100%; height:34px; -webkit-appearance:none; appearance:none; background:transparent; margin:0 0 4px; }
   .range-slider::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:rgba(127,127,127,0.28); }
-  .range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#2F7BF6; margin-top:-9px; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+  .range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:10px; background:var(--accent-primary); margin-top:-9px; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
 
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
 

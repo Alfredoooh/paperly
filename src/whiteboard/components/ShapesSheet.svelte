@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -8,7 +10,6 @@
   export let boardH = 512;
 
   const dispatch = createEventDispatcher();
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   const SHAPE_ICONS = [
     { id: 'square_24_filled',      label: 'Quadrado' },
@@ -33,7 +34,7 @@
     const w = 200, h = shapeId === 'line_24_regular' ? 6 : 200;
     dispatch('addshape', {
       type: 'shape', x: Math.max(0, Math.round((boardW - w) / 2)), y: Math.max(0, Math.round((boardH - h) / 2)),
-      w, h, deg: 0, shape: shapeId, fill: '#2F7BF6', border: 'transparent', borderWidth: 0,
+      w, h, deg: 0, shape: shapeId, fill: 'var(--accent-primary)', border: 'transparent', borderWidth: 0,
       radius: 0, opacity: 1, shadow: false, blend: 'normal',
     });
     close();
@@ -100,7 +101,7 @@
       <div class="shape-grid">
         {#each SHAPE_ICONS as s}
           <button class="shape-item" style="background:{c.appbarBtnBg}" on:click={() => addShape(s.id)}>
-            <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}{s.id}.svg');-webkit-mask-image:url('{FLUENT_CDN}{s.id}.svg');background:{c.iconTint};width:26px;height:26px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath(s.id)}');-webkit-mask-image:url('{localIconPath(s.id)}');background:{c.iconTint};width:24px;height:24px;"></span>
             <span class="shape-label" style="color:{c.textSecondary}">{s.label}</span>
           </button>
         {/each}

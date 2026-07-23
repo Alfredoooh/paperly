@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher } from 'svelte';
 
   export let c;
@@ -7,7 +9,6 @@
   export let boardH = 512;
 
   const dispatch = createEventDispatcher();
-  const FLUENT_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
 
   function buzz() { try { navigator.vibrate && navigator.vibrate(6); } catch (e) {} }
 
@@ -52,27 +53,27 @@
 
 <div class="bottom-bar" class:bottom-bar-hidden={hidden} style="background:{c.creationBarBg}">
   <button class="bb-item" on:click={() => { buzz(); dispatch('templates'); }} aria-label="Modelos">
-    <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}document_multiple_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}document_multiple_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    <span class="icon-mask" style="mask-image:url('{localIconPath('document_multiple_24_regular')}');-webkit-mask-image:url('{localIconPath('text_add_space_before_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     <span class="bb-label" style="color:{c.textSecondary}">Modelos</span>
   </button>
   <button class="bb-item" on:click={addText} aria-label="Adicionar texto">
-    <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}text_add_space_before_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}text_add_space_before_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    <span class="icon-mask" style="mask-image:url('{localIconPath('image_24_regular')}');-webkit-mask-image:url('{localIconPath('shapes_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     <span class="bb-label" style="color:{c.textSecondary}">Texto</span>
   </button>
   <button class="bb-item" on:click={() => { buzz(); triggerImagePicker(); }} aria-label="Adicionar imagem">
-    <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}image_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}image_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    <span class="icon-mask" style="mask-image:url('{localIconPath('table_simple_24_regular')}');-webkit-mask-image:url('{localIconPath('layer_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     <span class="bb-label" style="color:{c.textSecondary}">Imagem</span>
   </button>
   <button class="bb-item" on:click={() => { buzz(); dispatch('shapes'); }} aria-label="Adicionar forma">
-    <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}shapes_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}shapes_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     <span class="bb-label" style="color:{c.textSecondary}">Formas</span>
   </button>
   <button class="bb-item" on:click={() => { buzz(); dispatch('size'); }} aria-label="Tamanho e fundo">
-    <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}table_simple_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}table_simple_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     <span class="bb-label" style="color:{c.textSecondary}">Tamanho</span>
   </button>
   <button class="bb-item" on:click={() => { buzz(); dispatch('layers'); }} aria-label="Camadas">
-    <span class="icon-mask" style="mask-image:url('{FLUENT_CDN}layer_24_regular.svg');-webkit-mask-image:url('{FLUENT_CDN}layer_24_regular.svg');background:{c.iconTint};width:20px;height:20px;"></span>
+    <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     <span class="bb-label" style="color:{c.textSecondary}">Camadas</span>
   </button>
 

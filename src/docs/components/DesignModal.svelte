@@ -1,4 +1,6 @@
 <script>
+  import { localIconPath } from '$shared/local-icon.js';
+
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
 
@@ -9,24 +11,16 @@
 
   const dispatch = createEventDispatcher();
 
-  // Fluent Emoji (cor) via jsDelivr, seguindo o padrão oficial do
-  // repositório microsoft/fluentui-emoji: assets/<Nome>/.../Color/*.svg
-  const EMOJI_CDN = 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/';
-  // Fallback: Fluent System Icons, variante Color (não emoji), para
-  // ferramentas sem emoji Unicode dedicado (ex: borracha, lapiseira).
-  const FLUENT_COLOR_ICON_CDN = 'https://unpkg.com/@fluentui/svg-icons/icons/';
-
   const TOOLS = [
-    { id: 'pencil', label: 'Lápis', kind: 'emoji', src: EMOJI_CDN + 'Pencil/Color/pencil_color.svg' },
-    { id: 'crayon', label: 'Marcador', kind: 'emoji', src: EMOJI_CDN + 'Crayon/Color/crayon_color.svg' },
-    { id: 'paintbrush', label: 'Pincel', kind: 'emoji', src: EMOJI_CDN + 'Paintbrush/Color/paintbrush_color.svg' },
-    { id: 'artistpalette', label: 'Paleta', kind: 'emoji', src: EMOJI_CDN + 'Artist%20palette/Color/artist_palette_color.svg' },
-    { id: 'straightruler', label: 'Régua', kind: 'emoji', src: EMOJI_CDN + 'Straight%20ruler/Color/straight_ruler_color.svg' },
-    { id: 'triangularruler', label: 'Esquadro', kind: 'emoji', src: EMOJI_CDN + 'Triangular%20ruler/Color/triangular_ruler_color.svg' },
-    { id: 'scissors', label: 'Tesoura', kind: 'emoji', src: EMOJI_CDN + 'Scissors/Color/scissors_color.svg' },
-    // Sem emoji Unicode dedicado: usa Fluent System Icons colorido.
-    { id: 'eraser', label: 'Borracha', kind: 'icon', src: FLUENT_COLOR_ICON_CDN + 'eraser_24_color.svg' },
-    { id: 'mechanicalpencil', label: 'Lapiseira', kind: 'icon', src: FLUENT_COLOR_ICON_CDN + 'pen_24_color.svg' },
+    { id: 'pencil', label: 'Lápis', kind: 'emoji', emoji: '✏️' },
+    { id: 'crayon', label: 'Marcador', kind: 'emoji', emoji: '🖍️' },
+    { id: 'paintbrush', label: 'Pincel', kind: 'emoji', emoji: '🖌️' },
+    { id: 'artistpalette', label: 'Paleta', kind: 'emoji', emoji: '🎨' },
+    { id: 'straightruler', label: 'Régua', kind: 'emoji', emoji: '📏' },
+    { id: 'triangularruler', label: 'Esquadro', kind: 'emoji', emoji: '📐' },
+    { id: 'scissors', label: 'Tesoura', kind: 'emoji', emoji: '✂️' },
+    { id: 'eraser', label: 'Borracha', kind: 'icon', src: localIconPath('eraser_24_regular') },
+    { id: 'mechanicalpencil', label: 'Lapiseira', kind: 'icon', src: localIconPath('pen_24_regular') },
   ];
 
   const slide = createSlideTransition({});
@@ -86,7 +80,11 @@
           aria-label={item.label}
         >
           <span class="dg-icon-wrap">
-            <img class="dg-icon" src={item.src} alt="" draggable="false" />
+            {#if item.kind === 'emoji'}
+              <span class="dg-emoji">{item.emoji}</span>
+            {:else}
+              <span class="icon-mask dg-icon" style="mask-image:url('{item.src}');-webkit-mask-image:url('{item.src}');background:{c.iconTint};"></span>
+            {/if}
           </span>
           <span class="dg-label" style="color:{c.textPrimary}">{item.label}</span>
         </button>

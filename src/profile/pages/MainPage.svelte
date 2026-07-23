@@ -10,7 +10,7 @@
   export let user = null;
   export let appTitle = 'Perfil';
   export let appId = 'profile';
-  export let iconPath = '/icons/svg/regular/user.svg';
+  export let iconPath = '/icons/svg/regular/person.svg';
 
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
@@ -370,7 +370,7 @@
   <div class="pf-header">
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:{c.iconTint};width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:{c.iconTint};width:19px;height:19px"></span>
     </button>
     <span class="pf-header-title" style="color:{c.textPrimary}">{appTitle}</span>
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
@@ -403,7 +403,7 @@
                não cobre o círculo inteiro, não é um overlay ao toque. -->
           <label class="pf-avatar-edit-badge" style="background:{c.dialogBackground};border-color:{c.background}" on:click={onUploadLabelClick}>
             <input type="file" accept="image/*" on:change={handleAvatarPick} hidden />
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/upload.svg');-webkit-mask-image:url('/icons/svg/regular/upload.svg');background:{c.iconTint};width:13px;height:13px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');background:{c.iconTint};width:13px;height:13px"></span>
           </label>
         </button>
         <h1>{userName}</h1>
@@ -479,7 +479,7 @@
       <img class="avatar-viewer-img" src={user.avatar} alt={userName} />
     </div>
     <button class="avatar-viewer-back" class:avatar-viewer-back-in={avatarViewerVisible} on:click={closeAvatarViewer} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back_arrow.svg');-webkit-mask-image:url('/icons/svg/regular/back_arrow.svg');background:#fff;width:19px;height:19px"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_left.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_left.svg');background:#fff;width:19px;height:19px"></span>
     </button>
   {/if}
 
@@ -500,14 +500,14 @@
         <div class="edit-grabber" style="background:{c.divider}"></div>
         <div class="edit-header">
           <button class="pf-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEditScreen} disabled={saving}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg');background:{c.iconTint};width:16px;height:16px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');background:{c.iconTint};width:16px;height:16px"></span>
           </button>
           <span class="edit-header-title" style="color:{c.textPrimary}">Editar perfil</span>
           <button class="pf-icon-btn edit-save-icon-btn" style="background:{c.appbarBtnBg}" on:click={saveProfile} disabled={saving}>
             {#if saving}
               <span class="edit-save-spinner" style="border-color:{c.divider};border-top-color:{c.iconTint}"></span>
             {:else}
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');background:{c.iconTint};width:17px;height:17px"></span>
+              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.iconTint};width:17px;height:17px"></span>
             {/if}
           </button>
         </div>
@@ -604,7 +604,7 @@
         <button class="sheet-opt" on:click={() => pickOcc(opt.id)}>
           <span class="sheet-opt-label" style="color:{c.textPrimary}">{opt.label}</span>
           {#if editForm.occupation === opt.id}
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/check.svg');-webkit-mask-image:url('/icons/svg/regular/check.svg');background:{c.primary};width:16px;height:16px"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.primary};width:16px;height:16px"></span>
           {/if}
         </button>
       {/each}

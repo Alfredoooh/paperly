@@ -30,7 +30,7 @@
     { id: 'share',    icon: '/icons/svg/regular/share.svg',    label: 'Partilhar' },
     { id: 'pin',       icon: '/icons/svg/regular/pin.svg',       label: 'Fixar' },
     { id: 'search',    icon: '/icons/svg/regular/search.svg',    label: 'Pesquisar' },
-    { id: 'whatsapp',  icon: '/icons/svg/regular/whatsapp.svg',  label: 'WhatsApp' },
+    { id: 'whatsapp',  icon: '/icons/svg/regular/chat_multiple.svg',  label: 'WhatsApp' },
   ];
 
   const BUBBLE_DIST = 92;   // px do centro do leque até cada bolha

@@ -152,7 +152,7 @@
         />
         {#if query}
           <button class="clear-btn pulse-tap" on:click={clearQuery} aria-label="Limpar pesquisa">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg')"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg')"></span>
           </button>
         {/if}
       </div>
@@ -205,7 +205,7 @@
         />
         {#if query}
           <button class="clear-btn pulse-tap" on:click={clearQuery} aria-label="Limpar pesquisa">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg')"></span>
+            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg')"></span>
           </button>
         {/if}
       </div>

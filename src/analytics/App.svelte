@@ -11,7 +11,7 @@
 
   const APP_ID = 'analytics';
   const APP_TITLE = 'Nexa Analytics';
-  const APP_ICON = '/icons/svg/regular/analytics.svg';
+  const APP_ICON = '/icons/svg/regular/data_trending.svg';
   const BASE = '/analytics/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
@@ -81,7 +81,7 @@
 {/if}
 
 <style>
-  :global(:root) { --primary: #2F7BF6; }
+  @import '../shared/theme.css';
   :global(*, *::before, *::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :global(html, body) { height:100%; }
   :global(body) { margin:0; padding:0; overflow:hidden; font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; transition:background-color .3s ease, color .3s ease; }

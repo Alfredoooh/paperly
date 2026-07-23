@@ -69,7 +69,7 @@
 <div class="search-page" class:in={visible}>
   <header class="search-header">
     <button class="back-btn pulse-tap" on:click={handleBack} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/back.svg');-webkit-mask-image:url('/icons/svg/regular/back.svg')"></span>
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg')"></span>
     </button>
 
     <div class="search-field">
@@ -88,7 +88,7 @@
       />
       {#if query}
         <button class="clear-btn pulse-tap" on:click={clearQuery} aria-label="Limpar pesquisa">
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/close.svg');-webkit-mask-image:url('/icons/svg/regular/close.svg')"></span>
+          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg')"></span>
         </button>
       {/if}
     </div>
@@ -119,7 +119,7 @@
               <span class="doc-result-icon" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
             </span>
             <span class="doc-result-label">{doc.label}</span>
-            <span class="doc-result-chevron" style="mask-image:url('/icons/svg/regular/chevron-right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron-right.svg')"></span>
+            <span class="doc-result-chevron" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg')"></span>
           </button>
         {/each}
       </div>

@@ -11,7 +11,7 @@
 
   const APP_ID = 'drive';
   const APP_TITLE = 'Nexa Drive';
-  const APP_ICON = '/icons/svg/regular/drive.svg';
+  const APP_ICON = '/icons/svg/apps/drive.svg';
   const BASE = '/drive/';
   const VALID_ROUTES = ['settings'];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
@@ -81,7 +81,7 @@
 {/if}
 
 <style>
-  :global(:root) { --primary: #2F7BF6; }
+  @import '../shared/theme.css';
   :global(*, *::before, *::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :global(html, body) { height:100%; }
   :global(body) { margin:0; padding:0; overflow:hidden; font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; transition:background-color .3s ease, color .3s ease; }

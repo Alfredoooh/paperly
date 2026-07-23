@@ -54,6 +54,7 @@
 </div>
 
 <style>
+  @import '../shared/theme.css';
   :global(html), :global(body) { height:100%; margin:0; padding:0; }
 
   :global([data-theme="dark"]) {

@@ -110,9 +110,7 @@
 {/if}
 
 <style>
-  :global(:root) {
-    --primary: #2F7BF6;
-  }
+  @import '../shared/theme.css';
   :global(*, *::before, *::after) {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;

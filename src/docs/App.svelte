@@ -10,7 +10,7 @@
 
   const APP_ID = 'docs';
   const APP_TITLE = 'Nexa Docs';
-  const APP_ICON = '/icons/svg/regular/docs.svg';
+  const APP_ICON = '/icons/svg/apps/docs.svg';
   const BASE = '/docs/';
   const VALID_ROUTES = [];
   const router = createRouter(BASE, VALID_ROUTES, 'main');
@@ -97,7 +97,7 @@
 {/if}
 
 <style>
-  :global(:root) { --primary: #2F7BF6; }
+  @import '../shared/theme.css';
   :global(*, *::before, *::after) { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :global(html, body) { width:100%; height:100%; overscroll-behavior:none; }
   :global(body) {

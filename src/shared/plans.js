@@ -30,16 +30,19 @@ export const OCCUPATION_OPTIONS = [
   { id: 'other',         label: 'Outro' },
 ];
 
-// Ícones do grid do tab "Criar" (CreateTab) usam agora exclusivamente
-// SVGs mascarados a partir de /icons/svg/apps/{id}.svg — herdam a cor
-// do tema automaticamente (var(--icon-strong)), tal como no resto da app.
+// Ícones do grid do tab "Criar" (CreateTab): docs, sheets, slides e
+// whiteboard usam agora PNGs diretos (sem mask-image, sem cor de
+// fundo aplicada ao ícone) a partir de /icons/png/{id}.png — os
+// ficheiros já foram colocados manualmente em static/icons/png/.
+// O Assistente de IA e o Início mantêm os caminhos anteriores
+// (svg/logo), pois não fazem parte desta troca.
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/', color: '#D9D9D9' },
   { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/', color: '#862CD4' },
-  { id: 'docs', label: 'Editor de Documentos', icon: '/icons/svg/apps/docs.svg', path: '/docs/', color: '#D9D9D9' },
-  { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/svg/apps/sheets.svg', path: '/sheets/', color: '#23A63F' },
-  { id: 'slides', label: 'Apresentações', icon: '/icons/svg/apps/slides.svg', path: '/slides/', color: '#FB6704' },
-  { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/svg/apps/whiteboard.svg', path: '/whiteboard/', color: '#7630CA' },
+  { id: 'docs', label: 'Editor de Documentos', icon: '/icons/png/docs.png', path: '/docs/', color: '#D9D9D9' },
+  { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/png/sheets.png', path: '/sheets/', color: '#23A63F' },
+  { id: 'slides', label: 'Apresentações', icon: '/icons/png/slides.png', path: '/slides/', color: '#FB6704' },
+  { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/png/whiteboard.png', path: '/whiteboard/', color: '#7630CA' },
 ];
 
 

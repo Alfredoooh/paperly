@@ -78,7 +78,7 @@
   //  para cima. Independente do .create-header original. Título à
   //  esquerda; avatar dentro do próprio appbar; botão de pesquisa que
   //  aparece quando a search-bar original desaparece.
-  //  Fundo: gradiente azul (substitui o antigo fundo neutro var(--app-bg)).
+  //  Fundo: azul Fluent (Microsoft 365) sólido/flat, sem gradiente.
   // ══════════════════════════════════════════════════════════════════
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
@@ -160,7 +160,7 @@
 </div>
 
 <!-- Silver appbar: título à esquerda, avatar + botão de pesquisa à direita.
-     Fundo em gradiente azul quando sólido. -->
+     Fundo azul Fluent sólido (Microsoft 365) quando sólido. -->
 <div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
   <div class="silver-appbar-inner">
     <span class="silver-appbar-title">{title}</span>
@@ -280,6 +280,19 @@
 </div>
 
 <style>
+  /* ════════════════════════════════════════════════════════════════
+     FLUENT DESIGN (Microsoft 365): variáveis locais de cor/forma.
+     Azul Fluent: #185ABD (acento principal), #0F6CBD (hover/active).
+     Cantos moderados (Fluent usa 8px em controlos, 12px em cards
+     maiores). Elevação por BORDA FINA + sombra muito subtil, em vez
+     da sombra grande usada antes — é a assinatura visual do Fluent 2
+     (superfícies quase planas, separadas por contorno, não por
+     profundidade). Tipografia: Segoe UI com fallback do sistema.
+     ════════════════════════════════════════════════════════════════ */
+  :global(.create-tab），.apps-card,.search-bar,.recent-card,.recent-thumb,.silver-appbar,.create-header-title,.hero-greeting-name,.hero-greeting-text,.apps-card-title,.app-label,.recent-card-title,.recent-card-time,.recent-section-title,.recent-section-cta,.silver-appbar-title) {
+    font-family: 'Segoe UI', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
+  }
+
   /* ---------- Header próprio do Create ---------- */
   .create-header {
     position: fixed;
@@ -318,8 +331,8 @@
   }
   .create-header-title {
     font-size: 20px;
-    font-weight: 800;
-    letter-spacing: -0.3px;
+    font-weight: 700;
+    letter-spacing: 0;
     color: var(--drawer-text);
     margin: 0;
     flex: 1;
@@ -346,7 +359,7 @@
     flex-shrink: 0;
     padding: 0;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
     transition:
       background .28s cubic-bezier(0.32, 0.72, 0, 1),
       box-shadow .28s cubic-bezier(0.32, 0.72, 0, 1),
@@ -379,7 +392,7 @@
     align-items: center;
     justify-content: center;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 600;
     color: #fff;
   }
   @media (hover:hover) and (pointer:fine) {
@@ -391,21 +404,17 @@
   }
 
   /* ---------- Silver appbar ----------
-     Fundo em gradiente azul (substitui o antigo var(--app-bg) sólido),
-     inspirado no header azul de referência: mais escuro/saturado à
-     esquerda, mais claro à direita. Mantém-se o blur/saturate por
-     cima do gradiente e a borda inferior subtil. O texto e ícones
-     passam a branco fixo neste appbar, para contraste sobre o azul
-     em ambos os temas (claro/escuro). */
+     Azul Fluent (Microsoft 365) sólido, sem gradiente — a assinatura
+     "flat" do Fluent 2: cor de acento plana em vez de degradê. */
   .silver-appbar {
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 16;
     height: calc(env(safe-area-inset-top, 0px) + 52px);
-    background: linear-gradient(115deg, #0B3D91 0%, #1B63C7 42%, #4C93E8 78%, #8CC0F5 100%);
+    background: #185ABD;
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
-    border-bottom: 1px solid rgba(255,255,255,0.18);
+    border-bottom: 1px solid rgba(255,255,255,0.14);
     opacity: 0;
     transform: translateY(-10px) translateZ(0);
     transition:
@@ -432,8 +441,8 @@
   }
   .silver-appbar-title {
     font-size: 15px;
-    font-weight: 700;
-    letter-spacing: -0.1px;
+    font-weight: 600;
+    letter-spacing: 0;
     color: #FFFFFF;
     flex: 1;
     min-width: 0;
@@ -454,9 +463,9 @@
   .silver-search-btn {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
+    border-radius: 8px;
     border: none;
-    background: rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.16);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -477,8 +486,8 @@
     pointer-events: auto;
   }
   .silver-search-btn:active {
-    background: rgba(255,255,255,0.28);
-    transform: scale(0.9);
+    background: rgba(255,255,255,0.26);
+    transform: scale(0.94);
   }
   .silver-search-icon {
     width: 17px;
@@ -504,43 +513,49 @@
   .hero-greeting-name {
     margin: 0 0 4px;
     font-size: 32px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-weight: 700;
+    letter-spacing: 0;
     line-height: 1.1;
     color: var(--drawer-text);
   }
   .hero-greeting-text {
     margin: 0;
     font-size: 19px;
-    font-weight: 600;
-    letter-spacing: -0.2px;
+    font-weight: 400;
+    letter-spacing: 0;
     line-height: 1.3;
     color: var(--text-faint);
   }
 
+  /* Search bar: cantos Fluent (8px, não pill), borda fina em vez de
+     sombra grande, foco em azul Fluent. */
   .search-bar {
     display: flex;
     align-items: center;
     gap: 10px;
     width: calc(100% - 28px);
-    height: 48px;
+    height: 44px;
     margin: 0 14px 0;
-    padding: 0 16px;
-    border: none;
-    border-radius: 999px;
+    padding: 0 14px;
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.22));
+    border-radius: 8px;
     background: var(--drawer-bg);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     position: relative;
     z-index: 1;
+    transition: border-color .16s cubic-bezier(0.32,0.72,0,1);
+  }
+  .search-bar:active {
+    border-color: #185ABD;
   }
   .search-bar.search-bar-inert {
     pointer-events: none;
   }
   .search-bar-icon {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
     background: var(--icon-faint);
     mask-size: contain;
     -webkit-mask-size: contain;
@@ -549,31 +564,30 @@
     mask-position: center;
     -webkit-mask-position: center;
     flex-shrink: 0;
-    opacity: 0.6;
+    opacity: 0.65;
   }
   .search-bar-placeholder {
-    font-size: 14.5px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 400;
     color: var(--text-faint);
   }
 
-  /* ---------- Apps: card estilo Microsoft 365 ----------
-     Card branco/claro com título pequeno e grid 3 colunas. Ícones
-     PNG soltos, sem círculo/fundo colorido — o app.color deixa de
-     ser usado aqui (mantido em constants.js para outros ecrãs que
-     ainda usem esse campo). */
+  /* ---------- Apps: card estilo Microsoft 365 (Fluent) ----------
+     Fundo plano + borda fina (sem sombra grande), cantos 12px —
+     o padrão exato de card do Fluent 2 (Word/Excel/PowerPoint app). */
   .apps-card {
     margin: 22px 14px 0;
-    padding: 18px 12px 12px;
-    border-radius: 18px;
+    padding: 16px 12px 12px;
+    border-radius: 12px;
     background: var(--drawer-bg);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.16));
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
   .apps-card-title {
     display: block;
     padding: 0 6px;
     margin-bottom: 14px;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-faint);
   }
@@ -605,7 +619,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    border-radius: 10px;
+    border-radius: 8px;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .app-icon-img {
@@ -622,7 +636,7 @@
   }
   .app-label {
     font-size: 12.5px;
-    font-weight: 500;
+    font-weight: 400;
     text-align: center;
     line-height: 1.25;
     max-width: 88px;
@@ -650,7 +664,9 @@
   }
   .pulse-tap:active { transform: scale(0.98); opacity: .85; }
 
-  /* ---------- Recentes ---------- */
+  /* ---------- Recentes ----------
+     Mesmo tratamento Fluent: cantos 8px nas thumbs (em vez de 14px
+     arredondado demais), borda fina em vez de sombra. */
   .recent-section {
     margin-top: 28px;
   }
@@ -661,16 +677,16 @@
     padding: 0 14px 12px;
   }
   .recent-section-title {
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.2px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0;
     color: var(--drawer-text);
     margin: 0;
   }
   .recent-section-cta {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-faint);
+    color: #185ABD;
   }
   .recent-row {
     display: flex;
@@ -702,9 +718,10 @@
   .recent-thumb {
     width: 132px;
     height: 132px;
-    border-radius: 14px;
+    border-radius: 8px;
     overflow: hidden;
     background: var(--row-active, rgba(127,127,127,0.10));
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.14));
     flex-shrink: 0;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
@@ -728,7 +745,7 @@
   }
   .recent-card-time {
     font-size: 11.5px;
-    font-weight: 500;
+    font-weight: 400;
     color: var(--text-faint);
   }
   .native-tap:active .recent-thumb {
@@ -740,7 +757,7 @@
     position: relative;
     overflow: hidden;
     background: var(--row-active, rgba(127,127,127,0.12));
-    border-radius: 8px;
+    border-radius: 6px;
   }
   .recent-skeleton::after {
     content: '';
@@ -767,7 +784,7 @@
     cursor: default;
   }
   .recent-card-skeleton .recent-thumb {
-    border-radius: 14px;
+    border-radius: 8px;
   }
   .recent-skeleton-line {
     height: 11px;

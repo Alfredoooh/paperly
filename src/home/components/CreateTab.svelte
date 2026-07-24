@@ -18,6 +18,10 @@
   export let title = '';
   export let onOpenDrawer = () => {};
 
+  // Notificações: aberto pelo App.svelte (mesmo padrão do onOpenDrawer).
+  export let onOpenNotifications = () => {};
+  export let hasUnreadNotifications = false;
+
   // Mantidas apenas para não quebrar o binding vindo do App.svelte —
   // já não são usadas aqui (o sheet deixou de ter push/limite).
   export let rootEl = null;
@@ -26,58 +30,15 @@
   // Recentes: lista de projetos recentes do utilizador. Cada item
   // esperado com {id, title, thumbnail, updatedAt}. Enquanto
   // recentProjects é null/undefined mostramos skeleton loader; um
-  // array vazio [] significa "carregado, sem projetos" (sem
-  // skeleton, sem secção).
+  // array vazio [] significa "carregado, sem projetos" — mostra a
+  // ilustração de estado vazio (sem skeleton).
   export let recentProjects = null;
   export let onOpenProject = () => {};
 
-  // Saudação rotativa: escolhida UMA vez ao montar. O nome fica numa
-  // linha própria, sempre com exclamação.
-  const GREETINGS_MANHA = [
-    'O que deseja criar esta manhã?',
-    'Pronto para criar algo novo?',
-    'Uma nova manhã, uma nova ideia.',
-    'Vamos começar o dia a criar?',
-    'Que tal criar algo esta manhã?',
-  ];
-  const GREETINGS_TARDE = [
-    'O que deseja criar esta tarde?',
-    'O que vamos criar?',
-    'Estás pronto para a próxima criação?',
-    'Uma tarde perfeita para criar.',
-    'Que ideia vamos dar vida esta tarde?',
-  ];
-  const GREETINGS_NOITE = [
-    'O que deseja criar esta noite?',
-    'Ainda com energia para criar?',
-    'A noite é uma boa altura para criar.',
-    'Estás pronto para a próxima criação?',
-    'Que tal terminar o dia a criar algo?',
-  ];
-  const GREETINGS_MADRUGADA = [
-    'A criar até tarde? Vamos a isso.',
-    'Uma ideia não espera pela manhã.',
-    'Estás pronto para a próxima criação?',
-    'Silêncio lá fora, ideias aqui dentro.',
-  ];
-
-  function pickGreeting() {
-    const h = new Date().getHours();
-    let pool;
-    if (h >= 5 && h < 12) pool = GREETINGS_MANHA;
-    else if (h >= 12 && h < 18) pool = GREETINGS_TARDE;
-    else if (h >= 18 && h < 24) pool = GREETINGS_NOITE;
-    else pool = GREETINGS_MADRUGADA;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  const greetingText = pickGreeting();
-
   // ══════════════════════════════════════════════════════════════════
   //  SILVER APPBAR: header sólido separado, que SÓ aparece ao deslizar
-  //  para cima. Independente do .create-header original. Título à
-  //  esquerda; avatar dentro do próprio appbar; botão de pesquisa que
-  //  aparece quando a search-bar original desaparece.
+  //  para cima. Independente do .create-header original. Título fixo
+  //  "Criar" à esquerda; avatar + notificações + pesquisa à direita.
   //  Fundo: azul Fluent (Microsoft 365) sólido/flat, sem gradiente.
   // ══════════════════════════════════════════════════════════════════
   const SOLID_THRESHOLD = 0.5;
@@ -118,6 +79,11 @@
     }
   }
 
+  function handleNotifications() {
+    buzz();
+    onOpenNotifications?.();
+  }
+
   function openProject(p) {
     try { navigator.vibrate && navigator.vibrate(7); } catch (e) {}
     onOpenProject(p);
@@ -145,25 +111,33 @@
   const APPS_SKELETON_COUNT = 6; // 2 filas de 3 colunas
 </script>
 
-<!-- Header próprio do Create: NÃO ALTERADO. -->
+<!-- Header próprio do Create: título fixo "Criar" + notificações + avatar. -->
 <div class="create-header" class:in={mounted} class:solid={isSolid}>
   <div class="create-header-inner">
-    <h1 class="create-header-title" class:visible={isSolid}>{isSolid ? title : ''}</h1>
-    <button class="profile-btn pulse-tap" class:solid={isSolid} on:click={handleMenu} aria-label="Perfil">
-      {#if avatarUrl}
-        <img src={avatarUrl} alt={userName} class="profile-img" />
-      {:else}
-        <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
-      {/if}
-    </button>
+    <h1 class="create-header-title" class:visible={isSolid}>Criar</h1>
+    <div class="header-actions">
+      <button class="icon-btn pulse-tap" class:solid={isSolid} on:click={handleNotifications} aria-label="Notificações">
+        <span class="icon-mask header-icon" style="mask-image:url('/icons/svg/regular/notification.svg');-webkit-mask-image:url('/icons/svg/regular/notification.svg')"></span>
+        {#if hasUnreadNotifications}
+          <span class="notif-dot"></span>
+        {/if}
+      </button>
+      <button class="profile-btn pulse-tap" class:solid={isSolid} on:click={handleMenu} aria-label="Perfil">
+        {#if avatarUrl}
+          <img src={avatarUrl} alt={userName} class="profile-img" />
+        {:else}
+          <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
+        {/if}
+      </button>
+    </div>
   </div>
 </div>
 
-<!-- Silver appbar: título à esquerda, avatar + botão de pesquisa à direita.
-     Fundo azul Fluent sólido (Microsoft 365) quando sólido. -->
+<!-- Silver appbar: título fixo "Criar" à esquerda, notificações +
+     avatar + botão de pesquisa à direita. Azul Fluent sólido. -->
 <div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
   <div class="silver-appbar-inner">
-    <span class="silver-appbar-title">{title}</span>
+    <span class="silver-appbar-title">Criar</span>
     <div class="silver-appbar-actions">
       <button
         class="silver-search-btn pulse-tap"
@@ -173,7 +147,13 @@
         on:click={handleOpenSearch}
         aria-label="Pesquisar"
       >
-        <span class="icon-mask silver-search-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+        <span class="icon-mask silver-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+      </button>
+      <button class="silver-search-btn pulse-tap" class:visible={isSolid} on:click={handleNotifications} aria-label="Notificações">
+        <span class="icon-mask silver-icon" style="mask-image:url('/icons/svg/regular/notification.svg');-webkit-mask-image:url('/icons/svg/regular/notification.svg')"></span>
+        {#if hasUnreadNotifications}
+          <span class="notif-dot notif-dot-silver"></span>
+        {/if}
       </button>
       <button class="profile-btn pulse-tap solid" on:click={handleMenu} aria-label="Perfil">
         {#if avatarUrl}
@@ -188,24 +168,19 @@
 
 <div class="create-tab">
 
-  <!-- Hero: SEM imagem/foto de fundo e SEM gradiente — apenas o
-       fundo normal da página. Saudação mantida (nome + frase). -->
+  <!-- Sem saudação: a search-bar sobe para logo depois do appbar,
+       com respiro mínimo. -->
   <div class="hero-bg">
-    <div class="hero-greeting-block">
-      <p class="hero-greeting-name">{userName}!</p>
-      <p class="hero-greeting-text">{greetingText}</p>
-    </div>
+    <button
+      class="search-bar pulse-tap"
+      style="opacity:{searchBarOpacity}; transform:scale({searchBarScale});"
+      class:search-bar-inert={searchBarInert}
+      on:click={handleOpenSearch}
+    >
+      <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+      <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
+    </button>
   </div>
-
-  <button
-    class="search-bar pulse-tap"
-    style="opacity:{searchBarOpacity}; transform:scale({searchBarScale});"
-    class:search-bar-inert={searchBarInert}
-    on:click={handleOpenSearch}
-  >
-    <span class="icon-mask search-bar-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
-    <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
-  </button>
 
   <!-- Apps: card estilo Microsoft 365 — título pequeno + grid 3
        colunas, ícones PNG soltos (sem círculo/fundo colorido). -->
@@ -235,7 +210,9 @@
     {/if}
   </div>
 
-  <!-- Continuar a criar -->
+  <!-- Continuar a criar: skeleton enquanto carrega, ilustração de
+       estado vazio quando não há nenhum projeto recente, lista
+       normal quando há. -->
   {#if recentProjects === null}
     <div class="recent-section">
       <div class="recent-section-head">
@@ -275,6 +252,22 @@
         {/each}
       </div>
     </div>
+  {:else}
+    <div class="recent-section">
+      <div class="empty-state">
+        <svg class="empty-state-illustration" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="14" y="18" width="70" height="54" rx="10" fill="var(--row-active, rgba(127,127,127,0.10))" />
+          <rect x="14" y="18" width="70" height="54" rx="10" stroke="var(--drawer-sep, rgba(127,127,127,0.25))" stroke-width="1.5" />
+          <rect x="26" y="32" width="46" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.3))" />
+          <rect x="26" y="44" width="34" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.22))" />
+          <rect x="26" y="56" width="24" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.18))" />
+          <circle cx="92" cy="66" r="20" fill="#185ABD" />
+          <path d="M92 57v18M83 66h18" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
+        </svg>
+        <p class="empty-state-title">Ainda sem criações recentes</p>
+        <p class="empty-state-text">Os teus projetos vão aparecer aqui assim que começares a criar.</p>
+      </div>
+    </div>
   {/if}
 
 </div>
@@ -282,14 +275,30 @@
 <style>
   /* ════════════════════════════════════════════════════════════════
      FLUENT DESIGN (Microsoft 365): variáveis locais de cor/forma.
-     Azul Fluent: #185ABD (acento principal), #0F6CBD (hover/active).
-     Cantos moderados (Fluent usa 8px em controlos, 12px em cards
-     maiores). Elevação por BORDA FINA + sombra muito subtil, em vez
-     da sombra grande usada antes — é a assinatura visual do Fluent 2
-     (superfícies quase planas, separadas por contorno, não por
-     profundidade). Tipografia: Segoe UI com fallback do sistema.
+     Azul Fluent: #185ABD (acento principal). Cantos AGORA mais
+     curvos em todo o ecrã (pedido explícito): search-bar 100% pill,
+     apps-card e thumbs com raio bem maior que o Fluent "oficial"
+     (que usa 8-12px) — aqui prioriza-se a curvatura pedida sobre a
+     fidelidade estrita ao Fluent anguloso. Elevação por BORDA FINA +
+     sombra muito subtil, em vez de sombra grande. Tipografia: Segoe
+     UI com fallback do sistema.
      ════════════════════════════════════════════════════════════════ */
-  :global(.create-tab），.apps-card,.search-bar,.recent-card,.recent-thumb,.silver-appbar,.create-header-title,.hero-greeting-name,.hero-greeting-text,.apps-card-title,.app-label,.recent-card-title,.recent-card-time,.recent-section-title,.recent-section-cta,.silver-appbar-title) {
+  .create-tab,
+  .apps-card,
+  .search-bar,
+  .recent-card,
+  .recent-thumb,
+  .silver-appbar,
+  .create-header-title,
+  .apps-card-title,
+  .app-label,
+  .recent-card-title,
+  .recent-card-time,
+  .recent-section-title,
+  .recent-section-cta,
+  .silver-appbar-title,
+  .empty-state-title,
+  .empty-state-text {
     font-family: 'Segoe UI', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
   }
 
@@ -346,6 +355,66 @@
   .create-header-title.visible {
     opacity: 1;
   }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .icon-btn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    transition:
+      background .28s cubic-bezier(0.32, 0.72, 0, 1),
+      box-shadow .28s cubic-bezier(0.32, 0.72, 0, 1),
+      transform .16s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .icon-btn.solid {
+    background: var(--row-active, rgba(127,127,127,0.12));
+    box-shadow: none;
+  }
+  .icon-btn:active {
+    transform: scale(0.9);
+  }
+  .icon-btn:not(.solid):active {
+    background: rgba(255,255,255,0.26);
+  }
+  .icon-btn.solid:active {
+    background: var(--row-hover, rgba(127,127,127,0.2));
+  }
+  .header-icon {
+    width: 19px;
+    height: 19px;
+    background: var(--icon-strong);
+  }
+  .create-header .header-icon {
+    background: var(--drawer-text);
+  }
+  .create-header .icon-btn:not(.solid) .header-icon {
+    background: #FFFFFF;
+  }
+  .notif-dot {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #E3242B;
+    border: 1.5px solid var(--app-bg, #fff);
+  }
   .profile-btn {
     width: 36px;
     height: 36px;
@@ -364,7 +433,6 @@
       background .28s cubic-bezier(0.32, 0.72, 0, 1),
       box-shadow .28s cubic-bezier(0.32, 0.72, 0, 1),
       transform .16s cubic-bezier(0.34,1.56,0.64,1);
-    margin-left: auto;
   }
   .profile-btn.solid {
     background: var(--row-active, rgba(127,127,127,0.12));
@@ -396,6 +464,8 @@
     color: #fff;
   }
   @media (hover:hover) and (pointer:fine) {
+    .icon-btn:not(.solid):hover { background: rgba(255,255,255,0.24); }
+    .icon-btn.solid:hover { background: var(--row-hover, rgba(127,127,127,0.2)); }
     .profile-btn:not(.solid):hover { background: rgba(255,255,255,0.24); }
     .profile-btn.solid:hover { background: var(--row-hover, rgba(127,127,127,0.2)); }
   }
@@ -404,8 +474,9 @@
   }
 
   /* ---------- Silver appbar ----------
-     Azul Fluent (Microsoft 365) sólido, sem gradiente — a assinatura
-     "flat" do Fluent 2: cor de acento plana em vez de degradê. */
+     Azul Fluent (Microsoft 365) sólido, sem gradiente. Agora com 3
+     ações à direita (pesquisa, notificações, avatar) — gap reduzido
+     para 6px para caberem confortavelmente. */
   .silver-appbar {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -454,16 +525,17 @@
   .silver-appbar-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
   }
   @media (min-width: 720px) {
     .silver-appbar-inner { max-width:760px; }
   }
   .silver-search-btn {
+    position: relative;
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 50%;
     border: none;
     background: rgba(255,255,255,0.16);
     display: flex;
@@ -489,10 +561,13 @@
     background: rgba(255,255,255,0.26);
     transform: scale(0.94);
   }
-  .silver-search-icon {
+  .silver-icon {
     width: 17px;
     height: 17px;
     background: #FFFFFF;
+  }
+  .notif-dot-silver {
+    border-color: #185ABD;
   }
 
   /* ---------- Conteúdo do Create ---------- */
@@ -500,35 +575,16 @@
     width: 100%;
   }
 
-  /* Hero sem imagem: só espaço para a saudação respirar, no fundo
-     normal da página. */
+  /* Sem saudação: respiro mínimo — só a altura do appbar fixo mais
+     um pequeno espaço, a search-bar fica logo abaixo dele. */
   .hero-bg {
     position: relative;
     width: 100%;
-    padding: calc(env(safe-area-inset-top, 0px) + 84px) 20px 44px;
-  }
-  .hero-greeting-block {
-    position: relative;
-  }
-  .hero-greeting-name {
-    margin: 0 0 4px;
-    font-size: 32px;
-    font-weight: 700;
-    letter-spacing: 0;
-    line-height: 1.1;
-    color: var(--drawer-text);
-  }
-  .hero-greeting-text {
-    margin: 0;
-    font-size: 19px;
-    font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.3;
-    color: var(--text-faint);
+    padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 8px;
   }
 
-  /* Search bar: cantos Fluent (8px, não pill), borda fina em vez de
-     sombra grande, foco em azul Fluent. */
+  /* Search bar: 100% curva (pill), borda fina em vez de sombra
+     grande, foco em azul Fluent. */
   .search-bar {
     display: flex;
     align-items: center;
@@ -536,9 +592,9 @@
     width: calc(100% - 28px);
     height: 44px;
     margin: 0 14px 0;
-    padding: 0 14px;
+    padding: 0 16px;
     border: 1px solid var(--drawer-sep, rgba(127,127,127,0.22));
-    border-radius: 8px;
+    border-radius: 999px;
     background: var(--drawer-bg);
     box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     cursor: pointer;
@@ -572,13 +628,12 @@
     color: var(--text-faint);
   }
 
-  /* ---------- Apps: card estilo Microsoft 365 (Fluent) ----------
-     Fundo plano + borda fina (sem sombra grande), cantos 12px —
-     o padrão exato de card do Fluent 2 (Word/Excel/PowerPoint app). */
+  /* ---------- Apps: card estilo Microsoft 365 (Fluent), cantos
+     mais curvos por pedido explícito. ---------- */
   .apps-card {
-    margin: 22px 14px 0;
+    margin: 18px 14px 0;
     padding: 16px 12px 12px;
-    border-radius: 12px;
+    border-radius: 22px;
     background: var(--drawer-bg);
     border: 1px solid var(--drawer-sep, rgba(127,127,127,0.16));
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -619,7 +674,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    border-radius: 8px;
+    border-radius: 12px;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .app-icon-img {
@@ -665,8 +720,7 @@
   .pulse-tap:active { transform: scale(0.98); opacity: .85; }
 
   /* ---------- Recentes ----------
-     Mesmo tratamento Fluent: cantos 8px nas thumbs (em vez de 14px
-     arredondado demais), borda fina em vez de sombra. */
+     Cantos mais curvos por pedido explícito nas thumbs. */
   .recent-section {
     margin-top: 28px;
   }
@@ -718,7 +772,7 @@
   .recent-thumb {
     width: 132px;
     height: 132px;
-    border-radius: 8px;
+    border-radius: 20px;
     overflow: hidden;
     background: var(--row-active, rgba(127,127,127,0.10));
     border: 1px solid var(--drawer-sep, rgba(127,127,127,0.14));
@@ -752,12 +806,44 @@
     transform: scale(0.97);
   }
 
+  /* ---------- Estado vazio (sem criações recentes) ----------
+     Ilustração SVG inline leve, sem dependência de ficheiros
+     externos. Aparece só quando recentProjects é [] (carregado e
+     confirmadamente vazio) — nunca durante o loading (esse caso usa
+     o skeleton acima). */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 32px 8px;
+  }
+  .empty-state-illustration {
+    width: 120px;
+    height: 100px;
+    margin-bottom: 14px;
+  }
+  .empty-state-title {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--drawer-text);
+  }
+  .empty-state-text {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--text-faint);
+    max-width: 260px;
+  }
+
   /* ---------- Skeleton loader ---------- */
   .recent-skeleton {
     position: relative;
     overflow: hidden;
     background: var(--row-active, rgba(127,127,127,0.12));
-    border-radius: 6px;
+    border-radius: 10px;
   }
   .recent-skeleton::after {
     content: '';
@@ -778,17 +864,17 @@
   .recent-skeleton-title {
     width: 160px;
     height: 17px;
-    border-radius: 5px;
+    border-radius: 8px;
   }
   .recent-card-skeleton {
     cursor: default;
   }
   .recent-card-skeleton .recent-thumb {
-    border-radius: 8px;
+    border-radius: 20px;
   }
   .recent-skeleton-line {
     height: 11px;
-    border-radius: 4px;
+    border-radius: 6px;
   }
   @media (prefers-reduced-motion: reduce) {
     .recent-skeleton::after { animation: none; }

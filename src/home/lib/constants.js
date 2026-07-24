@@ -32,18 +32,22 @@ export const OCCUPATION_OPTIONS = [
   { id: 'other',         label: 'Outro' },
 ];
 
-// Ícones do grid do tab "Criar" (CreateTab) usam SVGs mascarados a
-// partir de /icons/svg/apps/{id}.svg. Cada app tem a SUA PRÓPRIA cor
-// de container (campo `color`, hex fornecido) — o container usa
-// `app.color` como background e o ícone dentro fica sempre BRANCO
-// puro (#FFFFFF), nos dois temas.
+// Ícones do grid do tab "Criar" (CreateTab): usam agora PNGs diretos
+// (sem mask-image, sem círculo/fundo colorido) para whiteboard, docs,
+// sheets e slides, servidos a partir de /icons/png/{nome}.png — igual
+// ao estilo do card "Comece a criar com" (Microsoft 365). O ícone do
+// Assistente de IA e do Início mantêm o caminho anterior (svg/logo),
+// já que não fazem parte deste pedido.
+// O campo `color` deixou de ser usado no CreateTab (ícones já não têm
+// círculo de fundo), mas é mantido caso outros ecrãs ainda dependam
+// dele.
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/', color: '#D9D9D9' },
   { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/', color: '#862CD4' },
-  { id: 'docs', label: 'Editor de Documentos', icon: '/icons/svg/apps/docs.svg', path: '/docs/', color: '#D9D9D9' },
-  { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/svg/apps/sheets.svg', path: '/sheets/', color: '#23A63F' },
-  { id: 'slides', label: 'Apresentações', icon: '/icons/svg/apps/slides.svg', path: '/slides/', color: '#FB6704' },
-  { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/svg/apps/whiteboard.svg', path: '/whiteboard/', color: '#7630CA' },
+  { id: 'docs', label: 'Editor de Documentos', icon: '/icons/png/docs.png', path: '/docs/', color: '#D9D9D9' },
+  { id: 'sheets', label: 'Folha de Cálculo', icon: '/icons/png/sheets.png', path: '/sheets/', color: '#23A63F' },
+  { id: 'slides', label: 'Apresentações', icon: '/icons/png/slides.png', path: '/slides/', color: '#FB6704' },
+  { id: 'whiteboard', label: 'Quadro Branco', icon: '/icons/png/whiteboard.png', path: '/whiteboard/', color: '#7630CA' },
 ];
 
 export const PLANS_DATA = {

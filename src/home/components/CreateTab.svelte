@@ -78,6 +78,7 @@
   //  para cima. Independente do .create-header original. Título à
   //  esquerda; avatar dentro do próprio appbar; botão de pesquisa que
   //  aparece quando a search-bar original desaparece.
+  //  Fundo: gradiente azul (substitui o antigo fundo neutro var(--app-bg)).
   // ══════════════════════════════════════════════════════════════════
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
@@ -158,7 +159,8 @@
   </div>
 </div>
 
-<!-- Silver appbar: título à esquerda, avatar + botão de pesquisa à direita. -->
+<!-- Silver appbar: título à esquerda, avatar + botão de pesquisa à direita.
+     Fundo em gradiente azul quando sólido. -->
 <div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
   <div class="silver-appbar-inner">
     <span class="silver-appbar-title">{title}</span>
@@ -205,28 +207,33 @@
     <span class="search-bar-placeholder">Pesquisar designs, projetos, modelos…</span>
   </button>
 
-  <!-- Apps: grid estática, 3 colunas, com skeleton enquanto carrega. -->
-  {#if platformApps === null}
-    <div class="apps-grid">
-      {#each Array(APPS_SKELETON_COUNT) as _}
-        <div class="app-item app-item-skeleton">
-          <div class="app-icon-circle recent-skeleton"></div>
-          <span class="recent-skeleton recent-skeleton-line" style="width:60%"></span>
-        </div>
-      {/each}
-    </div>
-  {:else if platformApps.length > 0}
-    <div class="apps-grid">
-      {#each platformApps as app}
-        <button class="app-item native-tap" on:click={() => openApp(app)}>
-          <span class="app-icon-circle" style="background:{app.color || '#8E8E93'}">
-            <span class="app-icon-svg" style="mask-image:url('{app.icon}');-webkit-mask-image:url('{app.icon}')"></span>
-          </span>
-          <span class="app-label">{app.label}</span>
-        </button>
-      {/each}
-    </div>
-  {/if}
+  <!-- Apps: card estilo Microsoft 365 — título pequeno + grid 3
+       colunas, ícones PNG soltos (sem círculo/fundo colorido). -->
+  <div class="apps-card">
+    <span class="apps-card-title">Comece a criar com</span>
+
+    {#if platformApps === null}
+      <div class="apps-grid">
+        {#each Array(APPS_SKELETON_COUNT) as _}
+          <div class="app-item app-item-skeleton">
+            <div class="app-icon-plain recent-skeleton"></div>
+            <span class="recent-skeleton recent-skeleton-line" style="width:60%"></span>
+          </div>
+        {/each}
+      </div>
+    {:else if platformApps.length > 0}
+      <div class="apps-grid">
+        {#each platformApps as app}
+          <button class="app-item native-tap" on:click={() => openApp(app)}>
+            <span class="app-icon-plain">
+              <img src={app.icon} alt={app.label} class="app-icon-img" />
+            </span>
+            <span class="app-label">{app.label}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </div>
 
   <!-- Continuar a criar -->
   {#if recentProjects === null}
@@ -383,16 +390,22 @@
     .create-header-inner { max-width:760px; }
   }
 
-  /* ---------- Silver appbar ---------- */
+  /* ---------- Silver appbar ----------
+     Fundo em gradiente azul (substitui o antigo var(--app-bg) sólido),
+     inspirado no header azul de referência: mais escuro/saturado à
+     esquerda, mais claro à direita. Mantém-se o blur/saturate por
+     cima do gradiente e a borda inferior subtil. O texto e ícones
+     passam a branco fixo neste appbar, para contraste sobre o azul
+     em ambos os temas (claro/escuro). */
   .silver-appbar {
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 16;
     height: calc(env(safe-area-inset-top, 0px) + 52px);
-    background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+    background: linear-gradient(115deg, #0B3D91 0%, #1B63C7 42%, #4C93E8 78%, #8CC0F5 100%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
-    border-bottom: 1px solid var(--drawer-sep, rgba(127,127,127,0.16));
+    border-bottom: 1px solid rgba(255,255,255,0.18);
     opacity: 0;
     transform: translateY(-10px) translateZ(0);
     transition:
@@ -421,7 +434,7 @@
     font-size: 15px;
     font-weight: 700;
     letter-spacing: -0.1px;
-    color: var(--drawer-text);
+    color: #FFFFFF;
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -443,7 +456,7 @@
     height: 36px;
     border-radius: 50%;
     border: none;
-    background: var(--row-active, rgba(127,127,127,0.12));
+    background: rgba(255,255,255,0.18);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -464,13 +477,13 @@
     pointer-events: auto;
   }
   .silver-search-btn:active {
-    background: var(--row-hover, rgba(127,127,127,0.2));
+    background: rgba(255,255,255,0.28);
     transform: scale(0.9);
   }
   .silver-search-icon {
     width: 17px;
     height: 17px;
-    background: var(--icon-strong);
+    background: #FFFFFF;
   }
 
   /* ---------- Conteúdo do Create ---------- */
@@ -544,18 +557,36 @@
     color: var(--text-faint);
   }
 
-  /* ---------- Apps: grid estática, sem modal ---------- */
+  /* ---------- Apps: card estilo Microsoft 365 ----------
+     Card branco/claro com título pequeno e grid 3 colunas. Ícones
+     PNG soltos, sem círculo/fundo colorido — o app.color deixa de
+     ser usado aqui (mantido em constants.js para outros ecrãs que
+     ainda usem esse campo). */
+  .apps-card {
+    margin: 22px 14px 0;
+    padding: 18px 12px 12px;
+    border-radius: 18px;
+    background: var(--drawer-bg);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+  }
+  .apps-card-title {
+    display: block;
+    padding: 0 6px;
+    margin-bottom: 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-faint);
+  }
   .apps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 22px 8px;
-    padding: 22px 14px 8px;
+    gap: 20px 8px;
   }
   .app-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     border: none;
     background: transparent;
     padding: 0;
@@ -567,30 +598,23 @@
   .app-item-skeleton {
     cursor: default;
   }
-  .app-icon-circle {
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
+  .app-icon-plain {
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+    border-radius: 10px;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .app-icon-svg {
-    width: 30px;
-    height: 30px;
+  .app-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     display: block;
-    background: #FFFFFF;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
   }
-  .native-tap:active .app-icon-circle {
+  .native-tap:active .app-icon-plain {
     transform: scale(0.86);
   }
   .native-tap:active .app-label {

@@ -51,6 +51,29 @@
   $: searchBarScale = 1 - 0.08 * heroProgress;
   $: searchBarInert = heroProgress > 0.9;
 
+  // FIX (bug: "Criar" não aparecia): o título do .create-header
+  // dependia SÓ de `mounted` — se o requestAnimationFrame do
+  // App.svelte falhasse ou fosse cancelado antes de `mounted = true`
+  // (ex: componente desmontado/remontado rápido durante troca de
+  // tab), o header ficava preso em opacity:0 para sempre, e por
+  // consequência o título "Criar" do silver-appbar (que só depende de
+  // isSolid, independente de mounted) era a ÚNICA forma de ver
+  // "Criar" — mas só ao rolar. Agora .create-header tem um fallback:
+  // se este componente já correu onMount local e passaram mais de
+  // 600ms sem `mounted` vir true por fora, força localMounted = true
+  // por si próprio. Isto NÃO substitui a prop `mounted` (continua a
+  // ser respeitada normalmente, incluindo a transição suave), é só
+  // uma rede de segurança.
+  import { onMount as onLocalMount } from 'svelte';
+  let localMounted = false;
+  $: effectiveMounted = mounted || localMounted;
+  onLocalMount(() => {
+    const t = setTimeout(() => {
+      if (!mounted) localMounted = true;
+    }, 600);
+    return () => clearTimeout(t);
+  });
+
   function openApp(app) {
     try { navigator.vibrate && navigator.vibrate(7); } catch (e) {}
     if (app.id === 'ai') {
@@ -112,7 +135,7 @@
 </script>
 
 <!-- Header próprio do Create: título fixo "Criar" + notificações + avatar. -->
-<div class="create-header" class:in={mounted} class:solid={isSolid}>
+<div class="create-header" class:in={effectiveMounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title" class:visible={isSolid}>Criar</h1>
     <div class="header-actions">
@@ -183,20 +206,27 @@
   </div>
 
   <!-- Apps: card estilo Microsoft 365 — título pequeno + grid 3
-       colunas, ícones PNG soltos (sem círculo/fundo colorido). -->
+       colunas, ícones PNG soltos (sem círculo/fundo colorido).
+       Skeleton cobre AMBOS os estados de carregamento:
+       platformApps === null (ainda não chegou nada do pai) E
+       platformApps === [] (chegou mas está vazio — tratado como
+       "ainda a carregar" aqui, porque uma plataforma sem nenhuma app
+       disponível é sinal de falha/timing, não de estado vazio real
+       como acontece em "Continue a criar", que tem o seu próprio
+       empty-state distinto do skeleton). -->
   <div class="apps-card">
     <span class="apps-card-title">Comece a criar com</span>
 
-    {#if platformApps === null}
+    {#if platformApps === null || platformApps === undefined || platformApps.length === 0}
       <div class="apps-grid">
-        {#each Array(APPS_SKELETON_COUNT) as _}
+        {#each Array(APPS_SKELETON_COUNT) as _, i}
           <div class="app-item app-item-skeleton">
             <div class="app-icon-plain recent-skeleton"></div>
-            <span class="recent-skeleton recent-skeleton-line" style="width:60%"></span>
+            <span class="recent-skeleton recent-skeleton-line" style="width:{i % 2 === 0 ? '68%' : '52%'}"></span>
           </div>
         {/each}
       </div>
-    {:else if platformApps.length > 0}
+    {:else}
       <div class="apps-grid">
         {#each platformApps as app}
           <button class="app-item native-tap" on:click={() => openApp(app)}>

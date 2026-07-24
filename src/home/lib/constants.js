@@ -102,6 +102,17 @@ export const TABS = [
   },
 ];
 
+// Botão central da bottom bar: NUNCA é um tab normal (não entra no
+// router, não muda activeTab). Abre sempre o chat da Nexa IA como
+// bottom-sheet modal por cima de tudo — é o único "app" da plataforma
+// que se comporta assim; todos os outros (ver ALL_APPS) navegam para
+// uma rota própria.
+export const AI_FAB = {
+  id: 'ai-modal',
+  label: 'Assistente de IA',
+  icon: '/icons/svg/apps/ai.svg',
+};
+
 // Toggle usado no appbar do tab "Templates"
 export const TEMPLATE_VIEWS = [
   { id: 'images', label: 'Imagens' },

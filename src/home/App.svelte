@@ -19,6 +19,7 @@
   import MeTab from './components/MeTab.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
+  import AIChatModal from './components/AIChatModal.svelte';
 
   export let pushed = false;
   // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
@@ -215,6 +216,37 @@
     closeTemplatePreview();
   }
 
+  // ------------------------------------------------------------------
+  // Modal da Nexa IA (bottom-sheet) — segue EXATAMENTE o mesmo padrão
+  // de history de drawer/search/preview: pushState próprio ao abrir,
+  // fecho VISUAL só dentro de onPopState (nunca antecipado por
+  // closeAIModal), para o botão físico de voltar do Android funcionar
+  // corretamente. É o ÚNICO "app" que abre assim — nunca navega para
+  // uma rota/path próprio como os outros itens de ALL_APPS.
+  // ------------------------------------------------------------------
+  let aiModalOpen = false;
+  let aiModalPushed = false;
+
+  function openAIModal() {
+    if (aiModalOpen) return;
+    pushOverlayState('ai', { nexaAI: true });
+    aiModalOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { aiModalPushed = true; }));
+  }
+
+  function closeAIModalVisual() {
+    aiModalPushed = false;
+    setTimeout(() => { aiModalOpen = false; }, 340);
+  }
+
+  function closeAIModal() {
+    if (!aiModalOpen) return;
+    if (history.state && history.state.nexaAI) {
+      history.back();
+    } else {
+      closeAIModalVisual();
+    }
+  }
 
   function goToAIWithPrompt(promptText) {
     try {
@@ -264,6 +296,35 @@
   function measureAppbar() {
     if (topPanelEl) {
       appbarHeight = topPanelEl.getBoundingClientRect().height;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // FIX (bug: "não é possível deslizar a tela por completo"):
+  // .scroll-root tinha um padding-bottom FIXO de 84px, que não batia
+  // certo com a altura REAL da bottombar (42px de tab-btn + 12px de
+  // padding vertical + env(safe-area-inset-bottom) variável por
+  // aparelho) — em qualquer dispositivo com safe-area-inset-bottom
+  // maior que ~30px (a generalidade dos Android/iPhone recentes com
+  // gesture nav), o padding ficava CURTO, e o fim do conteúdo (ex: a
+  // última linha de "Continue a criar designs") ficava permanentemente
+  // tapado atrás da bottombar, sem forma de rolar mais para o revelar
+  // — dava a sensação de "não desliza até ao fim".
+  // Agora a altura real da bottombar é MEDIDA em runtime via
+  // ResizeObserver (ela reserva o próprio espaço no layout através de
+  // um elemento sentinela) e aplicada como custom property
+  // --bottombar-h, consumida pelo padding-bottom do .scroll-root. Isto
+  // acompanha automaticamente qualquer safe-area-inset-bottom,
+  // rotação de ecrã, ou mudança futura de altura da bottombar, sem
+  // números mágicos.
+  // ------------------------------------------------------------------
+  let bottombarSentinelEl;
+  let bottombarH = 84; // fallback inicial, igual ao valor antigo, até à 1ª medição
+  let bottombarResizeObserver;
+
+  function measureBottombar() {
+    if (bottombarSentinelEl) {
+      bottombarH = bottombarSentinelEl.getBoundingClientRect().height;
     }
   }
 
@@ -335,8 +396,18 @@
     }
     window.addEventListener('storage', onStorage);
 
-    requestAnimationFrame(() => { mounted = true; measureAppbar(); });
+    requestAnimationFrame(() => { mounted = true; measureAppbar(); measureBottombar(); });
     window.addEventListener('resize', measureAppbar);
+    window.addEventListener('resize', measureBottombar);
+
+    // ResizeObserver acompanha mudanças de altura da bottombar que não
+    // vêm de um resize da janela (ex: fonte do sistema, densidade,
+    // ou futura alteração de padding) — window 'resize' sozinho não
+    // apanha isso.
+    if (bottombarSentinelEl && typeof ResizeObserver !== 'undefined') {
+      bottombarResizeObserver = new ResizeObserver(() => measureBottombar());
+      bottombarResizeObserver.observe(bottombarSentinelEl);
+    }
 
     initPwaInstall();
     unsubscribeInstall = onPwaInstallAvailable((available) => {
@@ -355,9 +426,10 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // Fonte ÚNICA de verdade para fechar overlays — drawer incluído,
-    // tratado exatamente como search/preview: consome-se o popstate,
-    // desliga-se drawerPushed (o AppDrawer trata da física sozinho).
+    // Fonte ÚNICA de verdade para fechar overlays — drawer e modal IA
+    // incluídos, tratados exatamente como search/preview: consome-se
+    // o popstate, desliga-se o *Pushed correspondente (cada
+    // componente reage e trata da física sozinho).
     function onPopState() {
       if (suppressRouterPopstate) return;
       const state = history.state;
@@ -368,6 +440,10 @@
       } else if (searchOpen && (!state || state.nexaSearch === undefined)) {
         suppressRouterPopstate = true;
         closeSearchVisual();
+        suppressRouterPopstate = false;
+      } else if (aiModalOpen && (!state || state.nexaAI === undefined)) {
+        suppressRouterPopstate = true;
+        closeAIModalVisual();
         suppressRouterPopstate = false;
       } else if (drawerOpen && (!state || state.nexaDrawer === undefined)) {
         suppressRouterPopstate = true;
@@ -381,7 +457,9 @@
       mediaQuery?.removeEventListener('change', handleSystemChange);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('resize', measureAppbar);
+      window.removeEventListener('resize', measureBottombar);
       window.removeEventListener('popstate', onPopState);
+      bottombarResizeObserver?.disconnect();
       unbindRouter?.();
       unsubscribeInstall?.();
     };
@@ -420,7 +498,12 @@
     />
   {/if}
 
-  <div class="scroll-root" bind:this={scrollRootEl} on:scroll={handleScroll} style="padding-top:{activeTab === 'create' || activeTab === 'me' ? 0 : appbarHeight}px;">
+  <div
+    class="scroll-root"
+    bind:this={scrollRootEl}
+    on:scroll={handleScroll}
+    style="padding-top:{activeTab === 'create' || activeTab === 'me' ? 0 : appbarHeight}px; padding-bottom:{bottombarH}px;"
+  >
     {#if activeTab === 'create'}
       <CreateTab
         {platformApps}
@@ -479,7 +562,20 @@
   />
 {/if}
 
-<BottomTabBar {activeTab} onSelect={selectTab} {avatarUrl} {avatarColor} {userInitial} />
+<AIChatModal
+  open={aiModalOpen}
+  pushed={aiModalPushed}
+  onClose={closeAIModal}
+/>
+
+<!-- Sentinela invisível com EXATAMENTE o mesmo espaço reservado no
+     fluxo do documento que a BottomTabBar real (que é position:fixed
+     e por isso não ocupa espaço por si só) — serve só para o
+     ResizeObserver medir a altura correta a aplicar como padding do
+     scroll-root. pointer-events:none para nunca interceptar toques. -->
+<div class="bottombar-sentinel" bind:this={bottombarSentinelEl} aria-hidden="true"></div>
+
+<BottomTabBar {activeTab} onSelect={selectTab} onOpenAI={openAIModal} {avatarUrl} {avatarColor} {userInitial} />
 
 <AppDrawer
   {drawerOpen}
@@ -527,7 +623,23 @@
     overflow-y:auto; overflow-x:hidden;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior-y:contain;
-    padding-bottom: 84px;
+    /* padding-bottom agora vem via style inline (bottombarH), medido
+       em runtime a partir da bottombar real — ver measureBottombar(). */
+  }
+
+  /* Sentinela: fixed, mesma altura/posição que a BottomTabBar real
+     ocuparia se não fosse position:fixed. display:none evitaria que o
+     ResizeObserver a conseguisse medir corretamente em alguns
+     browsers, por isso usa-se opacity:0 + pointer-events:none em vez
+     disso — visualmente invisível, mas continua "presente" para
+     efeitos de medição/layout. */
+  .bottombar-sentinel {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: calc(42px + 12px + env(safe-area-inset-bottom, 0px));
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
   }
 
   @media (prefers-reduced-motion: reduce) {

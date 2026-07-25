@@ -1,31 +1,6 @@
-<!-- src/home/components/LongPressMenu.svelte -->
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { portal } from '../lib/portal.js';
-
-  // ------------------------------------------------------------------
-  // Menu contextual estilo Pinterest: aparece ao segurar um card por
-  // ~400ms. O dedo continua no ecrã e pode ARRASTAR entre as opções
-  // sem soltar — cada botão sob o dedo acende E CRESCE para indicar
-  // seleção em tempo real, e soltar sobre um botão dispara essa ação.
-  //
-  // AUTONOMIA DE FECHO: escuta pointerup/touchend/mouseup GLOBALMENTE
-  // em `window`, assim que monta — não depende do TemplatesTab avisar
-  // que o dedo soltou. Necessário por causa do portal: o overlay
-  // portado para document.body é quem recebe o hit-test do
-  // rato/toque, não o card visualmente por cima dele.
-  //
-  // Escurecimento: TODO o ecrã escurece — incluindo appbar e bottombar
-  // — sem buraco recortado. O card pressionado (.pressed no
-  // TemplatesTab.svelte) fica visível porque tem z-index MAIOR que
-  // este overlay.
-  //
-  // PORTAL: montado via use:portal direto em document.body — ver
-  // portal.js para o porquê (stacking context preso em .root).
-  //
-  // Bloqueio de scroll: overflow:hidden + touch-action:none no <body>
-  // enquanto montado, repostos ao desmontar.
-  // ------------------------------------------------------------------
 
   export let originX = 0;
   export let originY = 0;
@@ -33,17 +8,17 @@
   const dispatch = createEventDispatcher();
 
   const OPTION_DEFS = [
-    { id: 'share',    icon: '/icons/svg/regular/share.svg',    label: 'Partilhar' },
-    { id: 'pin',       icon: '/icons/svg/regular/pin.svg',       label: 'Fixar' },
-    { id: 'search',    icon: '/icons/svg/regular/search.svg',    label: 'Pesquisar' },
-    { id: 'whatsapp',  icon: '/icons/svg/regular/chat_multiple.svg',  label: 'WhatsApp' },
+    { id: 'share', icon: '/icons/svg/regular/share.svg', label: 'Partilhar' },
+    { id: 'pin', icon: '/icons/svg/regular/pin.svg', label: 'Fixar' },
+    { id: 'search', icon: '/icons/svg/regular/search.svg', label: 'Pesquisar' },
+    { id: 'whatsapp', icon: '/icons/svg/regular/chat_multiple.svg', label: 'WhatsApp' }
   ];
 
   const BUBBLE_DIST = 118;
   const BUBBLE_SIZE = 50;
   const SPREAD_DEG = 140;
   const MARGIN = 34;
-  const VEIL_OPACITY = 0.32;
+  const VEIL_OPACITY = 0.78;
 
   let activeId = null;
   let bubbleEls = {};
@@ -55,6 +30,7 @@
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
+
   function buzzSelect() {
     try { navigator.vibrate && navigator.vibrate(4); } catch (e) {}
   }
@@ -87,12 +63,13 @@
       return {
         ...opt,
         x: Math.cos(rad) * BUBBLE_DIST,
-        y: -Math.sin(rad) * BUBBLE_DIST,
+        y: -Math.sin(rad) * BUBBLE_DIST
       };
     });
 
     let shiftX = 0;
     let shiftY = 0;
+
     for (const opt of raw) {
       const absX = originX + opt.x;
       const absY = originY + opt.y;
@@ -111,7 +88,7 @@
     return raw.map((opt) => ({
       ...opt,
       x: opt.x + shiftX,
-      y: opt.y + shiftY,
+      y: opt.y + shiftY
     }));
   }
 
@@ -131,6 +108,7 @@
   function handlePointerMoveGlobal(e) {
     const t = e.touches ? e.touches[0] : e;
     if (!t || resolved) return;
+
     const hit = hitTestBubble(t.clientX, t.clientY);
     if (hit !== activeId) {
       activeId = hit;
@@ -177,18 +155,40 @@
 
     const moveOpts = { passive: true };
     const upOpts = { passive: false };
+
+    const onExternalClose = () => resolveOnce();
+    window.addEventListener('nexa:close-longpress-menu', onExternalClose);
+
+    window.addEventListener('pointermove', handlePointerMoveGlobal, moveOpts);
+    window.addEventListener('pointerup', handlePointerUpGlobal, upOpts);
+    window.addEventListener('pointercancel', handlePointerUpGlobal, upOpts);
+
     window.addEventListener('touchmove', handlePointerMoveGlobal, moveOpts);
-    window.addEventListener('mousemove', handlePointerMoveGlobal, moveOpts);
     window.addEventListener('touchend', handlePointerUpGlobal, upOpts);
     window.addEventListener('touchcancel', handlePointerUpGlobal, upOpts);
+
+    window.addEventListener('mousemove', handlePointerMoveGlobal, moveOpts);
     window.addEventListener('mouseup', handlePointerUpGlobal, upOpts);
 
+    window.addEventListener('blur', onExternalClose);
+    document.addEventListener('visibilitychange', onExternalClose);
+
     removeGlobalListeners = () => {
+      window.removeEventListener('nexa:close-longpress-menu', onExternalClose);
+
+      window.removeEventListener('pointermove', handlePointerMoveGlobal);
+      window.removeEventListener('pointerup', handlePointerUpGlobal);
+      window.removeEventListener('pointercancel', handlePointerUpGlobal);
+
       window.removeEventListener('touchmove', handlePointerMoveGlobal);
-      window.removeEventListener('mousemove', handlePointerMoveGlobal);
       window.removeEventListener('touchend', handlePointerUpGlobal);
       window.removeEventListener('touchcancel', handlePointerUpGlobal);
+
+      window.removeEventListener('mousemove', handlePointerMoveGlobal);
       window.removeEventListener('mouseup', handlePointerUpGlobal);
+
+      window.removeEventListener('blur', onExternalClose);
+      document.removeEventListener('visibilitychange', onExternalClose);
     };
   });
 
@@ -204,6 +204,7 @@
 
   <div class="menu-anchor" style="left:{originX}px; top:{originY}px;">
     <span class="origin-ring"></span>
+
     {#each options as opt (opt.id)}
       <div
         class="bubble"
@@ -234,6 +235,7 @@
     pointer-events: none;
     animation: veilIn .22s cubic-bezier(0.16,1,0.3,1);
   }
+
   @keyframes veilIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -248,7 +250,8 @@
 
   .origin-ring {
     position: absolute;
-    left: 0; top: 0;
+    left: 0;
+    top: 0;
     width: 56px;
     height: 56px;
     margin-left: -28px;
@@ -257,14 +260,16 @@
     border: 2px solid rgba(255,255,255,0.5);
     animation: ringIn .28s cubic-bezier(0.34,1.56,0.64,1);
   }
+
   @keyframes ringIn {
     from { transform: scale(0.4); opacity: 0; }
-    to   { transform: scale(1); opacity: 1; }
+    to { transform: scale(1); opacity: 1; }
   }
 
   .bubble {
     position: absolute;
-    left: 0; top: 0;
+    left: 0;
+    top: 0;
     width: 50px;
     height: 50px;
     margin-left: -25px;
@@ -279,6 +284,7 @@
     animation: bubbleIn .3s cubic-bezier(0.34,1.56,0.64,1) backwards;
     transition: background .12s ease, transform .12s cubic-bezier(0.34,1.56,0.64,1);
   }
+
   .bubble:nth-child(2) { animation-delay: .01s; }
   .bubble:nth-child(3) { animation-delay: .03s; }
   .bubble:nth-child(4) { animation-delay: .05s; }

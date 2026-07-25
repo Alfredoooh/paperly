@@ -6,6 +6,7 @@
   import LongPressMenu from './LongPressMenu.svelte';
 
   export let view = 'images';
+  export let isActive = true;
   export let onOpenPreview = () => {};
 
   let loading = true;
@@ -13,39 +14,35 @@
   function splitColumns(items) {
     const left = [], right = [];
     items.forEach((item, i) => {
-      if (i % 2 === 0) left.push(item); else right.push(item);
+      if (i % 2 === 0) left.push(item);
+      else right.push(item);
     });
     return [left, right];
   }
   $: imageColumns = splitColumns(IMAGE_MODELS);
 
-  // Suprime a chamada de abertura de preview quando o click que a
-  // disparou é, na verdade, o click SINTÉTICO que os motores de touch
-  // geram automaticamente a partir de um touchstart+touchend no mesmo
-  // elemento sem movimento — mesmo quando esses dois eventos estão
-  // separados por 400ms+ de espera de long-press. Isto é um
-  // comportamento real e documentado dos browsers/webviews mobile:
-  // touchstart -> (sem movimento significativo) -> touchend no MESMO
-  // elemento sintetiza um 'click' automaticamente nesse elemento,
-  // independentemente de quanto tempo passou entre os dois eventos.
-  // Sem esta supressão: um long-press bem-sucedido (que já teve o seu
-  // próprio fluxo de fechar/selecionar via LongPressMenu) ainda
-  // disparava ADICIONALMENTE o click normal do card por baixo,
-  // abrindo o TemplatePreviewPage por cima do menu a fechar — o que
-  // parecia visualmente "o menu aparece duas vezes e trava".
   function openImgPreview(img) {
-    if (suppressNextClick) { suppressNextClick = false; return; }
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      return;
+    }
     onOpenPreview('image', img);
   }
+
   function openDocPreview(doc) {
-    if (suppressNextClick) { suppressNextClick = false; return; }
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      return;
+    }
     onOpenPreview('doc', doc);
   }
 
   const recoil = createBackRecoilTransition();
   let pull = 0;
   const MAX_PULL = 64;
-  const unsubscribeRecoil = recoil.subscribe((v) => { pull = v * MAX_PULL; });
+  const unsubscribeRecoil = recoil.subscribe((v) => {
+    pull = v * MAX_PULL;
+  });
 
   let scrollEl;
   let innerEl;
@@ -66,6 +63,7 @@
     gestureStartY = e.touches ? e.touches[0].clientY : e.clientY;
     gestureStartScrollTop = scrollEl.scrollTop;
   }
+
   function onPointerMove(e) {
     if (!dragging || !scrollEl || cardGestureActive) return;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
@@ -84,6 +82,7 @@
     if (normalized !== 0) e.preventDefault?.();
     recoil.setDragValue(normalized);
   }
+
   function onPointerUp() {
     if (!dragging) return;
     dragging = false;
@@ -99,18 +98,20 @@
   let longPressTarget = null;
   let pressStartX = 0, pressStartY = 0;
   let pressMoved = false;
-
-  // Ligada a true no instante exato em que o long-press dispara de
-  // verdade (timer completou). Consumida (voltada a false) na
-  // PRIMEIRA chamada seguinte a openImgPreview/openDocPreview — que é
-  // precisamente o click sintético gerado pelo touchend/mouseup que
-  // fecha o menu. Um tap normal a seguir (que não passa por aqui,
-  // porque não liga esta flag) continua a funcionar sem qualquer
-  // supressão.
   let suppressNextClick = false;
 
   function buzzLongPress() {
     try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
+  }
+
+  function clearLongPressState() {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+    longPressActive = false;
+    longPressTarget = null;
+    cardGestureActive = false;
+    pressMoved = false;
+    suppressNextClick = false;
   }
 
   function armLongPress(e, kind, item) {
@@ -122,6 +123,7 @@
     pressMoved = false;
     longPressTarget = { kind, item };
     cardGestureActive = true;
+
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
       if (pressMoved) return;
@@ -137,46 +139,47 @@
     const t = e.touches ? e.touches[0] : e;
     const dx = t.clientX - pressStartX;
     const dy = t.clientY - pressStartY;
+
     if (Math.hypot(dx, dy) > MOVE_CANCEL_THRESHOLD) {
       pressMoved = true;
       clearTimeout(longPressTimer);
+      longPressTimer = null;
       cardGestureActive = false;
     }
   }
 
   function endCardGesture() {
     clearTimeout(longPressTimer);
+    longPressTimer = null;
     if (longPressActive) return;
     cardGestureActive = false;
     pressMoved = false;
   }
 
-  function clearLongPressState() {
-    clearTimeout(longPressTimer);
-    pressMoved = false;
-    cardGestureActive = false;
-    longPressActive = false;
-    longPressTarget = null;
-  }
-
   function handleMenuSelect() {
     clearLongPressState();
   }
+
   function handleMenuCancel() {
     clearLongPressState();
   }
 
+  $: if (!isActive) {
+    clearLongPressState();
+  }
+
   onMount(() => {
-    const t = setTimeout(() => { loading = false; }, 700);
+    const t = setTimeout(() => {
+      loading = false;
+    }, 700);
     return () => clearTimeout(t);
   });
+
   onDestroy(() => {
     unsubscribeRecoil();
     recoil.destroy();
     clearTimeout(longPressTimer);
-    longPressActive = false;
-    longPressTarget = null;
-    cardGestureActive = false;
+    clearLongPressState();
   });
 </script>
 

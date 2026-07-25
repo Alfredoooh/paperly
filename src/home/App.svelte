@@ -524,7 +524,11 @@
     {:else if activeTab === 'projects'}
       <ProjectsTab />
     {:else if activeTab === 'templates'}
-      <TemplatesTab view={templatesView} onOpenPreview={openTemplatePreview} />
+      <TemplatesTab
+  view={templatesView}
+  isActive={activeTab === 'templates'}
+  onOpenPreview={openTemplatePreview}
+/>
     {:else if activeTab === 'me'}
       <MeTab
         {avatarUrl}

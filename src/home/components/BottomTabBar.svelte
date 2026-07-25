@@ -1,28 +1,25 @@
-<!-- src/home/components/BottomTabBar.svelte -->
 <script>
   import { TABS, AI_FAB } from '../lib/constants.js';
-  
+
   export let activeTab = 'create';
   export let onSelect = () => {};
   export let onOpenAI = () => {};
-  
+
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
-  
+
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
-  
+
   function select(tab) {
     buzz();
     if (tab.id === activeTab) return;
+    window.dispatchEvent(new CustomEvent('nexa:close-longpress-menu'));
     onSelect(tab.id);
   }
 
-  // O botão central NUNCA passa por select()/onSelect — não é um tab,
-  // não muda activeTab, não toca no router. Abre sempre o chat da
-  // Nexa IA como bottom-sheet modal, por cima de tudo.
   let fabPressed = false;
   function openAI() {
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
@@ -104,7 +101,9 @@
 <style>
   .tab-bar {
     position: fixed;
-    left: 0; right: 0; bottom: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 20;
     display: flex;
     align-items: stretch;
@@ -125,14 +124,9 @@
     -webkit-touch-callout: none;
   }
 
-  /* Tema escuro: em vez do glass genérico (--header-glass-rgb), a
-     bottombar passa a derivar diretamente de --app-bg (o mesmo fundo
-     do corpo), só um pouco mais clara — "quase idêntico mas um
-     pouquinho menos escuro", como pedido. color-mix evita depender de
-     uma variável --drawer-bg-strong que podia não bater certo com o
-     fundo real do body em todos os temas escuros. */
   :global([data-theme="dark"]) .tab-bar {
-    background: color-mix(in srgb, var(--app-bg) 74%, black 26%);
+    background: color-mix(in srgb, var(--app-bg) 54%, black 46%);
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.04), 0 -10px 24px rgba(0,0,0,0.38);
   }
 
   :global([data-theme="dark"]) .tab-bar::before {
@@ -142,7 +136,7 @@
     right: 0;
     top: -18px;
     height: 18px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.22));
+    background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.45));
     pointer-events: none;
     z-index: 0;
   }
@@ -159,7 +153,7 @@
   }
 
   :global([data-theme="dark"]) .tab-bar::after {
-    background: color-mix(in srgb, var(--app-bg) 74%, black 26%);
+    background: color-mix(in srgb, var(--app-bg) 54%, black 46%);
   }
 
   .tab-btn {
@@ -217,9 +211,6 @@
     transition: opacity .18s ease;
   }
 
-  /* ícone: regular por padrão, filled quando ativo; cor ativa vem
-     de var(--accent-primary), definida em src/shared/theme.css */
-
   .tab-avatar {
     width: 100%;
     height: 100%;
@@ -231,15 +222,18 @@
     border: 1.5px solid transparent;
     transition: border-color .18s ease;
   }
+
   .tab-avatar.active {
     border-color: var(--accent-primary);
   }
+
   .tab-avatar-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
   }
+
   .tab-avatar-initial {
     width: 100%;
     height: 100%;
@@ -258,54 +252,47 @@
     opacity: 0.7;
     transition: opacity .18s ease, font-weight .18s ease;
   }
+
   .tab-btn.active .tab-label {
     opacity: 1;
     font-weight: 700;
   }
 
-  /* ---------- Botão central (FAB) da Nexa IA ----------
-     PILL RETANGULAR (não círculo): largura > altura, cantos bem
-     curvos mas não 50% — igual ao padrão "pill" usado no resto do
-     projeto (ex: search-bar do CreateTab, que também é pill mas
-     horizontal). Fica assente NA PRÓPRIA linha da bottombar (não
-     elevado acima dela) — o .fab-slot reserva o espaço real no fluxo
-     flex, com o mesmo `flex:1` dos outros tab-btn, para a distribuição
-     space-around continuar simétrica dos dois lados. */
   .fab-slot {
     position: relative;
-    z-index: 1;
     flex: 1;
-    height: 42px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
+    pointer-events: none;
   }
 
   .fab-btn {
-    position: relative;
-    z-index: 1;
-    width: 56px;
-    height: 34px;
-    border-radius: 17px;
+    pointer-events: auto;
+    width: 54px;
+    height: 54px;
+    margin-bottom: 2px;
     border: none;
-    background: var(--accent-primary, #0A84FF);
+    border-radius: 50%;
+    background: var(--accent-primary);
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.24);
     cursor: pointer;
-    padding: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.20);
     -webkit-tap-highlight-color: transparent;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s cubic-bezier(0.32, 0.72, 0, 1);
+    transform: translateY(-8px);
+    transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1), box-shadow .18s ease, background .18s ease;
   }
-  .fab-btn.pressed,
-  .fab-btn:active {
-    transform: scale(0.90);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+
+  .fab-btn.pressed {
+    transform: translateY(-8px) scale(0.92);
   }
+
   .fab-icon-mask {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
+    display: block;
     background: #fff;
     mask-size: contain;
     -webkit-mask-size: contain;
@@ -313,9 +300,5 @@
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .icon-mask, .tab-label, .tab-icon, .fab-btn { transition: none !important; }
   }
 </style>

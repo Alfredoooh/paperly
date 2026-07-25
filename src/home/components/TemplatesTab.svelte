@@ -24,6 +24,21 @@
 
   // ------------------------------------------------------------------
   // Elastic / pull-to-refresh via spring (rAF).
+  //
+  // IMPORTANTE: este gesto tem que ser SUSPENSO assim que um dedo
+  // pousa em cima de um card individual, mesmo antes do long-press
+  // completar os 400ms — não só depois. Antes, a suspensão só
+  // acontecia quando longPressActive já era true (ou seja, só depois
+  // do timer completar), o que deixava uma janela de ~400ms em que
+  // qualquer tremor do dedo enquanto o long-press ainda estava a
+  // "armar" arrastava o grid inteiro via translateY(pull) no
+  // .templates-tab-inner — dava a sensação de o card estar a
+  // "deslizar" durante o gesto de segurar. Agora usa-se uma flag
+  // separada (cardGestureActive) que liga assim que QUALQUER card
+  // recebe um touchstart/mousedown, e só desliga quando esse gesto
+  // termina (touchend/mouseup/touchcancel) ou é cancelado — o
+  // pull-to-refresh do scroller pai fica completamente surdo a
+  // touchmove enquanto isso.
   // ------------------------------------------------------------------
   const recoil = createBackRecoilTransition();
   let pull = 0; // px, derivado do valor -1..1 do spring
@@ -36,6 +51,12 @@
   let gestureStartY = 0;
   let gestureStartScrollTop = 0;
 
+  // Verdadeiro desde o instante em que o dedo pousa em QUALQUER card
+  // (armLongPress) até ao instante em que solta/cancela — impede o
+  // pull-to-refresh de sequer COMEÇAR a arrastar o grid enquanto um
+  // gesto de long-press pode estar a nascer, mesmo antes dos 400ms.
+  let cardGestureActive = false;
+
   function dampen(delta) {
     const sign = delta < 0 ? -1 : 1;
     const abs = Math.abs(delta);
@@ -43,13 +64,13 @@
   }
 
   function onPointerDown(e) {
-    if (!scrollEl || longPressActive) return;
+    if (!scrollEl || longPressActive || cardGestureActive) return;
     dragging = true;
     gestureStartY = e.touches ? e.touches[0].clientY : e.clientY;
     gestureStartScrollTop = scrollEl.scrollTop;
   }
   function onPointerMove(e) {
-    if (!dragging || !scrollEl) return;
+    if (!dragging || !scrollEl || cardGestureActive) return;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     const delta = y - gestureStartY;
 
@@ -78,18 +99,10 @@
   const LONG_PRESS_MS = 400;
   const MOVE_CANCEL_THRESHOLD = 10;
 
-  // Fator de escala visual aplicado ao card via CSS quando .pressed
-  // fica ativo (ver .img-card.pressed / .doc-card.pressed abaixo).
-  // Tem que ser o MESMO valor usado no transform:scale() do CSS —
-  // se um dia mudares a escala no CSS, muda aqui também, ou o buraco
-  // volta a ficar desalinhado.
-  const PRESSED_SCALE = 1.04;
-
   let longPressActive = false;
   let longPressTimer = null;
   let longPressOrigin = { x: 0, y: 0 };
   let longPressTarget = null;
-  let longPressCardRect = null; // DOMRect (já expandido pela escala) do card pressionado, para o "buraco" no overlay
   let menuRef;
   let pressStartX = 0, pressStartY = 0;
   let pressMoved = false;
@@ -99,37 +112,6 @@
     try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
   }
 
-  // Expande um DOMRect em torno do próprio centro por um fator de
-  // escala — usado para compensar o transform:scale(PRESSED_SCALE)
-  // que o CSS aplica ao card no instante em que .pressed fica ativo.
-  //
-  // Por que isto é necessário: getBoundingClientRect() é chamado no
-  // touchstart/mousedown, ANTES do Svelte re-renderizar com a classe
-  // .pressed aplicada — nesse instante o card ainda está no tamanho
-  // normal (escala 1x). O CSS só cresce o card visualmente depois
-  // disso. Se usássemos o rect bruto, o "buraco" recortado no véu
-  // escuro ficaria do tamanho do card ANTES de crescer — menor que o
-  // card depois de crescer — sobrando uma faixa fina da imagem
-  // escalada para fora do buraco, ainda coberta pelo véu escuro. Ao
-  // expandir matematicamente o rect pelo mesmo fator de escala do
-  // CSS, centrado no mesmo centro (que é o que transform:scale()
-  // também faz — escala a partir do centro, por padrão), o buraco
-  // acompanha exatamente o tamanho final do card, sem depender de
-  // esperar um frame de repaint.
-  function expandRectByScale(rect, scale) {
-    if (!rect) return null;
-    const newWidth = rect.width * scale;
-    const newHeight = rect.height * scale;
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return {
-      left: cx - newWidth / 2,
-      top: cy - newHeight / 2,
-      width: newWidth,
-      height: newHeight,
-    };
-  }
-
   function armLongPress(e, kind, item) {
     const t = e.touches ? e.touches[0] : e;
     pressStartX = t.clientX;
@@ -137,12 +119,14 @@
     pressMoved = false;
     longPressTarget = { kind, item };
     pressedEl = e.currentTarget;
+    // Liga já aqui, no instante do primeiro toque no card — não espera
+    // pelos 400ms. É isto que impede o pull-to-refresh de arrastar o
+    // grid durante a janela de espera do long-press.
+    cardGestureActive = true;
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
       if (pressMoved) return;
       longPressOrigin = { x: pressStartX, y: pressStartY };
-      const rawRect = pressedEl?.getBoundingClientRect() || null;
-      longPressCardRect = expandRectByScale(rawRect, PRESSED_SCALE);
       longPressActive = true;
       buzzLongPress();
     }, LONG_PRESS_MS);
@@ -156,6 +140,10 @@
       if (Math.hypot(dx, dy) > MOVE_CANCEL_THRESHOLD) {
         pressMoved = true;
         clearTimeout(longPressTimer);
+        // O dedo moveu-se demais para ainda contar como long-press —
+        // liberta o pull-to-refresh de volta para o gesto normal de
+        // scroll/pull, já que o toque deixou de ser "segurar parado".
+        cardGestureActive = false;
       }
       return;
     }
@@ -164,24 +152,24 @@
 
   function releaseLongPress() {
     clearTimeout(longPressTimer);
+    cardGestureActive = false;
     if (!longPressActive) return;
     menuRef?.resolve();
   }
 
   function cancelLongPressGesture() {
     clearTimeout(longPressTimer);
+    cardGestureActive = false;
     if (longPressActive) longPressActive = false;
   }
 
   function handleMenuSelect() {
     longPressActive = false;
     longPressTarget = null;
-    longPressCardRect = null;
   }
   function handleMenuCancel() {
     longPressActive = false;
     longPressTarget = null;
-    longPressCardRect = null;
   }
 
   onMount(() => {
@@ -294,7 +282,6 @@
     bind:this={menuRef}
     originX={longPressOrigin.x}
     originY={longPressOrigin.y}
-    cardRect={longPressCardRect}
     on:select={handleMenuSelect}
     on:cancel={handleMenuCancel}
   />
@@ -348,21 +335,15 @@
   .masonry-col:last-child .img-card:nth-child(3n+3) { aspect-ratio: 3 / 4; }
   .img-card:active { transform: scale(0.96); }
   .img-card.pressed {
-    /* Este valor tem que bater com PRESSED_SCALE no <script> acima —
-       é ele que o expandRectByScale() usa para calcular o tamanho do
-       "buraco" no véu escuro. Se mudares aqui, muda lá também. */
     transform: scale(1.04);
-    /* SEM z-index acima do overlay aqui de propósito — o card
-       pressionado fica visível através do "buraco" recortado no véu
-       (dark-veil-hole no LongPressMenu.svelte), que já lhe dá espaço
-       livre e sem nenhuma camada por cima. Um z-index maior que o do
-       overlay (200) faria o card inteiro — imagem e tudo — flutuar
-       por CIMA do overlay inteiro, incluindo por cima dos próprios
-       botões .bubble do menu, que é exatamente o bug que estava a
-       acontecer. z-index:2 aqui é só o suficiente para ficar acima
-       dos outros cards vizinhos no grid local (que estão a z-index:1),
-       nunca acima do overlay do menu. */
-    z-index: 2;
+    /* Este é o ÚNICO card com permissão de ficar acima do
+       .menu-overlay (z-index:200 no LongPressMenu.svelte, já movido
+       para document.body via portal). 301 garante que fica acima do
+       overlay inteiro, incluindo do próprio dark-veil-full — é assim
+       que o card "flutua" visível por cima do véu escuro, cresce um
+       pouco, e continua legível enquanto o resto da tela escurece à
+       volta dele. */
+    z-index: 301;
   }
   .img-card-photo {
     width: 100%;
@@ -412,10 +393,8 @@
     z-index: 1;
   }
   .doc-card.pressed {
-    /* Mesma lógica do .img-card.pressed acima: sem z-index acima do
-       overlay (200), só o suficiente para ficar acima dos cards
-       vizinhos do próprio grid. */
-    z-index: 2;
+    /* Mesma lógica do .img-card.pressed acima. */
+    z-index: 301;
   }
   .doc-sheet {
     position: relative;

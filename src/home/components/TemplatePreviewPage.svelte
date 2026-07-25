@@ -11,7 +11,7 @@
   export let onShare = () => {};
   export let onPin = () => {};
   export let onSearch = () => {};
-  export let onWhatsapp = () => {};
+  export let onReply = () => {};
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -40,29 +40,42 @@
   }
 
   // ------------------------------------------------------------------
-  // PopupMenu nativo simples: dropdown ancorado no botão more_vert,
-  // sem overlay escurecido, sem animação customizada, sem drag-select.
-  // Fecha ao clicar fora ou numa opção.
+  // Popup estilo iOS (UIMenu / context menu nativo):
+  // - fundo com vibrancy leve (blur suave, não pesado)
+  // - abre com scale-from-corner ancorado ao botão, não fade simples
+  // - ícone à DIREITA do label (padrão iOS, ao contrário do Android
+  //   que põe ícone à esquerda)
+  // - divisores finos de 0.5px entre itens
+  // - cantos bem arredondados (14px), largura fixa ~250px como o iOS
+  // - ícones: Fluent System Icons via CDN (@fluentui/svg-icons)
   // ------------------------------------------------------------------
+  const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
+
   const MENU_OPTIONS = [
-    { id: 'share',    icon: '/icons/svg/regular/share.svg',         label: 'Partilhar' },
-    { id: 'pin',      icon: '/icons/svg/regular/pin.svg',           label: 'Fixar' },
-    { id: 'search',   icon: '/icons/svg/regular/search.svg',        label: 'Pesquisar' },
-    { id: 'whatsapp', icon: '/icons/svg/regular/chat_multiple.svg', label: 'WhatsApp' },
+    { id: 'share',  icon: `${FLUENT_BASE}/share_20_regular.svg`,       label: 'Partilhar' },
+    { id: 'pin',    icon: `${FLUENT_BASE}/pin_20_regular.svg`,         label: 'Fixar' },
+    { id: 'search', icon: `${FLUENT_BASE}/search_20_regular.svg`,      label: 'Pesquisar' },
+    { id: 'reply',  icon: `${FLUENT_BASE}/arrow_reply_20_regular.svg`, label: 'Responder' },
   ];
+  const MORE_ICON = `${FLUENT_BASE}/more_horizontal_20_regular.svg`;
 
   let menuOpen = false;
   let menuBtnEl;
   let menuEl;
   let menuAlignRight = true;
+  let closing = false;
+  let closeTimer = null;
 
   async function toggleMenu() {
-    menuOpen = !menuOpen;
     if (menuOpen) {
-      buzz();
-      await tick();
-      positionMenu();
+      requestClose();
+      return;
     }
+    buzz();
+    menuOpen = true;
+    closing = false;
+    await tick();
+    positionMenu();
   }
 
   function positionMenu() {
@@ -72,26 +85,35 @@
     menuAlignRight = (btnRect.right - menuWidth) >= 8;
   }
 
-  function closeMenu() {
-    menuOpen = false;
+  // Fecha com uma pequena animação de saída (scale-down + fade), em
+  // vez de desmontar abruptamente — é o que falta em popups que
+  // "ficam feios ao largar".
+  function requestClose() {
+    if (!menuOpen || closing) return;
+    closing = true;
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      menuOpen = false;
+      closing = false;
+    }, 140);
   }
 
   function selectOption(id) {
     buzz();
-    closeMenu();
+    requestClose();
     if (id === 'share') onShare(item);
     else if (id === 'pin') onPin(item);
     else if (id === 'search') onSearch(item);
-    else if (id === 'whatsapp') onWhatsapp(item);
+    else if (id === 'reply') onReply(item);
   }
 
   function handleWindowPointerDown(e) {
-    if (!menuOpen) return;
+    if (!menuOpen || closing) return;
     if (menuEl?.contains(e.target) || menuBtnEl?.contains(e.target)) return;
-    closeMenu();
+    requestClose();
   }
   function handleWindowKeydown(e) {
-    if (menuOpen && e.key === 'Escape') closeMenu();
+    if (menuOpen && e.key === 'Escape') requestClose();
   }
 
   onMount(() => {
@@ -99,6 +121,7 @@
     window.addEventListener('keydown', handleWindowKeydown);
   });
   onDestroy(() => {
+    clearTimeout(closeTimer);
     window.removeEventListener('pointerdown', handleWindowPointerDown, true);
     window.removeEventListener('keydown', handleWindowKeydown);
   });
@@ -120,26 +143,30 @@
         aria-haspopup="menu"
         aria-expanded={menuOpen}
       >
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_vert.svg');-webkit-mask-image:url('/icons/svg/regular/more_vert.svg')"></span>
+        <span class="icon-mask more-icon" style="mask-image:url('{MORE_ICON}');-webkit-mask-image:url('{MORE_ICON}')"></span>
       </button>
 
       {#if menuOpen}
         <div
-          class="popup-menu"
+          class="ios-menu"
           class:align-right={menuAlignRight}
           class:align-left={!menuAlignRight}
+          class:closing
           bind:this={menuEl}
           role="menu"
         >
-          {#each MENU_OPTIONS as opt (opt.id)}
+          {#each MENU_OPTIONS as opt, i (opt.id)}
             <button
-              class="popup-menu-item"
+              class="ios-menu-item"
               role="menuitem"
               on:click={() => selectOption(opt.id)}
             >
-              <span class="popup-menu-icon icon-mask" style="mask-image:url('{opt.icon}');-webkit-mask-image:url('{opt.icon}')"></span>
-              <span class="popup-menu-label">{opt.label}</span>
+              <span class="ios-menu-label">{opt.label}</span>
+              <span class="ios-menu-icon icon-mask" style="mask-image:url('{opt.icon}');-webkit-mask-image:url('{opt.icon}')"></span>
             </button>
+            {#if i < MENU_OPTIONS.length - 1}
+              <div class="ios-menu-divider"></div>
+            {/if}
           {/each}
         </div>
       {/if}
@@ -203,9 +230,14 @@
     background: var(--btn-bg-active);
     transform: scale(0.88);
   }
-  .back-btn .icon-mask, .more-btn .icon-mask {
+  .back-btn .icon-mask {
     width: 18px;
     height: 18px;
+  }
+  .more-icon {
+    width: 19px;
+    height: 19px;
+    transform: rotate(90deg);
   }
 
   .preview-header-title {
@@ -224,57 +256,82 @@
     flex-shrink: 0;
   }
 
-  .popup-menu {
+  /* -------------------------------------------------------------
+     Popup estilo iOS: vibrancy leve (blur curto, 12px), cantos bem
+     arredondados, largura fixa, abre/fecha com scale ancorado no
+     canto próximo do botão (top-right ou top-left), NUNCA do
+     centro — é assim que o UIMenu real se comporta.
+  ------------------------------------------------------------- */
+  .ios-menu {
     position: absolute;
     top: calc(100% + 6px);
-    min-width: 178px;
+    width: 250px;
     background: var(--surface-apps-tab);
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.18);
-    padding: 6px;
+    background: color-mix(in srgb, var(--surface-apps-tab) 82%, transparent);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 0.5px solid var(--border-soft);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+    overflow: hidden;
     z-index: 40;
-    animation: popupIn .14s cubic-bezier(0.16,1,0.3,1);
+    transform-origin: top right;
+    animation: iosMenuIn .18s cubic-bezier(0.19,1,0.22,1) forwards;
   }
-  .popup-menu.align-right { right: 0; }
-  .popup-menu.align-left { left: 0; }
-
-  @keyframes popupIn {
-    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+  .ios-menu.align-left {
+    transform-origin: top left;
+  }
+  .ios-menu.closing {
+    animation: iosMenuOut .14s cubic-bezier(0.4,0,1,1) forwards;
   }
 
-  .popup-menu-item {
+  @keyframes iosMenuIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes iosMenuOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.9); }
+  }
+
+  .ios-menu-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 12px;
     width: 100%;
-    padding: 10px 10px;
+    padding: 11px 16px;
     border: none;
     background: transparent;
-    border-radius: 8px;
     cursor: pointer;
     font: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--drawer-text);
     text-align: left;
-    transition: background .12s ease;
+    transition: background .1s ease;
   }
-  .popup-menu-item:active {
-    background: var(--row-active);
+  .ios-menu-item:active {
+    background: rgba(120,120,128,0.16);
   }
-  .popup-menu-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-  }
-  .popup-menu-label {
+  .ios-menu-label {
+    font-size: 15.5px;
+    font-weight: 400;
+    color: var(--drawer-text);
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .ios-menu-icon {
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+    background: var(--drawer-text);
+    opacity: 0.85;
+  }
+  .ios-menu-divider {
+    height: 0.5px;
+    margin: 0 16px;
+    background: var(--border-soft);
   }
 
   .icon-mask {

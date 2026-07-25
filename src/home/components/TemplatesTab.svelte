@@ -3,10 +3,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { IMAGE_MODELS, DOC_MODELS } from '../lib/constants.js';
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
-  import LongPressMenu from './LongPressMenu.svelte';
 
   export let view = 'images';
-  export let isActive = true;
   export let onOpenPreview = () => {};
 
   let loading = true;
@@ -14,42 +12,29 @@
   function splitColumns(items) {
     const left = [], right = [];
     items.forEach((item, i) => {
-      if (i % 2 === 0) left.push(item);
-      else right.push(item);
+      if (i % 2 === 0) left.push(item); else right.push(item);
     });
     return [left, right];
   }
   $: imageColumns = splitColumns(IMAGE_MODELS);
 
   function openImgPreview(img) {
-    if (suppressNextClick) {
-      suppressNextClick = false;
-      return;
-    }
     onOpenPreview('image', img);
   }
-
   function openDocPreview(doc) {
-    if (suppressNextClick) {
-      suppressNextClick = false;
-      return;
-    }
     onOpenPreview('doc', doc);
   }
 
   const recoil = createBackRecoilTransition();
   let pull = 0;
   const MAX_PULL = 64;
-  const unsubscribeRecoil = recoil.subscribe((v) => {
-    pull = v * MAX_PULL;
-  });
+  const unsubscribeRecoil = recoil.subscribe((v) => { pull = v * MAX_PULL; });
 
   let scrollEl;
   let innerEl;
   let dragging = false;
   let gestureStartY = 0;
   let gestureStartScrollTop = 0;
-  let cardGestureActive = false;
 
   function dampen(delta) {
     const sign = delta < 0 ? -1 : 1;
@@ -58,14 +43,13 @@
   }
 
   function onPointerDown(e) {
-    if (!scrollEl || longPressActive || cardGestureActive) return;
+    if (!scrollEl) return;
     dragging = true;
     gestureStartY = e.touches ? e.touches[0].clientY : e.clientY;
     gestureStartScrollTop = scrollEl.scrollTop;
   }
-
   function onPointerMove(e) {
-    if (!dragging || !scrollEl || cardGestureActive) return;
+    if (!dragging || !scrollEl) return;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     const delta = y - gestureStartY;
 
@@ -82,104 +66,19 @@
     if (normalized !== 0) e.preventDefault?.();
     recoil.setDragValue(normalized);
   }
-
   function onPointerUp() {
     if (!dragging) return;
     dragging = false;
     recoil.releaseDragTo();
   }
 
-  const LONG_PRESS_MS = 400;
-  const MOVE_CANCEL_THRESHOLD = 10;
-
-  let longPressActive = false;
-  let longPressTimer = null;
-  let longPressOrigin = { x: 0, y: 0 };
-  let longPressTarget = null;
-  let pressStartX = 0, pressStartY = 0;
-  let pressMoved = false;
-  let suppressNextClick = false;
-
-  function buzzLongPress() {
-    try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
-  }
-
-  function clearLongPressState() {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-    longPressActive = false;
-    longPressTarget = null;
-    cardGestureActive = false;
-    pressMoved = false;
-    suppressNextClick = false;
-  }
-
-  function armLongPress(e, kind, item) {
-    if (cardGestureActive || longPressActive) return;
-
-    const t = e.touches ? e.touches[0] : e;
-    pressStartX = t.clientX;
-    pressStartY = t.clientY;
-    pressMoved = false;
-    longPressTarget = { kind, item };
-    cardGestureActive = true;
-
-    clearTimeout(longPressTimer);
-    longPressTimer = setTimeout(() => {
-      if (pressMoved) return;
-      longPressOrigin = { x: pressStartX, y: pressStartY };
-      longPressActive = true;
-      suppressNextClick = true;
-      buzzLongPress();
-    }, LONG_PRESS_MS);
-  }
-
-  function trackLongPress(e) {
-    if (longPressActive) return;
-    const t = e.touches ? e.touches[0] : e;
-    const dx = t.clientX - pressStartX;
-    const dy = t.clientY - pressStartY;
-
-    if (Math.hypot(dx, dy) > MOVE_CANCEL_THRESHOLD) {
-      pressMoved = true;
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-      cardGestureActive = false;
-    }
-  }
-
-  function endCardGesture() {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-    if (longPressActive) return;
-    cardGestureActive = false;
-    pressMoved = false;
-  }
-
-  function handleMenuSelect() {
-    clearLongPressState();
-  }
-
-  function handleMenuCancel() {
-    clearLongPressState();
-  }
-
-  $: if (!isActive) {
-    clearLongPressState();
-  }
-
   onMount(() => {
-    const t = setTimeout(() => {
-      loading = false;
-    }, 700);
+    const t = setTimeout(() => { loading = false; }, 700);
     return () => clearTimeout(t);
   });
-
   onDestroy(() => {
     unsubscribeRecoil();
     recoil.destroy();
-    clearTimeout(longPressTimer);
-    clearLongPressState();
   });
 </script>
 
@@ -227,16 +126,7 @@
             {#each column as img}
               <button
                 class="img-card"
-                class:pressed={longPressActive && longPressTarget?.item === img}
                 on:click={() => openImgPreview(img)}
-                on:touchstart={(e) => armLongPress(e, 'image', img)}
-                on:touchmove={trackLongPress}
-                on:touchend={endCardGesture}
-                on:touchcancel={endCardGesture}
-                on:mousedown={(e) => armLongPress(e, 'image', img)}
-                on:mousemove={trackLongPress}
-                on:mouseup={endCardGesture}
-                on:mouseleave={endCardGesture}
               >
                 <img src={img.thumb} alt={img.label} class="img-card-photo" loading="lazy" />
                 <span class="img-card-overlay"></span>
@@ -251,16 +141,7 @@
         {#each DOC_MODELS as doc}
           <button
             class="doc-card"
-            class:pressed={longPressActive && longPressTarget?.item === doc}
             on:click={() => openDocPreview(doc)}
-            on:touchstart={(e) => armLongPress(e, 'doc', doc)}
-            on:touchmove={trackLongPress}
-            on:touchend={endCardGesture}
-            on:touchcancel={endCardGesture}
-            on:mousedown={(e) => armLongPress(e, 'doc', doc)}
-            on:mousemove={trackLongPress}
-            on:mouseup={endCardGesture}
-            on:mouseleave={endCardGesture}
           >
             <div class="doc-sheet">
               <span class="doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
@@ -276,15 +157,6 @@
     {/if}
   </div>
 </div>
-
-{#if longPressActive && longPressTarget}
-  <LongPressMenu
-    originX={longPressOrigin.x}
-    originY={longPressOrigin.y}
-    on:select={handleMenuSelect}
-    on:cancel={handleMenuCancel}
-  />
-{/if}
 
 <style>
   .templates-tab {
@@ -333,10 +205,6 @@
   .masonry-col:last-child .img-card:nth-child(3n+2) { aspect-ratio: 4 / 5; }
   .masonry-col:last-child .img-card:nth-child(3n+3) { aspect-ratio: 3 / 4; }
   .img-card:active { transform: scale(0.96); }
-  .img-card.pressed {
-    transform: scale(1.04);
-    z-index: 301;
-  }
   .img-card-photo {
     width: 100%;
     height: 100%;
@@ -384,9 +252,6 @@
     position: relative;
     z-index: 1;
   }
-  .doc-card.pressed {
-    z-index: 301;
-  }
   .doc-sheet {
     position: relative;
     width: 100%;
@@ -405,10 +270,6 @@
   .doc-card:active .doc-sheet {
     transform: scale(0.94);
     background: var(--row-active);
-  }
-  .doc-card.pressed .doc-sheet {
-    transform: scale(1.06);
-    background: var(--surface-apps-tab);
   }
   .doc-icon-mask {
     width: 26%;

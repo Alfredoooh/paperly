@@ -1,6 +1,6 @@
 <!-- src/home/components/TemplatePreviewPage.svelte -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { createSlideTransition } from '../lib/nav-transition.js';
 
   export let pushed = false; // true = tela empurrada para dentro (visível)
@@ -8,6 +8,10 @@
   export let item = null;
   export let onClose = () => {};
   export let onUse = () => {};
+  export let onShare = () => {};
+  export let onPin = () => {};
+  export let onSearch = () => {};
+  export let onWhatsapp = () => {};
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -17,8 +21,6 @@
   let slideX = 100;
   const unsubscribe = slide.subscribe((v) => { slideX = v; });
 
-  // reage à prop `pushed` vinda do App.svelte (fonte de verdade da
-  // navegação/history), traduzindo-a para o motor de spring
   let lastPushed = null;
   $: if (pushed !== lastPushed) {
     lastPushed = pushed;
@@ -36,6 +38,70 @@
     buzz();
     onUse();
   }
+
+  // ------------------------------------------------------------------
+  // PopupMenu nativo simples: dropdown ancorado no botão more_vert,
+  // sem overlay escurecido, sem animação customizada, sem drag-select.
+  // Fecha ao clicar fora ou numa opção.
+  // ------------------------------------------------------------------
+  const MENU_OPTIONS = [
+    { id: 'share',    icon: '/icons/svg/regular/share.svg',         label: 'Partilhar' },
+    { id: 'pin',      icon: '/icons/svg/regular/pin.svg',           label: 'Fixar' },
+    { id: 'search',   icon: '/icons/svg/regular/search.svg',        label: 'Pesquisar' },
+    { id: 'whatsapp', icon: '/icons/svg/regular/chat_multiple.svg', label: 'WhatsApp' },
+  ];
+
+  let menuOpen = false;
+  let menuBtnEl;
+  let menuEl;
+  let menuAlignRight = true;
+
+  async function toggleMenu() {
+    menuOpen = !menuOpen;
+    if (menuOpen) {
+      buzz();
+      await tick();
+      positionMenu();
+    }
+  }
+
+  function positionMenu() {
+    if (!menuBtnEl || !menuEl) return;
+    const btnRect = menuBtnEl.getBoundingClientRect();
+    const menuWidth = menuEl.offsetWidth;
+    menuAlignRight = (btnRect.right - menuWidth) >= 8;
+  }
+
+  function closeMenu() {
+    menuOpen = false;
+  }
+
+  function selectOption(id) {
+    buzz();
+    closeMenu();
+    if (id === 'share') onShare(item);
+    else if (id === 'pin') onPin(item);
+    else if (id === 'search') onSearch(item);
+    else if (id === 'whatsapp') onWhatsapp(item);
+  }
+
+  function handleWindowPointerDown(e) {
+    if (!menuOpen) return;
+    if (menuEl?.contains(e.target) || menuBtnEl?.contains(e.target)) return;
+    closeMenu();
+  }
+  function handleWindowKeydown(e) {
+    if (menuOpen && e.key === 'Escape') closeMenu();
+  }
+
+  onMount(() => {
+    window.addEventListener('pointerdown', handleWindowPointerDown, true);
+    window.addEventListener('keydown', handleWindowKeydown);
+  });
+  onDestroy(() => {
+    window.removeEventListener('pointerdown', handleWindowPointerDown, true);
+    window.removeEventListener('keydown', handleWindowKeydown);
+  });
 </script>
 
 <div class="preview-page" style="transform: translate3d({slideX}%, 0, 0);">
@@ -44,7 +110,40 @@
       <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg')"></span>
     </button>
     <span class="preview-header-title">{item?.label || ''}</span>
-    <span class="preview-header-spacer"></span>
+
+    <div class="menu-wrap">
+      <button
+        class="more-btn pulse-tap"
+        bind:this={menuBtnEl}
+        on:click={toggleMenu}
+        aria-label="Mais opções"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+      >
+        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_vert.svg');-webkit-mask-image:url('/icons/svg/regular/more_vert.svg')"></span>
+      </button>
+
+      {#if menuOpen}
+        <div
+          class="popup-menu"
+          class:align-right={menuAlignRight}
+          class:align-left={!menuAlignRight}
+          bind:this={menuEl}
+          role="menu"
+        >
+          {#each MENU_OPTIONS as opt (opt.id)}
+            <button
+              class="popup-menu-item"
+              role="menuitem"
+              on:click={() => selectOption(opt.id)}
+            >
+              <span class="popup-menu-icon icon-mask" style="mask-image:url('{opt.icon}');-webkit-mask-image:url('{opt.icon}')"></span>
+              <span class="popup-menu-label">{opt.label}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
   </header>
 
   <div class="preview-body">
@@ -65,15 +164,6 @@
 </div>
 
 <style>
-  /* ------------------------------------------------------------------
-     A posição é 100% controlada pelo spring em nav-transition.js via
-     rAF — de propósito SEM transition CSS aqui. Isto é o que resolve
-     o congelamento: uma CSS transition não pode ser redirecionada a
-     meio do gesto/troca sem reflow; um valor JS pode, a cada frame.
-     Sombra reduzida ao mínimo perceptível (era 24px de blur / 0.18
-     de opacidade, pesada o suficiente para ser repintada a cada frame
-     do transform e contribuir para o jank).
-  ------------------------------------------------------------------- */
   .preview-page {
     position: fixed;
     inset: 0;
@@ -95,7 +185,7 @@
     flex-shrink: 0;
   }
 
-  .back-btn {
+  .back-btn, .more-btn {
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -109,11 +199,11 @@
     padding: 0;
     transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .back-btn:active {
+  .back-btn:active, .more-btn:active {
     background: var(--btn-bg-active);
     transform: scale(0.88);
   }
-  .back-btn .icon-mask {
+  .back-btn .icon-mask, .more-btn .icon-mask {
     width: 18px;
     height: 18px;
   }
@@ -128,9 +218,63 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .preview-header-spacer {
-    width: 36px;
+
+  .menu-wrap {
+    position: relative;
     flex-shrink: 0;
+  }
+
+  .popup-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    min-width: 178px;
+    background: var(--surface-apps-tab);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+    padding: 6px;
+    z-index: 40;
+    animation: popupIn .14s cubic-bezier(0.16,1,0.3,1);
+  }
+  .popup-menu.align-right { right: 0; }
+  .popup-menu.align-left { left: 0; }
+
+  @keyframes popupIn {
+    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .popup-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--drawer-text);
+    text-align: left;
+    transition: background .12s ease;
+  }
+  .popup-menu-item:active {
+    background: var(--row-active);
+  }
+  .popup-menu-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .popup-menu-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .icon-mask {

@@ -488,7 +488,7 @@
       {userInitial}
       {userName}
       title={currentTitle}
-      solidGradient={activeTab === 'templates'}
+      solidOnScroll={activeTab === 'templates' || activeTab === 'projects'}
       showSearchBtn={activeTab === 'templates'}
       onOpenSearch={() => openSearch(null)}
       showToggle={activeTab === 'templates'}

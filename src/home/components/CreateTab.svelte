@@ -120,10 +120,14 @@
   const APPS_SKELETON_COUNT = 6; // 2 filas de 3 colunas
 </script>
 
-<!-- Header próprio do Create: título fixo "Criar" + notificações + avatar. -->
+<!-- Header próprio do Create: título fixo "Criar" + notificações + avatar.
+     O título deixou de depender de `isSolid` — fica sempre visível assim
+     que o header monta, exatamente como os outros tabs mostram o seu
+     título sempre (Projetos, Templates, Eu). `isSolid` continua a
+     controlar só a mudança de fundo (transparente → sólido). -->
 <div class="create-header" class:in={effectiveMounted} class:solid={isSolid}>
   <div class="create-header-inner">
-    <h1 class="create-header-title" class:visible={isSolid}>Criar</h1>
+    <h1 class="create-header-title visible">Criar</h1>
     <div class="header-actions">
       <!-- Notificações: SEM círculo de fundo, SEM sombra — só o
            glyph Fluent solto (notification.svg, já é Fluent System
@@ -199,14 +203,14 @@
     </button>
   </div>
 
-  <!-- Apps: card estilo Microsoft 365 — título pequeno + grid 3
-       colunas, ícones PNG soltos (sem círculo/fundo colorido).
-       A Nexa IA NÃO aparece aqui — platformApps já vem filtrado
-       (id !== 'ai') a partir de App.svelte, porque a IA agora abre
-       exclusivamente pelo pill central da bottombar, como modal. -->
+  <!-- Apps: card estilo Microsoft 365 — título pequeno FORA/ACIMA do
+       card (antes estava dentro, sobre o card) + grid 3 colunas,
+       ícones PNG soltos (sem círculo/fundo colorido). A Nexa IA NÃO
+       aparece aqui — platformApps já vem filtrado (id !== 'ai') a
+       partir de App.svelte, porque a IA agora abre exclusivamente
+       pelo pill central da bottombar, como modal. -->
+  <span class="apps-card-title">Comece a criar com</span>
   <div class="apps-card">
-    <span class="apps-card-title">Comece a criar com</span>
-
     {#if platformApps === null || platformApps === undefined || platformApps.length === 0}
       <div class="apps-grid">
         {#each Array(APPS_SKELETON_COUNT) as _, i}
@@ -301,7 +305,11 @@
 
 <style>
   /* ════════════════════════════════════════════════════════════════
-     FLUENT DESIGN (Microsoft 365): variáveis locais de cor/forma.
+     M3 EXPRESSIVE: fonte usada nos apps do Material 3 Expressive
+     (Google Sans Text é a fonte de produto usada nas apps Google/M3
+     Expressive mais recentes; Roboto Flex como intermediário e
+     system-ui como fallback universal). Trocou a antiga 'Segoe UI'
+     (Fluent/Microsoft) por esta pilha em todo o CreateTab.
      ════════════════════════════════════════════════════════════════ */
   .create-tab,
   .apps-card,
@@ -319,7 +327,7 @@
   .silver-appbar-title,
   .empty-state-title,
   .empty-state-text {
-    font-family: 'Segoe UI', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
+    font-family: 'Google Sans Text', 'Roboto Flex', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
   }
 
   /* ---------- Header próprio do Create ---------- */
@@ -369,6 +377,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Título "Criar" agora é sempre visível assim que o header monta —
+       deixou de depender de isSolid (antes só aparecia ao deslizar,
+       ao contrário dos outros tabs, que mostram o título logo de
+       início). A classe .visible fica aplicada sempre no markup; a
+       transição de opacidade mantém-se só para suavizar o mount. */
     opacity: 0;
     transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -626,7 +639,7 @@
     -webkit-tap-highlight-color: transparent;
     position: relative;
     z-index: 1;
-    transition: border-color .16s cubic-bezier(0.32,0.72,0,1);
+    transition: border-color .16s cubic-bezier(0.32,0.72,0,1), background .2s cubic-bezier(0.32,0.72,0,1);
   }
   .search-bar:active {
     border-color: #185ABD;
@@ -653,21 +666,48 @@
     color: var(--text-faint);
   }
 
+  /* ------------------------------------------------------------------
+     Título "Comece a criar com" agora vive FORA do card, por cima
+     dele (antes estava dentro, sobre o próprio fundo do card) — igual
+     ao padrão dos outros títulos de secção da página (ex:
+     .recent-section-title, que também fica fora/acima da sua lista).
+     ------------------------------------------------------------------ */
+  .apps-card-title {
+    display: block;
+    margin: 18px 14px 10px;
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-faint);
+  }
+
+  /* ------------------------------------------------------------------
+     FIX (cores escuras azuladas erradas no dark mode): o card usava
+     var(--drawer-bg) diretamente, que no tema escuro resolvia para um
+     tom azul-acinzentado que destoava do resto da interface (o mesmo
+     tom usado nos painéis do drawer, não pensado para um card de
+     conteúdo solto no meio do ecrã). Agora, só no dark theme, o card
+     e a search-bar passam a usar um cinza-carvão neutro dedicado
+     (sem componente azul), com um tom ligeiramente mais claro que o
+     fundo da página para se destacarem como elevação, mantendo o
+     comportamento original (var(--drawer-bg)) intacto no tema claro.
+     ------------------------------------------------------------------ */
   .apps-card {
-    margin: 18px 14px 0;
+    margin: 0 14px 0;
     padding: 16px 12px 12px;
     border-radius: 22px;
     background: var(--drawer-bg);
     border: 1px solid var(--drawer-sep, rgba(127,127,127,0.16));
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
-  .apps-card-title {
-    display: block;
-    padding: 0 6px;
-    margin-bottom: 14px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-faint);
+  :global([data-theme="dark"]) .apps-card {
+    background: #24272D;
+    border-color: rgba(255,255,255,0.08);
+    box-shadow: none;
+  }
+  :global([data-theme="dark"]) .search-bar {
+    background: #1E2126;
+    border-color: rgba(255,255,255,0.10);
   }
   .apps-grid {
     display: grid;

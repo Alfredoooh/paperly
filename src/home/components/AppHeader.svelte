@@ -1,6 +1,14 @@
 <!-- src/home/components/AppHeader.svelte -->
 <!-- Usado por TODOS os tabs exceto "Criar" — o Criar tem o seu próprio
-     header standalone dentro de CreateTab.svelte. -->
+     header standalone dentro de CreateTab.svelte.
+     A partir desta versão, o comportamento "silver" (fundo azul Fluent
+     sólido, igual ao silver-appbar do CreateTab) deixa de ser uma prop
+     fixa (solidGradient) e passa a ser REATIVO ao scroll: aparece
+     assim que `scrolled` (já medido/passado por App.svelte a partir do
+     scrollTop real) ultrapassa um pequeno threshold. Continua a poder
+     ser forçado sempre visível via `solidOnScroll` — controla se este
+     comportamento está ativo ou não para o tab atual; quando falso, o
+     header mantém-se sempre no glass translúcido original. -->
 <script>
   export let mounted = false;
   export let topPanelEl;
@@ -14,7 +22,10 @@
 
   export let title = '';
 
-  export let solidGradient = false;
+  // solidOnScroll: quando true, o header fica "silver" (azul Fluent
+  // sólido) assim que o utilizador desliza — igual ao CreateTab. Cada
+  // tab decide se quer este comportamento via App.svelte.
+  export let solidOnScroll = false;
 
   export let showSearchBtn = false;
   export let onOpenSearch = () => {};
@@ -23,6 +34,13 @@
   export let toggleOptions = [];
   export let toggleValue = '';
   export let onToggleChange = () => {};
+
+  // Threshold baixo de propósito: `scrolled` já vem normalizado
+  // 0→1 pelos primeiros 24px de scroll (ver App.svelte/handleScroll),
+  // por isso basta um leve deslize para o silver assumir — igual à
+  // sensação do CreateTab, que reage a partir de heroProgress.
+  const SILVER_THRESHOLD = 0.4;
+  $: isSolid = solidOnScroll && scrolled >= SILVER_THRESHOLD;
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -54,20 +72,20 @@
 <div
   class="top-panel"
   class:in={mounted}
-  class:solid-gradient={solidGradient}
+  class:solid={isSolid}
   bind:this={topPanelEl}
 >
   <div class="gradient-layer"></div>
   <header class="header">
     <div class="header-inner">
-      <h1 class="header-title">{title}</h1>
+      <h1 class="header-title" class:solid-title={isSolid}>{title}</h1>
       <div class="header-actions">
         {#if showSearchBtn}
-          <button class="action-btn pulse-tap" on:click={handleSearch} aria-label="Pesquisar">
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+          <button class="action-btn pulse-tap" class:solid-btn={isSolid} on:click={handleSearch} aria-label="Pesquisar">
+            <span class="icon-mask" class:solid-icon={isSolid} style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
           </button>
         {/if}
-        <button class="profile-btn pulse-tap" on:click={handleMenu} aria-label="Perfil">
+        <button class="profile-btn pulse-tap" class:solid-btn={isSolid} on:click={handleMenu} aria-label="Perfil">
           {#if avatarUrl}
             <img src={avatarUrl} alt={userName} class="profile-img" />
           {:else}
@@ -78,7 +96,7 @@
     </div>
 
     {#if showToggle && toggleOptions.length > 0}
-      <div class="segmented" style="--count:{toggleOptions.length}">
+      <div class="segmented" class:solid-segmented={isSolid} style="--count:{toggleOptions.length}">
         <div class="segmented-thumb" style="--index:{toggleIndex}"></div>
         {#each toggleOptions as opt}
           <button
@@ -92,7 +110,7 @@
       </div>
     {/if}
   </header>
-  <div class="header-elevate" style="opacity:{solidGradient ? 0 : scrolled}"></div>
+  <div class="header-elevate" style="opacity:{isSolid ? 0 : scrolled}"></div>
 </div>
 
 <style>
@@ -107,7 +125,7 @@
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     opacity: 0;
     transform: translateY(-16px) translateZ(0);
-    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .2s ease;
+    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .24s cubic-bezier(0.32, 0.72, 0, 1);
     pointer-events: none;
     contain: layout style paint;
   }
@@ -117,10 +135,12 @@
     pointer-events: auto;
   }
 
-  .top-panel.solid-gradient {
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+  /* ---------- Silver: azul Fluent sólido, igual ao silver-appbar
+     do CreateTab (#185ABD), ativado por scroll via isSolid. ---------- */
+  .top-panel.solid {
+    background: #185ABD;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
   }
   .gradient-layer {
     position: absolute;
@@ -136,8 +156,8 @@
     transition: opacity .2s ease;
     pointer-events: none;
   }
-  .top-panel.solid-gradient .gradient-layer {
-    opacity: 1;
+  .top-panel.solid .gradient-layer {
+    opacity: 0;
   }
 
   .header-elevate {
@@ -149,11 +169,25 @@
     pointer-events: none;
     transition: opacity .18s linear;
   }
+
+  /* ------------------------------------------------------------------
+     FIX (bug: header enorme com "espaço de bottombar" dentro dele):
+     o padding-bottom usava env(safe-area-inset-top,0px) — a MESMA
+     variável do topo — em vez de um valor fixo pequeno. Em qualquer
+     aparelho com status bar/notch (inset-top tipicamente 24–48px),
+     isto somava esse valor DUAS vezes (uma no padding-top, correta
+     para não ficar por baixo da status bar, e outra repetida sem
+     necessidade no padding-bottom), inflando a altura total do header
+     em dezenas de pixels a mais do que o necessário — daí a sensação
+     de um bloco de espaço vazio extra, como se fosse uma bottombar
+     lá dentro. Agora o padding-bottom é um valor fixo de design
+     (10px), independente da safe-area do topo.
+     ------------------------------------------------------------------ */
   .header {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-top,0px) + 4px);
+    padding: calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
   }
   .header-inner {
     display: flex;
@@ -175,6 +209,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     transition: color .2s ease;
+  }
+  .header-title.solid-title {
+    color: #FFFFFF;
   }
 
   .header-actions {
@@ -198,9 +235,15 @@
     padding: 0;
     transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .action-btn.solid-btn {
+    background: transparent;
+  }
   .action-btn:active {
     background: var(--btn-bg-active);
     transform: scale(0.88);
+  }
+  .action-btn.solid-btn:active {
+    background: rgba(255,255,255,0.16);
   }
   .action-btn .icon-mask {
     width: 17px;
@@ -212,6 +255,9 @@
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
+  }
+  .action-btn .icon-mask.solid-icon {
+    background: #FFFFFF;
   }
 
   .profile-btn {
@@ -230,9 +276,16 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
     transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
+  .profile-btn.solid-btn {
+    background: rgba(255,255,255,0.16);
+    box-shadow: none;
+  }
   .profile-btn:active {
     background: var(--btn-solid-bg-active);
     transform: scale(0.9);
+  }
+  .profile-btn.solid-btn:active {
+    background: rgba(255,255,255,0.26);
   }
   .profile-img {
     width: 100%;
@@ -259,6 +312,10 @@
     background: var(--btn-bg);
     border-radius: 999px;
     padding: 4px;
+    transition: background .22s cubic-bezier(0.16,1,0.3,1);
+  }
+  .segmented.solid-segmented {
+    background: rgba(255,255,255,0.14);
   }
   .segmented-thumb {
     position: absolute;
@@ -271,6 +328,9 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.12);
     transform: translateX(calc(var(--index) * 100%));
     transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .solid-segmented .segmented-thumb {
+    background: #FFFFFF;
   }
   .segmented-opt {
     position: relative;
@@ -293,17 +353,25 @@
     color: var(--text-faint);
     transition: color .22s ease, transform .3s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
+  .solid-segmented .segmented-opt-label {
+    color: rgba(255,255,255,0.75);
+  }
   .segmented-opt.active .segmented-opt-label {
     color: var(--btn-solid-text);
     transform: scale(1.04);
+  }
+  .solid-segmented .segmented-opt.active .segmented-opt-label {
+    color: #185ABD;
   }
   .segmented-opt:active .segmented-opt-label {
     transform: scale(0.92);
   }
 
   @media (hover:hover) and (pointer:fine) {
-    .profile-btn:hover { background: var(--btn-solid-bg-active); }
-    .action-btn:hover { background: var(--btn-bg-active); }
+    .profile-btn:not(.solid-btn):hover { background: var(--btn-solid-bg-active); }
+    .profile-btn.solid-btn:hover { background: rgba(255,255,255,0.26); }
+    .action-btn:not(.solid-btn):hover { background: var(--btn-bg-active); }
+    .action-btn.solid-btn:hover { background: rgba(255,255,255,0.16); }
   }
 
   @media (prefers-reduced-motion: reduce) {

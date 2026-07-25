@@ -110,7 +110,7 @@ export const TABS = [
 export const AI_FAB = {
   id: 'ai-modal',
   label: 'Assistente de IA',
-  icon: '/icons/svg/apps/ai.svg',
+  icon: '/icons/svg/apps/png/ai.png',
 };
 
 // Toggle usado no appbar do tab "Templates"

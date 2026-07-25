@@ -6,56 +6,23 @@
      do sistema (gerido pelo pai via popstate, igual a search/preview/
      drawer).
 
-     CONTEÚDO: este componente NÃO inventa nenhum chat, mensagem, ou
-     lógica de IA. O corpo é um <iframe> a apontar para a rota /ai/
-     real da plataforma — o que quer que essa rota mostre é o que
-     aparece aqui dentro, ponto final. Se /ai/ ainda não existir ou o
-     embed for bloqueado, mostra-se um estado de erro explícito
-     (nunca um placeholder a fingir ser a IA). -->
+     CONTEÚDO: monta o AiApp REAL (../../ai/App.svelte) em modo
+     embedded — é literalmente o mesmo ChatPage.svelte da plataforma,
+     como componente Svelte em vez de rota de topo. Nada de iframe:
+     um <iframe src="/ai/"> faria um pedido HTTP a um path que esta
+     SPA de página única não serve como documento real (só existe
+     como estado de pushState interpretado em JS) — daí o "not
+     found". Nada de chat simulado: não há nenhuma lógica de
+     mensagens escrita aqui, é tudo o AiApp a fazer o que já faz. -->
 <script>
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
+  import AiApp from '../../ai/App.svelte';
 
   export let open = false;    // montado no DOM
   export let pushed = false;  // deve estar na posição aberta (fonte: App.svelte)
   export let onClose = () => {};
 
-  const AI_ROUTE = '/ai/';
-  const LOAD_TIMEOUT_MS = 8000;
-
-  let iframeEl;
   let sheetEl;
-
-  // 'loading' | 'loaded' | 'error'
-  let status = 'loading';
-  let loadTimeoutId;
-  let iframeKey = 0; // força remount do <iframe> ao tentar de novo
-
-  function startLoadWatch() {
-    status = 'loading';
-    clearTimeout(loadTimeoutId);
-    loadTimeoutId = setTimeout(() => {
-      if (status === 'loading') status = 'error';
-    }, LOAD_TIMEOUT_MS);
-  }
-
-  function handleIframeLoad() {
-    clearTimeout(loadTimeoutId);
-    status = 'loaded';
-  }
-
-  function handleIframeError() {
-    clearTimeout(loadTimeoutId);
-    status = 'error';
-  }
-
-  function retryLoad() {
-    iframeKey += 1; // recria o elemento <iframe> do zero
-    startLoadWatch();
-  }
-
-  function openInNewTab() {
-    window.open(AI_ROUTE, '_blank', 'noopener');
-  }
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -72,16 +39,22 @@
   let lastPushed = null;
   $: if (pushed !== lastPushed) {
     lastPushed = pushed;
-    if (pushed) {
-      sheet.recoil(); // reaproveita recoil() como "abrir" (target=1)
-      startLoadWatch();
-    } else {
-      sheet.reset();  // reaproveita reset() como "fechar" (target=0)
-    }
+    if (pushed) sheet.recoil();  // reaproveita recoil() como "abrir" (target=1)
+    else sheet.reset();          // reaproveita reset() como "fechar" (target=0)
   }
 
   $: translateY = (1 - sheetProgress) * 100; // 100% = fora do ecrã por baixo
   $: overlayOpacity = 0.55 * sheetProgress;
+
+  // Se o AiApp embutido disparar on:nav com to:'home' (ex: um botão
+  // de fechar/voltar interno do próprio ChatPage/SettingsPage), o
+  // significado correto AQUI é "fechar o modal" — nunca navegar rota
+  // nenhuma, já que estamos em modo embedded e o router interno do
+  // AiApp está isolado de propósito (ver shared/router.js).
+  function handleAiNav(e) {
+    const { to } = e.detail || {};
+    if (to === 'home') handleClose();
+  }
 
   // ------------------------------------------------------------------
   // Arrastar a handle para fechar — mesmo padrão de threshold/fling
@@ -136,7 +109,6 @@
 
   import { onDestroy } from 'svelte';
   onDestroy(() => {
-    clearTimeout(loadTimeoutId);
     unsubscribeSheet();
     sheet.destroy();
   });
@@ -167,53 +139,14 @@
       <span class="sheet-handle"></span>
     </div>
 
-    <header class="ai-header">
-      <div class="ai-header-title-wrap">
-        <span class="ai-icon-mask" style="mask-image:url('/icons/svg/apps/ai.svg');-webkit-mask-image:url('/icons/svg/apps/ai.svg')"></span>
-        <span class="ai-header-title">Nexa IA</span>
-      </div>
-      <button class="close-btn pulse-tap" on:click={handleClose} aria-label="Fechar">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg')"></span>
-      </button>
-    </header>
+    <button class="close-btn pulse-tap" on:click={handleClose} aria-label="Fechar">
+      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg')"></span>
+    </button>
 
     <div class="ai-body">
-      {#if status === 'error'}
-        <div class="ai-error-state">
-          <svg class="ai-error-illustration" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="20" y="18" width="80" height="56" rx="12" fill="var(--row-active, rgba(127,127,127,0.10))" />
-            <rect x="20" y="18" width="80" height="56" rx="12" stroke="var(--drawer-sep, rgba(127,127,127,0.25))" stroke-width="1.5" />
-            <path d="M52 40l16 16M68 40L52 56" stroke="var(--text-faint, #8E8E93)" stroke-width="3.4" stroke-linecap="round" />
-          </svg>
-          <p class="ai-error-title">Não foi possível carregar a IA</p>
-          <p class="ai-error-text">A rota {AI_ROUTE} não respondeu a tempo, ou o carregamento embutido foi bloqueado.</p>
-          <div class="ai-error-actions">
-            <button class="ai-error-btn ai-error-btn-primary pulse-tap" on:click={retryLoad}>Tentar novamente</button>
-            <button class="ai-error-btn pulse-tap" on:click={openInNewTab}>Abrir em separador novo</button>
-          </div>
-        </div>
+      {#if open}
+        <AiApp embedded={true} pushed={true} on:nav={handleAiNav} />
       {/if}
-
-      {#if status === 'loading'}
-        <div class="ai-loading-state" aria-hidden="true">
-          <div class="ai-loading-line ai-skeleton" style="width:60%"></div>
-          <div class="ai-loading-line ai-skeleton" style="width:85%"></div>
-          <div class="ai-loading-line ai-skeleton" style="width:40%"></div>
-        </div>
-      {/if}
-
-      {#key iframeKey}
-        <iframe
-          bind:this={iframeEl}
-          src={AI_ROUTE}
-          title="Nexa IA"
-          class="ai-iframe"
-          class:ai-iframe-visible={status === 'loaded'}
-          on:load={handleIframeLoad}
-          on:error={handleIframeError}
-          allow="microphone; clipboard-write"
-        ></iframe>
-      {/key}
     </div>
   </div>
 {/if}
@@ -227,11 +160,19 @@
     will-change: opacity;
   }
 
+  /* Altura do sheet: MUITO maior que a versão anterior (que estava
+     limitada a min(84dvh, 720px), o que era curto de mais para um
+     chat completo com composer + histórico + sub-páginas de
+     settings/widgets). Agora 92dvh — deixa só uma faixa fina no
+     topo (8dvh) para se perceber visualmente que é um sheet por
+     cima de outra coisa, e não uma nova tela de topo. Sem limite
+     fixo em px: em ecrãs grandes (tablet/desktop), 92dvh continua
+     proporcional em vez de ficar preso a um valor de telemóvel. */
   .ai-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 91;
-    height: min(84dvh, 720px);
+    height: 92dvh;
     max-width: 640px;
     margin: 0 auto;
     display: flex;
@@ -248,6 +189,9 @@
      projeto — permite redirecionar a meio do gesto sem reflow. */
 
   .sheet-handle-zone {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -255,6 +199,9 @@
     flex-shrink: 0;
     cursor: grab;
     touch-action: none;
+    /* Fica por cima do AiApp real, mas só a faixa da handle
+       intercepta toques — o resto do sheet é do AiApp. */
+    height: 24px;
   }
   .sheet-handle {
     width: 36px;
@@ -263,42 +210,23 @@
     background: var(--border-soft);
   }
 
-  .ai-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 4px 16px 12px;
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border-faint);
-  }
-  .ai-header-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .ai-icon-mask {
-    width: 20px;
-    height: 20px;
-    background: var(--accent-primary, #0A84FF);
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
-  }
-  .ai-header-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--drawer-text);
-  }
+  /* Botão de fechar: flutua no canto superior direito, por cima do
+     conteúdo real do AiApp (que já tem o seu próprio header interno
+     — não duplicamos um "Nexa IA" header aqui, o chat real já tem o
+     seu próprio cabeçalho/menu). Fundo semi-opaco com blur para se
+     manter legível seja qual for o conteúdo por baixo. */
   .close-btn {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    right: 14px;
+    z-index: 3;
     width: 32px;
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: var(--btn-bg);
+    background: rgba(127,127,127,0.22);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -308,7 +236,7 @@
     transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
   .close-btn:active {
-    background: var(--btn-bg-active);
+    background: rgba(127,127,127,0.34);
     transform: scale(0.88);
   }
   .icon-mask {
@@ -333,113 +261,6 @@
     overflow: hidden;
   }
 
-  /* Iframe da rota /ai/ real — é isto que ocupa o corpo do modal.
-     Fica invisível (opacity:0) até status==='loaded' para não mostrar
-     um flash de branco/about:blank enquanto a plataforma arranca lá
-     dentro, mas continua no DOM e a carregar durante o loading. */
-  .ai-iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-    opacity: 0;
-    transition: opacity .22s ease;
-  }
-  .ai-iframe-visible {
-    opacity: 1;
-  }
-
-  .ai-loading-state {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    padding: 20px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    background: var(--app-bg);
-  }
-  .ai-skeleton {
-    position: relative;
-    overflow: hidden;
-    height: 13px;
-    border-radius: 7px;
-    background: var(--row-active, rgba(127,127,127,0.12));
-  }
-  .ai-skeleton::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      color-mix(in srgb, var(--drawer-text) 8%, transparent) 50%,
-      transparent 100%
-    );
-    animation: skeleton-shimmer 1.3s ease-in-out infinite;
-  }
-  @keyframes skeleton-shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
-
-  .ai-error-state {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 24px 28px;
-    background: var(--app-bg);
-  }
-  .ai-error-illustration {
-    width: 100px;
-    height: 84px;
-    margin-bottom: 14px;
-  }
-  .ai-error-title {
-    margin: 0 0 4px;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--drawer-text);
-  }
-  .ai-error-text {
-    margin: 0 0 18px;
-    font-size: 13px;
-    font-weight: 400;
-    line-height: 1.4;
-    color: var(--text-faint);
-    max-width: 280px;
-  }
-  .ai-error-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    max-width: 220px;
-  }
-  .ai-error-btn {
-    width: 100%;
-    padding: 11px 16px;
-    border-radius: 999px;
-    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.22));
-    background: var(--btn-bg);
-    color: var(--drawer-text);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .ai-error-btn-primary {
-    border-color: transparent;
-    background: var(--accent-primary, #0A84FF);
-    color: #fff;
-  }
-
   .pulse-tap {
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
   }
@@ -447,6 +268,5 @@
 
   @media (prefers-reduced-motion: reduce) {
     .ai-sheet { transition: none !important; }
-    .ai-skeleton::after { animation: none; }
   }
 </style>

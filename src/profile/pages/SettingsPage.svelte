@@ -224,7 +224,7 @@
   </div>
 
   <div class="st-body">
-    <div class="st-profile-card" style="background:{c.authInputFill}">
+    <div class="st-profile-card">
       {#if user?.avatar}
         <img class="st-avatar-img" src={user.avatar} alt={userName} />
       {:else}
@@ -237,7 +237,7 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Aparência</div>
-    <div class="st-section" style="background:{c.authInputFill}">
+    <div class="st-section">
       {#each THEME_OPTIONS as opt, i}
         <button class="st-row" on:click={() => setThemeValue(opt.id)}>
           <span class="st-row-label" style="color:{c.textPrimary}">{opt.label}</span>
@@ -245,12 +245,11 @@
             <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.primary};width:16px;height:16px"></span>
           {/if}
         </button>
-        {#if i < THEME_OPTIONS.length - 1}<div class="st-divider" style="background:{c.divider}"></div>{/if}
       {/each}
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Idioma</div>
-    <div class="st-section" style="background:{c.authInputFill}">
+    <div class="st-section">
       <button class="st-row" on:click={openLangSheet}>
         <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
         <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
@@ -258,7 +257,7 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Notificações</div>
-    <div class="st-section" style="background:{c.authInputFill}">
+    <div class="st-section">
       <button class="st-row" on:click={() => showToast('Em breve')}>
         <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
         <span class="st-row-value" style="color:{c.textSecondary}">Em breve</span>
@@ -266,11 +265,10 @@
     </div>
 
     <div class="st-section-label" style="color:{c.settings_section_label}">Conta</div>
-    <div class="st-section" style="background:{c.authInputFill}">
+    <div class="st-section">
       <button class="st-row" on:click={() => openLogoutDialog('all')}>
         <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
       </button>
-      <div class="st-divider" style="background:{c.divider}"></div>
       <button class="st-row st-danger" on:click={() => openLogoutDialog('single')}>
         <span class="st-row-label">Terminar sessão</span>
       </button>
@@ -318,7 +316,7 @@
         <button class="logout-btn-confirm" on:click={confirmLogout} disabled={loggingOut}>
           {loggingOut ? 'A terminar…' : 'Terminar sessão'}
         </button>
-        <button class="logout-btn-cancel" style="background:{c.appbarBtnBg};color:{c.textPrimary}" on:click={cancelLogoutDialog} disabled={loggingOut}>Cancelar</button>
+        <button class="logout-btn-cancel" style="color:{c.textPrimary}" on:click={cancelLogoutDialog} disabled={loggingOut}>Cancelar</button>
       </div>
     </div>
   {/if}
@@ -343,9 +341,17 @@
   .st-icon-btn:active { transform: scale(0.86); opacity: .65; }
   .st-header-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
   .st-body { flex: 1; overflow-y: auto; padding: 8px 16px 24px; -webkit-overflow-scrolling: touch; }
+
+  /* Cartões da página de definições: mesmo padrão de superfície do
+     MeTab — var(--drawer-bg)/var(--btn-bg), sem sombra, raio 14px
+     (igual ao .me-avatar-block e ao .me-section do MeTab). */
   .st-profile-card {
-    display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 20px; margin-bottom: 26px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    display: flex; align-items: center; gap: 14px; padding: 16px;
+    border-radius: 14px; margin-bottom: 26px;
+    background: var(--drawer-bg);
+  }
+  :global([data-theme="dark"]) .st-profile-card {
+    background: var(--btn-bg);
   }
   .st-avatar { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0; }
   .st-avatar-img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
@@ -353,18 +359,22 @@
   .st-profile-email { font-size: 13px; margin-top: 2px; }
   .st-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 0 4px 10px; }
   .st-section {
-    border-radius: 20px; overflow: hidden; margin-bottom: 22px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border-radius: 14px; overflow: hidden; margin-bottom: 22px;
+    background: var(--drawer-bg);
+  }
+  :global([data-theme="dark"]) .st-section {
+    background: var(--btn-bg);
   }
   .st-row {
     width: 100%; background: transparent; border: none; display: flex; align-items: center;
     justify-content: space-between; padding: 15px 16px; font-size: 15px; cursor: pointer; text-align: left;
+    border-bottom: 1px solid var(--drawer-sep);
     transition: opacity .16s ease, background-color .16s ease;
   }
+  .st-row:last-child { border-bottom: none; }
   .st-row:active { opacity: .7; }
   .st-danger { color: var(--danger); justify-content: flex-start; }
   .st-row-value { font-size: 13px; }
-  .st-divider { height: 1px; margin: 0 16px; opacity: .7; }
 
   .icon-mask {
     display: block; flex-shrink: 0;
@@ -407,7 +417,9 @@
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
-  /* ── Confirmar logout — flutuante, cartão central com respiro lateral ── */
+  /* ── Confirmar logout — flutuante, cartão central com respiro lateral ──
+     Botões sem pill: raio 14px (igual às secções), em vez do
+     border-radius:999px anterior. */
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
     background: rgba(0, 0, 0, 0);
@@ -424,7 +436,7 @@
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.92);
     opacity: 0;
-    border-radius: 24px;
+    border-radius: 20px;
     padding: 26px 22px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
     z-index: 81;
@@ -436,13 +448,16 @@
   .logout-dialog-text { font-size: 15.5px; line-height: 1.45; margin: 0 0 22px; text-align: center; font-family: inherit; }
   .logout-dialog-actions { display: flex; flex-direction: column; gap: 10px; }
   .logout-btn-cancel, .logout-btn-confirm {
-    width: 100%; padding: 13px 20px; border-radius: 999px; border: none;
+    width: 100%; padding: 13px 20px; border-radius: 14px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .logout-btn-cancel:active { transform: scale(0.96); }
+  .logout-btn-cancel {
+    background: var(--btn-bg);
+  }
+  .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
   .logout-btn-confirm { background: var(--danger); color: white; }
-  .logout-btn-confirm:active { background: #E0342A; transform: scale(0.96); }
+  .logout-btn-confirm:active { background: var(--danger-active); transform: scale(0.96); }
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 
   @media (prefers-reduced-motion: reduce) {

@@ -413,13 +413,13 @@
       {#if loading}
         <div class="pf-skeleton-wrap">
           {#each [1,2,3] as i}
-            <div class="pf-skeleton-row" style="background:{c.authInputFill}"></div>
+            <div class="pf-skeleton-row"></div>
           {/each}
         </div>
       {:else}
         <!-- Dados pessoais -->
         <div class="pf-section-title" style="color:{c.textSecondary}">Dados pessoais</div>
-        <div class="pf-card" style="background:{c.authInputFill};border-color:{c.divider}">
+        <div class="pf-card">
           {#if filledRows.length === 0 && !occupationLabel && !form.bio}
             <button class="pf-empty-row" style="color:{c.textSecondary}" on:click={openEdit}>
               <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');background:{c.primary};width:16px;height:16px"></span>
@@ -427,7 +427,7 @@
             </button>
           {:else}
             {#each filledRows as row, i}
-              <div class="pf-info-row" style="border-color:{c.divider}">
+              <div class="pf-info-row">
                 <div class="pf-info-left">
                   <span class="pf-info-label" style="color:{c.textSecondary}">{row.label}</span>
                 </div>
@@ -435,14 +435,14 @@
               </div>
             {/each}
             {#if occupationLabel}
-              <div class="pf-info-row" style="border-color:{c.divider}">
+              <div class="pf-info-row">
                 <div class="pf-info-left">
                   <span class="pf-info-label" style="color:{c.textSecondary}">Ocupação</span>
                 </div>
                 <span class="pf-info-value" style="color:{c.textPrimary}">{occupationLabel}</span>
               </div>
               {#if form.occupationDetail}
-                <div class="pf-info-row" style="border-color:{c.divider}">
+                <div class="pf-info-row">
                   <div class="pf-info-left">
                     <span class="pf-info-label" style="color:{c.textSecondary}">Detalhe</span>
                   </div>
@@ -459,7 +459,7 @@
           {/if}
         </div>
 
-        <button class="pf-edit-btn" style="background:{c.primary}" on:click={openEdit}>
+        <button class="pf-edit-btn" on:click={openEdit}>
           <span class="icon-mask" style="mask-image:url('/icons/svg/regular/edit.svg');-webkit-mask-image:url('/icons/svg/regular/edit.svg');background:#fff;width:15px;height:15px"></span>
           Editar perfil
         </button>
@@ -524,26 +524,26 @@
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Localização</div>
-        <div class="edit-card" style="background:{c.authInputFill};border-color:{c.divider}">
+        <div class="edit-card">
           <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
             <input type="number" min="0" max="120" class="edit-input-right" placeholder="—"
               style="color:{c.textSecondary};background:transparent;border:none"
               bind:value={editForm.age} />
           </div>
-          <div class="edit-row" style="border-top:0.5px solid {c.divider}">
+          <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">País</span>
             <input class="edit-input-right" placeholder="Adicionar"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
               bind:value={editForm.country} />
           </div>
-          <div class="edit-row" style="border-top:0.5px solid {c.divider}">
+          <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Estado / Província</span>
             <input class="edit-input-right" placeholder="Adicionar"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
               bind:value={editForm.state} />
           </div>
-          <div class="edit-row" style="border-top:0.5px solid {c.divider}">
+          <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Cidade</span>
             <input class="edit-input-right" placeholder="Adicionar"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
@@ -552,7 +552,7 @@
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Ocupação</div>
-        <div class="edit-card" style="background:{c.authInputFill};border-color:{c.divider}">
+        <div class="edit-card">
           <button class="edit-row edit-row-btn" on:click={openOccSheet}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
             <div class="edit-row-right-group">
@@ -562,7 +562,7 @@
               <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
             </div>
           </button>
-          <div class="edit-row" style="border-top:0.5px solid {c.divider}">
+          <div class="edit-row">
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Detalhe</span>
             <input class="edit-input-right" placeholder="Curso, cargo…"
               style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
@@ -571,7 +571,7 @@
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Bio</div>
-        <div class="edit-card" style="background:{c.authInputFill};border-color:{c.divider}">
+        <div class="edit-card">
           <div class="edit-row edit-notes-row">
             <textarea class="edit-textarea"
               placeholder="Escreve uma pequena bio…"
@@ -703,15 +703,34 @@
 
   /* ── Skeleton ─────────────────────────────────────────────────────── */
   .pf-skeleton-wrap { padding: 24px 16px 0; display: flex; flex-direction: column; gap: 10px; }
-  .pf-skeleton-row { height: 54px; border-radius: 16px; opacity: .5; animation: pf-pulse 1.2s ease-in-out infinite; }
+  .pf-skeleton-row {
+    height: 54px; border-radius: 14px; opacity: .5;
+    background: var(--drawer-bg);
+    animation: pf-pulse 1.2s ease-in-out infinite;
+  }
+  :global([data-theme="dark"]) .pf-skeleton-row {
+    background: var(--btn-bg);
+  }
   @keyframes pf-pulse { 0%,100% { opacity: .35; } 50% { opacity: .65; } }
 
-  /* ── Secção / cartão ──────────────────────────────────────────────── */
+  /* ── Secção / cartão ──────────────────────────────────────────────────
+     Cards agora seguem exatamente o mesmo padrão de superfície do
+     MeTab: var(--drawer-bg) no tema claro, var(--btn-bg) no escuro,
+     sem sombra pesada — só o raio de canto (14px, igual ao .me-section
+     do MeTab) faz o trabalho de destacar o card do fundo. ────────────── */
   .pf-section-title { padding: 22px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-  .pf-card { margin: 0 16px; border: 1px solid; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .pf-card {
+    margin: 0 16px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--drawer-bg);
+  }
+  :global([data-theme="dark"]) .pf-card {
+    background: var(--btn-bg);
+  }
   .pf-info-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px; border-bottom: 1px solid; gap: 12px;
+    padding: 14px 16px; border-bottom: 1px solid var(--drawer-sep); gap: 12px;
   }
   .pf-info-row:last-child { border-bottom: none; }
   .pf-info-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -726,14 +745,16 @@
   }
   .pf-empty-row:active { opacity: .6; }
 
+  /* Botão de ação: sem pill — raio retangular moderado (14px), igual
+     ao dos cards, em vez do border-radius:16px arredondado anterior. */
   .pf-edit-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: calc(100% - 32px); margin: 20px 16px 0; padding: 15px;
-    border: none; border-radius: 16px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
-    box-shadow: 0 4px 14px rgba(47,123,246,0.28);
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s;
+    border: none; border-radius: 14px; background: var(--accent-primary);
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s, background .18s ease;
   }
-  .pf-edit-btn:active { transform: scale(0.98); opacity: .88; }
+  .pf-edit-btn:active { transform: scale(0.98); opacity: .88; background: var(--accent-primary-active); }
 
   /* ══════════════════════════════════════════════════════════════════
      VISUALIZADOR DE AVATAR EM TELA CHEIA (container transform / FLIP)
@@ -814,12 +835,24 @@
   }
 
   .edit-section-title { padding: 20px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-  .edit-card { margin: 0 16px; border: 1px solid; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+
+  /* Mesmo tratamento de superfície que .pf-card acima. */
+  .edit-card {
+    margin: 0 16px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--drawer-bg);
+  }
+  :global([data-theme="dark"]) .edit-card {
+    background: var(--btn-bg);
+  }
 
   .edit-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 16px; gap: 12px; width: 100%; background: none; border: none;
+    border-bottom: 1px solid var(--drawer-sep);
   }
+  .edit-row:last-child { border-bottom: none; }
   .edit-row-btn { cursor: pointer; text-align: left; transition: opacity .14s; }
   .edit-row-btn:active { opacity: .6; }
   .edit-notes-row { align-items: flex-start; }

@@ -24,15 +24,6 @@
 
   // ------------------------------------------------------------------
   // Elastic / pull-to-refresh via spring (rAF).
-  //
-  // BUG CORRIGIDO NESTA VERSÃO: o `.templates-tab` recebia o
-  // translateY do pull, mas quem tinha overflow-y:auto de verdade era
-  // o `.scroll-root` do App.svelte (o pai). Como o elemento que rola
-  // fisicamente e o elemento que "estica" eram diferentes, o rubber-
-  // band nunca aparecia — o scrollTop lido em onPointerMove vinha
-  // sempre do elemento errado. Agora `.templates-tab` É o próprio
-  // scroller (overflow-y:auto aqui), e o pull é aplicado num wrapper
-  // interno — exatamente o mesmo padrão que já funciona no CreateTab.
   // ------------------------------------------------------------------
   const recoil = createBackRecoilTransition();
   let pull = 0; // px, derivado do valor -1..1 do spring
@@ -321,7 +312,10 @@
   .img-card:active { transform: scale(0.96); }
   .img-card.pressed {
     transform: scale(1.04);
-    z-index: 51; /* acima do overlay do long-press (z-index 50) */
+    /* +1 acima do z-index:200 do LongPressMenu, para o card pressionado
+       flutuar por cima da própria tela escurecida — igual à relação
+       "+1" que já havia (era 51 contra o antigo overlay:50). */
+    z-index: 201;
   }
   .img-card-photo {
     width: 100%;
@@ -371,7 +365,7 @@
     z-index: 1;
   }
   .doc-card.pressed {
-    z-index: 51;
+    z-index: 201;
   }
   .doc-sheet {
     position: relative;

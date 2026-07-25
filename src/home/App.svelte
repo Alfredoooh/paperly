@@ -45,7 +45,7 @@
   $: avatarColor = getAvatarColor(userName);
   $: avatarUrl = user?.avatar || '';
 
-  const platformApps = ALL_APPS.filter(a => a.id !== 'home');
+  const platformApps = ALL_APPS.filter(a => a.id !== 'home' && a.id !== 'ai');
 
   let themeValue = 'dark';
   let isDark = true;

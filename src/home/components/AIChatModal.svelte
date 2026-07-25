@@ -1,19 +1,15 @@
 <!-- src/home/components/AIChatModal.svelte -->
 <!-- Único "app" da plataforma que abre sempre como bottom-sheet modal
-     por cima de tudo — nunca como navegação de rota. Fecho por: botão
-     X, tap no overlay, arrastar a handle para baixo (com threshold/
-     fling, mesmo padrão do AppDrawer), ou tecla Escape/gesto voltar
-     do sistema (gerido pelo pai via popstate, igual a search/preview/
-     drawer).
+     por cima de tudo — nunca como navegação de rota. Fecho por: tap
+     no overlay, ou arrastar a handle para baixo (com threshold/
+     fling, mesmo padrão do AppDrawer) — SEM botão X: o pedido foi
+     explícito para removê-lo, o fecho fica só nesses dois gestos
+     (mais o gesto físico de voltar do sistema, gerido pelo pai via
+     popstate, igual a search/preview/drawer).
 
      CONTEÚDO: monta o AiApp REAL (../../ai/App.svelte) em modo
      embedded — é literalmente o mesmo ChatPage.svelte da plataforma,
-     como componente Svelte em vez de rota de topo. Nada de iframe:
-     um <iframe src="/ai/"> faria um pedido HTTP a um path que esta
-     SPA de página única não serve como documento real (só existe
-     como estado de pushState interpretado em JS) — daí o "not
-     found". Nada de chat simulado: não há nenhuma lógica de
-     mensagens escrita aqui, é tudo o AiApp a fazer o que já faz. -->
+     como componente Svelte em vez de rota de topo. -->
 <script>
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
   import AiApp from '../../ai/App.svelte';
@@ -58,9 +54,7 @@
 
   // ------------------------------------------------------------------
   // Arrastar a handle para fechar — mesmo padrão de threshold/fling
-  // já usado no AppDrawer.svelte (onDrawerTouchStart/onDragMove/
-  // onDragEnd), só que aqui o eixo é vertical e a folha usa sheet
-  // (0..1) em vez de slide (0..100).
+  // já usado no AppDrawer.svelte.
   // ------------------------------------------------------------------
   const CLOSE_THRESHOLD = 0.3;
   const VELOCITY_FLING = 0.6;
@@ -139,10 +133,6 @@
       <span class="sheet-handle"></span>
     </div>
 
-    <button class="close-btn pulse-tap" on:click={handleClose} aria-label="Fechar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg')"></span>
-    </button>
-
     <div class="ai-body">
       {#if open}
         <AiApp embedded={true} pushed={true} on:nav={handleAiNav} />
@@ -160,19 +150,13 @@
     will-change: opacity;
   }
 
-  /* Altura do sheet: MUITO maior que a versão anterior (que estava
-     limitada a min(84dvh, 720px), o que era curto de mais para um
-     chat completo com composer + histórico + sub-páginas de
-     settings/widgets). Agora 92dvh — deixa só uma faixa fina no
-     topo (8dvh) para se perceber visualmente que é um sheet por
-     cima de outra coisa, e não uma nova tela de topo. Sem limite
-     fixo em px: em ecrãs grandes (tablet/desktop), 92dvh continua
-     proporcional em vez de ficar preso a um valor de telemóvel. */
+  /* Ainda mais alto — 97dvh (era 92dvh), deixando só uma faixa
+     mínima de 3dvh no topo para se perceber que é sheet. */
   .ai-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 91;
-    height: 92dvh;
+    height: 97dvh;
     max-width: 640px;
     margin: 0 auto;
     display: flex;
@@ -184,9 +168,6 @@
     contain: layout style paint;
     overflow: hidden;
   }
-  /* Sem transition no transform: o valor vem 100% do spring JS
-     (sheetProgress), mesmo racional dos outros ecrãs full-screen do
-     projeto — permite redirecionar a meio do gesto sem reflow. */
 
   .sheet-handle-zone {
     position: absolute;
@@ -199,8 +180,6 @@
     flex-shrink: 0;
     cursor: grab;
     touch-action: none;
-    /* Fica por cima do AiApp real, mas só a faixa da handle
-       intercepta toques — o resto do sheet é do AiApp. */
     height: 24px;
   }
   .sheet-handle {
@@ -210,61 +189,12 @@
     background: var(--border-soft);
   }
 
-  /* Botão de fechar: flutua no canto superior direito, por cima do
-     conteúdo real do AiApp (que já tem o seu próprio header interno
-     — não duplicamos um "Nexa IA" header aqui, o chat real já tem o
-     seu próprio cabeçalho/menu). Fundo semi-opaco com blur para se
-     manter legível seja qual for o conteúdo por baixo. */
-  .close-btn {
-    position: absolute;
-    top: calc(env(safe-area-inset-top, 0px) + 14px);
-    right: 14px;
-    z-index: 3;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(127,127,127,0.22);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .close-btn:active {
-    background: rgba(127,127,127,0.34);
-    transform: scale(0.88);
-  }
-  .icon-mask {
-    display: block;
-    background: var(--icon-strong);
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
-  }
-  .close-btn .icon-mask {
-    width: 15px;
-    height: 15px;
-  }
-
   .ai-body {
     position: relative;
     flex: 1;
     min-height: 0;
     overflow: hidden;
   }
-
-  .pulse-tap {
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
-  }
-  .pulse-tap:active { transform: scale(0.96); opacity: .80; }
 
   @media (prefers-reduced-motion: reduce) {
     .ai-sheet { transition: none !important; }

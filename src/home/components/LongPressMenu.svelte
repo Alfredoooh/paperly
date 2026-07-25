@@ -9,38 +9,22 @@
   // sem soltar — cada botão sob o dedo acende E CRESCE para indicar
   // seleção em tempo real, e soltar sobre um botão dispara essa ação.
   //
-  // AUTONOMIA DE FECHO (correção crítica): este componente agora
-  // escuta pointerup/touchend/mouseup GLOBALMENTE em `window`, assim
-  // que monta — e não depende em nada de o TemplatesTab.svelte lhe
-  // "avisar" que o dedo soltou. Isto é obrigatório por causa do
-  // portal (ver portal.js): assim que este overlay é movido para
-  // document.body com position:fixed;inset:0, ele passa a ser o
-  // elemento que recebe o hit-test do rato/toque nessa área do ecrã —
-  // mesmo que o card pressionado tenha z-index visual mais alto e
-  // continue visível por cima. Isto significa que quando o utilizador
-  // solta o dedo, o evento touchend/mouseup dispara sobre ESTE overlay
-  // (ou um filho dele), nunca sobre o card original — se o fecho do
-  // menu dependesse de um listener no card (como dependia antes), o
-  // menu simplesmente nunca fechava, porque esse listener nunca era
-  // atingido. Ao escutar em `window`, este componente recebe o sinal
-  // de "soltou" independentemente de qual elemento está fisicamente
-  // por baixo do cursor nesse instante — window está acima de tudo na
-  // árvore, todo evento sobe até lá por bubbling (touchend/mouseup
-  // fazem bubbling normalmente; não usamos capture).
+  // AUTONOMIA DE FECHO: escuta pointerup/touchend/mouseup GLOBALMENTE
+  // em `window`, assim que monta — não depende do TemplatesTab avisar
+  // que o dedo soltou. Necessário por causa do portal: o overlay
+  // portado para document.body é quem recebe o hit-test do
+  // rato/toque, não o card visualmente por cima dele.
   //
-  // Escurecimento: TODO o ecrã escurece um pouco — incluindo appbar e
-  // bottombar — SEM buraco recortado. O card pressionado (.pressed no
+  // Escurecimento: TODO o ecrã escurece — incluindo appbar e bottombar
+  // — sem buraco recortado. O card pressionado (.pressed no
   // TemplatesTab.svelte) fica visível porque tem z-index MAIOR que
-  // este overlay — cresce (scale) e flutua por cima do véu escuro
-  // inteiro.
+  // este overlay.
   //
-  // PORTAL: este componente inteiro é montado via use:portal direto em
-  // document.body — ver portal.js para o porquê (stacking context
-  // preso em .root no App.svelte).
+  // PORTAL: montado via use:portal direto em document.body — ver
+  // portal.js para o porquê (stacking context preso em .root).
   //
-  // Bloqueio de scroll: enquanto este menu está montado, ninguém
-  // consegue rolar nada por baixo dele — via overflow:hidden +
-  // touch-action:none no <body>, repostos ao desmontar.
+  // Bloqueio de scroll: overflow:hidden + touch-action:none no <body>
+  // enquanto montado, repostos ao desmontar.
   // ------------------------------------------------------------------
 
   export let originX = 0;
@@ -55,23 +39,15 @@
     { id: 'whatsapp',  icon: '/icons/svg/regular/chat_multiple.svg',  label: 'WhatsApp' },
   ];
 
-  const BUBBLE_DIST = 118;  // px do centro do leque até cada bolha
+  const BUBBLE_DIST = 118;
   const BUBBLE_SIZE = 50;
-  const SPREAD_DEG = 140;   // graus totais do leque
-  const MARGIN = 34;        // margem mínima de segurança até a borda da viewport
-  const VEIL_OPACITY = 0.32; // "um pouquinho" escuro
+  const SPREAD_DEG = 140;
+  const MARGIN = 34;
+  const VEIL_OPACITY = 0.32;
 
   let activeId = null;
   let bubbleEls = {};
   let options = [];
-
-  // Guarda para nunca resolver duas vezes (ex: touchend E mouseup
-  // sintético a disparar quase ao mesmo tempo no mesmo gesto — comum
-  // em alguns browsers/webviews). Sem isto, o segundo disparo tentaria
-  // dispatch('select'/'cancel') outra vez sobre um componente que já
-  // devia estar a desmontar, o que é exatamente o tipo de coisa que dá
-  // "aparece duas vezes" do lado do TemplatesTab (dois eventos
-  // select/cancel a chegar, cada um a tentar reabrir/refechar o {#if}).
   let resolved = false;
 
   function buzz() {
@@ -160,9 +136,6 @@
     }
   }
 
-  // Único ponto de fecho do menu, disparado pelos listeners globais
-  // abaixo. Idempotente (guarda `resolved`) para nunca disparar
-  // select/cancel mais que uma vez para o mesmo gesto.
   function resolveOnce() {
     if (resolved) return;
     resolved = true;
@@ -189,13 +162,6 @@
     document.body.style.overflow = 'hidden';
     document.body.style.touchAction = 'none';
 
-    // Listeners GLOBAIS em window — não em document, não em nenhum nó
-    // local — para garantir que o fecho do menu nunca depende de qual
-    // elemento está fisicamente por baixo do dedo/rato no instante do
-    // release. passive:true onde não fazemos preventDefault (up/move
-    // aqui só leem coordenadas, não bloqueiam scroll — o bloqueio de
-    // scroll já está garantido pelo overflow:hidden/touch-action:none
-    // do body acima).
     window.addEventListener('touchmove', handlePointerMoveGlobal, { passive: true });
     window.addEventListener('mousemove', handlePointerMoveGlobal, { passive: true });
     window.addEventListener('touchend', handlePointerUpGlobal, { passive: true });

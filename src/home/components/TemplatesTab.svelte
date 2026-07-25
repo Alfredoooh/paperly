@@ -5,8 +5,8 @@
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
   import LongPressMenu from './LongPressMenu.svelte';
 
-  export let view = 'images'; // 'images' | 'documents' — controlado pelo toggle do appbar
-  export let onOpenPreview = () => {}; // (kind, item) => void — controlado pelo App.svelte
+  export let view = 'images';
+  export let onOpenPreview = () => {};
 
   let loading = true;
 
@@ -19,26 +19,36 @@
   }
   $: imageColumns = splitColumns(IMAGE_MODELS);
 
-  function openImgPreview(img) { onOpenPreview('image', img); }
-  function openDocPreview(doc) { onOpenPreview('doc', doc); }
+  // Suprime a chamada de abertura de preview quando o click que a
+  // disparou é, na verdade, o click SINTÉTICO que os motores de touch
+  // geram automaticamente a partir de um touchstart+touchend no mesmo
+  // elemento sem movimento — mesmo quando esses dois eventos estão
+  // separados por 400ms+ de espera de long-press. Isto é um
+  // comportamento real e documentado dos browsers/webviews mobile:
+  // touchstart -> (sem movimento significativo) -> touchend no MESMO
+  // elemento sintetiza um 'click' automaticamente nesse elemento,
+  // independentemente de quanto tempo passou entre os dois eventos.
+  // Sem esta supressão: um long-press bem-sucedido (que já teve o seu
+  // próprio fluxo de fechar/selecionar via LongPressMenu) ainda
+  // disparava ADICIONALMENTE o click normal do card por baixo,
+  // abrindo o TemplatePreviewPage por cima do menu a fechar — o que
+  // parecia visualmente "o menu aparece duas vezes e trava".
+  function openImgPreview(img) {
+    if (suppressNextClick) { suppressNextClick = false; return; }
+    onOpenPreview('image', img);
+  }
+  function openDocPreview(doc) {
+    if (suppressNextClick) { suppressNextClick = false; return; }
+    onOpenPreview('doc', doc);
+  }
 
-  // ------------------------------------------------------------------
-  // Elastic / pull-to-refresh via spring (rAF).
-  //
-  // cardGestureActive liga assim que qualquer card recebe um
-  // touchstart/mousedown, e desliga quando o menu fecha (via
-  // handleMenuSelect/handleMenuCancel) ou quando o dedo se move demais
-  // antes do long-press completar (pressMoved). Isto impede o
-  // pull-to-refresh de arrastar o grid inteiro enquanto um gesto de
-  // long-press pode estar a nascer ou já está aberto.
-  // ------------------------------------------------------------------
   const recoil = createBackRecoilTransition();
-  let pull = 0; // px, derivado do valor -1..1 do spring
+  let pull = 0;
   const MAX_PULL = 64;
   const unsubscribeRecoil = recoil.subscribe((v) => { pull = v * MAX_PULL; });
 
-  let scrollEl;   // o elemento que rola de verdade (overflow-y:auto)
-  let innerEl;    // wrapper que recebe o translateY do elastic
+  let scrollEl;
+  let innerEl;
   let dragging = false;
   let gestureStartY = 0;
   let gestureStartScrollTop = 0;
@@ -80,19 +90,6 @@
     recoil.releaseDragTo();
   }
 
-  // ------------------------------------------------------------------
-  // Long-press estilo Pinterest.
-  //
-  // Responsabilidade AGORA dividida com clareza:
-  // - TemplatesTab (aqui): só INICIA o gesto (arma o timer no
-  //   touchstart/mousedown do card) e cancela-o se o dedo se mover
-  //   demais antes do timer disparar. NÃO tenta fechar o menu.
-  // - LongPressMenu: assim que monta, é ele quem decide quando e como
-  //   o gesto termina, via listeners globais em window — porque é o
-  //   único componente que sabe com certeza quando o dedo/rato soltou,
-  //   independentemente de qual elemento está por baixo do cursor
-  //   nesse instante (ver comentário longo no LongPressMenu.svelte).
-  // ------------------------------------------------------------------
   const LONG_PRESS_MS = 400;
   const MOVE_CANCEL_THRESHOLD = 10;
 
@@ -103,16 +100,20 @@
   let pressStartX = 0, pressStartY = 0;
   let pressMoved = false;
 
+  // Ligada a true no instante exato em que o long-press dispara de
+  // verdade (timer completou). Consumida (voltada a false) na
+  // PRIMEIRA chamada seguinte a openImgPreview/openDocPreview — que é
+  // precisamente o click sintético gerado pelo touchend/mouseup que
+  // fecha o menu. Um tap normal a seguir (que não passa por aqui,
+  // porque não liga esta flag) continua a funcionar sem qualquer
+  // supressão.
+  let suppressNextClick = false;
+
   function buzzLongPress() {
     try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
   }
 
   function armLongPress(e, kind, item) {
-    // Se já há um long-press ativo ou a armar, ignora um segundo
-    // touchstart/mousedown sintético sobreposto (evita o caso de
-    // touchstart + mousedown dispararem os dois para o mesmo gesto
-    // físico em alguns browsers/webviews, o que criaria dois timers
-    // concorrentes).
     if (cardGestureActive || longPressActive) return;
 
     const t = e.touches ? e.touches[0] : e;
@@ -126,12 +127,13 @@
       if (pressMoved) return;
       longPressOrigin = { x: pressStartX, y: pressStartY };
       longPressActive = true;
+      suppressNextClick = true;
       buzzLongPress();
     }, LONG_PRESS_MS);
   }
 
   function trackLongPress(e) {
-    if (longPressActive) return; // o LongPressMenu já assumiu o controlo do movimento
+    if (longPressActive) return;
     const t = e.touches ? e.touches[0] : e;
     const dx = t.clientX - pressStartX;
     const dy = t.clientY - pressStartY;
@@ -142,18 +144,9 @@
     }
   }
 
-  // Chamado no touchend/mouseup do PRÓPRIO card — só relevante para o
-  // caso de um tap normal e rápido, que nunca chegou a completar os
-  // 400ms (nesse caso longPressActive continua false, e é seguro
-  // limpar tudo aqui mesmo, sem esperar pelo LongPressMenu, porque ele
-  // nem chegou a montar). Se o menu já estiver aberto
-  // (longPressActive === true), este handler NÃO faz nada — o fecho
-  // nesse caso é inteiramente responsabilidade do LongPressMenu via
-  // listeners globais, e tentar fechar por aqui também seria
-  // exatamente a fonte do bug de "abre duas vezes / trava".
   function endCardGesture() {
     clearTimeout(longPressTimer);
-    if (longPressActive) return; // deixa o LongPressMenu tratar disto
+    if (longPressActive) return;
     cardGestureActive = false;
     pressMoved = false;
   }
@@ -332,11 +325,6 @@
   .img-card:active { transform: scale(0.96); }
   .img-card.pressed {
     transform: scale(1.04);
-    /* Único card com permissão de ficar acima do .menu-overlay
-       (z-index:200 no LongPressMenu, movido para document.body via
-       portal). 301 garante que fica acima do overlay inteiro,
-       incluindo do dark-veil-full — é assim que o card fica visível,
-       claro e limpo, flutuando por cima do véu escuro. */
     z-index: 301;
   }
   .img-card-photo {
@@ -446,7 +434,6 @@
     -webkit-box-orient: vertical;
   }
 
-  /* Skeleton loader */
   .skeleton-card, .skeleton-sheet, .skeleton-line {
     background: linear-gradient(
       100deg,

@@ -132,7 +132,19 @@
      uma variável --drawer-bg-strong que podia não bater certo com o
      fundo real do body em todos os temas escuros. */
   :global([data-theme="dark"]) .tab-bar {
-    background: color-mix(in srgb, var(--app-bg) 88%, white 12%);
+    background: color-mix(in srgb, var(--app-bg) 74%, black 26%);
+  }
+
+  :global([data-theme="dark"]) .tab-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -18px;
+    height: 18px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.22));
+    pointer-events: none;
+    z-index: 0;
   }
 
   .tab-bar::after {
@@ -147,7 +159,7 @@
   }
 
   :global([data-theme="dark"]) .tab-bar::after {
-    background: color-mix(in srgb, var(--app-bg) 88%, white 12%);
+    background: color-mix(in srgb, var(--app-bg) 74%, black 26%);
   }
 
   .tab-btn {
@@ -260,6 +272,8 @@
      flex, com o mesmo `flex:1` dos outros tab-btn, para a distribuição
      space-around continuar simétrica dos dois lados. */
   .fab-slot {
+    position: relative;
+    z-index: 1;
     flex: 1;
     height: 42px;
     display: flex;

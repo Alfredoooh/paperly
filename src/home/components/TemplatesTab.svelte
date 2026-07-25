@@ -151,15 +151,19 @@
     pressMoved = false;
   }
 
-  function handleMenuSelect() {
+  function clearLongPressState() {
+    clearTimeout(longPressTimer);
+    pressMoved = false;
+    cardGestureActive = false;
     longPressActive = false;
     longPressTarget = null;
-    cardGestureActive = false;
+  }
+
+  function handleMenuSelect() {
+    clearLongPressState();
   }
   function handleMenuCancel() {
-    longPressActive = false;
-    longPressTarget = null;
-    cardGestureActive = false;
+    clearLongPressState();
   }
 
   onMount(() => {
@@ -170,6 +174,9 @@
     unsubscribeRecoil();
     recoil.destroy();
     clearTimeout(longPressTimer);
+    longPressActive = false;
+    longPressTarget = null;
+    cardGestureActive = false;
   });
 </script>
 

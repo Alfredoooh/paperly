@@ -50,6 +50,8 @@
   let options = [];
   let resolved = false;
 
+  let removeGlobalListeners = () => {};
+
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
@@ -128,7 +130,7 @@
 
   function handlePointerMoveGlobal(e) {
     const t = e.touches ? e.touches[0] : e;
-    if (!t) return;
+    if (!t || resolved) return;
     const hit = hitTestBubble(t.clientX, t.clientY);
     if (hit !== activeId) {
       activeId = hit;
@@ -136,9 +138,20 @@
     }
   }
 
-  function resolveOnce() {
+  function cleanupGlobalListeners() {
+    removeGlobalListeners();
+    removeGlobalListeners = () => {};
+  }
+
+  function resolveOnce(sourceEvent) {
     if (resolved) return;
     resolved = true;
+
+    if (sourceEvent?.cancelable) sourceEvent.preventDefault();
+    sourceEvent?.stopPropagation?.();
+
+    cleanupGlobalListeners();
+
     if (activeId) {
       buzz();
       dispatch('select', { id: activeId });
@@ -147,8 +160,8 @@
     }
   }
 
-  function handlePointerUpGlobal() {
-    resolveOnce();
+  function handlePointerUpGlobal(e) {
+    resolveOnce(e);
   }
 
   let prevBodyOverflow = '';
@@ -162,25 +175,31 @@
     document.body.style.overflow = 'hidden';
     document.body.style.touchAction = 'none';
 
-    window.addEventListener('touchmove', handlePointerMoveGlobal, { passive: true });
-    window.addEventListener('mousemove', handlePointerMoveGlobal, { passive: true });
-    window.addEventListener('touchend', handlePointerUpGlobal, { passive: true });
-    window.addEventListener('touchcancel', handlePointerUpGlobal, { passive: true });
-    window.addEventListener('mouseup', handlePointerUpGlobal, { passive: true });
+    const moveOpts = { passive: true };
+    const upOpts = { passive: false };
+    window.addEventListener('touchmove', handlePointerMoveGlobal, moveOpts);
+    window.addEventListener('mousemove', handlePointerMoveGlobal, moveOpts);
+    window.addEventListener('touchend', handlePointerUpGlobal, upOpts);
+    window.addEventListener('touchcancel', handlePointerUpGlobal, upOpts);
+    window.addEventListener('mouseup', handlePointerUpGlobal, upOpts);
+
+    removeGlobalListeners = () => {
+      window.removeEventListener('touchmove', handlePointerMoveGlobal);
+      window.removeEventListener('mousemove', handlePointerMoveGlobal);
+      window.removeEventListener('touchend', handlePointerUpGlobal);
+      window.removeEventListener('touchcancel', handlePointerUpGlobal);
+      window.removeEventListener('mouseup', handlePointerUpGlobal);
+    };
   });
 
   onDestroy(() => {
+    cleanupGlobalListeners();
     document.body.style.overflow = prevBodyOverflow;
     document.body.style.touchAction = prevBodyTouchAction;
-    window.removeEventListener('touchmove', handlePointerMoveGlobal);
-    window.removeEventListener('mousemove', handlePointerMoveGlobal);
-    window.removeEventListener('touchend', handlePointerUpGlobal);
-    window.removeEventListener('touchcancel', handlePointerUpGlobal);
-    window.removeEventListener('mouseup', handlePointerUpGlobal);
   });
 </script>
 
-<div class="menu-overlay" use:portal on:click={() => resolveOnce()}>
+<div class="menu-overlay" use:portal on:click|preventDefault|stopPropagation={resolveOnce}>
   <div class="dark-veil-full" style="background: rgba(0,0,0,{VEIL_OPACITY});"></div>
 
   <div class="menu-anchor" style="left:{originX}px; top:{originY}px;">
@@ -203,6 +222,10 @@
     position: fixed;
     inset: 0;
     z-index: 200;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .dark-veil-full {

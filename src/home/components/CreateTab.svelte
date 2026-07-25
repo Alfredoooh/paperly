@@ -2,7 +2,11 @@
 <!-- Header próprio, fixo, sempre transparente/branco no topo e sólido
      ao deslizar. O antigo "silver appbar" duplicado foi removido —
      este único header cobre agora os dois estados (transparente e
-     sólido), tal como o resto dos tabs faz através do AppHeader. -->
+     sólido), tal como o resto dos tabs faz através do AppHeader.
+     O avatar/perfil deixou de aparecer aqui: o acesso ao perfil é
+     feito exclusivamente pelo tab "Eu" da bottombar e pelo bloco de
+     perfil dentro do MeTab — sem duplicar o ponto de entrada no
+     appbar do Criar. -->
 <script>
   export let platformApps = null;
   export let onOpenSearch = () => {};
@@ -11,16 +15,11 @@
   export let heroProgress = 0;
   export let isDark = false;
 
-  // dados do header próprio (antes vinham via AppHeader)
+  // dados do header próprio
   export let mounted = false;
-  export let avatarUrl = '';
-  export let avatarColor = '#FF3B30';
-  export let userInitial = 'U';
-  export let userName = 'Utilizador';
   export let title = '';
-  export let onOpenDrawer = () => {};
 
-  // Notificações: aberto pelo App.svelte (mesmo padrão do onOpenDrawer).
+  // Notificações: aberto pelo App.svelte.
   export let onOpenNotifications = () => {};
   export let hasUnreadNotifications = false;
 
@@ -92,15 +91,6 @@
     onOpenSearch(null);
   }
 
-  function handleMenu() {
-    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
-    if (window.AndroidDrawer && typeof window.AndroidDrawer.openAccountDrawer === 'function') {
-      window.AndroidDrawer.openAccountDrawer();
-    } else {
-      onOpenDrawer?.();
-    }
-  }
-
   function handleNotifications() {
     buzz();
     onOpenNotifications?.();
@@ -134,9 +124,9 @@
 </script>
 
 <!-- Header próprio do Create: título fixo "Criar" + pesquisa (só quando
-     a search-bar está totalmente escondida) + notificações + avatar.
-     `isSolid` controla a mudança de fundo transparente → sólido (azul
-     Fluent), igual ao padrão usado pelo AppHeader nos outros tabs. -->
+     a search-bar está totalmente escondida) + notificações. `isSolid`
+     controla a mudança de fundo transparente → sólido (azul Fluent),
+     igual ao padrão usado pelo AppHeader nos outros tabs. -->
 <div class="create-header" class:in={effectiveMounted} class:solid={isSolid}>
   <div class="create-header-inner">
     <h1 class="create-header-title visible" class:solid-title={isSolid}>Criar</h1>
@@ -158,13 +148,6 @@
         <span class="icon-mask notif-icon" class:notif-icon-solid={isSolid} style="mask-image:url('{NOTIF_ICON}');-webkit-mask-image:url('{NOTIF_ICON}')"></span>
         {#if hasUnreadNotifications}
           <span class="notif-dot"></span>
-        {/if}
-      </button>
-      <button class="profile-btn pulse-tap" class:solid={isSolid} on:click={handleMenu} aria-label="Perfil">
-        {#if avatarUrl}
-          <img src={avatarUrl} alt={userName} class="profile-img" />
-        {:else}
-          <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
         {/if}
       </button>
     </div>
@@ -466,57 +449,6 @@
     border: 1.5px solid var(--app-bg, #fff);
   }
 
-  .profile-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: var(--row-active, rgba(127,127,127,0.12));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    overflow: hidden;
-    box-shadow: none;
-    transition:
-      background .28s cubic-bezier(0.32, 0.72, 0, 1),
-      box-shadow .28s cubic-bezier(0.32, 0.72, 0, 1),
-      transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .profile-btn.solid {
-    background: rgba(255,255,255,0.16);
-  }
-  .profile-btn:active {
-    transform: scale(0.9);
-  }
-  .profile-btn:not(.solid):active {
-    background: var(--row-hover, rgba(127,127,127,0.2));
-  }
-  .profile-btn.solid:active {
-    background: rgba(255,255,255,0.26);
-  }
-  .profile-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-  }
-  .profile-initial {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-  }
-  @media (hover:hover) and (pointer:fine) {
-    .profile-btn:not(.solid):hover { background: var(--row-hover, rgba(127,127,127,0.2)); }
-    .profile-btn.solid:hover { background: rgba(255,255,255,0.24); }
-  }
   @media (min-width: 720px) {
     .create-header-inner { max-width:760px; }
   }

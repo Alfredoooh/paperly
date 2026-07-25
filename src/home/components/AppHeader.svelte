@@ -1,10 +1,15 @@
 <!-- src/home/components/AppHeader.svelte -->
-<!-- Usado por TODOS os tabs exceto "Criar" — o Criar tem o seu próprio
-     header standalone dentro de CreateTab.svelte.
-     A partir desta versão, o comportamento "silver" (fundo azul Fluent
-     sólido, igual ao silver-appbar do CreateTab) deixa de ser uma prop
-     fixa (solidGradient) e passa a ser REATIVO ao scroll: aparece
-     assim que `scrolled` (já medido/passado por App.svelte a partir do
+<!-- Usado por TODOS os tabs exceto "Criar" e "Eu" — o Criar tem o seu
+     próprio header standalone dentro de CreateTab.svelte, e o Eu não
+     tem appbar (é conteúdo direto, com o próprio bloco de perfil lá
+     dentro). O avatar deixou de aparecer aqui: o acesso ao perfil
+     passou a ser feito exclusivamente pelo tab "Eu" da bottombar
+     (que já mostra o avatar como o próprio ícone do tab) e pelo
+     bloco de perfil dentro do MeTab — não há mais um segundo ponto
+     de entrada duplicado no appbar.
+     O comportamento "silver" (fundo azul Fluent sólido, igual ao
+     header do CreateTab) é REATIVO ao scroll: aparece assim que
+     `scrolled` (já medido/passado por App.svelte a partir do
      scrollTop real) ultrapassa um pequeno threshold. Continua a poder
      ser forçado sempre visível via `solidOnScroll` — controla se este
      comportamento está ativo ou não para o tab atual; quando falso, o
@@ -13,12 +18,6 @@
   export let mounted = false;
   export let topPanelEl;
   export let scrolled = 0;
-  export let onOpenDrawer;
-
-  export let avatarUrl = '';
-  export let avatarColor = '#FF3B30';
-  export let userInitial = 'U';
-  export let userName = 'Utilizador';
 
   export let title = '';
 
@@ -46,15 +45,6 @@
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
 
-  function handleMenu() {
-    buzz();
-    if (window.AndroidDrawer && typeof window.AndroidDrawer.openAccountDrawer === 'function') {
-      window.AndroidDrawer.openAccountDrawer();
-    } else {
-      onOpenDrawer?.();
-    }
-  }
-
   function handleSearch() {
     buzz();
     onOpenSearch();
@@ -79,20 +69,13 @@
   <header class="header">
     <div class="header-inner">
       <h1 class="header-title" class:solid-title={isSolid}>{title}</h1>
-      <div class="header-actions">
-        {#if showSearchBtn}
+      {#if showSearchBtn}
+        <div class="header-actions">
           <button class="action-btn pulse-tap" class:solid-btn={isSolid} on:click={handleSearch} aria-label="Pesquisar">
             <span class="icon-mask" class:solid-icon={isSolid} style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
           </button>
-        {/if}
-        <button class="profile-btn pulse-tap" class:solid-btn={isSolid} on:click={handleMenu} aria-label="Perfil">
-          {#if avatarUrl}
-            <img src={avatarUrl} alt={userName} class="profile-img" />
-          {:else}
-            <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
-          {/if}
-        </button>
-      </div>
+        </div>
+      {/if}
     </div>
 
     {#if showToggle && toggleOptions.length > 0}
@@ -135,8 +118,8 @@
     pointer-events: auto;
   }
 
-  /* ---------- Silver: azul Fluent sólido, igual ao silver-appbar
-     do CreateTab (#185ABD), ativado por scroll via isSolid. ---------- */
+  /* ---------- Silver: azul Fluent sólido, igual ao header do
+     CreateTab (#185ABD), ativado por scroll via isSolid. ---------- */
   .top-panel.solid {
     background: #185ABD;
     backdrop-filter: blur(18px) saturate(140%);
@@ -260,50 +243,6 @@
     background: #FFFFFF;
   }
 
-  .profile-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: var(--btn-solid-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
-    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .profile-btn.solid-btn {
-    background: rgba(255,255,255,0.16);
-    box-shadow: none;
-  }
-  .profile-btn:active {
-    background: var(--btn-solid-bg-active);
-    transform: scale(0.9);
-  }
-  .profile-btn.solid-btn:active {
-    background: rgba(255,255,255,0.26);
-  }
-  .profile-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-  }
-  .profile-initial {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    font-weight: 700;
-    color: #fff;
-  }
-
   .segmented {
     position: relative;
     display: flex;
@@ -368,14 +307,12 @@
   }
 
   @media (hover:hover) and (pointer:fine) {
-    .profile-btn:not(.solid-btn):hover { background: var(--btn-solid-bg-active); }
-    .profile-btn.solid-btn:hover { background: rgba(255,255,255,0.26); }
     .action-btn:not(.solid-btn):hover { background: var(--btn-bg-active); }
     .action-btn.solid-btn:hover { background: rgba(255,255,255,0.16); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .top-panel, .profile-btn, .action-btn, .header-elevate, .segmented-thumb, .segmented-opt-label { transition: none !important; }
+    .top-panel, .action-btn, .header-elevate, .segmented-thumb, .segmented-opt-label { transition: none !important; }
   }
 
   @media (min-width: 720px) {

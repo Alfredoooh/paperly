@@ -150,19 +150,22 @@
     will-change: opacity;
   }
 
-  /* Ainda mais alto — 97dvh (era 92dvh), deixando só uma faixa
-     mínima de 3dvh no topo para se perceber que é sheet. */
+  /* 100dvh — sobe até ao limite exato da altura visível do ecrã, sem
+     faixa nenhuma acima. Cantos do topo deixam de ser arredondados
+     (era 24px 24px 0 0): a 100dvh o topo da folha encosta na área da
+     barra de status/notch, e um canto arredondado nesse ponto cortava
+     visualmente o próprio conteúdo/handle contra esse limite físico. */
   .ai-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 91;
-    height: 97dvh;
+    height: 100dvh;
     max-width: 640px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     background: var(--app-bg);
-    border-radius: 24px 24px 0 0;
+    border-radius: 0;
     box-shadow: 0 -8px 32px rgba(0,0,0,0.28);
     will-change: transform;
     contain: layout style paint;
@@ -176,7 +179,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 0 4px;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 0 4px;
     flex-shrink: 0;
     cursor: grab;
     touch-action: none;

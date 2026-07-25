@@ -263,13 +263,10 @@
   }
 
   /* ---------- Botão central (FAB) da Nexa IA ----------
-     RETÂNGULO quase-quadrado com cantos LEVEMENTE curvos — estilo
-     Fluent/Microsoft (ex: tiles do Windows 11, botões do Teams):
-     largura e altura próximas uma da outra (44×40), raio pequeno
-     relativo ao tamanho (12px, não os 17px de border-radius que
-     davam formato pill/cápsula antes). Continua assente na própria
-     linha da bottombar via .fab-slot com flex:1, mantendo a
-     distribuição space-around simétrica. */
+     CIRCULAR — mesmas dimensões 44×40 do retângulo anterior, só
+     mudou border-radius para 50% (volta a ser círculo, como pedido).
+     Continua assente na própria linha da bottombar via .fab-slot com
+     flex:1, mantendo a distribuição space-around simétrica. */
   .fab-slot {
     position: relative;
     z-index: 1;
@@ -285,7 +282,7 @@
     z-index: 1;
     width: 44px;
     height: 40px;
-    border-radius: 12px;
+    border-radius: 50%;
     border: none;
     background: var(--accent-primary, #0A84FF);
     display: flex;

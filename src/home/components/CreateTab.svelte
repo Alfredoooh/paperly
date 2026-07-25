@@ -1,6 +1,8 @@
 <!-- src/home/components/CreateTab.svelte -->
-<!-- Tem o SEU PRÓPRIO header, fixo e sempre transparente/branco.
-     Não usa AppHeader — este tab é o único caso especial. -->
+<!-- Header próprio, fixo, sempre transparente/branco no topo e sólido
+     ao deslizar. O antigo "silver appbar" duplicado foi removido —
+     este único header cobre agora os dois estados (transparente e
+     sólido), tal como o resto dos tabs faz através do AppHeader. -->
 <script>
   export let platformApps = null;
   export let onOpenSearch = () => {};
@@ -35,12 +37,16 @@
   export let recentProjects = null;
   export let onOpenProject = () => {};
 
-  // ══════════════════════════════════════════════════════════════════
-  //  SILVER APPBAR: header sólido separado, que SÓ aparece ao deslizar
-  //  para cima. Independente do .create-header original. Título fixo
-  //  "Criar" à esquerda; avatar + notificações + pesquisa à direita.
-  //  Fundo: azul Fluent (Microsoft 365) sólido/flat, sem gradiente.
-  // ══════════════════════════════════════════════════════════════════
+  // Ícones da biblioteca oficial Fluent System Icons (Microsoft),
+  // servidos via CDN — mesmo padrão já usado em TemplatePreviewPage.svelte.
+  // Usado apenas para o ícone de notificações; o resto do header
+  // continua a usar o conjunto local /icons/svg/regular/ como sempre.
+  const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
+  const NOTIF_ICON = `${FLUENT_BASE}/alert_24_regular.svg`;
+
+  // O header fica sólido a partir de metade do percurso do hero —
+  // mantido exatamente como antes, só que agora é o ÚNICO header
+  // (o silver-appbar duplicado foi removido).
   const SOLID_THRESHOLD = 0.5;
   $: isSolid = heroProgress >= SOLID_THRESHOLD;
 
@@ -50,6 +56,13 @@
   $: searchBarOpacity = 1 - heroProgress;
   $: searchBarScale = 1 - 0.08 * heroProgress;
   $: searchBarInert = heroProgress > 0.9;
+
+  // Botão de pesquisa no appbar: só aparece quando o input de busca
+  // já está COMPLETAMENTE atrás do appbar (opacidade 0, heroProgress
+  // no máximo) — não antes disso, mesmo que a search-bar já esteja
+  // quase invisível. Fica assim garantido que nunca há sobreposição
+  // visual entre "ainda vejo a search-bar" e "já vejo a lupa".
+  $: searchBtnVisible = searchBarOpacity <= 0;
 
   // Fallback de segurança para o título "Criar" nunca ficar preso a
   // opacity:0 caso `mounted` nunca chegue a `true` por fora.
@@ -120,63 +133,34 @@
   const APPS_SKELETON_COUNT = 6; // 2 filas de 3 colunas
 </script>
 
-<!-- Header próprio do Create: título fixo "Criar" + notificações + avatar.
-     O título deixou de depender de `isSolid` — fica sempre visível assim
-     que o header monta, exatamente como os outros tabs mostram o seu
-     título sempre (Projetos, Templates, Eu). `isSolid` continua a
-     controlar só a mudança de fundo (transparente → sólido). -->
+<!-- Header próprio do Create: título fixo "Criar" + pesquisa (só quando
+     a search-bar está totalmente escondida) + notificações + avatar.
+     `isSolid` controla a mudança de fundo transparente → sólido (azul
+     Fluent), igual ao padrão usado pelo AppHeader nos outros tabs. -->
 <div class="create-header" class:in={effectiveMounted} class:solid={isSolid}>
   <div class="create-header-inner">
-    <h1 class="create-header-title visible">Criar</h1>
+    <h1 class="create-header-title visible" class:solid-title={isSolid}>Criar</h1>
     <div class="header-actions">
-      <!-- Notificações: SEM círculo de fundo, SEM sombra — só o
-           glyph Fluent solto (notification.svg, já é Fluent System
-           Icons, igual ao resto do projeto: add_circle, folder,
-           board, dismiss...). Antes era .icon-btn (círculo com
-           box-shadow); agora é um botão sem chrome nenhum, só a
-           área de toque (44px, acessibilidade) com o ícone centrado. -->
+      <button
+        class="search-btn pulse-tap"
+        class:visible={searchBtnVisible}
+        tabindex={searchBtnVisible ? 0 : -1}
+        aria-hidden={!searchBtnVisible}
+        on:click={handleOpenSearch}
+        aria-label="Pesquisar"
+      >
+        <span class="icon-mask header-icon" class:header-icon-solid={isSolid} style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+      </button>
+      <!-- Notificações: ícone da biblioteca oficial Fluent System Icons
+           (Microsoft), via CDN — sem círculo de fundo, sem sombra, só
+           o glyph, igual ao tratamento visual que já existia. -->
       <button class="notif-btn pulse-tap" on:click={handleNotifications} aria-label="Notificações">
-        <span class="icon-mask notif-icon" class:notif-icon-solid={isSolid} style="mask-image:url('/icons/svg/regular/notification.svg');-webkit-mask-image:url('/icons/svg/regular/notification.svg')"></span>
+        <span class="icon-mask notif-icon" class:notif-icon-solid={isSolid} style="mask-image:url('{NOTIF_ICON}');-webkit-mask-image:url('{NOTIF_ICON}')"></span>
         {#if hasUnreadNotifications}
           <span class="notif-dot"></span>
         {/if}
       </button>
       <button class="profile-btn pulse-tap" class:solid={isSolid} on:click={handleMenu} aria-label="Perfil">
-        {#if avatarUrl}
-          <img src={avatarUrl} alt={userName} class="profile-img" />
-        {:else}
-          <span class="profile-initial" style="background:{avatarColor}">{userInitial}</span>
-        {/if}
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Silver appbar: título fixo "Criar" à esquerda, notificações +
-     avatar + botão de pesquisa à direita. Azul Fluent sólido. -->
-<div class="silver-appbar" class:visible={isSolid} aria-hidden={!isSolid}>
-  <div class="silver-appbar-inner">
-    <span class="silver-appbar-title">Criar</span>
-    <div class="silver-appbar-actions">
-      <button
-        class="silver-search-btn pulse-tap"
-        class:visible={isSolid}
-        tabindex={isSolid ? 0 : -1}
-        aria-hidden={!isSolid}
-        on:click={handleOpenSearch}
-        aria-label="Pesquisar"
-      >
-        <span class="icon-mask silver-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
-      </button>
-      <!-- Notificações no silver appbar: também sem círculo/sombra
-           própria — só o glyph, sobre o azul Fluent sólido. -->
-      <button class="silver-notif-btn pulse-tap" class:visible={isSolid} on:click={handleNotifications} aria-label="Notificações">
-        <span class="icon-mask silver-icon" style="mask-image:url('/icons/svg/regular/notification.svg');-webkit-mask-image:url('/icons/svg/regular/notification.svg')"></span>
-        {#if hasUnreadNotifications}
-          <span class="notif-dot notif-dot-silver"></span>
-        {/if}
-      </button>
-      <button class="profile-btn pulse-tap solid" on:click={handleMenu} aria-label="Perfil">
         {#if avatarUrl}
           <img src={avatarUrl} alt={userName} class="profile-img" />
         {:else}
@@ -203,8 +187,8 @@
     </button>
   </div>
 
-  <!-- Apps: card estilo Microsoft 365 — título pequeno FORA/ACIMA do
-       card (antes estava dentro, sobre o card) + grid 3 colunas,
+  <!-- Apps: card estilo Android M3 — sólido, pouca sombra, cantos
+       generosos. Título pequeno FORA/ACIMA do card + grid 3 colunas,
        ícones PNG soltos (sem círculo/fundo colorido). A Nexa IA NÃO
        aparece aqui — platformApps já vem filtrado (id !== 'ai') a
        partir de App.svelte, porque a IA agora abre exclusivamente
@@ -308,15 +292,13 @@
      M3 EXPRESSIVE: fonte usada nos apps do Material 3 Expressive
      (Google Sans Text é a fonte de produto usada nas apps Google/M3
      Expressive mais recentes; Roboto Flex como intermediário e
-     system-ui como fallback universal). Trocou a antiga 'Segoe UI'
-     (Fluent/Microsoft) por esta pilha em todo o CreateTab.
+     system-ui como fallback universal).
      ════════════════════════════════════════════════════════════════ */
   .create-tab,
   .apps-card,
   .search-bar,
   .recent-card,
   .recent-thumb,
-  .silver-appbar,
   .create-header-title,
   .apps-card-title,
   .app-label,
@@ -324,7 +306,6 @@
   .recent-card-time,
   .recent-section-title,
   .recent-section-cta,
-  .silver-appbar-title,
   .empty-state-title,
   .empty-state-text {
     font-family: 'Google Sans Text', 'Roboto Flex', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
@@ -352,8 +333,12 @@
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
   }
+  /* Sólido: mesmo azul Fluent usado no AppHeader dos outros tabs
+     (#185ABD), em vez do var(--app-bg) genérico anterior — assim o
+     Create passa a ficar visualmente igual a Projetos/Templates
+     quando desliza. */
   .create-header.solid {
-    background: var(--app-bg);
+    background: #185ABD;
   }
   .create-header-inner {
     display: flex;
@@ -377,16 +362,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* Título "Criar" agora é sempre visível assim que o header monta —
-       deixou de depender de isSolid (antes só aparecia ao deslizar,
-       ao contrário dos outros tabs, que mostram o título logo de
-       início). A classe .visible fica aplicada sempre no markup; a
-       transição de opacidade mantém-se só para suavizar o mount. */
+    /* Título "Criar" é sempre visível assim que o header monta —
+       .visible fica sempre aplicada no markup; a transição de
+       opacidade só suaviza o mount. A cor sim muda com isSolid. */
     opacity: 0;
-    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1), color .2s ease;
   }
   .create-header-title.visible {
     opacity: 1;
+  }
+  .create-header-title.solid-title {
+    color: #FFFFFF;
   }
   .header-actions {
     display: flex;
@@ -396,10 +382,51 @@
     margin-left: auto;
   }
 
+  /* ---------- Pesquisa: só aparece quando a search-bar já está
+     totalmente atrás do appbar (searchBtnVisible), sem círculo nem
+     sombra — só o glyph, igual ao tratamento das notificações. ---------- */
+  .search-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    opacity: 0;
+    transform: scale(0.7);
+    transition:
+      opacity .2s cubic-bezier(0.32, 0.72, 0, 1),
+      transform .2s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+  }
+  .search-btn.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  .search-btn:active {
+    opacity: 0.6;
+  }
+  .header-icon {
+    width: 21px;
+    height: 21px;
+    background: var(--drawer-text);
+  }
+  .header-icon.header-icon-solid {
+    background: #FFFFFF;
+  }
+
   /* ---------- Notificações: SEM círculo, SEM sombra ----------
      Só a área de toque (44px, mínimo recomendado de acessibilidade)
-     com o glyph Fluent centrado dentro. Nada de background nem
-     box-shadow em nenhum estado. */
+     com o glyph Fluent oficial centrado dentro. Nada de background
+     nem box-shadow em nenhum estado. */
   .notif-btn {
     position: relative;
     width: 40px;
@@ -423,10 +450,10 @@
   .notif-icon {
     width: 21px;
     height: 21px;
-    background: #FFFFFF;
+    background: var(--drawer-text);
   }
   .notif-icon.notif-icon-solid {
-    background: var(--drawer-text);
+    background: #FFFFFF;
   }
   .notif-dot {
     position: absolute;
@@ -444,7 +471,7 @@
     height: 36px;
     border-radius: 50%;
     border: none;
-    background: rgba(255,255,255,0.16);
+    background: var(--row-active, rgba(127,127,127,0.12));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -452,24 +479,23 @@
     flex-shrink: 0;
     padding: 0;
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    box-shadow: none;
     transition:
       background .28s cubic-bezier(0.32, 0.72, 0, 1),
       box-shadow .28s cubic-bezier(0.32, 0.72, 0, 1),
       transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .profile-btn.solid {
-    background: var(--row-active, rgba(127,127,127,0.12));
-    box-shadow: none;
+    background: rgba(255,255,255,0.16);
   }
   .profile-btn:active {
     transform: scale(0.9);
   }
   .profile-btn:not(.solid):active {
-    background: rgba(255,255,255,0.26);
+    background: var(--row-hover, rgba(127,127,127,0.2));
   }
   .profile-btn.solid:active {
-    background: var(--row-hover, rgba(127,127,127,0.2));
+    background: rgba(255,255,255,0.26);
   }
   .profile-img {
     width: 100%;
@@ -488,128 +514,11 @@
     color: #fff;
   }
   @media (hover:hover) and (pointer:fine) {
-    .profile-btn:not(.solid):hover { background: rgba(255,255,255,0.24); }
-    .profile-btn.solid:hover { background: var(--row-hover, rgba(127,127,127,0.2)); }
+    .profile-btn:not(.solid):hover { background: var(--row-hover, rgba(127,127,127,0.2)); }
+    .profile-btn.solid:hover { background: rgba(255,255,255,0.24); }
   }
   @media (min-width: 720px) {
     .create-header-inner { max-width:760px; }
-  }
-
-  /* ---------- Silver appbar ---------- */
-  .silver-appbar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 16;
-    height: calc(env(safe-area-inset-top, 0px) + 52px);
-    background: #185ABD;
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-    border-bottom: 1px solid rgba(255,255,255,0.14);
-    opacity: 0;
-    transform: translateY(-10px) translateZ(0);
-    transition:
-      opacity .24s cubic-bezier(0.32, 0.72, 0, 1),
-      transform .24s cubic-bezier(0.32, 0.72, 0, 1);
-    pointer-events: none;
-    contain: layout style paint;
-  }
-  .silver-appbar.visible {
-    opacity: 1;
-    transform: translateY(0) translateZ(0);
-    pointer-events: auto;
-  }
-  .silver-appbar-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    width: 100%;
-    height: 100%;
-    max-width: 640px;
-    margin: 0 auto;
-    padding: env(safe-area-inset-top, 0px) 16px 0;
-  }
-  .silver-appbar-title {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0;
-    color: #FFFFFF;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: left;
-  }
-  .silver-appbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  @media (min-width: 720px) {
-    .silver-appbar-inner { max-width:760px; }
-  }
-  .silver-search-btn {
-    position: relative;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    opacity: 0;
-    transform: scale(0.7);
-    transition:
-      opacity .2s cubic-bezier(0.32, 0.72, 0, 1),
-      transform .2s cubic-bezier(0.34,1.56,0.64,1);
-    pointer-events: none;
-  }
-  .silver-search-btn.visible {
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: auto;
-  }
-  .silver-search-btn:active {
-    opacity: 0.6;
-  }
-
-  /* Notificações no silver appbar: mesmo tratamento — sem
-     círculo/sombra, só o glyph sobre o azul sólido. */
-  .silver-notif-btn {
-    position: relative;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    transition: opacity .16s cubic-bezier(0.16,1,0.3,1);
-  }
-  .silver-notif-btn:active {
-    opacity: 0.6;
-  }
-  .silver-icon {
-    width: 18px;
-    height: 18px;
-    background: #FFFFFF;
-  }
-  .notif-dot-silver {
-    top: 5px;
-    right: 5px;
-    border-color: #185ABD;
   }
 
   /* ---------- Conteúdo do Create ---------- */
@@ -667,10 +576,9 @@
   }
 
   /* ------------------------------------------------------------------
-     Título "Comece a criar com" agora vive FORA do card, por cima
-     dele (antes estava dentro, sobre o próprio fundo do card) — igual
-     ao padrão dos outros títulos de secção da página (ex:
-     .recent-section-title, que também fica fora/acima da sua lista).
+     Título "Comece a criar com" vive FORA do card, por cima dele —
+     igual ao padrão dos outros títulos de secção da página (ex:
+     .recent-section-title).
      ------------------------------------------------------------------ */
   .apps-card-title {
     display: block;
@@ -682,15 +590,15 @@
   }
 
   /* ------------------------------------------------------------------
-     FIX (cores escuras azuladas erradas no dark mode): o card usava
-     var(--drawer-bg) diretamente, que no tema escuro resolvia para um
-     tom azul-acinzentado que destoava do resto da interface (o mesmo
-     tom usado nos painéis do drawer, não pensado para um card de
-     conteúdo solto no meio do ecrã). Agora, só no dark theme, o card
-     e a search-bar passam a usar um cinza-carvão neutro dedicado
-     (sem componente azul), com um tom ligeiramente mais claro que o
-     fundo da página para se destacarem como elevação, mantendo o
-     comportamento original (var(--drawer-bg)) intacto no tema claro.
+     Card estilo Android M3: sólido, pouca sombra, cantos generosos.
+     No tema claro mantém var(--drawer-bg) (comportamento original).
+     No tema escuro usa var(--btn-bg) — a MESMA variável usada pelos
+     botões sólidos em todo o projeto (AppDrawer .m3-item, SearchPage),
+     e portanto o mesmo tom dos "botões do TemplatesTab" pedido: o
+     TemplatesTab também assenta as suas superfícies nas variáveis
+     centrais de tema em vez de um valor hardcoded próprio. Isto
+     substitui o anterior #24272D fixo, que era um valor isolado só
+     deste componente e não batia certo com o resto da app.
      ------------------------------------------------------------------ */
   .apps-card {
     margin: 0 14px 0;
@@ -701,12 +609,12 @@
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
   :global([data-theme="dark"]) .apps-card {
-    background: #24272D;
+    background: var(--btn-bg);
     border-color: rgba(255,255,255,0.08);
     box-shadow: none;
   }
   :global([data-theme="dark"]) .search-bar {
-    background: #1E2126;
+    background: var(--btn-bg);
     border-color: rgba(255,255,255,0.10);
   }
   .apps-grid {
@@ -956,7 +864,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .search-bar { transition: none !important; }
-    .silver-appbar { transition: none !important; }
-    .silver-search-btn { transition: none !important; }
+    .search-btn { transition: none !important; }
   }
 </style>

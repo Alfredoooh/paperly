@@ -12,7 +12,6 @@
   import { createSlideTransition, createBackRecoilTransition } from './lib/nav-transition.js';
   import AppHeader from './components/AppHeader.svelte';
   import BottomTabBar from './components/BottomTabBar.svelte';
-  import AppDrawer from './components/AppDrawer.svelte';
   import CreateTab from './components/CreateTab.svelte';
   import ProjectsTab from './components/ProjectsTab.svelte';
   import TemplatesTab from './components/TemplatesTab.svelte';
@@ -67,47 +66,12 @@
   let rootEl;
 
   // ------------------------------------------------------------------
-  // Drawer: usa a MESMA "regra de ouro" de history já usada por
-  // search/preview, E o MESMO motor de spring (dentro do próprio
-  // AppDrawer.svelte, via createSlideTransition) — nada de
-  // requestAnimationFrame manual nem de CSS transition paralela aqui.
-  // App.svelte só é dono de DUAS coisas: (1) SE o drawer está montado
-  // no DOM (drawerOpen) e (2) o estado lógico "deve estar
-  // aberto/fechado" (drawerPushed) — a tradução disso em movimento
-  // físico acontece inteiramente dentro do AppDrawer.
+  // Instalar app (PWA): antes vivia junto ao estado do drawer; agora
+  // o drawer não existe, mas o MeTab continua a precisar destes dois
+  // — mantidos aqui, soltos, exatamente com o mesmo comportamento.
   // ------------------------------------------------------------------
-  let drawerOpen = false;
-  let drawerPushed = false;
   let showInstall = false;
   let unsubscribeInstall;
-
-  async function openDrawer() {
-    if (drawerOpen) return;
-    pushOverlayState('drawer', { nexaDrawer: true });
-    drawerOpen = true;
-    await new Promise(r => requestAnimationFrame(r));
-    drawerPushed = true;
-  }
-
-
-  // Fecho visual puro — chamado a partir de onPopState. Espelha
-  // exatamente closePreviewVisual()/closeSearchVisual(): desliga
-  // drawerPushed (o AppDrawer reage e chama slide.close()) e só
-  // desmonta drawerOpen depois da MESMA duração usada pelas outras
-  // telas full-screen (340ms, ver nav-transition.js/REST_DELTA).
-  function closeDrawerVisual() {
-    drawerPushed = false;
-    setTimeout(() => { drawerOpen = false; }, 340);
-  }
-
-  function closeDrawer() {
-    if (!drawerOpen) return;
-    if (history.state && history.state.nexaDrawer) {
-      history.back();
-    } else {
-      closeDrawerVisual();
-    }
-  }
 
   function applyThemeFromDrawer(id) {
     applyThemeValue(id);
@@ -125,9 +89,10 @@
     }, 2200);
   }
 
+  // Sem drawer a fechar antes — o prompt de instalação é despoletado
+  // diretamente a partir do MeTab, sem física de overlay a coordenar.
   async function handleInstall() {
     const result = await promptPwaInstall();
-    closeDrawer();
     if (result.outcome === 'accepted') {
       showToast('Nexa instalado!');
     }
@@ -218,8 +183,8 @@
 
   // ------------------------------------------------------------------
   // Modal da Nexa IA (bottom-sheet) — segue EXATAMENTE o mesmo padrão
-  // de history de drawer/search/preview: pushState próprio ao abrir,
-  // fecho VISUAL só dentro de onPopState (nunca antecipado por
+  // de history de search/preview: pushState próprio ao abrir, fecho
+  // VISUAL só dentro de onPopState (nunca antecipado por
   // closeAIModal), para o botão físico de voltar do Android funcionar
   // corretamente. É o ÚNICO "app" que abre assim — nunca navega para
   // uma rota/path próprio como os outros itens de ALL_APPS.
@@ -264,31 +229,15 @@
     dispatch('nav', { to: app.id, data: { path: app.path } });
   }
 
-  // FIX (bug: clicar no avatar por vezes não navegava para o perfil,
-  // ou deixava o drawer/histórico presos):
-  // A versão anterior dependia de UM evento popstate partilhado entre
-  // dois listeners — sem garantia de ordem, e sem garantia de que o
-  // popstate chegava sequer a disparar. Agora o fecho do drawer é
-  // feito diretamente aqui, de forma síncrona e determinística:
-  // consome-se a entrada nexaDrawer do histórico (se existir) SEM
-  // deixar o onPopState global reagir a ela, faz-se o fecho visual
-  // de imediato via closeDrawerVisual(), e só se navega para o perfil
-  // depois da própria transição de fecho (340ms, agora alinhada com a
-  // duração real do spring) terminar.
+  // ------------------------------------------------------------------
+  // Perfil: o AppDrawer foi eliminado, por isso já não existe nenhum
+  // overlay/drawer a fechar antes de navegar — a navegação passa a ser
+  // direta e síncrona, sempre. O dispatch('nav', ...) é EXATAMENTE o
+  // mesmo usado antes (mesma rota '/profile/'), preservado tal e qual
+  // porque é essa navegação que comunica com o app nativo.
+  // ------------------------------------------------------------------
   function openProfile() {
-    if (drawerOpen) {
-      if (history.state && history.state.nexaDrawer) {
-        suppressRouterPopstate = true;
-        history.back();
-        requestAnimationFrame(() => { suppressRouterPopstate = false; });
-      }
-      closeDrawerVisual();
-      setTimeout(() => {
-        dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
-      }, 340); // espelha exatamente a duração de closeDrawerVisual()
-    } else {
-      dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
-    }
+    dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
   }
 
   let appbarHeight = 0;
@@ -344,29 +293,15 @@
 
   // ------------------------------------------------------------------
   // Recuo do fundo (.root) quando um overlay full-screen entra — usa
-  // o motor de spring via rAF do nav-transition.js. O drawer JÁ NÃO
-  // participa deste recoil: agora ele escreve diretamente no rootEl
-  // a partir de DENTRO do AppDrawer (via applyRootPush, alimentado
-  // pelo MESMO spring do próprio drawer) — eliminando por completo a
-  // antiga disputa entre dois "donos" de transform no rootEl. Quando
-  // o drawer está fechado, este recoil (search/preview) volta a ser o
-  // único a escrever em rootEl.style.transform.
-  //
-  // AJUSTE: amplitude alinhada 1:1 com o recoil do profile/App.svelte
-  // (mainRecoilTranslate/mainRecoilScale) — ANTES este recoil usava
-  // -28% de translate sozinho, sem scale nenhum, o que produzia um
-  // "empurrão" bem mais brusco e sem a leve compressão que o profile
-  // tem. Agora usa exatamente -8% de translate + scale(1 - 0.02*v),
-  // igual, valor a valor, ao .profile-main-layer.
+  // o motor de spring via rAF do nav-transition.js. O drawer já não
+  // existe, por isso este recoil é agora o ÚNICO dono de
+  // rootEl.style.transform — sem qualquer disputa entre dois motores.
   // ------------------------------------------------------------------
   const backRecoil = createBackRecoilTransition();
   let rootRecoilValue = 0; // 0..1
   const unsubscribeBackRecoil = backRecoil.subscribe((v) => {
     rootRecoilValue = v;
-    // Só aplica aqui quando o drawer não está a controlar o rootEl —
-    // evita que os dois motores escrevam por cima um do outro no
-    // mesmíssimo frame.
-    if (!drawerOpen && rootEl) {
+    if (rootEl) {
       const translate = -8 * v;
       const scale = 1 - 0.02 * v;
       rootEl.style.transform = `translate3d(${translate}%, 0, 0) scale(${scale})`;
@@ -426,10 +361,11 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // Fonte ÚNICA de verdade para fechar overlays — drawer e modal IA
-    // incluídos, tratados exatamente como search/preview: consome-se
-    // o popstate, desliga-se o *Pushed correspondente (cada
-    // componente reage e trata da física sozinho).
+    // Fonte ÚNICA de verdade para fechar overlays — o drawer foi
+    // eliminado, por isso este ramo desapareceu; search/preview/modal
+    // IA continuam tratados exatamente como antes: consome-se o
+    // popstate, desliga-se o *Pushed correspondente (cada componente
+    // reage e trata da física sozinho).
     function onPopState() {
       if (suppressRouterPopstate) return;
       const state = history.state;
@@ -444,10 +380,6 @@
       } else if (aiModalOpen && (!state || state.nexaAI === undefined)) {
         suppressRouterPopstate = true;
         closeAIModalVisual();
-        suppressRouterPopstate = false;
-      } else if (drawerOpen && (!state || state.nexaDrawer === undefined)) {
-        suppressRouterPopstate = true;
-        closeDrawerVisual();
         suppressRouterPopstate = false;
       }
     }
@@ -482,7 +414,7 @@
       {mounted}
       bind:topPanelEl
       {scrolled}
-      onOpenDrawer={openDrawer}
+      onOpenDrawer={openProfile}
       {avatarUrl}
       {avatarColor}
       {userInitial}
@@ -517,7 +449,7 @@
         title={currentTitle}
         {rootEl}
         {appbarHeight}
-        onOpenDrawer={openDrawer}
+        onOpenDrawer={openProfile}
         onOpenSearch={openSearch}
         onOpenApp={navigateToApp}
       />
@@ -536,8 +468,13 @@
         {userInitial}
         {userName}
         userEmail={user?.email || ''}
+        {themeValue}
+        onApplyTheme={applyThemeFromDrawer}
+        onOpenProfile={openProfile}
         onOpenSettings={() => {}}
         onLogout={logout}
+        {showInstall}
+        onInstall={handleInstall}
       />
     {/if}
   </div>
@@ -580,23 +517,6 @@
 <div class="bottombar-sentinel" bind:this={bottombarSentinelEl} aria-hidden="true"></div>
 
 <BottomTabBar {activeTab} onSelect={selectTab} onOpenAI={openAIModal} {avatarUrl} {avatarColor} {userInitial} />
-
-<AppDrawer
-  {drawerOpen}
-  {drawerPushed}
-  {rootEl}
-  {themeValue}
-  {avatarColor}
-  {avatarUrl}
-  {userInitial}
-  {userName}
-  {showInstall}
-  onClose={closeDrawer}
-  onApplyTheme={applyThemeFromDrawer}
-  onLogout={logout}
-  onInstall={handleInstall}
-  onOpenProfile={openProfile}
-/>
 
 <style>
   @import '../shared/theme.css';

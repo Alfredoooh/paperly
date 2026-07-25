@@ -61,6 +61,13 @@
     </button>
   {/each}
 
+  <!-- Botão central da Nexa IA: agora um PNG a cores reais (não mais
+       um SVG mascarado forçado a branco), por isso deixou de ter
+       container/círculo colorido à volta — nada de background,
+       border-radius, box-shadow. O que resta é só a área de toque
+       (fab-slot/fab-btn), do mesmo tamanho de sempre por
+       acessibilidade, mas totalmente transparente: o PNG aparece
+       solto sobre o fundo da bottombar, como um ícone normal. -->
   <div class="fab-slot" aria-hidden="true">
     <button
       class="fab-btn"
@@ -68,7 +75,7 @@
       on:click={openAI}
       aria-label={AI_FAB.label}
     >
-      <span class="fab-icon-mask" style="mask-image:url('{AI_FAB.icon}');-webkit-mask-image:url('{AI_FAB.icon}')"></span>
+      <img class="fab-icon" src={AI_FAB.icon} alt={AI_FAB.label} />
     </button>
   </div>
 
@@ -263,10 +270,12 @@
   }
 
   /* ---------- Botão central (FAB) da Nexa IA ----------
-     CIRCULAR — mesmas dimensões 44×40 do retângulo anterior, só
-     mudou border-radius para 50% (volta a ser círculo, como pedido).
-     Continua assente na própria linha da bottombar via .fab-slot com
-     flex:1, mantendo a distribuição space-around simétrica. */
+     Deixou de ser um botão sólido com fundo/círculo colorido — agora
+     é só a área de toque, transparente, do mesmo tamanho de antes
+     (44×40, mínimo de acessibilidade) assente na própria linha da
+     bottombar via .fab-slot com flex:1. O PNG (fab-icon) é que
+     carrega toda a identidade visual sozinho, sem nenhum container
+     por trás dele. */
   .fab-slot {
     position: relative;
     z-index: 1;
@@ -282,33 +291,28 @@
     z-index: 1;
     width: 44px;
     height: 40px;
-    border-radius: 50%;
+    border-radius: 0;
     border: none;
-    background: var(--accent-primary, #0A84FF);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     padding: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.20);
+    box-shadow: none;
     -webkit-tap-highlight-color: transparent;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
   .fab-btn.pressed,
   .fab-btn:active {
     transform: scale(0.90);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
   }
-  .fab-icon-mask {
-    width: 22px;
-    height: 22px;
-    background: #fff;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
+  .fab-icon {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -25,20 +25,12 @@
   // ------------------------------------------------------------------
   // Elastic / pull-to-refresh via spring (rAF).
   //
-  // IMPORTANTE: este gesto tem que ser SUSPENSO assim que um dedo
-  // pousa em cima de um card individual, mesmo antes do long-press
-  // completar os 400ms — não só depois. Antes, a suspensão só
-  // acontecia quando longPressActive já era true (ou seja, só depois
-  // do timer completar), o que deixava uma janela de ~400ms em que
-  // qualquer tremor do dedo enquanto o long-press ainda estava a
-  // "armar" arrastava o grid inteiro via translateY(pull) no
-  // .templates-tab-inner — dava a sensação de o card estar a
-  // "deslizar" durante o gesto de segurar. Agora usa-se uma flag
-  // separada (cardGestureActive) que liga assim que QUALQUER card
-  // recebe um touchstart/mousedown, e só desliga quando esse gesto
-  // termina (touchend/mouseup/touchcancel) ou é cancelado — o
-  // pull-to-refresh do scroller pai fica completamente surdo a
-  // touchmove enquanto isso.
+  // cardGestureActive liga assim que qualquer card recebe um
+  // touchstart/mousedown, e desliga quando o menu fecha (via
+  // handleMenuSelect/handleMenuCancel) ou quando o dedo se move demais
+  // antes do long-press completar (pressMoved). Isto impede o
+  // pull-to-refresh de arrastar o grid inteiro enquanto um gesto de
+  // long-press pode estar a nascer ou já está aberto.
   // ------------------------------------------------------------------
   const recoil = createBackRecoilTransition();
   let pull = 0; // px, derivado do valor -1..1 do spring
@@ -50,11 +42,6 @@
   let dragging = false;
   let gestureStartY = 0;
   let gestureStartScrollTop = 0;
-
-  // Verdadeiro desde o instante em que o dedo pousa em QUALQUER card
-  // (armLongPress) até ao instante em que solta/cancela — impede o
-  // pull-to-refresh de sequer COMEÇAR a arrastar o grid enquanto um
-  // gesto de long-press pode estar a nascer, mesmo antes dos 400ms.
   let cardGestureActive = false;
 
   function dampen(delta) {
@@ -95,6 +82,16 @@
 
   // ------------------------------------------------------------------
   // Long-press estilo Pinterest.
+  //
+  // Responsabilidade AGORA dividida com clareza:
+  // - TemplatesTab (aqui): só INICIA o gesto (arma o timer no
+  //   touchstart/mousedown do card) e cancela-o se o dedo se mover
+  //   demais antes do timer disparar. NÃO tenta fechar o menu.
+  // - LongPressMenu: assim que monta, é ele quem decide quando e como
+  //   o gesto termina, via listeners globais em window — porque é o
+  //   único componente que sabe com certeza quando o dedo/rato soltou,
+  //   independentemente de qual elemento está por baixo do cursor
+  //   nesse instante (ver comentário longo no LongPressMenu.svelte).
   // ------------------------------------------------------------------
   const LONG_PRESS_MS = 400;
   const MOVE_CANCEL_THRESHOLD = 10;
@@ -103,25 +100,26 @@
   let longPressTimer = null;
   let longPressOrigin = { x: 0, y: 0 };
   let longPressTarget = null;
-  let menuRef;
   let pressStartX = 0, pressStartY = 0;
   let pressMoved = false;
-  let pressedEl = null;
 
   function buzzLongPress() {
     try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
   }
 
   function armLongPress(e, kind, item) {
+    // Se já há um long-press ativo ou a armar, ignora um segundo
+    // touchstart/mousedown sintético sobreposto (evita o caso de
+    // touchstart + mousedown dispararem os dois para o mesmo gesto
+    // físico em alguns browsers/webviews, o que criaria dois timers
+    // concorrentes).
+    if (cardGestureActive || longPressActive) return;
+
     const t = e.touches ? e.touches[0] : e;
     pressStartX = t.clientX;
     pressStartY = t.clientY;
     pressMoved = false;
     longPressTarget = { kind, item };
-    pressedEl = e.currentTarget;
-    // Liga já aqui, no instante do primeiro toque no card — não espera
-    // pelos 400ms. É isto que impede o pull-to-refresh de arrastar o
-    // grid durante a janela de espera do long-press.
     cardGestureActive = true;
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
@@ -133,43 +131,42 @@
   }
 
   function trackLongPress(e) {
+    if (longPressActive) return; // o LongPressMenu já assumiu o controlo do movimento
     const t = e.touches ? e.touches[0] : e;
-    if (!longPressActive) {
-      const dx = t.clientX - pressStartX;
-      const dy = t.clientY - pressStartY;
-      if (Math.hypot(dx, dy) > MOVE_CANCEL_THRESHOLD) {
-        pressMoved = true;
-        clearTimeout(longPressTimer);
-        // O dedo moveu-se demais para ainda contar como long-press —
-        // liberta o pull-to-refresh de volta para o gesto normal de
-        // scroll/pull, já que o toque deixou de ser "segurar parado".
-        cardGestureActive = false;
-      }
-      return;
+    const dx = t.clientX - pressStartX;
+    const dy = t.clientY - pressStartY;
+    if (Math.hypot(dx, dy) > MOVE_CANCEL_THRESHOLD) {
+      pressMoved = true;
+      clearTimeout(longPressTimer);
+      cardGestureActive = false;
     }
-    menuRef?.updatePointer(t.clientX, t.clientY);
   }
 
-  function releaseLongPress() {
+  // Chamado no touchend/mouseup do PRÓPRIO card — só relevante para o
+  // caso de um tap normal e rápido, que nunca chegou a completar os
+  // 400ms (nesse caso longPressActive continua false, e é seguro
+  // limpar tudo aqui mesmo, sem esperar pelo LongPressMenu, porque ele
+  // nem chegou a montar). Se o menu já estiver aberto
+  // (longPressActive === true), este handler NÃO faz nada — o fecho
+  // nesse caso é inteiramente responsabilidade do LongPressMenu via
+  // listeners globais, e tentar fechar por aqui também seria
+  // exatamente a fonte do bug de "abre duas vezes / trava".
+  function endCardGesture() {
     clearTimeout(longPressTimer);
+    if (longPressActive) return; // deixa o LongPressMenu tratar disto
     cardGestureActive = false;
-    if (!longPressActive) return;
-    menuRef?.resolve();
-  }
-
-  function cancelLongPressGesture() {
-    clearTimeout(longPressTimer);
-    cardGestureActive = false;
-    if (longPressActive) longPressActive = false;
+    pressMoved = false;
   }
 
   function handleMenuSelect() {
     longPressActive = false;
     longPressTarget = null;
+    cardGestureActive = false;
   }
   function handleMenuCancel() {
     longPressActive = false;
     longPressTarget = null;
+    cardGestureActive = false;
   }
 
   onMount(() => {
@@ -231,12 +228,12 @@
                 on:click={() => openImgPreview(img)}
                 on:touchstart={(e) => armLongPress(e, 'image', img)}
                 on:touchmove={trackLongPress}
-                on:touchend={releaseLongPress}
-                on:touchcancel={cancelLongPressGesture}
+                on:touchend={endCardGesture}
+                on:touchcancel={endCardGesture}
                 on:mousedown={(e) => armLongPress(e, 'image', img)}
                 on:mousemove={trackLongPress}
-                on:mouseup={releaseLongPress}
-                on:mouseleave={cancelLongPressGesture}
+                on:mouseup={endCardGesture}
+                on:mouseleave={endCardGesture}
               >
                 <img src={img.thumb} alt={img.label} class="img-card-photo" loading="lazy" />
                 <span class="img-card-overlay"></span>
@@ -255,12 +252,12 @@
             on:click={() => openDocPreview(doc)}
             on:touchstart={(e) => armLongPress(e, 'doc', doc)}
             on:touchmove={trackLongPress}
-            on:touchend={releaseLongPress}
-            on:touchcancel={cancelLongPressGesture}
+            on:touchend={endCardGesture}
+            on:touchcancel={endCardGesture}
             on:mousedown={(e) => armLongPress(e, 'doc', doc)}
             on:mousemove={trackLongPress}
-            on:mouseup={releaseLongPress}
-            on:mouseleave={cancelLongPressGesture}
+            on:mouseup={endCardGesture}
+            on:mouseleave={endCardGesture}
           >
             <div class="doc-sheet">
               <span class="doc-icon-mask" style="mask-image:url('{doc.icon}');-webkit-mask-image:url('{doc.icon}')"></span>
@@ -279,7 +276,6 @@
 
 {#if longPressActive && longPressTarget}
   <LongPressMenu
-    bind:this={menuRef}
     originX={longPressOrigin.x}
     originY={longPressOrigin.y}
     on:select={handleMenuSelect}
@@ -336,13 +332,11 @@
   .img-card:active { transform: scale(0.96); }
   .img-card.pressed {
     transform: scale(1.04);
-    /* Este é o ÚNICO card com permissão de ficar acima do
-       .menu-overlay (z-index:200 no LongPressMenu.svelte, já movido
-       para document.body via portal). 301 garante que fica acima do
-       overlay inteiro, incluindo do próprio dark-veil-full — é assim
-       que o card "flutua" visível por cima do véu escuro, cresce um
-       pouco, e continua legível enquanto o resto da tela escurece à
-       volta dele. */
+    /* Único card com permissão de ficar acima do .menu-overlay
+       (z-index:200 no LongPressMenu, movido para document.body via
+       portal). 301 garante que fica acima do overlay inteiro,
+       incluindo do dark-veil-full — é assim que o card fica visível,
+       claro e limpo, flutuando por cima do véu escuro. */
     z-index: 301;
   }
   .img-card-photo {
@@ -393,7 +387,6 @@
     z-index: 1;
   }
   .doc-card.pressed {
-    /* Mesma lógica do .img-card.pressed acima. */
     z-index: 301;
   }
   .doc-sheet {

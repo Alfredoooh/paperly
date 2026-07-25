@@ -9,41 +9,42 @@
   // sem soltar — cada botão sob o dedo acende E CRESCE para indicar
   // seleção em tempo real, e soltar sobre um botão dispara essa ação.
   //
+  // AUTONOMIA DE FECHO (correção crítica): este componente agora
+  // escuta pointerup/touchend/mouseup GLOBALMENTE em `window`, assim
+  // que monta — e não depende em nada de o TemplatesTab.svelte lhe
+  // "avisar" que o dedo soltou. Isto é obrigatório por causa do
+  // portal (ver portal.js): assim que este overlay é movido para
+  // document.body com position:fixed;inset:0, ele passa a ser o
+  // elemento que recebe o hit-test do rato/toque nessa área do ecrã —
+  // mesmo que o card pressionado tenha z-index visual mais alto e
+  // continue visível por cima. Isto significa que quando o utilizador
+  // solta o dedo, o evento touchend/mouseup dispara sobre ESTE overlay
+  // (ou um filho dele), nunca sobre o card original — se o fecho do
+  // menu dependesse de um listener no card (como dependia antes), o
+  // menu simplesmente nunca fechava, porque esse listener nunca era
+  // atingido. Ao escutar em `window`, este componente recebe o sinal
+  // de "soltou" independentemente de qual elemento está fisicamente
+  // por baixo do cursor nesse instante — window está acima de tudo na
+  // árvore, todo evento sobe até lá por bubbling (touchend/mouseup
+  // fazem bubbling normalmente; não usamos capture).
+  //
   // Escurecimento: TODO o ecrã escurece um pouco — incluindo appbar e
-  // bottombar — EXCETO o card que foi pressionado, que continua
-  // exatamente tão claro quanto estava (implementado com um "buraco"
-  // recortado via box-shadow gigante sobre um retângulo posicionado
-  // exatamente sobre o cardRect). A opacidade é propositadamente leve
-  // ("um pouquinho transparente escuro", não um véu opaco) — ver
-  // VEIL_OPACITY.
+  // bottombar — SEM buraco recortado. O card pressionado (.pressed no
+  // TemplatesTab.svelte) fica visível porque tem z-index MAIOR que
+  // este overlay — cresce (scale) e flutua por cima do véu escuro
+  // inteiro.
   //
   // PORTAL: este componente inteiro é montado via use:portal direto em
-  // document.body. Isto é OBRIGATÓRIO e não é opcional — sem isto, o
-  // overlay nasce dentro de TemplatesTab -> .scroll-root -> .root do
-  // App.svelte, e .root tem will-change:transform + contain:layout
-  // style paint, o que cria um stacking context isolado. Dentro desse
-  // stacking context, nenhum z-index interno (nem 200, nem 999999)
-  // consegue competir com a BottomTabBar, que é irmã de .root no DOM e
-  // vem depois dele — quem vem depois como irmão do stacking context
-  // pinta por cima de tudo que está preso lá dentro, sempre, não
-  // importa o número. Com o portal, este overlay passa a ser filho
-  // direto de <body>, no mesmo nível de tudo o resto, e aí sim o
-  // z-index:200 funciona como esperado contra bottombar(20), appbar
-  // fixed(15), SearchPage/TemplatePreviewPage(30) e AIChatModal(90/91).
+  // document.body — ver portal.js para o porquê (stacking context
+  // preso em .root no App.svelte).
   //
   // Bloqueio de scroll: enquanto este menu está montado, ninguém
-  // consegue rolar nada por baixo dele — nem o grid de templates, nem
-  // a página em geral — via overflow:hidden + touch-action:none no
-  // <body>, repostos ao desmontar.
-  //
-  // Posicionamento adaptativo: os 4 botões nascem em leque à volta do
-  // ponto de toque, com o leque inteiro deslocado como bloco rígido
-  // (nunca bolha a bolha) para caber na viewport perto de bordas.
+  // consegue rolar nada por baixo dele — via overflow:hidden +
+  // touch-action:none no <body>, repostos ao desmontar.
   // ------------------------------------------------------------------
 
   export let originX = 0;
   export let originY = 0;
-  export let cardRect = null; // DOMRect (já expandido pela escala do pressed) do card, ou null
 
   const dispatch = createEventDispatcher();
 
@@ -63,6 +64,15 @@
   let activeId = null;
   let bubbleEls = {};
   let options = [];
+
+  // Guarda para nunca resolver duas vezes (ex: touchend E mouseup
+  // sintético a disparar quase ao mesmo tempo no mesmo gesto — comum
+  // em alguns browsers/webviews). Sem isto, o segundo disparo tentaria
+  // dispatch('select'/'cancel') outra vez sobre um componente que já
+  // devia estar a desmontar, o que é exatamente o tipo de coisa que dá
+  // "aparece duas vezes" do lado do TemplatesTab (dois eventos
+  // select/cancel a chegar, cada um a tentar reabrir/refechar o {#if}).
+  let resolved = false;
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -127,6 +137,47 @@
     }));
   }
 
+  function hitTestBubble(clientX, clientY) {
+    for (const opt of options) {
+      const el = bubbleEls[opt.id];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dist = Math.hypot(clientX - cx, clientY - cy);
+      if (dist <= r.width / 2 + 14) return opt.id;
+    }
+    return null;
+  }
+
+  function handlePointerMoveGlobal(e) {
+    const t = e.touches ? e.touches[0] : e;
+    if (!t) return;
+    const hit = hitTestBubble(t.clientX, t.clientY);
+    if (hit !== activeId) {
+      activeId = hit;
+      if (hit) buzzSelect();
+    }
+  }
+
+  // Único ponto de fecho do menu, disparado pelos listeners globais
+  // abaixo. Idempotente (guarda `resolved`) para nunca disparar
+  // select/cancel mais que uma vez para o mesmo gesto.
+  function resolveOnce() {
+    if (resolved) return;
+    resolved = true;
+    if (activeId) {
+      buzz();
+      dispatch('select', { id: activeId });
+    } else {
+      dispatch('cancel');
+    }
+  }
+
+  function handlePointerUpGlobal() {
+    resolveOnce();
+  }
+
   let prevBodyOverflow = '';
   let prevBodyTouchAction = '';
 
@@ -137,66 +188,34 @@
     prevBodyTouchAction = document.body.style.touchAction;
     document.body.style.overflow = 'hidden';
     document.body.style.touchAction = 'none';
+
+    // Listeners GLOBAIS em window — não em document, não em nenhum nó
+    // local — para garantir que o fecho do menu nunca depende de qual
+    // elemento está fisicamente por baixo do dedo/rato no instante do
+    // release. passive:true onde não fazemos preventDefault (up/move
+    // aqui só leem coordenadas, não bloqueiam scroll — o bloqueio de
+    // scroll já está garantido pelo overflow:hidden/touch-action:none
+    // do body acima).
+    window.addEventListener('touchmove', handlePointerMoveGlobal, { passive: true });
+    window.addEventListener('mousemove', handlePointerMoveGlobal, { passive: true });
+    window.addEventListener('touchend', handlePointerUpGlobal, { passive: true });
+    window.addEventListener('touchcancel', handlePointerUpGlobal, { passive: true });
+    window.addEventListener('mouseup', handlePointerUpGlobal, { passive: true });
   });
 
   onDestroy(() => {
     document.body.style.overflow = prevBodyOverflow;
     document.body.style.touchAction = prevBodyTouchAction;
+    window.removeEventListener('touchmove', handlePointerMoveGlobal);
+    window.removeEventListener('mousemove', handlePointerMoveGlobal);
+    window.removeEventListener('touchend', handlePointerUpGlobal);
+    window.removeEventListener('touchcancel', handlePointerUpGlobal);
+    window.removeEventListener('mouseup', handlePointerUpGlobal);
   });
-
-  export function updatePointer(clientX, clientY) {
-    let hit = null;
-    for (const opt of options) {
-      const el = bubbleEls[opt.id];
-      if (!el) continue;
-      const r = el.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const dist = Math.hypot(clientX - cx, clientY - cy);
-      if (dist <= r.width / 2 + 14) {
-        hit = opt.id;
-        break;
-      }
-    }
-    if (hit !== activeId) {
-      activeId = hit;
-      if (hit) buzzSelect();
-    }
-  }
-
-  export function resolve() {
-    if (activeId) {
-      buzz();
-      dispatch('select', { id: activeId });
-    } else {
-      dispatch('cancel');
-    }
-  }
 </script>
 
-<div class="menu-overlay" use:portal on:click={() => dispatch('cancel')}>
-  {#if cardRect}
-    <!-- "Buraco" no escurecimento: um retângulo exatamente sobre o
-         card (já expandido pela escala visual do .pressed, ver
-         TemplatesTab.svelte), com box-shadow gigante ao redor que
-         pinta tudo o resto de escuro (agora incluindo appbar/bottombar
-         de verdade, graças ao portal acima) — o card em si fica sem
-         nenhuma camada por cima, como se estivesse a flutuar por cima
-         da tela escurecida. -->
-    <div
-      class="dark-veil-hole"
-      style="
-        left:{cardRect.left}px;
-        top:{cardRect.top}px;
-        width:{cardRect.width}px;
-        height:{cardRect.height}px;
-        border-radius:20px;
-        box-shadow: 0 0 0 9999px rgba(0,0,0,{VEIL_OPACITY});
-      "
-    ></div>
-  {:else}
-    <div class="dark-veil-full" style="background: rgba(0,0,0,{VEIL_OPACITY});"></div>
-  {/if}
+<div class="menu-overlay" use:portal on:click={() => resolveOnce()}>
+  <div class="dark-veil-full" style="background: rgba(0,0,0,{VEIL_OPACITY});"></div>
 
   <div class="menu-anchor" style="left:{originX}px; top:{originY}px;">
     <span class="origin-ring"></span>
@@ -217,19 +236,9 @@
   .menu-overlay {
     position: fixed;
     inset: 0;
-    /* Agora que o portal move este nó para document.body, este
-       z-index compete no stacking context raiz de verdade, contra
-       bottombar(20), appbar fixed(15), SearchPage/TemplatePreviewPage
-       (30) e AIChatModal(90/91) — 200 já é suficiente e continua
-       sendo. */
     z-index: 200;
   }
 
-  .dark-veil-hole {
-    position: fixed;
-    pointer-events: none;
-    animation: veilIn .22s cubic-bezier(0.16,1,0.3,1);
-  }
   .dark-veil-full {
     position: fixed;
     inset: 0;
@@ -308,6 +317,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .bubble, .origin-ring, .dark-veil-hole, .dark-veil-full { animation: none !important; }
+    .bubble, .origin-ring, .dark-veil-full { animation: none !important; }
   }
 </style>

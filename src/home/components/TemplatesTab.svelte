@@ -78,11 +78,18 @@
   const LONG_PRESS_MS = 400;
   const MOVE_CANCEL_THRESHOLD = 10;
 
+  // Fator de escala visual aplicado ao card via CSS quando .pressed
+  // fica ativo (ver .img-card.pressed / .doc-card.pressed abaixo).
+  // Tem que ser o MESMO valor usado no transform:scale() do CSS —
+  // se um dia mudares a escala no CSS, muda aqui também, ou o buraco
+  // volta a ficar desalinhado.
+  const PRESSED_SCALE = 1.04;
+
   let longPressActive = false;
   let longPressTimer = null;
   let longPressOrigin = { x: 0, y: 0 };
   let longPressTarget = null;
-  let longPressCardRect = null; // DOMRect do card pressionado, para o "buraco" no overlay
+  let longPressCardRect = null; // DOMRect (já expandido pela escala) do card pressionado, para o "buraco" no overlay
   let menuRef;
   let pressStartX = 0, pressStartY = 0;
   let pressMoved = false;
@@ -90,6 +97,37 @@
 
   function buzzLongPress() {
     try { navigator.vibrate && navigator.vibrate([0, 12, 30, 12]); } catch (e) {}
+  }
+
+  // Expande um DOMRect em torno do próprio centro por um fator de
+  // escala — usado para compensar o transform:scale(PRESSED_SCALE)
+  // que o CSS aplica ao card no instante em que .pressed fica ativo.
+  //
+  // Por que isto é necessário: getBoundingClientRect() é chamado no
+  // touchstart/mousedown, ANTES do Svelte re-renderizar com a classe
+  // .pressed aplicada — nesse instante o card ainda está no tamanho
+  // normal (escala 1x). O CSS só cresce o card visualmente depois
+  // disso. Se usássemos o rect bruto, o "buraco" recortado no véu
+  // escuro ficaria do tamanho do card ANTES de crescer — menor que o
+  // card depois de crescer — sobrando uma faixa fina da imagem
+  // escalada para fora do buraco, ainda coberta pelo véu escuro. Ao
+  // expandir matematicamente o rect pelo mesmo fator de escala do
+  // CSS, centrado no mesmo centro (que é o que transform:scale()
+  // também faz — escala a partir do centro, por padrão), o buraco
+  // acompanha exatamente o tamanho final do card, sem depender de
+  // esperar um frame de repaint.
+  function expandRectByScale(rect, scale) {
+    if (!rect) return null;
+    const newWidth = rect.width * scale;
+    const newHeight = rect.height * scale;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return {
+      left: cx - newWidth / 2,
+      top: cy - newHeight / 2,
+      width: newWidth,
+      height: newHeight,
+    };
   }
 
   function armLongPress(e, kind, item) {
@@ -103,7 +141,8 @@
     longPressTimer = setTimeout(() => {
       if (pressMoved) return;
       longPressOrigin = { x: pressStartX, y: pressStartY };
-      longPressCardRect = pressedEl?.getBoundingClientRect() || null;
+      const rawRect = pressedEl?.getBoundingClientRect() || null;
+      longPressCardRect = expandRectByScale(rawRect, PRESSED_SCALE);
       longPressActive = true;
       buzzLongPress();
     }, LONG_PRESS_MS);
@@ -135,8 +174,6 @@
   }
 
   function handleMenuSelect() {
-    // Visual apenas por agora — ações reais (partilhar/fixar/pesquisar/
-    // whatsapp) ligam-se aqui quando definidas.
     longPressActive = false;
     longPressTarget = null;
     longPressCardRect = null;
@@ -311,11 +348,21 @@
   .masonry-col:last-child .img-card:nth-child(3n+3) { aspect-ratio: 3 / 4; }
   .img-card:active { transform: scale(0.96); }
   .img-card.pressed {
+    /* Este valor tem que bater com PRESSED_SCALE no <script> acima —
+       é ele que o expandRectByScale() usa para calcular o tamanho do
+       "buraco" no véu escuro. Se mudares aqui, muda lá também. */
     transform: scale(1.04);
-    /* +1 acima do z-index:200 do LongPressMenu, para o card pressionado
-       flutuar por cima da própria tela escurecida — igual à relação
-       "+1" que já havia (era 51 contra o antigo overlay:50). */
-    z-index: 201;
+    /* SEM z-index acima do overlay aqui de propósito — o card
+       pressionado fica visível através do "buraco" recortado no véu
+       (dark-veil-hole no LongPressMenu.svelte), que já lhe dá espaço
+       livre e sem nenhuma camada por cima. Um z-index maior que o do
+       overlay (200) faria o card inteiro — imagem e tudo — flutuar
+       por CIMA do overlay inteiro, incluindo por cima dos próprios
+       botões .bubble do menu, que é exatamente o bug que estava a
+       acontecer. z-index:2 aqui é só o suficiente para ficar acima
+       dos outros cards vizinhos no grid local (que estão a z-index:1),
+       nunca acima do overlay do menu. */
+    z-index: 2;
   }
   .img-card-photo {
     width: 100%;
@@ -365,7 +412,10 @@
     z-index: 1;
   }
   .doc-card.pressed {
-    z-index: 201;
+    /* Mesma lógica do .img-card.pressed acima: sem z-index acima do
+       overlay (200), só o suficiente para ficar acima dos cards
+       vizinhos do próprio grid. */
+    z-index: 2;
   }
   .doc-sheet {
     position: relative;

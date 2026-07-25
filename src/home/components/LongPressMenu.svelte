@@ -1,6 +1,7 @@
 <!-- src/home/components/LongPressMenu.svelte -->
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { portal } from '../lib/portal.js';
 
   // ------------------------------------------------------------------
   // Menu contextual estilo Pinterest: aparece ao segurar um card por
@@ -9,38 +10,40 @@
   // seleção em tempo real, e soltar sobre um botão dispara essa ação.
   //
   // Escurecimento: TODO o ecrã escurece um pouco — incluindo appbar e
-  // bottombar, que são position:fixed com z-index inferior ao deste
-  // overlay — EXCETO o card que foi pressionado, que continua
+  // bottombar — EXCETO o card que foi pressionado, que continua
   // exatamente tão claro quanto estava (implementado com um "buraco"
   // recortado via box-shadow gigante sobre um retângulo posicionado
   // exatamente sobre o cardRect). A opacidade é propositadamente leve
   // ("um pouquinho transparente escuro", não um véu opaco) — ver
   // VEIL_OPACITY.
   //
+  // PORTAL: este componente inteiro é montado via use:portal direto em
+  // document.body. Isto é OBRIGATÓRIO e não é opcional — sem isto, o
+  // overlay nasce dentro de TemplatesTab -> .scroll-root -> .root do
+  // App.svelte, e .root tem will-change:transform + contain:layout
+  // style paint, o que cria um stacking context isolado. Dentro desse
+  // stacking context, nenhum z-index interno (nem 200, nem 999999)
+  // consegue competir com a BottomTabBar, que é irmã de .root no DOM e
+  // vem depois dele — quem vem depois como irmão do stacking context
+  // pinta por cima de tudo que está preso lá dentro, sempre, não
+  // importa o número. Com o portal, este overlay passa a ser filho
+  // direto de <body>, no mesmo nível de tudo o resto, e aí sim o
+  // z-index:200 funciona como esperado contra bottombar(20), appbar
+  // fixed(15), SearchPage/TemplatePreviewPage(30) e AIChatModal(90/91).
+  //
   // Bloqueio de scroll: enquanto este menu está montado, ninguém
   // consegue rolar nada por baixo dele — nem o grid de templates, nem
   // a página em geral — via overflow:hidden + touch-action:none no
-  // <body>, repostos ao desmontar. Sem isto, um touchmove do dedo
-  // ainda passava através do overlay fixed e fazia o scroller de
-  // baixo (.templates-tab, overflow-y:auto) rolar por baixo do menu.
+  // <body>, repostos ao desmontar.
   //
   // Posicionamento adaptativo: os 4 botões nascem em leque à volta do
-  // ponto de toque, mas o leque é recalculado com base em QUANTO
-  // ESPAÇO existe entre o toque e cada borda da viewport — perto da
-  // borda direita o leque abre para a esquerda, perto do topo abre
-  // para baixo, etc. Isto evita bolhas cortadas/invisíveis fora da
-  // tela. Correção nesta versão: o clamp de borda agora desloca o
-  // LEQUE INTEIRO como bloco rígido (nunca bolha a bolha de forma
-  // independente) — antes, perto de uma borda, bolhas vizinhas podiam
-  // ser empurradas cada uma para o seu próprio limite de segurança e
-  // colapsar quase para cima umas das outras; agora a distância
-  // relativa entre bolhas é sempre preservada, e é o leque completo
-  // que desliza para caber na viewport.
+  // ponto de toque, com o leque inteiro deslocado como bloco rígido
+  // (nunca bolha a bolha) para caber na viewport perto de bordas.
   // ------------------------------------------------------------------
 
   export let originX = 0;
   export let originY = 0;
-  export let cardRect = null; // DOMRect do card pressionado (ou null)
+  export let cardRect = null; // DOMRect (já expandido pela escala do pressed) do card, ou null
 
   const dispatch = createEventDispatcher();
 
@@ -51,17 +54,11 @@
     { id: 'whatsapp',  icon: '/icons/svg/regular/chat_multiple.svg',  label: 'WhatsApp' },
   ];
 
-  // Geometria revista: raio maior + spread mais apertado + bolha
-  // levemente menor = muito mais vão livre entre bolhas vizinhas do
-  // que a versão anterior (BUBBLE_DIST:92, spread:150°, size:52 —
-  // deixava só ~26px de vão, que colapsava ainda mais perto de
-  // bordas). Com estes valores, o vão nominal entre duas bolhas
-  // adjacentes (sem clamp) é de ~43px.
   const BUBBLE_DIST = 118;  // px do centro do leque até cada bolha
   const BUBBLE_SIZE = 50;
-  const SPREAD_DEG = 140;   // graus totais do leque (era 150)
+  const SPREAD_DEG = 140;   // graus totais do leque
   const MARGIN = 34;        // margem mínima de segurança até a borda da viewport
-  const VEIL_OPACITY = 0.32; // "um pouquinho" escuro — era 0.45
+  const VEIL_OPACITY = 0.32; // "um pouquinho" escuro
 
   let activeId = null;
   let bubbleEls = {};
@@ -74,11 +71,6 @@
     try { navigator.vibrate && navigator.vibrate(4); } catch (e) {}
   }
 
-  // Calcula o leque de 4 bolhas centrado no ponto de toque, escolhendo
-  // o arco (para cima/baixo, esquerda/direita) que tem mais espaço
-  // livre na viewport, e depois clampando o LEQUE INTEIRO (não cada
-  // bolha isoladamente) para nunca ultrapassar a margem de segurança
-  // — preserva sempre a distância relativa entre bolhas vizinhas.
   function computeFan() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -88,7 +80,6 @@
     const spaceBelow = vh - originY;
     const spaceAbove = originY;
 
-    // ângulo central do leque: aponta para o quadrante com MAIS espaço
     const preferRight = spaceRight >= spaceLeft;
     const preferBelow = spaceBelow >= spaceAbove;
 
@@ -98,28 +89,20 @@
     else if (preferRight && !preferBelow) centerAngle = 45;
     else centerAngle = 135;
 
-    // nota: como o eixo Y da tela cresce para baixo, um ângulo positivo
-    // aqui corresponde visualmente a "para cima" na trigonometria normal
-    // — por isso invertemos o seno ao converter para px mais abaixo.
     const step = SPREAD_DEG / (OPTION_DEFS.length - 1);
     const startAngle = centerAngle - SPREAD_DEG / 2;
     const half = BUBBLE_SIZE / 2;
 
-    // 1ª passagem: posições RELATIVAS ao ponto de toque, sem clamp.
     const raw = OPTION_DEFS.map((opt, i) => {
       const angle = startAngle + step * i;
       const rad = (angle * Math.PI) / 180;
       return {
         ...opt,
         x: Math.cos(rad) * BUBBLE_DIST,
-        y: -Math.sin(rad) * BUBBLE_DIST, // inverte para o eixo Y da tela
+        y: -Math.sin(rad) * BUBBLE_DIST,
       };
     });
 
-    // 2ª passagem: descobre o maior deslocamento necessário para
-    // trazer TODAS as bolhas para dentro da margem de segurança, e
-    // aplica esse MESMO deslocamento a todas — o leque desliza como
-    // bloco rígido, nunca se deforma.
     let shiftX = 0;
     let shiftY = 0;
     for (const opt of raw) {
@@ -144,12 +127,6 @@
     }));
   }
 
-  // Bloqueio de scroll global enquanto o menu está montado — nenhum
-  // gesto de dedo consegue rolar nada por baixo, seja o grid de
-  // templates ou qualquer outra coisa. Reposto integralmente ao
-  // desmontar (guarda os valores anteriores em vez de assumir vazio,
-  // para não pisar algum outro overlay que já tivesse bloqueado o
-  // scroll antes deste).
   let prevBodyOverflow = '';
   let prevBodyTouchAction = '';
 
@@ -197,14 +174,15 @@
   }
 </script>
 
-<div class="menu-overlay" on:click={() => dispatch('cancel')}>
+<div class="menu-overlay" use:portal on:click={() => dispatch('cancel')}>
   {#if cardRect}
     <!-- "Buraco" no escurecimento: um retângulo exatamente sobre o
-         card, com box-shadow gigante ao redor que pinta tudo o resto
-         de escuro (incluindo appbar/bottombar, que ficam a z-index
-         inferior a este overlay) — o card em si fica sem nenhuma
-         camada por cima, como se estivesse a flutuar por cima da
-         tela escurecida. -->
+         card (já expandido pela escala visual do .pressed, ver
+         TemplatesTab.svelte), com box-shadow gigante ao redor que
+         pinta tudo o resto de escuro (agora incluindo appbar/bottombar
+         de verdade, graças ao portal acima) — o card em si fica sem
+         nenhuma camada por cima, como se estivesse a flutuar por cima
+         da tela escurecida. -->
     <div
       class="dark-veil-hole"
       style="
@@ -239,16 +217,14 @@
   .menu-overlay {
     position: fixed;
     inset: 0;
-    /* Acima de QUALQUER position:fixed do projeto (bottombar:20,
-       silver-appbar:16, create-header:15, modal da IA:90/91) — para
-       o escurecimento cobrir mesmo tudo, como pedido. */
+    /* Agora que o portal move este nó para document.body, este
+       z-index compete no stacking context raiz de verdade, contra
+       bottombar(20), appbar fixed(15), SearchPage/TemplatePreviewPage
+       (30) e AIChatModal(90/91) — 200 já é suficiente e continua
+       sendo. */
     z-index: 200;
   }
 
-  /* Escurece tudo, exceto o card (via box-shadow gigante ao redor de um
-     buraco transparente do tamanho exato do card). Opacidade agora
-     definida inline via VEIL_OPACITY (0.32 — "um pouquinho", não
-     imenso). */
   .dark-veil-hole {
     position: fixed;
     pointer-events: none;

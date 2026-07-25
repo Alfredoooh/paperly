@@ -2,6 +2,7 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
   import { createSlideTransition } from '../lib/nav-transition.js';
+  import { portal } from '../lib/portal.js';
 
   export let pushed = false; // true = tela empurrada para dentro (visível)
   export let kind = 'image'; // 'image' | 'doc'
@@ -40,14 +41,22 @@
   }
 
   // ------------------------------------------------------------------
-  // Popup estilo iOS (UIMenu / context menu nativo):
-  // - fundo com vibrancy leve (blur suave, não pesado)
-  // - abre com scale-from-corner ancorado ao botão, não fade simples
-  // - ícone à DIREITA do label (padrão iOS, ao contrário do Android
-  //   que põe ícone à esquerda)
-  // - divisores finos de 0.5px entre itens
-  // - cantos bem arredondados (14px), largura fixa ~250px como o iOS
-  // - ícones: Fluent System Icons via CDN (@fluentui/svg-icons)
+  // Popup estilo iOS (UIMenu / context menu nativo).
+  //
+  // PORTAL: o menu precisa sair da árvore de .preview-page — esse
+  // container tem overflow:hidden (cantos arredondados do slide) E
+  // will-change:transform (containing block para position:fixed/
+  // absolute dos filhos). As duas coisas juntas cortam/prendem
+  // qualquer popup absoluto que exceda os limites do card, o que
+  // estava a fazer o menu aparecer cortado/deslocado para a direita.
+  // Portado para document.body, ele passa a se posicionar relativo à
+  // viewport real, sem ser afetado pelo overflow do ancestral.
+  //
+  // POSICIONAMENTO: calculado em pixels absolutos via
+  // getBoundingClientRect() do botão, recalculado sempre que abre e
+  // no resize. Clampa contra a margem direita/esquerda do ecrã para
+  // nunca estourar a viewport, independentemente de onde o botão
+  // esteja.
   // ------------------------------------------------------------------
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
 
@@ -59,12 +68,19 @@
   ];
   const MORE_ICON = `${FLUENT_BASE}/more_horizontal_20_regular.svg`;
 
+  const MENU_WIDTH = 250;
+  const VIEWPORT_MARGIN = 10;
+  const GAP_FROM_BUTTON = 6;
+
   let menuOpen = false;
   let menuBtnEl;
   let menuEl;
-  let menuAlignRight = true;
   let closing = false;
   let closeTimer = null;
+
+  let menuTop = 0;
+  let menuLeft = 0;
+  let originRight = true; // controla transform-origin (canto de onde "nasce")
 
   async function toggleMenu() {
     if (menuOpen) {
@@ -72,22 +88,49 @@
       return;
     }
     buzz();
+    computePosition();
     menuOpen = true;
     closing = false;
     await tick();
-    positionMenu();
+    computePosition(); // recalcula com a largura real do menu já montado
   }
 
-  function positionMenu() {
-    if (!menuBtnEl || !menuEl) return;
+  function computePosition() {
+    if (!menuBtnEl) return;
     const btnRect = menuBtnEl.getBoundingClientRect();
-    const menuWidth = menuEl.offsetWidth;
-    menuAlignRight = (btnRect.right - menuWidth) >= 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const width = menuEl?.offsetWidth || MENU_WIDTH;
+
+    // Por padrão, alinha a borda direita do menu com a borda direita
+    // do botão (comportamento natural de um menu "more" no canto
+    // direito da appbar).
+    let left = btnRect.right - width;
+    originRight = true;
+
+    // Clamp contra a margem esquerda.
+    if (left < VIEWPORT_MARGIN) {
+      left = VIEWPORT_MARGIN;
+      originRight = false;
+    }
+    // Clamp contra a margem direita (proteção extra caso width real
+    // seja maior que o esperado).
+    if (left + width > vw - VIEWPORT_MARGIN) {
+      left = vw - VIEWPORT_MARGIN - width;
+    }
+
+    let top = btnRect.bottom + GAP_FROM_BUTTON;
+    const estimatedHeight = menuEl?.offsetHeight || (MENU_OPTIONS.length * 44 + 16);
+    if (top + estimatedHeight > vh - VIEWPORT_MARGIN) {
+      // Sem espaço abaixo: abre para cima do botão em vez de para baixo.
+      top = btnRect.top - GAP_FROM_BUTTON - estimatedHeight;
+    }
+
+    menuLeft = left;
+    menuTop = top;
   }
 
-  // Fecha com uma pequena animação de saída (scale-down + fade), em
-  // vez de desmontar abruptamente — é o que falta em popups que
-  // "ficam feios ao largar".
   function requestClose() {
     if (!menuOpen || closing) return;
     closing = true;
@@ -115,15 +158,20 @@
   function handleWindowKeydown(e) {
     if (menuOpen && e.key === 'Escape') requestClose();
   }
+  function handleWindowResize() {
+    if (menuOpen && !closing) computePosition();
+  }
 
   onMount(() => {
     window.addEventListener('pointerdown', handleWindowPointerDown, true);
     window.addEventListener('keydown', handleWindowKeydown);
+    window.addEventListener('resize', handleWindowResize);
   });
   onDestroy(() => {
     clearTimeout(closeTimer);
     window.removeEventListener('pointerdown', handleWindowPointerDown, true);
     window.removeEventListener('keydown', handleWindowKeydown);
+    window.removeEventListener('resize', handleWindowResize);
   });
 </script>
 
@@ -134,43 +182,16 @@
     </button>
     <span class="preview-header-title">{item?.label || ''}</span>
 
-    <div class="menu-wrap">
-      <button
-        class="more-btn pulse-tap"
-        bind:this={menuBtnEl}
-        on:click={toggleMenu}
-        aria-label="Mais opções"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-      >
-        <span class="icon-mask more-icon" style="mask-image:url('{MORE_ICON}');-webkit-mask-image:url('{MORE_ICON}')"></span>
-      </button>
-
-      {#if menuOpen}
-        <div
-          class="ios-menu"
-          class:align-right={menuAlignRight}
-          class:align-left={!menuAlignRight}
-          class:closing
-          bind:this={menuEl}
-          role="menu"
-        >
-          {#each MENU_OPTIONS as opt, i (opt.id)}
-            <button
-              class="ios-menu-item"
-              role="menuitem"
-              on:click={() => selectOption(opt.id)}
-            >
-              <span class="ios-menu-label">{opt.label}</span>
-              <span class="ios-menu-icon icon-mask" style="mask-image:url('{opt.icon}');-webkit-mask-image:url('{opt.icon}')"></span>
-            </button>
-            {#if i < MENU_OPTIONS.length - 1}
-              <div class="ios-menu-divider"></div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-    </div>
+    <button
+      class="more-btn pulse-tap"
+      bind:this={menuBtnEl}
+      on:click={toggleMenu}
+      aria-label="Mais opções"
+      aria-haspopup="menu"
+      aria-expanded={menuOpen}
+    >
+      <span class="icon-mask more-icon" style="mask-image:url('{MORE_ICON}');-webkit-mask-image:url('{MORE_ICON}')"></span>
+    </button>
   </header>
 
   <div class="preview-body">
@@ -189,6 +210,33 @@
     <button class="preview-btn preview-btn-use pulse-tap" on:click={handleUse}>Usar modelo</button>
   </div>
 </div>
+
+{#if menuOpen}
+  <div
+    class="ios-menu"
+    class:origin-right={originRight}
+    class:origin-left={!originRight}
+    class:closing
+    style="top:{menuTop}px; left:{menuLeft}px; width:{MENU_WIDTH}px;"
+    bind:this={menuEl}
+    use:portal
+    role="menu"
+  >
+    {#each MENU_OPTIONS as opt, i (opt.id)}
+      <button
+        class="ios-menu-item"
+        role="menuitem"
+        on:click={() => selectOption(opt.id)}
+      >
+        <span class="ios-menu-label">{opt.label}</span>
+        <span class="ios-menu-icon icon-mask" style="mask-image:url('{opt.icon}');-webkit-mask-image:url('{opt.icon}')"></span>
+      </button>
+      {#if i < MENU_OPTIONS.length - 1}
+        <div class="ios-menu-divider"></div>
+      {/if}
+    {/each}
+  </div>
+{/if}
 
 <style>
   .preview-page {
@@ -251,21 +299,15 @@
     white-space: nowrap;
   }
 
-  .menu-wrap {
-    position: relative;
-    flex-shrink: 0;
-  }
-
   /* -------------------------------------------------------------
-     Popup estilo iOS: vibrancy leve (blur curto, 12px), cantos bem
-     arredondados, largura fixa, abre/fecha com scale ancorado no
-     canto próximo do botão (top-right ou top-left), NUNCA do
-     centro — é assim que o UIMenu real se comporta.
+     Portado para document.body via use:portal — por isso é
+     position:fixed com top/left em pixels absolutos calculados em
+     JS, e NÃO depende de nenhum ancestral posicionado. z-index alto
+     o suficiente para ficar acima de .preview-page (z-index:30) e
+     de qualquer bottombar/appbar do resto do app.
   ------------------------------------------------------------- */
   .ios-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    width: 250px;
+    position: fixed;
     background: var(--surface-apps-tab);
     background: color-mix(in srgb, var(--surface-apps-tab) 82%, transparent);
     backdrop-filter: blur(12px) saturate(160%);
@@ -274,11 +316,11 @@
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
     overflow: hidden;
-    z-index: 40;
+    z-index: 500;
     transform-origin: top right;
     animation: iosMenuIn .18s cubic-bezier(0.19,1,0.22,1) forwards;
   }
-  .ios-menu.align-left {
+  .ios-menu.origin-left {
     transform-origin: top left;
   }
   .ios-menu.closing {

@@ -4,21 +4,58 @@
      X, tap no overlay, arrastar a handle para baixo (com threshold/
      fling, mesmo padrão do AppDrawer), ou tecla Escape/gesto voltar
      do sistema (gerido pelo pai via popstate, igual a search/preview/
-     drawer). -->
+     drawer).
+
+     CONTEÚDO: este componente NÃO inventa nenhum chat, mensagem, ou
+     lógica de IA. O corpo é um <iframe> a apontar para a rota /ai/
+     real da plataforma — o que quer que essa rota mostre é o que
+     aparece aqui dentro, ponto final. Se /ai/ ainda não existir ou o
+     embed for bloqueado, mostra-se um estado de erro explícito
+     (nunca um placeholder a fingir ser a IA). -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
   import { createBackRecoilTransition } from '../lib/nav-transition.js';
 
-  export let open = false;   // montado no DOM
-  export let pushed = false; // deve estar na posição aberta (fonte: App.svelte)
+  export let open = false;    // montado no DOM
+  export let pushed = false;  // deve estar na posição aberta (fonte: App.svelte)
   export let onClose = () => {};
 
-  let messages = [
-    { id: 1, role: 'ai', text: 'Olá! Sou a Nexa IA. Em que posso ajudar-te hoje?' },
-  ];
-  let draft = '';
-  let bodyEl;
-  let inputEl;
+  const AI_ROUTE = '/ai/';
+  const LOAD_TIMEOUT_MS = 8000;
+
+  let iframeEl;
+  let sheetEl;
+
+  // 'loading' | 'loaded' | 'error'
+  let status = 'loading';
+  let loadTimeoutId;
+  let iframeKey = 0; // força remount do <iframe> ao tentar de novo
+
+  function startLoadWatch() {
+    status = 'loading';
+    clearTimeout(loadTimeoutId);
+    loadTimeoutId = setTimeout(() => {
+      if (status === 'loading') status = 'error';
+    }, LOAD_TIMEOUT_MS);
+  }
+
+  function handleIframeLoad() {
+    clearTimeout(loadTimeoutId);
+    status = 'loaded';
+  }
+
+  function handleIframeError() {
+    clearTimeout(loadTimeoutId);
+    status = 'error';
+  }
+
+  function retryLoad() {
+    iframeKey += 1; // recria o elemento <iframe> do zero
+    startLoadWatch();
+  }
+
+  function openInNewTab() {
+    window.open(AI_ROUTE, '_blank', 'noopener');
+  }
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
@@ -37,7 +74,7 @@
     lastPushed = pushed;
     if (pushed) {
       sheet.recoil(); // reaproveita recoil() como "abrir" (target=1)
-      setTimeout(() => inputEl?.focus(), 320);
+      startLoadWatch();
     } else {
       sheet.reset();  // reaproveita reset() como "fechar" (target=0)
     }
@@ -59,7 +96,6 @@
   let dragStartTime = 0;
   let dragCurrentY = 0;
   let sheetH = 400;
-  let sheetEl;
 
   function onHandleTouchStart(e) {
     dragging = true;
@@ -98,38 +134,9 @@
     onClose();
   }
 
-  function autoResize() {
-    if (!inputEl) return;
-    inputEl.style.height = 'auto';
-    inputEl.style.height = Math.min(120, inputEl.scrollHeight) + 'px';
-  }
-
-  function sendMessage() {
-    const text = draft.trim();
-    if (!text) return;
-    messages = [...messages, { id: Date.now(), role: 'user', text }];
-    draft = '';
-    requestAnimationFrame(() => {
-      autoResize();
-      if (bodyEl) bodyEl.scrollTop = bodyEl.scrollHeight;
-    });
-    // Placeholder de resposta — liga-se aqui ao backend real da Nexa IA.
-    setTimeout(() => {
-      messages = [...messages, { id: Date.now() + 1, role: 'ai', text: 'Entendido! (resposta de exemplo — por ligar ao backend)' }];
-      requestAnimationFrame(() => {
-        if (bodyEl) bodyEl.scrollTop = bodyEl.scrollHeight;
-      });
-    }, 500);
-  }
-
-  function handleKeydown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
+  import { onDestroy } from 'svelte';
   onDestroy(() => {
+    clearTimeout(loadTimeoutId);
     unsubscribeSheet();
     sheet.destroy();
   });
@@ -170,34 +177,43 @@
       </button>
     </header>
 
-    <div class="ai-body" bind:this={bodyEl}>
-      {#each messages as msg (msg.id)}
-        <div class="msg-row" class:msg-row-user={msg.role === 'user'}>
-          <div class="msg-bubble" class:msg-bubble-user={msg.role === 'user'}>
-            {msg.text}
+    <div class="ai-body">
+      {#if status === 'error'}
+        <div class="ai-error-state">
+          <svg class="ai-error-illustration" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="20" y="18" width="80" height="56" rx="12" fill="var(--row-active, rgba(127,127,127,0.10))" />
+            <rect x="20" y="18" width="80" height="56" rx="12" stroke="var(--drawer-sep, rgba(127,127,127,0.25))" stroke-width="1.5" />
+            <path d="M52 40l16 16M68 40L52 56" stroke="var(--text-faint, #8E8E93)" stroke-width="3.4" stroke-linecap="round" />
+          </svg>
+          <p class="ai-error-title">Não foi possível carregar a IA</p>
+          <p class="ai-error-text">A rota {AI_ROUTE} não respondeu a tempo, ou o carregamento embutido foi bloqueado.</p>
+          <div class="ai-error-actions">
+            <button class="ai-error-btn ai-error-btn-primary pulse-tap" on:click={retryLoad}>Tentar novamente</button>
+            <button class="ai-error-btn pulse-tap" on:click={openInNewTab}>Abrir em separador novo</button>
           </div>
         </div>
-      {/each}
-    </div>
+      {/if}
 
-    <div class="ai-composer">
-      <textarea
-        bind:this={inputEl}
-        bind:value={draft}
-        on:input={autoResize}
-        on:keydown={handleKeydown}
-        rows="1"
-        placeholder="Escreve uma mensagem…"
-        class="ai-input"
-      ></textarea>
-      <button
-        class="send-btn pulse-tap"
-        class:send-btn-active={draft.trim().length > 0}
-        on:click={sendMessage}
-        aria-label="Enviar"
-      >
-        <span class="icon-mask send-icon" style="mask-image:url('/icons/svg/regular/arrow_up.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_up.svg')"></span>
-      </button>
+      {#if status === 'loading'}
+        <div class="ai-loading-state" aria-hidden="true">
+          <div class="ai-loading-line ai-skeleton" style="width:60%"></div>
+          <div class="ai-loading-line ai-skeleton" style="width:85%"></div>
+          <div class="ai-loading-line ai-skeleton" style="width:40%"></div>
+        </div>
+      {/if}
+
+      {#key iframeKey}
+        <iframe
+          bind:this={iframeEl}
+          src={AI_ROUTE}
+          title="Nexa IA"
+          class="ai-iframe"
+          class:ai-iframe-visible={status === 'loaded'}
+          on:load={handleIframeLoad}
+          on:error={handleIframeError}
+          allow="microphone; clipboard-write"
+        ></iframe>
+      {/key}
     </div>
   </div>
 {/if}
@@ -311,98 +327,117 @@
   }
 
   .ai-body {
+    position: relative;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    padding: 14px 16px;
+    overflow: hidden;
+  }
+
+  /* Iframe da rota /ai/ real — é isto que ocupa o corpo do modal.
+     Fica invisível (opacity:0) até status==='loaded' para não mostrar
+     um flash de branco/about:blank enquanto a plataforma arranca lá
+     dentro, mas continua no DOM e a carregar durante o loading. */
+  .ai-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    opacity: 0;
+    transition: opacity .22s ease;
+  }
+  .ai-iframe-visible {
+    opacity: 1;
+  }
+
+  .ai-loading-state {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding: 20px 18px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    background: var(--app-bg);
+  }
+  .ai-skeleton {
+    position: relative;
+    overflow: hidden;
+    height: 13px;
+    border-radius: 7px;
+    background: var(--row-active, rgba(127,127,127,0.12));
+  }
+  .ai-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--drawer-text) 8%, transparent) 50%,
+      transparent 100%
+    );
+    animation: skeleton-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
-  .msg-row {
+  .ai-error-state {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
     display: flex;
-    justify-content: flex-start;
-  }
-  .msg-row-user {
-    justify-content: flex-end;
-  }
-  .msg-bubble {
-    max-width: 78%;
-    padding: 10px 14px;
-    border-radius: 18px 18px 18px 4px;
-    background: var(--btn-bg);
-    color: var(--drawer-text);
-    font-size: 14.5px;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .msg-bubble-user {
-    border-radius: 18px 18px 4px 18px;
-    background: var(--accent-primary, #0A84FF);
-    color: #fff;
-  }
-
-  .ai-composer {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
-    flex-shrink: 0;
-    border-top: 1px solid var(--border-faint);
-  }
-  .ai-input {
-    flex: 1;
-    min-width: 0;
-    max-height: 120px;
-    border: none;
-    background: var(--btn-bg);
-    border-radius: 20px;
-    padding: 10px 16px;
-    font: inherit;
-    font-size: 15px;
-    color: var(--icon-strong);
-    outline: none;
-    resize: none;
-    line-height: 1.35;
-  }
-  .ai-input::placeholder {
-    color: var(--text-faint);
-  }
-  .send-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: none;
-    background: var(--btn-bg-active);
-    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    text-align: center;
+    padding: 24px 28px;
+    background: var(--app-bg);
+  }
+  .ai-error-illustration {
+    width: 100px;
+    height: 84px;
+    margin-bottom: 14px;
+  }
+  .ai-error-title {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--drawer-text);
+  }
+  .ai-error-text {
+    margin: 0 0 18px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--text-faint);
+    max-width: 280px;
+  }
+  .ai-error-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 220px;
+  }
+  .ai-error-btn {
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.22));
+    background: var(--btn-bg);
+    color: var(--drawer-text);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    opacity: 0.5;
-    pointer-events: none;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), opacity .18s ease, transform .16s cubic-bezier(0.34,1.56,0.64,1);
+    -webkit-tap-highlight-color: transparent;
   }
-  .send-btn.send-btn-active {
+  .ai-error-btn-primary {
+    border-color: transparent;
     background: var(--accent-primary, #0A84FF);
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .send-btn.send-btn-active:active {
-    transform: scale(0.9);
-  }
-  .send-icon {
-    width: 16px;
-    height: 16px;
-    background: var(--icon-strong);
-  }
-  .send-btn.send-btn-active .send-icon {
-    background: #fff;
+    color: #fff;
   }
 
   .pulse-tap {
@@ -412,5 +447,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .ai-sheet { transition: none !important; }
+    .ai-skeleton::after { animation: none; }
   }
 </style>

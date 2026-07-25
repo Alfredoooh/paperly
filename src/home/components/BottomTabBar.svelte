@@ -61,7 +61,16 @@
     </button>
   {/each}
 
-  <div class="fab-slot" aria-hidden="true"></div>
+  <div class="fab-slot" aria-hidden="true">
+    <button
+      class="fab-btn"
+      class:pressed={fabPressed}
+      on:click={openAI}
+      aria-label={AI_FAB.label}
+    >
+      <span class="fab-icon-mask" style="mask-image:url('{AI_FAB.icon}');-webkit-mask-image:url('{AI_FAB.icon}')"></span>
+    </button>
+  </div>
 
   {#each TABS.slice(2) as tab}
     <button
@@ -90,15 +99,6 @@
       <span class="tab-label">{tab.label}</span>
     </button>
   {/each}
-
-  <button
-    class="fab-btn"
-    class:pressed={fabPressed}
-    on:click={openAI}
-    aria-label={AI_FAB.label}
-  >
-    <span class="fab-icon-mask" style="mask-image:url('{AI_FAB.icon}');-webkit-mask-image:url('{AI_FAB.icon}')"></span>
-  </button>
 </nav>
 
 <style>
@@ -252,25 +252,27 @@
   }
 
   /* ---------- Botão central (FAB) da Nexa IA ----------
-     Reserva-se um "slot" fantasma do mesmo flex dos outros tab-btn
-     no fluxo normal (para a distribuição space-around ficar simétrica
-     nos dois lados), e o botão real é posicionado absoluto por cima,
-     elevado acima da linha da bottombar — padrão FAB central nativo. */
+     PILL RETANGULAR (não círculo): largura > altura, cantos bem
+     curvos mas não 50% — igual ao padrão "pill" usado no resto do
+     projeto (ex: search-bar do CreateTab, que também é pill mas
+     horizontal). Fica assente NA PRÓPRIA linha da bottombar (não
+     elevado acima dela) — o .fab-slot reserva o espaço real no fluxo
+     flex, com o mesmo `flex:1` dos outros tab-btn, para a distribuição
+     space-around continuar simétrica dos dois lados. */
   .fab-slot {
     flex: 1;
     height: 42px;
-    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .fab-btn {
-    position: absolute;
-    left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
-    transform: translate(-50%, 0) scale(1);
-    z-index: 2;
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
+    position: relative;
+    z-index: 1;
+    width: 56px;
+    height: 34px;
+    border-radius: 17px;
     border: none;
     background: var(--accent-primary, #0A84FF);
     display: flex;
@@ -278,18 +280,18 @@
     justify-content: center;
     cursor: pointer;
     padding: 0;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.28), 0 1px 3px rgba(0,0,0,0.16);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.20);
     -webkit-tap-highlight-color: transparent;
-    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), box-shadow .18s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fab-btn.pressed,
   .fab-btn:active {
-    transform: translate(-50%, 0) scale(0.90);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.24);
+    transform: scale(0.90);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
   }
   .fab-icon-mask {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     background: #fff;
     mask-size: contain;
     -webkit-mask-size: contain;

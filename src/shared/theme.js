@@ -1,3 +1,5 @@
+const lightVar = (name) => `var(${name})`;
+
 export const lightColors = {
   background: lightVar('--app-bg'),
   textPrimary: lightVar('--icon-strong'),
@@ -89,10 +91,13 @@ export function syncTheme(isDark) {
   body.dataset.theme = isDark ? 'dark' : 'light';
   body.style.background = 'var(--app-bg)';
   body.style.color = 'var(--icon-strong)';
-  
+
   const bgColor = getComputedStyle(root).getPropertyValue('--app-bg').trim() || (isDark ? '#0F0F0F' : '#FFFFFF');
   syncStatusBar(isDark, bgColor);
-  
+
+  applyAccent(getAccentColor(isDark));
+  applySurfaceTone(getSurfaceTone(isDark), isDark);
+
   if (window.AndroidTheme && typeof window.AndroidTheme.onThemeChanged === 'function') {
     window.AndroidTheme.onThemeChanged(isDark);
   }
@@ -106,7 +111,7 @@ function syncStatusBar(isDark, bgColor) {
     document.head.appendChild(meta);
   }
   meta.setAttribute('content', bgColor);
-  
+
   let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (!appleMeta) {
     appleMeta = document.createElement('meta');
@@ -117,7 +122,7 @@ function syncStatusBar(isDark, bgColor) {
 }
 
 if (typeof window !== 'undefined') {
-  window.__nexaSetTheme = function(value) {
+  window.__nexaSetTheme = function (value) {
     if (value === 'system') {
       localStorage.removeItem('nexa_theme');
       syncTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);

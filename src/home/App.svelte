@@ -22,21 +22,17 @@
   import SettingsPage from './pages/SettingsPage.svelte';
 
   export let pushed = false;
-  // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
 
   const dispatch = createEventDispatcher();
 
   const BASE = '/home/';
   const VALID_ROUTES = ['projects', 'templates', 'me'];
-  // 'create' é o rootRoute real do router — a rota raiz '/home/' resolve
-  // sempre para 'create', tanto no parseCurrentRoute() como no navigate().
   const router = createRouter(BASE, VALID_ROUTES, 'create');
 
   let activeTab = 'create';
   $: currentTabMeta = TABS.find(t => t.id === activeTab);
   $: currentTitle = currentTabMeta?.title || '';
 
-  // estado do toggle nativo do tab "Templates"
   let templatesView = 'images';
 
   let user = null;
@@ -165,11 +161,6 @@
     closeTemplatePreview();
   }
 
-  // ------------------------------------------------------------------
-  // Definições (Settings): segue o MESMO padrão de history de
-  // search/preview/AI modal — pushState próprio ao abrir, fecho VISUAL
-  // só dentro de onPopState, nunca antecipado pelas funções close*().
-  // ------------------------------------------------------------------
   let settingsOpen = false;
   let settingsPushed = false;
 
@@ -281,7 +272,14 @@
     }
   });
 
-  $: anyFullScreenOverlayPushed = searchPushed || previewPushed;
+  // ------------------------------------------------------------------
+  // settingsPushed incluído aqui: agora abrir o Settings também recua/
+  // escala a tela de trás (MeTab), exatamente como search e preview já
+  // faziam — mesmo efeito visual de "push", usando o mecanismo que já
+  // existia no app, sem depender do shell raiz (que trata o Profile
+  // como rota irmã separada).
+  // ------------------------------------------------------------------
+  $: anyFullScreenOverlayPushed = searchPushed || previewPushed || settingsPushed;
   let lastOverlayPushedState = false;
   $: if (anyFullScreenOverlayPushed !== lastOverlayPushedState) {
     lastOverlayPushedState = anyFullScreenOverlayPushed;

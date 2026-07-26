@@ -15,74 +15,21 @@
   $: c = getThemeColors(isDark);
 
   const ICON_BASE = '/icons/svg/color';
-const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
-const ICON = {
-  back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
-  checkmark: `${ICON_BASE}/checkmark_circle.svg`,
-  chevron: `${ICON_BASE}/options.svg`,
-  shield: `${ICON_BASE}/lock_shield.svg`,
-  bell: `${ICON_BASE}/alert.svg`,
-  storage: `${ICON_BASE}/database.svg`,
-  globe: `${ICON_BASE}/globe.svg`,
-  help: `${ICON_BASE}/question_circle.svg`,
-  info: `${ICON_BASE}/info.svg`,
-};
+  const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
+  const ICON = {
+    back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
+    checkmark: `${ICON_BASE}/checkmark_circle.svg`,
+    shield: `${ICON_BASE}/lock_shield.svg`,
+    bell: `${ICON_BASE}/alert.svg`,
+    storage: `${ICON_BASE}/database.svg`,
+    globe: `${ICON_BASE}/globe.svg`,
+    help: `${ICON_BASE}/question_circle.svg`,
+    info: `${ICON_BASE}/info.svg`,
+  };
 
-  // Voltar: mesmo comportamento do botão/gesto nativo de voltar do Android.
   function goBack() {
     onClose();
   }
-
-  const EDGE_ZONE = 24;
-  const CLOSE_THRESHOLD = 0.32;
-  const VELOCITY_FLING = 0.5;
-  let dragging = false;
-  let dragLiveActive = false;
-  let dragStartX = 0;
-  let dragCurrentX = 0;
-  let dragStartTime = 0;
-  let dragW = 360;
-  let rootEl;
-  let liveOverrideX = null;
-
-  function onEdgeTouchStart(e) {
-    const x = e.touches[0].clientX;
-    if (x > EDGE_ZONE) return;
-    dragging = true;
-    dragLiveActive = false;
-    dragStartX = x;
-    dragCurrentX = x;
-    dragStartTime = performance.now();
-    dragW = window.innerWidth || 360;
-  }
-  function onEdgeTouchMove(e) {
-    if (!dragging) return;
-    const x = e.touches[0].clientX;
-    dragCurrentX = x;
-    const delta = x - dragStartX;
-    if (delta <= 4) return;
-    if (!dragLiveActive) dragLiveActive = true;
-    const progress = Math.min(1, Math.max(0, delta / dragW));
-    liveOverrideX = progress * 100;
-    e.preventDefault();
-  }
-  function onEdgeTouchEnd() {
-    if (!dragging) return;
-    dragging = false;
-    if (!dragLiveActive) { dragLiveActive = false; liveOverrideX = null; return; }
-    dragLiveActive = false;
-    const elapsed = Math.max(1, performance.now() - dragStartTime);
-    const delta = dragCurrentX - dragStartX;
-    const velocity = Math.abs(delta) / elapsed;
-    const draggedFraction = Math.min(1, Math.max(0, delta / dragW));
-    const shouldClose = draggedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
-    liveOverrideX = null;
-    if (shouldClose) {
-      goBack();
-    }
-  }
-
-  $: displayX = liveOverrideX !== null ? liveOverrideX : (pushed ? 0 : 100);
 
   let themeValue = getTheme();
   let currentLang = user?.preferences?.language || 'pt';
@@ -206,13 +153,11 @@ const ICON = {
   });
 </script>
 
-<svelte:window on:touchstart={onEdgeTouchStart} on:touchmove|nonpassive={onEdgeTouchMove} on:touchend={onEdgeTouchEnd} on:touchcancel={onEdgeTouchEnd} />
-
-<div class="st-root" bind:this={rootEl} style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
+<div class="st-root" style="background:{c.background}; transform: translate3d({pushed ? 0 : 100}%, 0, 0);">
   <div class="st-header">
     <button class="st-back-btn" on:click={goBack} aria-label="Voltar">
-  <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:{c.iconTint};width:24px;height:24px"></span>
-</button>
+      <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:{c.iconTint};width:24px;height:24px"></span>
+    </button>
     <span class="st-header-title" style="color:{c.textPrimary}">Definições</span>
     <div style="width:36px"></div>
   </div>
@@ -236,10 +181,7 @@ const ICON = {
           <img class="st-row-icon" src={ICON.globe} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
         </div>
-        <div class="st-row-right-group">
-          <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
-          <img class="st-row-chevron" src={ICON.chevron} alt="" />
-        </div>
+        <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
       </button>
     </div>
 
@@ -249,7 +191,6 @@ const ICON = {
           <img class="st-row-icon" src={ICON.shield} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
         </div>
-        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
 
@@ -259,7 +200,6 @@ const ICON = {
           <img class="st-row-icon" src={ICON.bell} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
         </div>
-        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
 
@@ -269,7 +209,6 @@ const ICON = {
           <img class="st-row-icon" src={ICON.storage} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
         </div>
-        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
 
@@ -279,21 +218,19 @@ const ICON = {
           <img class="st-row-icon" src={ICON.help} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
         </div>
-        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
       <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.info} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
         </div>
-        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
   </div>
 
   <button class="logout-fab pulse-tap" on:click={openLogoutDialog}>
-  <span class="logout-fab-label">Terminar sessão</span>
-</button>
+    <span class="logout-fab-label">Terminar sessão</span>
+  </button>
 
   {#if showFieldModal}
     <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
@@ -397,9 +334,7 @@ const ICON = {
   .st-row-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .st-row-icon { width: 22px; height: 22px; flex-shrink: 0; display: block; }
   .st-row-label { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .st-row-right-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .st-row-value { font-size: 13.5px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .st-row-chevron { width: 16px; height: 16px; flex-shrink: 0; display: block; opacity: .6; }
+  .st-row-value { font-size: 13.5px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
 
   .icon-mask {
     display: block; flex-shrink: 0;
@@ -426,8 +361,6 @@ const ICON = {
   }
   :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
   :global([data-theme="light"]) .logout-fab { background: #0078D4; }
-  .logout-fab-icon { width: 18px; height: 18px; background: #fff; }
-  :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
   :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
   .logout-fab-label { font-size: 14px; font-weight: 700; color: #fff; }
   .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }

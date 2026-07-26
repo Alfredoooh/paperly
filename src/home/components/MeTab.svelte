@@ -8,6 +8,7 @@
   export let themeValue = 'dark';
   export let onApplyTheme = () => {};
 
+  export let onOpenProfile = () => {};
   export let onOpenSettings = () => {};
   export let onLogout = () => {};
 
@@ -20,20 +21,20 @@
     bell: `${FLUENT_BASE}/alert_24_regular.svg`,
     help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
-    moon: `${FLUENT_BASE}/weather_moon_24_regular.svg`,
   };
 
-  const THEME_OPTIONS = [
-    { id: 'light', label: 'Claro' },
-    { id: 'dark', label: 'Escuro' },
-    { id: 'system', label: 'Sistema' },
-  ];
+  $: isDark = themeValue === 'dark';
 
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
   function buzzStrong() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+  }
+
+  function goProfile() {
+    buzz();
+    onOpenProfile();
   }
 
   function openSetting(id) {
@@ -47,6 +48,11 @@
 
   function goNotifications() {
     openSetting('notifications');
+  }
+
+  function toggleDarkMode() {
+    buzz();
+    onApplyTheme(isDark ? 'light' : 'dark');
   }
 
   let showLogoutDialog = false;
@@ -77,7 +83,7 @@
 </script>
 
 <div class="me-tab">
-  <div class="me-avatar-block">
+  <button class="me-avatar-block pulse-tap" on:click={goProfile}>
     <div class="me-avatar">
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="me-avatar-img" />
@@ -91,7 +97,7 @@
         <p class="me-email">{userEmail}</p>
       {/if}
     </div>
-  </div>
+  </button>
 
   {#if showInstall}
     <button class="me-install pulse-tap" on:click={handleInstall}>
@@ -100,24 +106,20 @@
     </button>
   {/if}
 
-  <div class="section-label">Aparência</div>
-  <div class="me-theme-row">
-    <div class="me-theme-row-head">
-      <span class="icon-mask" style="mask-image:url('{ICON.moon}');-webkit-mask-image:url('{ICON.moon}');width:22px;height:22px;background:var(--drawer-text)"></span>
-      <span class="me-row-label">Tema</span>
-    </div>
-    <div class="me-theme-pills">
-      {#each THEME_OPTIONS as opt}
-        <button
-          class="me-theme-choice"
-          class:me-theme-choice-active={themeValue === opt.id}
-          on:click={() => onApplyTheme(opt.id)}
-        >{opt.label}</button>
-      {/each}
-    </div>
-  </div>
+  <button class="me-row native-tap" on:click={toggleDarkMode} type="button">
+    <span class="me-row-text">
+      <span class="me-row-label">Modo escuro</span>
+    </span>
+    <span
+      class="fluent-switch"
+      class:fluent-switch-on={isDark}
+      role="switch"
+      aria-checked={isDark}
+    >
+      <span class="fluent-switch-thumb"></span>
+    </span>
+  </button>
 
-  <div class="section-label">Conta</div>
   <button class="me-row native-tap" on:click={goNotifications}>
     <span class="me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
     <span class="me-row-text">
@@ -130,12 +132,12 @@
       <span class="me-row-label">Ajuda e suporte</span>
     </span>
   </button>
-
-  <button class="logout-card pulse-tap" on:click={openLogoutDialog}>
-    <span class="icon-mask logout-card-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
-    <span class="logout-card-label">Terminar sessão</span>
-  </button>
 </div>
+
+<button class="logout-fab pulse-tap" on:click={openLogoutDialog}>
+  <span class="icon-mask logout-fab-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
+  <span class="logout-fab-label">Terminar sessão</span>
+</button>
 
 {#if showLogoutDialog}
   <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}>
@@ -152,7 +154,7 @@
 <style>
   .me-tab {
     width: 100%;
-    padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 32px;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
   }
 
   .me-avatar-block {
@@ -162,6 +164,13 @@
     width: calc(100% - 28px);
     margin: 0 14px 22px;
     padding: 4px 2px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: var(--drawer-text);
+    -webkit-tap-highlight-color: transparent;
   }
   .me-avatar {
     width: 60px;
@@ -199,41 +208,6 @@
   }
   .me-install-label { font-size: 14.5px; font-weight: 600; color: #185ABD; }
 
-  .section-label {
-    margin: 22px 20px 8px;
-    font-size: 12.5px; font-weight: 700; letter-spacing: 0.3px;
-    text-transform: uppercase; color: var(--text-faint);
-  }
-  .me-tab > .section-label:first-of-type { margin-top: 4px; }
-
-  .me-theme-row {
-    margin: 0 14px;
-    padding: 14px 2px 16px;
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  .me-theme-row-head { display: flex; align-items: center; gap: 12px; }
-  .me-theme-pills {
-    display: flex; gap: 6px;
-    background: color-mix(in srgb, var(--btn-bg) 70%, transparent);
-    border-radius: 10px;
-    padding: 3px;
-  }
-  .me-theme-choice {
-    flex: 1;
-    padding: 8px 0;
-    border: none; border-radius: 8px;
-    background: transparent;
-    font-size: 13px; font-weight: 600; font-family: inherit;
-    color: var(--text-faint);
-    cursor: pointer;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), color .18s ease;
-  }
-  .me-theme-choice-active {
-    background: var(--surface);
-    color: var(--drawer-text);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-  }
-
   .me-row {
     display: flex; align-items: center; gap: 14px;
     width: 100%; min-height: 58px; padding: 10px 16px;
@@ -267,34 +241,64 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  .logout-card {
+  /* Fluent-style toggle switch */
+  .fluent-switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 20px;
+    border-radius: 999px;
+    border: 2px solid var(--icon-faint);
+    background: transparent;
+    box-sizing: border-box;
+    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), border-color .18s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .fluent-switch-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--icon-faint);
+    transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1), background .18s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .fluent-switch-on {
+    background: #185ABD;
+    border-color: #185ABD;
+  }
+  .fluent-switch-on .fluent-switch-thumb {
+    background: #fff;
+    transform: translateX(20px);
+  }
+
+  /* Logout button: fixed to bottom, slim, brand red */
+  .logout-fab {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    width: calc(100% - 28px);
-    margin: 22px 14px calc(env(safe-area-inset-bottom, 0px) + 8px);
-    padding: 16px 20px;
+    gap: 8px;
+    height: 44px;
     border: none;
     border-radius: 999px;
     cursor: pointer;
     font: inherit;
-    background: light-dark(#FFEAE8, rgba(255,59,48,0.16));
+    z-index: 10;
+    background: #FF444F;
   }
-  :global([data-theme="dark"]) .logout-card { background: rgba(255,59,48,0.16); }
-  :global([data-theme="light"]) .logout-card { background: #FFEAE8; }
-  .logout-card-icon {
-    width: 22px; height: 22px;
-    background: light-dark(#D9291F, #FF453A);
+  :global([data-theme="dark"]) .logout-fab { background: rgba(255,68,79,0.5); }
+  :global([data-theme="light"]) .logout-fab { background: #FF444F; }
+
+  .logout-fab-icon {
+    width: 18px; height: 18px;
+    background: #fff;
   }
-  :global([data-theme="dark"]) .logout-card-icon { background: #FF453A; }
-  :global([data-theme="light"]) .logout-card-icon { background: #D9291F; }
-  .logout-card-label {
-    font-size: 15px; font-weight: 700;
-    color: light-dark(#D9291F, #FF453A);
+  .logout-fab-label {
+    font-size: 14px; font-weight: 700;
+    color: #fff;
   }
-  :global([data-theme="dark"]) .logout-card-label { color: #FF453A; }
-  :global([data-theme="light"]) .logout-card-label { color: #D9291F; }
 
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
@@ -329,8 +333,8 @@
   .logout-btn-confirm:active { background: #E0342A; transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
-    .me-row, .me-install,
+    .me-row, .me-avatar-block, .me-install, .logout-fab,
     .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .pulse-tap, .me-theme-choice { transition: none !important; }
+    .pulse-tap, .fluent-switch, .fluent-switch-thumb { transition: none !important; }
   }
 </style>

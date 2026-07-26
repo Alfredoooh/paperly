@@ -9,6 +9,7 @@
   export let onApplyTheme = () => {};
 
   export let onOpenProfile = () => {};
+  export let onOpenSettingsPage = () => {};
   export let onOpenSettings = () => {};
   export let onLogout = () => {};
 
@@ -20,6 +21,7 @@
     download: `${FLUENT_BASE}/arrow_download_24_regular.svg`,
     bell: `${FLUENT_BASE}/alert_24_regular.svg`,
     help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
+    settings: `${FLUENT_BASE}/settings_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
     chevron: `${FLUENT_BASE}/chevron_right_24_regular.svg`,
     sun: `${FLUENT_BASE}/weather_sunny_24_regular.svg`,
@@ -40,17 +42,22 @@
     onOpenProfile();
   }
 
-  function openSetting(id) {
+  function goSettingsPage() {
+    buzz();
+    onOpenSettingsPage();
+  }
+
+  function openSettingRow(id) {
     buzz();
     onOpenSettings(id);
   }
 
   function goHelp() {
-    openSetting('help');
+    openSettingRow('help');
   }
 
   function goNotifications() {
-    openSetting('notifications');
+    openSettingRow('notifications');
   }
 
   function toggleDarkMode() {
@@ -131,6 +138,14 @@
       <span class="me-row-label">Notificações</span>
     </span>
   </button>
+
+  <button class="me-row native-tap" on:click={goSettingsPage}>
+    <span class="icon-mask me-row-icon" style="mask-image:url('{ICON.settings}');-webkit-mask-image:url('{ICON.settings}')"></span>
+    <span class="me-row-text">
+      <span class="me-row-label">Definições</span>
+    </span>
+  </button>
+
   <button class="me-row native-tap" on:click={goHelp}>
     <span class="icon-mask me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
     <span class="me-row-text">
@@ -247,7 +262,6 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* Fluent-style toggle switch — suavizado */
   .fluent-switch {
     position: relative;
     flex-shrink: 0;
@@ -277,7 +291,6 @@
     transform: translateX(18px);
   }
 
-  /* Logout button: fixed above bottom bar, azul Microsoft com contraste correto por tema */
   .logout-fab {
     position: fixed;
     left: 14px;

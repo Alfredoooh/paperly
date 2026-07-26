@@ -10,6 +10,11 @@
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
   
+  let fabBtnEl;
+  export function getFabRect() {
+    return fabBtnEl ? fabBtnEl.getBoundingClientRect() : null;
+  }
+
   function buzz() {
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
@@ -20,9 +25,6 @@
     onSelect(tab.id);
   }
 
-  // O botão central NUNCA passa por select()/onSelect — não é um tab,
-  // não muda activeTab, não toca no router. Abre sempre o chat da
-  // Nexa IA como bottom-sheet modal, por cima de tudo.
   let fabPressed = false;
   function openAI() {
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
@@ -61,17 +63,11 @@
     </button>
   {/each}
 
-  <!-- Botão central da Nexa IA: agora um PNG a cores reais (não mais
-       um SVG mascarado forçado a branco), por isso deixou de ter
-       container/círculo colorido à volta — nada de background,
-       border-radius, box-shadow. O que resta é só a área de toque
-       (fab-slot/fab-btn), do mesmo tamanho de sempre por
-       acessibilidade, mas totalmente transparente: o PNG aparece
-       solto sobre o fundo da bottombar, como um ícone normal. -->
   <div class="fab-slot" aria-hidden="true">
     <button
       class="fab-btn"
       class:pressed={fabPressed}
+      bind:this={fabBtnEl}
       on:click={openAI}
       aria-label={AI_FAB.label}
     >
@@ -132,10 +128,6 @@
     -webkit-touch-callout: none;
   }
 
-  /* Tema escuro: fundo IDÊNTICO ao corpo — var(--app-bg) puro, sem
-     color-mix, sem escurecer nem clarear. Mais linha divisória fina
-     no topo para separar visualmente da área de conteúdo, já que sem
-     diferença de tom a fronteira deixa de ser óbvia sem ela. */
   :global([data-theme="dark"]) .tab-bar {
     background: var(--app-bg);
     border-top: 1px solid var(--border-soft);
@@ -223,9 +215,6 @@
     transition: opacity .18s ease;
   }
 
-  /* ícone: regular por padrão, filled quando ativo; cor ativa vem
-     de var(--accent-primary), definida em src/shared/theme.css */
-
   .tab-avatar {
     width: 100%;
     height: 100%;
@@ -269,13 +258,6 @@
     font-weight: 700;
   }
 
-  /* ---------- Botão central (FAB) da Nexa IA ----------
-     Deixou de ser um botão sólido com fundo/círculo colorido — agora
-     é só a área de toque, transparente, do mesmo tamanho de antes
-     (44×40, mínimo de acessibilidade) assente na própria linha da
-     bottombar via .fab-slot com flex:1. O PNG (fab-icon) é que
-     carrega toda a identidade visual sozinho, sem nenhum container
-     por trás dele. */
   .fab-slot {
     position: relative;
     z-index: 1;

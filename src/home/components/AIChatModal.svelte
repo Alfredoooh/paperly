@@ -1,142 +1,75 @@
 <!-- src/home/components/AIChatModal.svelte -->
-<!-- Único "app" da plataforma que abre sempre como bottom-sheet modal
-     por cima de tudo — nunca como navegação de rota. Fecho por: tap
-     no overlay, ou arrastar a handle para baixo (com threshold/
-     fling, mesmo padrão do AppDrawer) — SEM botão X: o pedido foi
-     explícito para removê-lo, o fecho fica só nesses dois gestos
-     (mais o gesto físico de voltar do sistema, gerido pelo pai via
-     popstate, igual a search/preview/drawer).
-
-     CONTEÚDO: monta o AiApp REAL (../../ai/App.svelte) em modo
-     embedded — é literalmente o mesmo ChatPage.svelte da plataforma,
-     como componente Svelte em vez de rota de topo. -->
+<!-- Modal em tela cheia que nasce por container-transform a partir da
+     posição/tamanho exatos do botão FAB da bottombar, crescendo até
+     cobrir o ecrã inteiro. Fecho: só pelo botão X, que reverte a
+     mesma animação (encolhe de volta na direção do FAB). Sem drag,
+     sem sheet, sem handle — decisão explícita do pedido. -->
 <script>
-  import { createBackRecoilTransition } from '../lib/nav-transition.js';
   import AiApp from '../../ai/App.svelte';
-
-  export let open = false;    // montado no DOM
-  export let pushed = false;  // deve estar na posição aberta (fonte: App.svelte)
+  
+  export let open = false; // montado no DOM
+  export let pushed = false; // deve estar na posição aberta (fonte: App.svelte)
+  export let origin = null; // DOMRect do botão FAB, medido pelo pai antes de abrir
   export let onClose = () => {};
-
-  let sheetEl;
-
-  function buzz() {
+  
+  function handleClose() {
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+    onClose();
   }
-
-  // Reaproveita o MESMO motor de spring 0..1 já usado pelo pull-to-
-  // refresh do TemplatesTab, aqui reinterpretado como progresso de
-  // abertura da folha (0 = fechada/fora do ecrã, 1 = totalmente
-  // aberta) — evita escrever um terceiro motor de física no projeto.
-  const sheet = createBackRecoilTransition();
-  let sheetProgress = 0;
-  const unsubscribeSheet = sheet.subscribe((v) => { sheetProgress = Math.max(0, v); });
-
-  let lastPushed = null;
-  $: if (pushed !== lastPushed) {
-    lastPushed = pushed;
-    if (pushed) sheet.recoil();  // reaproveita recoil() como "abrir" (target=1)
-    else sheet.reset();          // reaproveita reset() como "fechar" (target=0)
-  }
-
-  $: translateY = (1 - sheetProgress) * 100; // 100% = fora do ecrã por baixo
-  $: overlayOpacity = 0.55 * sheetProgress;
-
-  // Se o AiApp embutido disparar on:nav com to:'home' (ex: um botão
-  // de fechar/voltar interno do próprio ChatPage/SettingsPage), o
-  // significado correto AQUI é "fechar o modal" — nunca navegar rota
-  // nenhuma, já que estamos em modo embedded e o router interno do
-  // AiApp está isolado de propósito (ver shared/router.js).
+  
+  // Container transform: calcula scale/translate para ir da posição
+  // exata do FAB (origin) até cobrir 100% do ecrã. Quando pushed=false
+  // (fechado), o transform volta a ser o do FAB — mesmo cálculo,
+  // reverso automático porque é function-of-state, não de keyframes.
+  $: vw = typeof window !== 'undefined' ? window.innerWidth : 360;
+  $: vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  
+  $: fabCenterX = origin ? origin.left + origin.width / 2 : vw / 2;
+  $: fabCenterY = origin ? origin.top + origin.height / 2 : vh;
+  $: fabW = origin ? origin.width : 44;
+  $: fabH = origin ? origin.height : 40;
+  
+  // Fator de escala do FAB até cobrir a tela inteira
+  $: scaleClosedX = fabW / vw;
+  $: scaleClosedY = fabH / vh;
+  
+  // Deslocamento necessário para que o centro do container (que ocupa
+  // 100vw x 100vh, ancorado em top:0/left:0) coincida com o centro do
+  // FAB quando encolhido.
+  $: translateClosedX = fabCenterX - vw / 2;
+  $: translateClosedY = fabCenterY - vh / 2;
+  
+  $: scaleX = pushed ? 1 : scaleClosedX;
+  $: scaleY = pushed ? 1 : scaleClosedY;
+  $: translateX = pushed ? 0 : translateClosedX;
+  $: translateY = pushed ? 0 : translateClosedY;
+  $: contentOpacity = pushed ? 1 : 0;
+  
   function handleAiNav(e) {
     const { to } = e.detail || {};
     if (to === 'home') handleClose();
   }
-
-  // ------------------------------------------------------------------
-  // Arrastar a handle para fechar — mesmo padrão de threshold/fling
-  // já usado no AppDrawer.svelte.
-  // ------------------------------------------------------------------
-  const CLOSE_THRESHOLD = 0.3;
-  const VELOCITY_FLING = 0.6;
-  let dragging = false;
-  let dragStartY = 0;
-  let dragStartTime = 0;
-  let dragCurrentY = 0;
-  let sheetH = 400;
-
-  function onHandleTouchStart(e) {
-    dragging = true;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    dragStartY = y;
-    dragCurrentY = y;
-    dragStartTime = performance.now();
-    sheetH = sheetEl?.getBoundingClientRect().height || 400;
-  }
-  function onHandleDragMove(e) {
-    if (!dragging) return;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    dragCurrentY = y;
-    const delta = Math.max(0, y - dragStartY); // só arrasta para baixo
-    const progress = Math.max(0, 1 - delta / sheetH);
-    sheet.setDragValue(progress);
-    if (delta > 0) e.preventDefault?.();
-  }
-  function onHandleDragEnd() {
-    if (!dragging) return;
-    dragging = false;
-    const elapsed = Math.max(1, performance.now() - dragStartTime);
-    const delta = dragCurrentY - dragStartY;
-    const velocity = Math.abs(delta) / elapsed;
-    const closedFraction = Math.max(0, Math.min(1, delta / sheetH));
-    const shouldClose = closedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
-    if (shouldClose) {
-      handleClose();
-    } else {
-      sheet.releaseDragTo();
-    }
-  }
-
-  function handleClose() {
-    buzz();
-    onClose();
-  }
-
-  import { onDestroy } from 'svelte';
-  onDestroy(() => {
-    unsubscribeSheet();
-    sheet.destroy();
-  });
 </script>
 
 {#if open}
   <div
     class="modal-overlay"
-    style="opacity:{overlayOpacity}"
-    on:click={handleClose}
+    style="opacity:{pushed ? 0.55 : 0}"
   ></div>
   <div
-    class="ai-sheet"
-    bind:this={sheetEl}
-    style="transform: translate3d(0, {translateY}%, 0);"
+    class="ai-container"
+    style="transform: translate3d({translateX}px, {translateY}px, 0) scale({scaleX}, {scaleY});"
   >
-    <div
-      class="sheet-handle-zone"
-      on:touchstart={onHandleTouchStart}
-      on:touchmove|nonpassive={onHandleDragMove}
-      on:touchend={onHandleDragEnd}
-      on:touchcancel={onHandleDragEnd}
-      on:mousedown={onHandleTouchStart}
-      on:mousemove={onHandleDragMove}
-      on:mouseup={onHandleDragEnd}
-      on:mouseleave={onHandleDragEnd}
-    >
-      <span class="sheet-handle"></span>
-    </div>
+    <div class="ai-inner" style="opacity:{contentOpacity};">
+      <button class="close-btn" on:click={handleClose} aria-label="Fechar">
+        <span class="close-icon"></span>
+      </button>
 
-    <div class="ai-body">
-      {#if open}
-        <AiApp embedded={true} pushed={true} on:nav={handleAiNav} />
-      {/if}
+      <div class="ai-body">
+        {#if open}
+          <AiApp embedded={true} pushed={true} on:nav={handleAiNav} />
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
@@ -147,50 +80,76 @@
     inset: 0;
     z-index: 90;
     background: #000;
+    pointer-events: none;
+    transition: opacity .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: opacity;
   }
 
-  /* 100dvh — sobe até ao limite exato da altura visível do ecrã, sem
-     faixa nenhuma acima. Cantos do topo deixam de ser arredondados
-     (era 24px 24px 0 0): a 100dvh o topo da folha encosta na área da
-     barra de status/notch, e um canto arredondado nesse ponto cortava
-     visualmente o próprio conteúdo/handle contra esse limite físico. */
-  .ai-sheet {
+  /* Container ancorado top:0/left:0 cobrindo 100% do viewport — o
+     "encolhimento" até o FAB é feito via transform (scale+translate),
+     nunca mudando width/height reais, para manter a transição suave
+     numa única propriedade composta pelo navegador. */
+  .ai-container {
     position: fixed;
-    left: 0; right: 0; bottom: 0;
+    inset: 0;
     z-index: 91;
+    width: 100vw;
     height: 100dvh;
-    max-width: 640px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
     background: var(--app-bg);
-    border-radius: 0;
-    box-shadow: 0 -8px 32px rgba(0,0,0,0.28);
+    transform-origin: top left;
     will-change: transform;
-    contain: layout style paint;
     overflow: hidden;
+    contain: layout style paint;
+    transition: transform .42s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  .sheet-handle-zone {
+  .ai-inner {
     position: absolute;
-    top: 0; left: 0; right: 0;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    transition: opacity .28s ease;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    right: 14px;
     z-index: 2;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--btn-bg);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: calc(env(safe-area-inset-top, 0px) + 10px) 0 4px;
-    flex-shrink: 0;
-    cursor: grab;
-    touch-action: none;
-    height: 24px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), background .16s ease;
   }
-  .sheet-handle {
-    width: 36px;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--border-soft);
+  .close-btn:active {
+    transform: scale(0.9);
+    background: var(--btn-bg-active);
   }
+  .close-icon {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+  .close-icon::before,
+  .close-icon::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 16px;
+    height: 2px;
+    background: var(--text-primary);
+    border-radius: 1px;
+  }
+  .close-icon::before { transform: translate(-50%, -50%) rotate(45deg); }
+  .close-icon::after  { transform: translate(-50%, -50%) rotate(-45deg); }
 
   .ai-body {
     position: relative;
@@ -200,6 +159,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ai-sheet { transition: none !important; }
+    .ai-container, .modal-overlay, .ai-inner, .close-btn { transition: none !important; }
   }
 </style>

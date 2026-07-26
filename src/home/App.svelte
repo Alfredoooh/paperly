@@ -186,19 +186,22 @@
   }
 
   let aiModalOpen = false;
-  let aiModalPushed = false;
+let aiModalPushed = false;
+let aiOrigin = null;
+let bottomTabBarRef;
 
-  function openAIModal() {
-    if (aiModalOpen) return;
-    pushOverlayState('ai', { nexaAI: true });
-    aiModalOpen = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { aiModalPushed = true; }));
-  }
+function openAIModal() {
+  if (aiModalOpen) return;
+  aiOrigin = bottomTabBarRef?.getFabRect?.() || null;
+  pushOverlayState('ai', { nexaAI: true });
+  aiModalOpen = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => { aiModalPushed = true; }));
+}
 
-  function closeAIModalVisual() {
-    aiModalPushed = false;
-    setTimeout(() => { aiModalOpen = false; }, 340);
-  }
+function closeAIModalVisual() {
+  aiModalPushed = false;
+  setTimeout(() => { aiModalOpen = false; aiOrigin = null; }, 420);
+}
 
   function closeAIModal() {
     if (!aiModalOpen) return;
@@ -479,15 +482,16 @@
   />
 {/if}
 
+<div class="bottombar-sentinel" bind:this={bottombarSentinelEl} aria-hidden="true"></div>
+
+<BottomTabBar bind:this={bottomTabBarRef} {activeTab} onSelect={selectTab} onOpenAI={openAIModal} {avatarUrl} {avatarColor} {userInitial} />
+
 <AIChatModal
   open={aiModalOpen}
   pushed={aiModalPushed}
+  origin={aiOrigin}
   onClose={closeAIModal}
 />
-
-<div class="bottombar-sentinel" bind:this={bottombarSentinelEl} aria-hidden="true"></div>
-
-<BottomTabBar {activeTab} onSelect={selectTab} onOpenAI={openAIModal} {avatarUrl} {avatarColor} {userInitial} />
 
 <style>
   @import '../shared/theme.css';

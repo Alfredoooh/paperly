@@ -21,12 +21,12 @@
     back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
     checkmark: `${FLUENT_BASE}/checkmark_24_regular.svg`,
     chevron: `${FLUENT_BASE}/chevron_right_20_regular.svg`,
-    shield: `${FLUENT_BASE}/shield_24_regular.svg`,
-    bell: `${FLUENT_BASE}/alert_24_regular.svg`,
-    storage: `${FLUENT_BASE}/database_24_regular.svg`,
-    globe: `${FLUENT_BASE}/globe_24_regular.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
-    info: `${FLUENT_BASE}/info_24_regular.svg`,
+    shield: `${FLUENT_BASE}/shield_24_color.svg`,
+    bell: `${FLUENT_BASE}/alert_24_color.svg`,
+    storage: `${FLUENT_BASE}/database_24_color.svg`,
+    globe: `${FLUENT_BASE}/globe_24_color.svg`,
+    help: `${FLUENT_BASE}/question_circle_24_color.svg`,
+    info: `${FLUENT_BASE}/info_24_color.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
   };
 
@@ -221,7 +221,7 @@
 
 <div class="st-root" bind:this={rootEl} style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
   <div class="st-header">
-    <button class="st-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('nav', { to: 'main' })}>
+    <button class="st-back-btn" on:click={() => dispatch('nav', { to: 'main' })} aria-label="Voltar">
       <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
     <span class="st-header-title" style="color:{c.textPrimary}">Definições</span>
@@ -230,80 +230,91 @@
 
   <div class="st-body">
 
-    <div class="st-theme-tabs" style="background:{c.appbarBtnBg}">
-      {#each THEME_OPTIONS as opt}
-        <button
-          class="st-theme-tab"
-          class:st-theme-tab-active={themeValue === opt.id}
-          style={themeValue === opt.id ? `background:${c.background};color:${c.textPrimary}` : `color:${c.textSecondary}`}
-          on:click={() => setThemeValue(opt.id)}
-        >{opt.label}</button>
-      {/each}
+    <div class="st-group">
+      <div class="st-theme-tabs" style="background:{c.appbarBtnBg}">
+        {#each THEME_OPTIONS as opt}
+          <button
+            class="st-theme-tab"
+            class:st-theme-tab-active={themeValue === opt.id}
+            style={themeValue === opt.id ? `background:${c.background};color:${c.textPrimary}` : `color:${c.textSecondary}`}
+            on:click={() => setThemeValue(opt.id)}
+          >{opt.label}</button>
+        {/each}
+      </div>
+
+      <button class="st-row" on:click={openLangSheet}>
+        <div class="st-row-left">
+          <img class="st-row-icon" src={ICON.globe} alt="" />
+          <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
+        </div>
+        <div class="st-row-right-group">
+          <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
+          <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+        </div>
+      </button>
     </div>
 
-    <button class="st-row" on:click={openLangSheet}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.globe}');-webkit-mask-image:url('{ICON.globe}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
-      </div>
-      <div class="st-row-right-group">
-        <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
+    <div class="st-group">
+      <button class="st-row" on:click={() => openPlaceholderModal('Privacidade e segurança')}>
+        <div class="st-row-left">
+          <img class="st-row-icon" src={ICON.shield} alt="" />
+          <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
+        </div>
         <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </div>
-    </button>
+      </button>
+    </div>
 
-    <button class="st-row" on:click={() => openPlaceholderModal('Privacidade e segurança')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.shield}');-webkit-mask-image:url('{ICON.shield}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
-      </div>
-      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-    </button>
+    <div class="st-group">
+      <button class="st-row" on:click={() => openPlaceholderModal('Notificações por email')}>
+        <div class="st-row-left">
+          <img class="st-row-icon" src={ICON.bell} alt="" />
+          <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
+        </div>
+        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+      </button>
+    </div>
 
-    <button class="st-row" on:click={() => openPlaceholderModal('Notificações por email')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
-      </div>
-      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-    </button>
+    <div class="st-group">
+      <button class="st-row" on:click={() => openPlaceholderModal('Armazenamento')}>
+        <div class="st-row-left">
+          <img class="st-row-icon" src={ICON.storage} alt="" />
+          <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
+        </div>
+        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+      </button>
+    </div>
 
-    <button class="st-row" on:click={() => openPlaceholderModal('Armazenamento')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.storage}');-webkit-mask-image:url('{ICON.storage}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
-      </div>
-      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-    </button>
+    <div class="st-group">
+      <button class="st-row" on:click={() => openPlaceholderModal('Ajuda e suporte')}>
+        <div class="st-row-left">
+          <img class="st-row-icon" src={ICON.help} alt="" />
+          <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
+        </div>
+        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+      </button>
+      <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
+        <div class="st-row-left">
+          <img class="st-row-icon" src={ICON.info} alt="" />
+          <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
+        </div>
+        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+      </button>
+    </div>
 
-    <button class="st-row" on:click={() => openPlaceholderModal('Ajuda e suporte')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
-      </div>
-      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-    </button>
-    <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.info}');-webkit-mask-image:url('{ICON.info}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
-      </div>
-      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-    </button>
-
-    <button class="st-row" on:click={() => openLogoutDialog('all')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:{c.textSecondary}"></span>
-        <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
-      </div>
-    </button>
-    <button class="st-row st-danger" on:click={() => openLogoutDialog('single')}>
-      <div class="st-row-left">
-        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:var(--danger)"></span>
-        <span class="st-row-label" style="color:var(--danger)">Terminar sessão</span>
-      </div>
-    </button>
+    <div class="st-group">
+      <button class="st-row" on:click={() => openLogoutDialog('all')}>
+        <div class="st-row-left">
+          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:{c.textSecondary}"></span>
+          <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
+        </div>
+      </button>
+    </div>
   </div>
+
+  <button class="logout-fab pulse-tap" on:click={() => openLogoutDialog('single')}>
+    <span class="icon-mask logout-fab-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
+    <span class="logout-fab-label">Terminar sessão</span>
+  </button>
 
   {#if showFieldModal}
     <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
@@ -311,7 +322,7 @@
       <div class="fluent-modal-title" style="color:{c.textPrimary}">{fieldModalTitle}</div>
       <div class="fluent-modal-sub" style="color:{c.textSecondary}">Em breve</div>
       <div class="fluent-modal-actions">
-        <button class="fluent-btn-save" style="background:{c.primary}" on:click={closeFieldModal}>Entendido</button>
+        <button class="fluent-btn-save" on:click={closeFieldModal}>Entendido</button>
       </div>
     </div>
   {/if}
@@ -332,7 +343,7 @@
           <button class="sheet-opt" on:click={() => selectLang(lang.code)}>
             <span class="sheet-opt-label" style="color:{c.textPrimary}">{lang.native}</span>
             {#if currentLang === lang.code}
-              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:{c.primary};width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:#0078D4;width:16px;height:16px"></span>
             {/if}
           </button>
         {/each}
@@ -370,14 +381,18 @@
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: calc(env(safe-area-inset-top,0px) + 14px) 16px 12px; flex-shrink: 0;
   }
-  .st-icon-btn {
-    width: 36px; height: 36px; border-radius: 4px; border: none;
+  .st-back-btn {
+    width: 36px; height: 36px; border: none; background: transparent; padding: 0;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity .16s ease;
   }
-  .st-icon-btn:active { transform: scale(0.86); opacity: .65; }
+  .st-back-btn:active { opacity: .55; }
   .st-header-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
-  .st-body { flex: 1; overflow-y: auto; padding: 8px 16px 24px; -webkit-overflow-scrolling: touch; }
+  .st-body { flex: 1; overflow-y: auto; padding: 8px 16px calc(env(safe-area-inset-bottom,0px) + 88px); -webkit-overflow-scrolling: touch; }
+
+  .st-group { margin-bottom: 26px; }
+  .st-group:last-child { margin-bottom: 0; }
 
   .st-theme-tabs {
     display: flex; gap: 4px;
@@ -398,19 +413,16 @@
 
   .st-row {
     width: 100%; background: transparent; border: none; display: flex; align-items: center;
-    justify-content: space-between; padding: 14px 16px; font-size: 15px; cursor: pointer; text-align: left;
-    border-bottom: 1px solid var(--drawer-sep);
+    justify-content: space-between; padding: 12px 0; font-size: 15px; cursor: pointer; text-align: left;
     gap: 12px;
     transition: opacity .16s ease;
   }
-  .st-row:last-child { border-bottom: none; }
   .st-row:active { opacity: .7; }
   .st-row-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .st-row-icon { width: 22px; height: 22px; flex-shrink: 0; }
+  .st-row-icon { width: 22px; height: 22px; flex-shrink: 0; display: block; }
   .st-row-label { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .st-row-right-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .st-row-value { font-size: 13.5px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .st-danger { color: var(--danger); }
 
   .icon-mask {
     display: block; flex-shrink: 0;
@@ -418,6 +430,30 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
+
+  .logout-fab {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 54px + 14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 44px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    z-index: 10;
+    background: #0078D4;
+  }
+  :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
+  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
+  .logout-fab-icon { width: 18px; height: 18px; background: #fff; }
+  .logout-fab-label { font-size: 14px; font-weight: 700; color: #fff; }
+  .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }
+  .pulse-tap:active { transform: scale(0.97); opacity: .85; }
 
   .fluent-overlay {
     position: fixed; inset: 0; z-index: 800;
@@ -443,6 +479,7 @@
   .fluent-btn-save {
     flex: 1; padding: 11px; border-radius: 10px; border: none;
     font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: #fff;
+    background: #0078D4;
     transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
   .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
@@ -502,13 +539,13 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: var(--danger); color: white; }
-  .logout-btn-confirm:active { background: var(--danger-active); transform: scale(0.96); }
+  .logout-btn-confirm { background: #0078D4; color: white; }
+  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 
   @media (prefers-reduced-motion: reduce) {
-    .st-icon-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab {
+    .st-back-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
+    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab, .logout-fab, .pulse-tap {
       transition: none !important;
     }
   }

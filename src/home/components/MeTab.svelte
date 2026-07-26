@@ -18,8 +18,8 @@
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const ICON = {
     download: `${FLUENT_BASE}/arrow_download_24_regular.svg`,
-    bell: `${FLUENT_BASE}/alert_24_regular.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
+    bell: `${FLUENT_BASE}/alert_24_color.svg`,
+    help: `${FLUENT_BASE}/question_circle_24_color.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
   };
 
@@ -121,13 +121,13 @@
   </button>
 
   <button class="me-row native-tap" on:click={goNotifications}>
-    <span class="me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
+    <img class="me-row-icon" src={ICON.bell} alt="" />
     <span class="me-row-text">
       <span class="me-row-label">Notificações</span>
     </span>
   </button>
   <button class="me-row native-tap" on:click={goHelp}>
-    <span class="me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
+    <img class="me-row-icon" src={ICON.help} alt="" />
     <span class="me-row-text">
       <span class="me-row-label">Ajuda e suporte</span>
     </span>
@@ -154,7 +154,7 @@
 <style>
   .me-tab {
     width: 100%;
-    padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 calc(env(safe-area-inset-bottom, 0px) + 54px + 88px);
   }
 
   .me-avatar-block {
@@ -215,13 +215,7 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
-  .me-row-icon {
-    width: 24px; height: 24px; flex-shrink: 0; display: block;
-    background: var(--icon-strong);
-    mask-size: contain; -webkit-mask-size: contain;
-    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center;
-  }
+  .me-row-icon { width: 24px; height: 24px; flex-shrink: 0; display: block; }
   .me-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
   .me-row-label {
     font-size: 15px; font-weight: 500;
@@ -262,20 +256,20 @@
     transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1), background .18s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fluent-switch-on {
-    background: #185ABD;
-    border-color: #185ABD;
+    background: #0078D4;
+    border-color: #0078D4;
   }
   .fluent-switch-on .fluent-switch-thumb {
     background: #fff;
     transform: translateX(20px);
   }
 
-  /* Logout button: fixed to bottom, slim, brand red */
+  /* Logout button: fixed above bottom bar, slim, Microsoft blue */
   .logout-fab {
     position: fixed;
     left: 14px;
     right: 14px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 54px + 14px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -286,10 +280,10 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #FF444F;
+    background: #0078D4;
   }
-  :global([data-theme="dark"]) .logout-fab { background: rgba(255,68,79,0.5); }
-  :global([data-theme="light"]) .logout-fab { background: #FF444F; }
+  :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
+  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
 
   .logout-fab-icon {
     width: 18px; height: 18px;
@@ -329,8 +323,8 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); color: var(--text-primary); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #FF3B30; color: white; }
-  .logout-btn-confirm:active { background: #E0342A; transform: scale(0.96); }
+  .logout-btn-confirm { background: #0078D4; color: white; }
+  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
     .me-row, .me-avatar-block, .me-install, .logout-fab,

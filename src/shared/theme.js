@@ -91,13 +91,12 @@ export function syncTheme(isDark) {
   body.dataset.theme = isDark ? 'dark' : 'light';
   body.style.background = 'var(--app-bg)';
   body.style.color = 'var(--icon-strong)';
-
+  
   const bgColor = getComputedStyle(root).getPropertyValue('--app-bg').trim() || (isDark ? '#0F0F0F' : '#FFFFFF');
   syncStatusBar(isDark, bgColor);
-
-  applyAccent(getAccentColor(isDark));
+  
   applySurfaceTone(getSurfaceTone(isDark), isDark);
-
+  
   if (window.AndroidTheme && typeof window.AndroidTheme.onThemeChanged === 'function') {
     window.AndroidTheme.onThemeChanged(isDark);
   }
@@ -111,7 +110,7 @@ function syncStatusBar(isDark, bgColor) {
     document.head.appendChild(meta);
   }
   meta.setAttribute('content', bgColor);
-
+  
   let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (!appleMeta) {
     appleMeta = document.createElement('meta');
@@ -122,7 +121,7 @@ function syncStatusBar(isDark, bgColor) {
 }
 
 if (typeof window !== 'undefined') {
-  window.__nexaSetTheme = function (value) {
+  window.__nexaSetTheme = function(value) {
     if (value === 'system') {
       localStorage.removeItem('nexa_theme');
       syncTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -133,20 +132,14 @@ if (typeof window !== 'undefined') {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  COR PRIMÁRIA E TOM DE SUPERFÍCIE CUSTOMIZÁVEIS — por tema
-//  Guardados separadamente para light/dark; cada tema mantém a sua
+//  TOM DE SUPERFÍCIE CUSTOMIZÁVEL — por tema
+//  Guardado separadamente para light/dark; cada tema mantém a sua
 //  própria escolha mesmo trocando de tema.
 // ══════════════════════════════════════════════════════════════════
 
-const ACCENT_KEY_LIGHT = 'nexa_accent_light';
-const ACCENT_KEY_DARK = 'nexa_accent_dark';
 const TONE_KEY_LIGHT = 'nexa_surface_tone_light';
 const TONE_KEY_DARK = 'nexa_surface_tone_dark';
 
-const DEFAULT_ACCENT = { light: '#0866D1', dark: '#4DA8FF' };
-
-// Tons predefinidos — cada um define app-bg/surface/drawer-bg/btn-bg
-// coerentes entre si. 'default' = os valores originais do CSS.
 export const SURFACE_TONES_DARK = [
   { id: 'default', label: 'Padrão', swatch: '#0F0F0F', appBg: '#0F0F0F', surface: '#0F0F0F', drawerBg: '#1C1C1E', btnBg: 'rgba(255,255,255,0.10)' },
   { id: 'charcoal', label: 'Carvão', swatch: '#161616', appBg: '#161616', surface: '#161616', drawerBg: '#212123', btnBg: 'rgba(255,255,255,0.09)' },
@@ -173,27 +166,6 @@ export function getSurfaceTones(isDark) {
   return isDark ? SURFACE_TONES_DARK : SURFACE_TONES_LIGHT;
 }
 
-function shadeHex(hex, amt) {
-  const n = hex.replace('#', '');
-  const num = parseInt(n, 16);
-  let r = (num >> 16) + amt, g = ((num >> 8) & 0xff) + amt, b = (num & 0xff) + amt;
-  r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
-  return '#' + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1);
-}
-
-export function getAccentColor(isDark) {
-  const key = isDark ? ACCENT_KEY_DARK : ACCENT_KEY_LIGHT;
-  return localStorage.getItem(key) || DEFAULT_ACCENT[isDark ? 'dark' : 'light'];
-}
-
-export function setAccentColor(hex, isDark) {
-  const key = isDark ? ACCENT_KEY_DARK : ACCENT_KEY_LIGHT;
-  localStorage.setItem(key, hex);
-  if (getTheme() === (isDark ? 'dark' : 'light') || (getTheme() === 'system' && isDark === window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    applyAccent(hex);
-  }
-}
-
 export function getSurfaceTone(isDark) {
   const key = isDark ? TONE_KEY_DARK : TONE_KEY_LIGHT;
   return localStorage.getItem(key) || 'default';
@@ -205,17 +177,10 @@ export function setSurfaceTone(toneId, isDark) {
   syncTheme(isDark);
 }
 
-function applyAccent(hex) {
-  const root = document.documentElement;
-  root.style.setProperty('--accent-primary', hex);
-  root.style.setProperty('--accent-primary-active', shadeHex(hex, -24));
-}
-
 function applySurfaceTone(toneId, isDark) {
   const tones = getSurfaceTones(isDark);
   const tone = tones.find(t => t.id === toneId) || tones[0];
   if (tone.id === 'default') {
-    // remove overrides inline — volta aos valores do CSS original
     ['--app-bg', '--surface', '--surface-strong', '--drawer-bg', '--btn-bg'].forEach(v => {
       document.documentElement.style.removeProperty(v);
     });

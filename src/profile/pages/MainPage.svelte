@@ -30,11 +30,9 @@
     textDesc: `${FLUENT_BASE}/text_description_24_regular.svg`,
   };
 
-  // ── Entrada da página ────────────────────────────────────────────
   let pageVisible = false;
   onMount(() => { requestAnimationFrame(() => { pageVisible = true; }); });
 
-  // ── Rubber-band scroll ───────────────────────────────────────────
   let bodyEl, bodyInnerEl;
   let touchStartY = 0, pullOriginY = null, isPulling = false;
 
@@ -67,7 +65,6 @@
   }
   function onTouchEnd() { if (isPulling) resetPull(true); }
 
-  // ── Dados do perfil ──────────────────────────────────────────────
   let form = {
     name: '', age: '', country: '', state: '', city: '',
     occupation: '', occupationDetail: '', bio: '',
@@ -115,18 +112,10 @@
   ];
   $: filledRows = INFO_ROWS.map(r => ({ ...r, value: r.get(form) })).filter(r => r.value);
 
-  // ══════════════════════════════════════════════════════════════════
-  //  VISUALIZADOR DE AVATAR EM TELA CHEIA — container transform.
-  //  Avatar agora é sempre circular (wrap + img + badge todos com
-  //  border-radius:50%). Ao abrir, empurra um estado de histórico
-  //  próprio ('nexaAvatarViewer') — o botão físico/gesto de voltar do
-  //  Android (popstate) fecha APENAS o visualizador, sem sair da
-  //  ProfilePage para o Home.
-  // ══════════════════════════════════════════════════════════════════
   let avatarImgEl;
   let showAvatarViewer = false;
   let avatarViewerVisible = false;
-  let avatarViewerRect = null; // {top,left,width,height}
+  let avatarViewerRect = null;
   let suppressAvatarPopstate = false;
 
   function openAvatarViewer() {
@@ -163,11 +152,7 @@
     : '';
 
   // ══════════════════════════════════════════════════════════════════
-  //  TELA DE EDIÇÃO — cards no MESMO padrão visual das secções da
-  //  tela de Definições (fundo var(--drawer-bg)/var(--btn-bg), sem
-  //  inputs inline dentro da linha). Cada linha é um BOTÃO que abre
-  //  um modal central nativo (estilo Fluent/M365) para inserir o
-  //  valor — nenhum campo de texto fica exposto na própria lista.
+  //  TELA DE EDIÇÃO — fullscreen, cards com raio uniforme
   // ══════════════════════════════════════════════════════════════════
   const editSlide = createSlideTransition({});
   let editSlideY = 100;
@@ -278,50 +263,115 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  MODAL DE CAMPO — nativo estilo Fluent (M365): overlay + cartão
-  //  central com scale-in, título, um único input (texto/número/
-  //  textarea conforme o campo), botões Cancelar/Guardar.
+  //  MODAL SHEET DE CAMPO — bottom sheet nativo (NÃO dialog central).
+  //  Mesmo padrão visual do sheet de ocupação: overlay + folha que
+  //  sobe do fundo, grabber, título, um input, botão Guardar.
   // ══════════════════════════════════════════════════════════════════
-  let showFieldModal = false;
-  let fieldModalVisible = false;
-  let fieldModalKey = null;
-  let fieldModalLabel = '';
-  let fieldModalType = 'text'; // text | number | textarea
-  let fieldModalValue = '';
+  const fieldSheetSlide = createSlideTransition({});
+  let fieldSheetY = 100;
+  const unsubscribeFieldSheetSlide = fieldSheetSlide.subscribe((v) => { fieldSheetY = v; });
+  let showFieldSheet = false;
+  let fieldSheetOverlayVisible = false;
+  let fieldSheetKey = null;
+  let fieldSheetLabel = '';
+  let fieldSheetType = 'text';
+  let fieldSheetValue = '';
+  let fieldSheetEl;
+  let fieldInputEl;
 
-  function openFieldModal(key, label, type = 'text') {
-    fieldModalKey = key;
-    fieldModalLabel = label;
-    fieldModalType = type;
-    fieldModalValue = editForm[key] ?? '';
-    showFieldModal = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { fieldModalVisible = true; }));
+  function openFieldSheet(key, label, type = 'text') {
+    fieldSheetKey = key;
+    fieldSheetLabel = label;
+    fieldSheetType = type;
+    fieldSheetValue = editForm[key] ?? '';
+    showFieldSheet = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fieldSheetOverlayVisible = true;
+      fieldSheetSlide.open();
+      setTimeout(() => { fieldInputEl?.focus(); }, 280);
+    }));
   }
-  function closeFieldModal() {
-    fieldModalVisible = false;
-    setTimeout(() => { showFieldModal = false; fieldModalKey = null; }, 240);
+  function closeFieldSheet() {
+    fieldSheetOverlayVisible = false;
+    fieldSheetSlide.close();
+    setTimeout(() => { showFieldSheet = false; fieldSheetKey = null; }, 300);
   }
-  function saveFieldModal() {
-    if (fieldModalKey) editForm[fieldModalKey] = fieldModalValue;
-    closeFieldModal();
+  function saveFieldSheet() {
+    if (fieldSheetKey) editForm[fieldSheetKey] = fieldSheetValue;
+    closeFieldSheet();
   }
 
-  // ── Modal de nome (título) — mesmo padrão de modal ─────────────────
-  let showNameModal = false;
-  let nameModalVisible = false;
-  let nameModalValue = '';
-  function openNameModal() {
-    nameModalValue = editForm.name;
-    showNameModal = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { nameModalVisible = true; }));
+  const fieldSheetDrag = makeSheetDragLocal(fieldSheetSlide, () => fieldSheetEl ? fieldSheetEl.getBoundingClientRect().height : 400, closeFieldSheet);
+
+  // ── Modal sheet de nome — mesmo padrão ─────────────────────────────
+  const nameSheetSlide = createSlideTransition({});
+  let nameSheetY = 100;
+  const unsubscribeNameSheetSlide = nameSheetSlide.subscribe((v) => { nameSheetY = v; });
+  let showNameSheet = false;
+  let nameSheetOverlayVisible = false;
+  let nameSheetValue = '';
+  let nameSheetEl;
+  let nameInputEl;
+
+  function openNameSheet() {
+    nameSheetValue = editForm.name;
+    showNameSheet = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      nameSheetOverlayVisible = true;
+      nameSheetSlide.open();
+      setTimeout(() => { nameInputEl?.focus(); }, 280);
+    }));
   }
-  function closeNameModal() {
-    nameModalVisible = false;
-    setTimeout(() => { showNameModal = false; }, 240);
+  function closeNameSheet() {
+    nameSheetOverlayVisible = false;
+    nameSheetSlide.close();
+    setTimeout(() => { showNameSheet = false; }, 300);
   }
-  function saveNameModal() {
-    editForm.name = nameModalValue;
-    closeNameModal();
+  function saveNameSheet() {
+    editForm.name = nameSheetValue;
+    closeNameSheet();
+  }
+
+  const nameSheetDrag = makeSheetDragLocal(nameSheetSlide, () => nameSheetEl ? nameSheetEl.getBoundingClientRect().height : 300, closeNameSheet);
+
+  // ── Helper de arrasto reutilizável para os sheets desta página ──────
+  function makeSheetDragLocal(slideCtrl, getHeight, onClose) {
+    let dragging = false, liveActive = false;
+    let startY = 0, currentY = 0, startTime = 0, sheetH = 400;
+    return {
+      touchstart(e) {
+        dragging = true;
+        liveActive = false;
+        startY = e.touches[0].clientY;
+        currentY = startY;
+        startTime = performance.now();
+        sheetH = getHeight();
+      },
+      touchmove(e) {
+        if (!dragging) return;
+        const y = e.touches[0].clientY;
+        currentY = y;
+        const delta = y - startY;
+        if (delta <= 4) return;
+        if (!liveActive) liveActive = true;
+        const progress = Math.min(1, Math.max(0, delta / sheetH));
+        slideCtrl.setDragValue(progress * 100);
+        e.preventDefault();
+      },
+      touchend() {
+        if (!dragging) return;
+        dragging = false;
+        if (!liveActive) { liveActive = false; return; }
+        liveActive = false;
+        const elapsed = Math.max(1, performance.now() - startTime);
+        const delta = currentY - startY;
+        const velocity = Math.abs(delta) / elapsed;
+        const draggedFraction = Math.min(1, Math.max(0, delta / sheetH));
+        const shouldClose = draggedFraction > 0.3 || (delta > 0 && velocity > 0.5);
+        if (shouldClose) onClose();
+        else slideCtrl.releaseDragTo('open');
+      },
+    };
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -350,53 +400,9 @@
     closeOccSheet();
   }
 
-  const SHEET_CLOSE_THRESHOLD = 0.3;
-  const SHEET_VELOCITY_FLING = 0.5;
-  let sheetDragging = false;
-  let sheetDragStartY = 0;
-  let sheetDragCurrentY = 0;
-  let sheetDragStartTime = 0;
-  let sheetDragLiveActive = false;
-  let sheetDragH = 400;
   let occSheetEl;
+  const occSheetDrag = makeSheetDragLocal(occSheetSlide, () => occSheetEl ? occSheetEl.getBoundingClientRect().height : 400, closeOccSheet);
 
-  function onSheetGrabTouchStart(e) {
-    sheetDragging = true;
-    sheetDragLiveActive = false;
-    sheetDragStartY = e.touches[0].clientY;
-    sheetDragCurrentY = sheetDragStartY;
-    sheetDragStartTime = performance.now();
-    sheetDragH = occSheetEl ? occSheetEl.getBoundingClientRect().height : 400;
-  }
-  function onSheetGrabTouchMove(e) {
-    if (!sheetDragging) return;
-    const y = e.touches[0].clientY;
-    sheetDragCurrentY = y;
-    const delta = y - sheetDragStartY;
-    if (delta <= 4) return;
-    if (!sheetDragLiveActive) sheetDragLiveActive = true;
-    const progress = Math.min(1, Math.max(0, delta / sheetDragH));
-    occSheetSlide.setDragValue(progress * 100);
-    e.preventDefault();
-  }
-  function onSheetGrabTouchEnd() {
-    if (!sheetDragging) return;
-    sheetDragging = false;
-    if (!sheetDragLiveActive) { sheetDragLiveActive = false; return; }
-    sheetDragLiveActive = false;
-    const elapsed = Math.max(1, performance.now() - sheetDragStartTime);
-    const delta = sheetDragCurrentY - sheetDragStartY;
-    const velocity = Math.abs(delta) / elapsed;
-    const draggedFraction = Math.min(1, Math.max(0, delta / sheetDragH));
-    const shouldClose = draggedFraction > SHEET_CLOSE_THRESHOLD || (delta > 0 && velocity > SHEET_VELOCITY_FLING);
-    if (shouldClose) {
-      closeOccSheet();
-    } else {
-      occSheetSlide.releaseDragTo('open');
-    }
-  }
-
-  // ── Avatar ────────────────────────────────────────────────────────
   let avatarUploading = false;
   function handleAvatarPick(e) {
     const file = e.target.files?.[0];
@@ -430,18 +436,18 @@
     window.removeEventListener('popstate', onAvatarPopState);
     unsubscribeEditSlide?.();
     unsubscribeOccSheetSlide?.();
+    unsubscribeFieldSheetSlide?.();
+    unsubscribeNameSheetSlide?.();
     editSlide.destroy();
     occSheetSlide.destroy();
+    fieldSheetSlide.destroy();
+    nameSheetSlide.destroy();
   });
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     ROOT
-════════════════════════════════════════════════════════════════════ -->
 <div class="pf-root" class:pf-in={pageVisible}
   style="background:{c.background};color:{c.textPrimary};">
 
-  <!-- ══ APPBAR ══════════════════════════════════════════════════ -->
   <div class="pf-header">
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
@@ -454,7 +460,6 @@
     </button>
   </div>
 
-  <!-- ══ CORPO SCROLLÁVEL ════════════════════════════════════════ -->
   <div class="pf-body" bind:this={bodyEl}
     on:touchstart={onTouchStart}
     on:touchmove|nonpassive={onTouchMove}
@@ -462,7 +467,6 @@
     on:touchcancel={onTouchEnd}>
     <div class="pf-body-inner" bind:this={bodyInnerEl}>
 
-      <!-- Hero — avatar SEMPRE circular -->
       <div class="pf-hero">
         <button class="pf-avatar-wrap" style="background:{c.primary}" on:click={openAvatarViewer}>
           {#if user?.avatar}
@@ -539,10 +543,6 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════════════
-       VISUALIZADOR DE AVATAR — círculo pequeno → tela cheia (FLIP).
-       Fecha com o botão físico/gesto de voltar SEM sair da Profile.
-  ══════════════════════════════════════════════════════════════ -->
   {#if showAvatarViewer && user?.avatar}
     <div class="avatar-viewer-overlay" class:avatar-viewer-overlay-in={avatarViewerVisible} on:click={closeAvatarViewer}></div>
     <div class="avatar-viewer" style={avatarViewerStyle}>
@@ -553,10 +553,6 @@
     </button>
   {/if}
 
-  <!-- ══════════════════════════════════════════════════════════════
-       TELA FULLSCREEN DE EDIÇÃO — cards no padrão da tela de
-       Definições. Cada linha é um botão que abre um modal.
-  ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
     <div class="edit-screen"
       style="background:{c.background};color:{c.textPrimary};transform: translate3d(0, {editSlideY}%, 0);">
@@ -584,10 +580,9 @@
 
       <div class="edit-body">
 
-        <!-- Nome — mesma abordagem: botão que abre modal -->
         <div class="edit-section-title" style="color:{c.textSecondary}">Nome</div>
         <div class="edit-card">
-          <button class="edit-row edit-row-btn" on:click={openNameModal}>
+          <button class="edit-row edit-row-btn" on:click={openNameSheet}>
             <div class="edit-row-left">
               <span class="icon-mask edit-row-icon" style="mask-image:url('{ICON.person}');-webkit-mask-image:url('{ICON.person}');background:{c.textSecondary}"></span>
               <span class="edit-row-lbl" style="color:{c.textPrimary}">Nome</span>
@@ -601,28 +596,28 @@
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Localização</div>
         <div class="edit-card">
-          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('age', 'Idade', 'number')}>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldSheet('age', 'Idade', 'number')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
             <div class="edit-row-right-group">
               <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.age ? `${editForm.age} anos` : 'Adicionar'}</span>
               <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
             </div>
           </button>
-          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('country', 'País', 'text')}>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldSheet('country', 'País', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">País</span>
             <div class="edit-row-right-group">
               <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.country || 'Adicionar'}</span>
               <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
             </div>
           </button>
-          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('state', 'Estado / Província', 'text')}>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldSheet('state', 'Estado / Província', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Estado / Província</span>
             <div class="edit-row-right-group">
               <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.state || 'Adicionar'}</span>
               <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
             </div>
           </button>
-          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('city', 'Cidade', 'text')}>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldSheet('city', 'Cidade', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Cidade</span>
             <div class="edit-row-right-group">
               <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.city || 'Adicionar'}</span>
@@ -645,7 +640,7 @@
               <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
             </div>
           </button>
-          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('occupationDetail', 'Detalhe da ocupação', 'text')}>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldSheet('occupationDetail', 'Detalhe da ocupação', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Detalhe</span>
             <div class="edit-row-right-group">
               <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.occupationDetail || 'Adicionar'}</span>
@@ -656,7 +651,7 @@
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Bio</div>
         <div class="edit-card">
-          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('bio', 'Bio', 'textarea')}>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldSheet('bio', 'Bio', 'textarea')}>
             <div class="edit-row-left">
               <span class="icon-mask edit-row-icon" style="mask-image:url('{ICON.textDesc}');-webkit-mask-image:url('{ICON.textDesc}');background:{c.textSecondary}"></span>
               <span class="edit-row-lbl" style="color:{c.textPrimary}">Bio</span>
@@ -673,56 +668,73 @@
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       MODAL — Nome (estilo Fluent/M365: overlay + cartão central)
+       MODAL SHEET — Nome (bottom sheet, não dialog central)
   ══════════════════════════════════════════════════════════════ -->
-  {#if showNameModal}
-    <div class="fluent-overlay" class:fluent-overlay-in={nameModalVisible} on:click={closeNameModal}></div>
-    <div class="fluent-modal" class:fluent-modal-in={nameModalVisible} style="background:{c.dialogBackground}">
-      <div class="fluent-modal-title" style="color:{c.textPrimary}">Nome</div>
-      <input
-        class="fluent-modal-input"
-        style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
-        placeholder="O teu nome"
-        bind:value={nameModalValue} />
-      <div class="fluent-modal-actions">
-        <button class="fluent-btn-cancel" style="color:{c.textPrimary};background:{c.appbarBtnBg}" on:click={closeNameModal}>Cancelar</button>
-        <button class="fluent-btn-save" style="background:{c.primary}" on:click={saveNameModal}>Guardar</button>
+  {#if showNameSheet}
+    <button class="overlay" class:overlay-in={nameSheetOverlayVisible} on:click={closeNameSheet}></button>
+    <div class="field-sheet" bind:this={nameSheetEl}
+      style="background:{c.dialogBackground};transform: translate3d(0, {nameSheetY}%, 0);">
+      <div class="sheet-grab-zone"
+        on:touchstart={nameSheetDrag.touchstart}
+        on:touchmove|nonpassive={nameSheetDrag.touchmove}
+        on:touchend={nameSheetDrag.touchend}
+        on:touchcancel={nameSheetDrag.touchend}>
+        <div class="sheet-handle" style="background:{c.divider}"></div>
+        <div class="field-sheet-title" style="color:{c.textPrimary}">Nome</div>
+      </div>
+      <div class="field-sheet-body">
+        <input
+          bind:this={nameInputEl}
+          class="field-sheet-input"
+          style="color:{c.textPrimary};caret-color:{c.primary};background:{c.appbarBtnBg}"
+          placeholder="O teu nome"
+          bind:value={nameSheetValue} />
+        <button class="field-sheet-save-btn" style="background:{c.primary}" on:click={saveNameSheet}>Guardar</button>
       </div>
     </div>
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       MODAL — Campo genérico (Idade / País / Estado / Cidade /
-       Detalhe / Bio), estilo Fluent/M365
+       MODAL SHEET — Campo genérico (bottom sheet, não dialog central)
   ══════════════════════════════════════════════════════════════ -->
-  {#if showFieldModal}
-    <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
-    <div class="fluent-modal" class:fluent-modal-in={fieldModalVisible} style="background:{c.dialogBackground}">
-      <div class="fluent-modal-title" style="color:{c.textPrimary}">{fieldModalLabel}</div>
-      {#if fieldModalType === 'textarea'}
-        <textarea
-          class="fluent-modal-textarea"
-          style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
-          rows="4"
-          placeholder="Escreve aqui…"
-          bind:value={fieldModalValue}></textarea>
-      {:else if fieldModalType === 'number'}
-        <input
-          type="number" min="0" max="120"
-          class="fluent-modal-input"
-          style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
-          placeholder="—"
-          bind:value={fieldModalValue} />
-      {:else}
-        <input
-          class="fluent-modal-input"
-          style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
-          placeholder="Adicionar"
-          bind:value={fieldModalValue} />
-      {/if}
-      <div class="fluent-modal-actions">
-        <button class="fluent-btn-cancel" style="color:{c.textPrimary};background:{c.appbarBtnBg}" on:click={closeFieldModal}>Cancelar</button>
-        <button class="fluent-btn-save" style="background:{c.primary}" on:click={saveFieldModal}>Guardar</button>
+  {#if showFieldSheet}
+    <button class="overlay" class:overlay-in={fieldSheetOverlayVisible} on:click={closeFieldSheet}></button>
+    <div class="field-sheet" bind:this={fieldSheetEl}
+      style="background:{c.dialogBackground};transform: translate3d(0, {fieldSheetY}%, 0);">
+      <div class="sheet-grab-zone"
+        on:touchstart={fieldSheetDrag.touchstart}
+        on:touchmove|nonpassive={fieldSheetDrag.touchmove}
+        on:touchend={fieldSheetDrag.touchend}
+        on:touchcancel={fieldSheetDrag.touchend}>
+        <div class="sheet-handle" style="background:{c.divider}"></div>
+        <div class="field-sheet-title" style="color:{c.textPrimary}">{fieldSheetLabel}</div>
+      </div>
+      <div class="field-sheet-body">
+        {#if fieldSheetType === 'textarea'}
+          <textarea
+            bind:this={fieldInputEl}
+            class="field-sheet-textarea"
+            style="color:{c.textPrimary};caret-color:{c.primary};background:{c.appbarBtnBg}"
+            rows="4"
+            placeholder="Escreve aqui…"
+            bind:value={fieldSheetValue}></textarea>
+        {:else if fieldSheetType === 'number'}
+          <input
+            bind:this={fieldInputEl}
+            type="number" min="0" max="120"
+            class="field-sheet-input"
+            style="color:{c.textPrimary};caret-color:{c.primary};background:{c.appbarBtnBg}"
+            placeholder="—"
+            bind:value={fieldSheetValue} />
+        {:else}
+          <input
+            bind:this={fieldInputEl}
+            class="field-sheet-input"
+            style="color:{c.textPrimary};caret-color:{c.primary};background:{c.appbarBtnBg}"
+            placeholder="Adicionar"
+            bind:value={fieldSheetValue} />
+        {/if}
+        <button class="field-sheet-save-btn" style="background:{c.primary}" on:click={saveFieldSheet}>Guardar</button>
       </div>
     </div>
   {/if}
@@ -735,10 +747,10 @@
     <div class="bottom-sheet" bind:this={occSheetEl}
       style="background:{c.dialogBackground};transform: translate3d(0, {occSheetY}%, 0);">
       <div class="sheet-grab-zone"
-        on:touchstart={onSheetGrabTouchStart}
-        on:touchmove|nonpassive={onSheetGrabTouchMove}
-        on:touchend={onSheetGrabTouchEnd}
-        on:touchcancel={onSheetGrabTouchEnd}>
+        on:touchstart={occSheetDrag.touchstart}
+        on:touchmove|nonpassive={occSheetDrag.touchmove}
+        on:touchend={occSheetDrag.touchend}
+        on:touchcancel={occSheetDrag.touchend}>
         <div class="sheet-handle" style="background:{c.divider}"></div>
         <div class="sheet-title" style="color:{c.textPrimary}">Ocupação</div>
       </div>
@@ -779,9 +791,8 @@
     padding: calc(env(safe-area-inset-top,0px) + 14px) 14px 12px;
     flex-shrink: 0;
   }
-  /* Botões: sem pill, cantos moderados (não circulares, não quadrados-pill) */
   .pf-icon-btn {
-    width: 36px; height: 36px; border-radius: 10px; border: none;
+    width: 36px; height: 36px; border-radius: 4px; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
@@ -799,7 +810,6 @@
 
   .pf-hero { padding: 24px 16px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
 
-  /* Avatar SEMPRE circular */
   .pf-avatar-wrap {
     position: relative; width: 92px; height: 92px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; overflow: visible;
@@ -840,7 +850,7 @@
 
   .pf-skeleton-wrap { padding: 24px 16px 0; display: flex; flex-direction: column; gap: 10px; }
   .pf-skeleton-row {
-    height: 54px; border-radius: 14px; opacity: .5;
+    height: 54px; border-radius: 16px; opacity: .5;
     background: var(--drawer-bg);
     animation: pf-pulse 1.2s ease-in-out infinite;
   }
@@ -850,7 +860,7 @@
   .pf-section-title { padding: 22px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
   .pf-card {
     margin: 0 16px;
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
     background: var(--drawer-bg);
   }
@@ -875,13 +885,12 @@
   .pf-edit-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: calc(100% - 32px); margin: 20px 16px 0; padding: 15px;
-    border: none; border-radius: 14px; background: var(--accent-primary);
+    border: none; border-radius: 16px; background: var(--accent-primary);
     color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s, background .18s ease;
   }
   .pf-edit-btn:active { transform: scale(0.98); opacity: .88; background: var(--accent-primary-active); }
 
-  /* ── Visualizador de avatar (FLIP, sempre circular na origem) ── */
   .avatar-viewer-overlay {
     position: fixed; inset: 0; z-index: 550;
     background: rgba(0,0,0,0);
@@ -902,7 +911,7 @@
   .avatar-viewer-back {
     position: fixed; z-index: 552;
     top: calc(env(safe-area-inset-top,0px) + 14px); left: 14px;
-    width: 40px; height: 40px; border-radius: 10px;
+    width: 40px; height: 40px; border-radius: 4px;
     border: none; background: rgba(0,0,0,.4);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
@@ -912,7 +921,6 @@
   .avatar-viewer-back.avatar-viewer-back-in { opacity: 1; transform: scale(1); }
   .avatar-viewer-back:active { transform: scale(0.88); }
 
-  /* ── Tela de edição ── */
   .edit-screen {
     position: fixed; inset: 0; z-index: 500;
     display: flex; flex-direction: column;
@@ -939,7 +947,7 @@
 
   .edit-card {
     margin: 0 16px;
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
     background: var(--drawer-bg);
   }
@@ -963,44 +971,32 @@
     padding: 12px 16px 16px; font-size: 13.5px; line-height: 1.5;
   }
 
-  /* ── Modal genérico estilo Fluent/M365 (usado em Nome + Campo) ── */
-  .fluent-overlay {
-    position: fixed; inset: 0; z-index: 800;
-    background: rgba(0,0,0,0);
-    transition: background .3s cubic-bezier(0.32, 0.72, 0, 1);
+  /* ── Modal sheet de campo (bottom sheet) — flutuante, não dialog ── */
+  .field-sheet {
+    position: fixed; left: 12px; right: 12px;
+    bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+    border-radius: 24px; z-index: 900;
+    will-change: transform;
+    box-shadow: 0 12px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
+    overflow: hidden;
   }
-  .fluent-overlay.fluent-overlay-in { background: rgba(0,0,0,.5); }
-  .fluent-modal {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.92);
-    opacity: 0;
-    width: calc(100vw - 56px); max-width: 340px;
-    border-radius: 14px; z-index: 801;
-    padding: 20px 18px;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.08);
-    transition: transform .34s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .26s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform, opacity;
+  .field-sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 10px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
+  .field-sheet-body { padding: 4px 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .field-sheet-input {
+    width: 100%; padding: 13px 14px; border-radius: 12px; border: none;
+    font-size: 16px; outline: none; font-family: inherit;
   }
-  .fluent-modal.fluent-modal-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  .fluent-modal-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
-  .fluent-modal-input {
-    width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid;
-    font-size: 15px; outline: none; font-family: inherit;
+  .field-sheet-textarea {
+    width: 100%; padding: 13px 14px; border-radius: 12px; border: none;
+    font-size: 16px; outline: none; font-family: inherit; resize: none; line-height: 1.5;
   }
-  .fluent-modal-textarea {
-    width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid;
-    font-size: 15px; outline: none; font-family: inherit; resize: none; line-height: 1.5;
-  }
-  .fluent-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
-  .fluent-btn-cancel, .fluent-btn-save {
-    flex: 1; padding: 11px; border-radius: 8px; border: none;
-    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  .field-sheet-save-btn {
+    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
     transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .fluent-btn-cancel:active, .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
-  .fluent-btn-save { color: #fff; }
+  .field-sheet-save-btn:active { transform: scale(0.98); opacity: .88; }
 
-  /* ── Overlay + bottom sheet (ocupação) ── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
@@ -1016,7 +1012,7 @@
   .bottom-sheet {
     position: fixed; left: 12px; right: 12px;
     bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
-    border-radius: 26px; z-index: 700;
+    border-radius: 24px; z-index: 700;
     padding: 0 0 10px;
     will-change: transform;
     box-shadow: 0 12px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
@@ -1035,7 +1031,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .pf-root, .pf-icon-btn, .pf-avatar-wrap, .pf-avatar-edit-badge, .pf-edit-btn, .edit-row-btn, .sheet-opt,
-    .avatar-viewer-overlay, .avatar-viewer, .avatar-viewer-back, .fluent-overlay, .fluent-modal {
+    .avatar-viewer-overlay, .avatar-viewer, .avatar-viewer-back, .field-sheet, .field-sheet-save-btn {
       transition: none !important;
     }
   }

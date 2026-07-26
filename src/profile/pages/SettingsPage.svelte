@@ -1,8 +1,7 @@
 <script>
-  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import {
     getThemeColors, getTheme,
-    getAccentColor, setAccentColor,
     getSurfaceTone, setSurfaceTone, getSurfaceTones,
   } from '$shared/theme.js';
   import { logout } from '$shared/auth-guard.js';
@@ -21,7 +20,6 @@
   $: c = getThemeColors(isDark);
 
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
-  const FLUENT_COLOR_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const ICON = {
     back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
     checkmark: `${FLUENT_BASE}/checkmark_24_regular.svg`,
@@ -36,13 +34,9 @@
     help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
     info: `${FLUENT_BASE}/info_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
-    // Ícone de tinta colorido oficial (paint/color) — Fluent color set
-    paint: `${FLUENT_COLOR_BASE}/color_24_filled.svg`,
-    dismiss: `${FLUENT_BASE}/dismiss_24_regular.svg`,
     add: `${FLUENT_BASE}/add_24_regular.svg`,
   };
 
-  // ── Gesto de arrastar da borda esquerda para fechar (edge-swipe) ───
   const EDGE_ZONE = 24;
   const CLOSE_THRESHOLD = 0.32;
   const VELOCITY_FLING = 0.5;
@@ -108,8 +102,6 @@
     { id: 'system', label: 'Sistema' },
   ];
 
-  // Tema efetivo atual (resolve 'system' para light/dark real) — usado
-  // para saber que par de accent/tone está ativo neste momento.
   $: effectiveIsDark = themeValue === 'dark' || (themeValue === 'system' && isDark);
 
   function setThemeValue(v) {
@@ -119,81 +111,15 @@
     dispatch('nav', { to: 'settings', data: { isDark: dark } });
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  COR PREDEFINIDA (accent) — guardada e aplicada por-tema. Abre um
-  //  modal com color picker nativo (input[type=color]) + swatches
-  //  rápidos, estilo Fluent.
-  // ══════════════════════════════════════════════════════════════════
-  let accentValue = getAccentColor(effectiveIsDark);
-  $: accentValue = getAccentColor(effectiveIsDark);
-
-  const ACCENT_QUICK_SWATCHES = [
-    '#0866D1', '#4DA8FF', '#8E44EF', '#E0342A',
-    '#FF9500', '#34C759', '#00B8D9', '#FF2D89',
-  ];
-
-  let showAccentModal = false;
-  let accentModalVisible = false;
-  let accentDraft = accentValue;
-
-  function openAccentModal() {
-    accentDraft = accentValue;
-    showAccentModal = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { accentModalVisible = true; }));
-  }
-  function closeAccentModal() {
-    accentModalVisible = false;
-    setTimeout(() => { showAccentModal = false; }, 240);
-  }
-  function saveAccentModal() {
-    setAccentColor(accentDraft, effectiveIsDark);
-    accentValue = accentDraft;
-    closeAccentModal();
-    showToast('Cor atualizada');
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  //  TOM DE SUPERFÍCIE — barra scrollável de swatches (8 predefinidos
-  //  + 1 "+" custom), guardado/aplicado por-tema.
-  // ══════════════════════════════════════════════════════════════════
   $: surfaceTones = getSurfaceTones(effectiveIsDark);
   let currentTone = getSurfaceTone(effectiveIsDark);
   $: currentTone = getSurfaceTone(effectiveIsDark);
-
-  let showToneCustomModal = false;
-  let toneCustomModalVisible = false;
-  let toneCustomDraft = '#000000';
 
   function pickTone(toneId) {
     setSurfaceTone(toneId, effectiveIsDark);
     currentTone = toneId;
   }
 
-  function openToneCustomModal() {
-    toneCustomDraft = effectiveIsDark ? '#0F0F0F' : '#FFFFFF';
-    showToneCustomModal = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { toneCustomModalVisible = true; }));
-  }
-  function closeToneCustomModal() {
-    toneCustomModalVisible = false;
-    setTimeout(() => { showToneCustomModal = false; }, 240);
-  }
-  function saveToneCustomModal() {
-    // Tom customizado: aplica diretamente as CSS vars com o hex
-    // escolhido para todas as superfícies relacionadas.
-    const root = document.documentElement;
-    root.style.setProperty('--app-bg', toneCustomDraft);
-    root.style.setProperty('--surface', toneCustomDraft);
-    root.style.setProperty('--surface-strong', toneCustomDraft);
-    root.style.setProperty('--drawer-bg', toneCustomDraft);
-    localStorage.setItem(effectiveIsDark ? 'nexa_surface_tone_dark' : 'nexa_surface_tone_light', 'custom');
-    localStorage.setItem(effectiveIsDark ? 'nexa_surface_custom_dark' : 'nexa_surface_custom_light', toneCustomDraft);
-    currentTone = 'custom';
-    closeToneCustomModal();
-    showToast('Tom atualizado');
-  }
-
-  // ── Idioma: bottom sheet ────────────────────────────────────────
   const langSlide = createSlideTransition({});
   let langSheetY = 100;
   const unsubscribeLangSlide = langSlide.subscribe((v) => { langSheetY = v; });
@@ -219,14 +145,9 @@
     showToast('Idioma atualizado');
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  MODAL DE CAMPO simples — reutilizado para Email / Palavra-passe /
-  //  itens de placeholder ("Em breve").
-  // ══════════════════════════════════════════════════════════════════
   let showFieldModal = false;
   let fieldModalVisible = false;
   let fieldModalTitle = '';
-  let fieldModalPlaceholder = 'Em breve';
 
   function openPlaceholderModal(title) {
     fieldModalTitle = title;
@@ -242,9 +163,6 @@
     dispatch('nav', { to: 'profile' });
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  CONFIRMAR LOGOUT
-  // ══════════════════════════════════════════════════════════════════
   let showLogoutDialog = false;
   let logoutDialogVisible = false;
   let logoutMode = 'single';
@@ -276,7 +194,6 @@
     }
   }
 
-  // ── Gesto de arrastar genérico para bottom sheets ─────────────────
   function makeSheetDrag(slideCtrl, getHeight, onClose) {
     let dragging = false, liveActive = false;
     let startY = 0, currentY = 0, startTime = 0, sheetH = 400;
@@ -338,7 +255,6 @@
 
   <div class="st-body">
 
-    <!-- Perfil (topo) -->
     <button class="st-profile-card" on:click={goEditProfile}>
       {#if user?.avatar}
         <img class="st-avatar-img" src={user.avatar} alt={userName} />
@@ -352,110 +268,34 @@
       <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:16px;height:16px;opacity:.5"></span>
     </button>
 
-    <!-- ══════════════ APARÊNCIA ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Aparência</div>
-
-    <!-- Tema (M3 group, cantos 18/5/5/18 — igual ao antigo MeTab) -->
-    <div class="m3-group">
-      <div class="m3-item m3-item-solo theme-section">
-        <div class="theme-cards">
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'light'}
-            on:click={() => setThemeValue('light')}
-            aria-label="Tema claro"
-          >
-            <div class="theme-preview theme-preview-light">
-              <span class="theme-line" style="width:70%"></span>
-              <span class="theme-line" style="width:85%"></span>
-              <span class="theme-line" style="width:55%"></span>
-            </div>
-          </button>
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'system'}
-            on:click={() => setThemeValue('system')}
-            aria-label="Tema automático"
-          >
-            <div class="theme-preview theme-preview-system">
-              <div class="theme-preview-half theme-preview-half-light">
-                <span class="theme-line" style="width:70%"></span>
-                <span class="theme-line" style="width:55%"></span>
-              </div>
-              <div class="theme-preview-half theme-preview-half-dark">
-                <span class="theme-line theme-line-dark" style="width:70%"></span>
-                <span class="theme-line theme-line-dark" style="width:55%"></span>
-              </div>
-            </div>
-          </button>
-          <button
-            class="theme-card"
-            class:theme-card-active={themeValue === 'dark'}
-            on:click={() => setThemeValue('dark')}
-            aria-label="Tema escuro"
-          >
-            <div class="theme-preview theme-preview-dark">
-              <span class="theme-line theme-line-dark" style="width:70%"></span>
-              <span class="theme-line theme-line-dark" style="width:85%"></span>
-              <span class="theme-line theme-line-dark" style="width:55%"></span>
-            </div>
-          </button>
-        </div>
-        <div class="theme-labels">
-          {#each THEME_OPTIONS as opt}
-            <span class="theme-label" class:theme-label-active={themeValue === opt.id}>{opt.label}</span>
-          {/each}
-        </div>
-      </div>
-    </div>
-
-    <!-- Cor predefinida (accent) -->
-    <div class="st-section" style="margin-top:10px">
-      <button class="st-row" on:click={openAccentModal}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon-color" style="mask-image:url('{ICON.paint}');-webkit-mask-image:url('{ICON.paint}');background:{accentValue}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Cor predefinida</span>
-        </div>
-        <div class="st-row-right-group">
-          <span class="accent-dot" style="background:{accentValue}"></span>
-          <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-        </div>
-      </button>
-    </div>
-
-    <!-- Tom de superfície — barra scrollável, aplica-se apenas ao
-         tema atualmente ativo (light OU dark), guardado por-tema. -->
-    <div class="st-section" style="margin-top:10px;padding:14px 0 4px">
-      <div class="tone-header">
-        <span class="st-row-label" style="color:{c.textPrimary};padding:0 16px">Tom do app</span>
-        <span class="tone-header-sub" style="color:{c.textSecondary}">Aplica-se apenas ao tema {effectiveIsDark ? 'escuro' : 'claro'}</span>
-      </div>
-      <div class="tone-scroll">
-        {#each surfaceTones as tone (tone.id)}
-          <button class="tone-swatch-btn" on:click={() => pickTone(tone.id)} aria-label={tone.label}>
-            <span
-              class="tone-swatch"
-              class:tone-swatch-active={currentTone === tone.id}
-              style="background:{tone.swatch};border-color:{c.divider}"
-            >
-              {#if currentTone === tone.id}
-                <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:{effectiveIsDark ? '#fff' : '#111'};width:15px;height:15px"></span>
+    <div class="st-section">
+      <div class="st-theme-row">
+        {#each THEME_OPTIONS as opt}
+          <button class="st-theme-item" on:click={() => setThemeValue(opt.id)}>
+            <div class="theme-preview" class:theme-preview-active={themeValue === opt.id}>
+              {#if opt.id === 'light'}
+                <div class="theme-preview-face theme-preview-light">
+                  <span class="theme-line" style="width:70%"></span>
+                  <span class="theme-line" style="width:85%"></span>
+                </div>
+              {:else if opt.id === 'dark'}
+                <div class="theme-preview-face theme-preview-dark">
+                  <span class="theme-line theme-line-dark" style="width:70%"></span>
+                  <span class="theme-line theme-line-dark" style="width:85%"></span>
+                </div>
+              {:else}
+                <div class="theme-preview-face theme-preview-system">
+                  <div class="theme-preview-half theme-preview-half-light"></div>
+                  <div class="theme-preview-half theme-preview-half-dark"></div>
+                </div>
               {/if}
-            </span>
-            <span class="tone-swatch-label" style="color:{c.textSecondary}">{tone.label}</span>
+            </div>
+            <span class="theme-item-label" class:theme-item-label-active={themeValue === opt.id} style="color:{themeValue === opt.id ? c.textPrimary : c.textSecondary}">{opt.label}</span>
           </button>
         {/each}
-        <button class="tone-swatch-btn" on:click={openToneCustomModal} aria-label="Cor personalizada">
-          <span class="tone-swatch tone-swatch-custom" class:tone-swatch-active={currentTone === 'custom'} style="border-color:{c.divider}">
-            <span class="icon-mask" style="mask-image:url('{ICON.add}');-webkit-mask-image:url('{ICON.add}');background:{c.textSecondary};width:18px;height:18px"></span>
-          </span>
-          <span class="tone-swatch-label" style="color:{c.textSecondary}">Custom</span>
-        </button>
       </div>
-    </div>
 
-    <!-- Idioma -->
-    <div class="st-section" style="margin-top:10px">
       <button class="st-row" on:click={openLangSheet}>
         <div class="st-row-left">
           <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.globe}');-webkit-mask-image:url('{ICON.globe}');background:{c.textSecondary}"></span>
@@ -466,9 +306,31 @@
           <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
         </div>
       </button>
+
+      <div class="tone-block">
+        <div class="tone-header">
+          <span class="st-row-label" style="color:{c.textPrimary}">Tom do app</span>
+          <span class="tone-header-sub" style="color:{c.textSecondary}">Aplica-se ao tema {effectiveIsDark ? 'escuro' : 'claro'}</span>
+        </div>
+        <div class="tone-scroll">
+          {#each surfaceTones as tone (tone.id)}
+            <button class="tone-swatch-btn" on:click={() => pickTone(tone.id)} aria-label={tone.label}>
+              <span
+                class="tone-swatch"
+                class:tone-swatch-active={currentTone === tone.id}
+                style="background:{tone.swatch};border-color:{c.divider}"
+              >
+                {#if currentTone === tone.id}
+                  <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:{effectiveIsDark ? '#fff' : '#111'};width:15px;height:15px"></span>
+                {/if}
+              </span>
+              <span class="tone-swatch-label" style="color:{c.textSecondary}">{tone.label}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
     </div>
 
-    <!-- ══════════════ CONTA ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Conta</div>
     <div class="st-section">
       <button class="st-row" on:click={goEditProfile}>
@@ -497,7 +359,6 @@
       </button>
     </div>
 
-    <!-- ══════════════ PRIVACIDADE E SEGURANÇA ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Privacidade e segurança</div>
     <div class="st-section">
       <button class="st-row" on:click={() => openPlaceholderModal('Privacidade e segurança')}>
@@ -509,7 +370,6 @@
       </button>
     </div>
 
-    <!-- ══════════════ NOTIFICAÇÕES ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Notificações</div>
     <div class="st-section">
       <button class="st-row" on:click={() => openPlaceholderModal('Notificações por email')}>
@@ -521,7 +381,6 @@
       </button>
     </div>
 
-    <!-- ══════════════ PREFERÊNCIAS ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Preferências</div>
     <div class="st-section">
       <button class="st-row" on:click={() => openPlaceholderModal('Armazenamento')}>
@@ -533,7 +392,6 @@
       </button>
     </div>
 
-    <!-- ══════════════ GERAL ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Geral</div>
     <div class="st-section">
       <button class="st-row" on:click={() => openPlaceholderModal('Ajuda e suporte')}>
@@ -552,7 +410,6 @@
       </button>
     </div>
 
-    <!-- ══════════════ CONTA — LOGOUT ══════════════ -->
     <div class="st-section-label" style="color:{c.settings_section_label}">Sessão</div>
     <div class="st-section">
       <button class="st-row" on:click={() => openLogoutDialog('all')}>
@@ -570,74 +427,17 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════════════
-       MODAL — Cor predefinida (accent), estilo Fluent/M365
-  ══════════════════════════════════════════════════════════════ -->
-  {#if showAccentModal}
-    <div class="fluent-overlay" class:fluent-overlay-in={accentModalVisible} on:click={closeAccentModal}></div>
-    <div class="fluent-modal" class:fluent-modal-in={accentModalVisible} style="background:{c.dialogBackground}">
-      <div class="fluent-modal-title" style="color:{c.textPrimary}">Cor predefinida</div>
-      <div class="fluent-modal-sub" style="color:{c.textSecondary}">Aplica-se ao tema {effectiveIsDark ? 'escuro' : 'claro'}</div>
-
-      <div class="accent-preview-row">
-        <input type="color" class="accent-native-picker" bind:value={accentDraft} />
-        <span class="accent-preview-hex" style="color:{c.textPrimary}">{accentDraft.toUpperCase()}</span>
-      </div>
-
-      <div class="accent-swatch-grid">
-        {#each ACCENT_QUICK_SWATCHES as sw}
-          <button class="accent-grid-swatch" style="background:{sw}" class:accent-grid-swatch-active={accentDraft.toLowerCase() === sw.toLowerCase()} on:click={() => accentDraft = sw}>
-            {#if accentDraft.toLowerCase() === sw.toLowerCase()}
-              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:#fff;width:16px;height:16px"></span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-
-      <div class="fluent-modal-actions">
-        <button class="fluent-btn-cancel" style="color:{c.textPrimary};background:{c.appbarBtnBg}" on:click={closeAccentModal}>Cancelar</button>
-        <button class="fluent-btn-save" style="background:{accentDraft}" on:click={saveAccentModal}>Guardar</button>
-      </div>
-    </div>
-  {/if}
-
-  <!-- ══════════════════════════════════════════════════════════════
-       MODAL — Tom personalizado (custom), estilo Fluent/M365
-  ══════════════════════════════════════════════════════════════ -->
-  {#if showToneCustomModal}
-    <div class="fluent-overlay" class:fluent-overlay-in={toneCustomModalVisible} on:click={closeToneCustomModal}></div>
-    <div class="fluent-modal" class:fluent-modal-in={toneCustomModalVisible} style="background:{c.dialogBackground}">
-      <div class="fluent-modal-title" style="color:{c.textPrimary}">Tom personalizado</div>
-      <div class="fluent-modal-sub" style="color:{c.textSecondary}">Aplica-se ao tema {effectiveIsDark ? 'escuro' : 'claro'}</div>
-
-      <div class="accent-preview-row">
-        <input type="color" class="accent-native-picker" bind:value={toneCustomDraft} />
-        <span class="accent-preview-hex" style="color:{c.textPrimary}">{toneCustomDraft.toUpperCase()}</span>
-      </div>
-
-      <div class="fluent-modal-actions">
-        <button class="fluent-btn-cancel" style="color:{c.textPrimary};background:{c.appbarBtnBg}" on:click={closeToneCustomModal}>Cancelar</button>
-        <button class="fluent-btn-save" style="background:{toneCustomDraft}" on:click={saveToneCustomModal}>Guardar</button>
-      </div>
-    </div>
-  {/if}
-
-  <!-- ══════════════════════════════════════════════════════════════
-       MODAL — placeholder genérico ("Em breve") para itens ainda
-       não implementados (Email, Palavra-passe, Privacidade, etc.)
-  ══════════════════════════════════════════════════════════════ -->
   {#if showFieldModal}
     <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
     <div class="fluent-modal" class:fluent-modal-in={fieldModalVisible} style="background:{c.dialogBackground}">
       <div class="fluent-modal-title" style="color:{c.textPrimary}">{fieldModalTitle}</div>
-      <div class="fluent-modal-sub" style="color:{c.textSecondary}">{fieldModalPlaceholder}</div>
+      <div class="fluent-modal-sub" style="color:{c.textSecondary}">Em breve</div>
       <div class="fluent-modal-actions">
         <button class="fluent-btn-save" style="background:{c.primary}" on:click={closeFieldModal}>Entendido</button>
       </div>
     </div>
   {/if}
 
-  <!-- ══ POPUP — Idioma ══ -->
   {#if showLangSheet}
     <button class="overlay" class:overlay-in={langOverlayVisible} on:click={closeLangSheet}></button>
     <div class="bottom-sheet" bind:this={langSheetEl} style="background:{c.dialogBackground};transform: translate3d(0, {langSheetY}%, 0);">
@@ -662,7 +462,6 @@
     </div>
   {/if}
 
-  <!-- ══ CONFIRMAR LOGOUT ══ -->
   {#if showLogoutDialog}
     <div class="logout-overlay" class:logout-overlay-in={logoutDialogVisible}></div>
     <div class="logout-dialog" class:logout-dialog-in={logoutDialogVisible} style="background:{c.dialogBackground}">
@@ -694,7 +493,7 @@
     padding: calc(env(safe-area-inset-top,0px) + 14px) 16px 12px; flex-shrink: 0;
   }
   .st-icon-btn {
-    width: 36px; height: 36px; border-radius: 10px; border: none;
+    width: 36px; height: 36px; border-radius: 4px; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
@@ -705,7 +504,7 @@
   .st-profile-card {
     display: flex; align-items: center; gap: 14px; padding: 16px; width: 100%;
     border: none; cursor: pointer; text-align: left; font: inherit;
-    border-radius: 14px; margin-bottom: 26px;
+    border-radius: 16px; margin-bottom: 26px;
     background: var(--drawer-bg);
     transition: opacity .16s ease;
   }
@@ -720,9 +519,8 @@
   .st-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 22px 4px 10px; }
   .st-body > .st-section-label:first-of-type { padding-top: 0; }
 
-  /* Cards no padrão M3 original (sem pills — raio moderado 14px) */
   .st-section {
-    border-radius: 14px; overflow: hidden;
+    border-radius: 16px; overflow: hidden;
     background: var(--drawer-bg);
   }
   :global([data-theme="dark"]) .st-section { background: var(--btn-bg); }
@@ -738,13 +536,10 @@
   .st-row:active { opacity: .7; }
   .st-row-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .st-row-icon { width: 22px; height: 22px; flex-shrink: 0; }
-  .st-row-icon-color { width: 22px; height: 22px; flex-shrink: 0; }
   .st-row-label { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .st-row-right-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .st-row-value { font-size: 13.5px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .st-danger { color: var(--danger); }
-
-  .accent-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); }
 
   .icon-mask {
     display: block; flex-shrink: 0;
@@ -753,68 +548,42 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* ---------- Grupo M3 (Tema) — mesmo padrão de cantos que existia:
-     pontas 18px, junções internas 5px. Agora só tem UM item (solo),
-     por isso usa border-radius:18px uniforme. ---------- */
-  .m3-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  .st-theme-row {
+    display: flex; gap: 10px;
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid var(--drawer-sep);
   }
-  .m3-item-solo {
-    border-radius: 18px;
+  .st-theme-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: none; border: none; cursor: pointer; padding: 0;
   }
-  .m3-item {
-    width: 100%;
-    background: color-mix(in srgb, var(--btn-bg) 55%, transparent);
-  }
-
-  .theme-section {
-    padding: 14px 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .theme-cards { display: flex; gap: 8px; }
-  .theme-card {
-    flex: 1;
-    aspect-ratio: 1 / 0.62;
-    padding: 3px;
+  .theme-preview {
+    width: 100%; aspect-ratio: 1 / 0.68;
     border-radius: 10px;
     border: 2px solid transparent;
-    background: transparent;
-    cursor: pointer;
+    padding: 3px;
     display: flex;
     transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .theme-card-active { border-color: var(--accent-primary); }
-  .theme-preview {
-    flex: 1;
-    border-radius: 7px;
-    border: 1px solid rgba(0,0,0,0.08);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    padding: 0 7px;
-    overflow: hidden;
-    position: relative;
+  .theme-preview-active { border-color: var(--accent-primary); }
+  .theme-preview-face {
+    flex: 1; border-radius: 7px; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 8px;
   }
   .theme-preview-light { background: #EDEDED; }
   .theme-preview-dark { background: #1C1C1E; }
   .theme-line { display: block; height: 4px; border-radius: 2px; background: #D9D9DE; }
   .theme-line-dark { background: #48484A; }
   .theme-preview-system { padding: 0; flex-direction: row; }
-  .theme-preview-half { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 6px; position: relative; }
-  .theme-preview-half-light { background: #EDEDED; clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%); padding-right: 12px; }
-  .theme-preview-half-dark { background: #1C1C1E; margin-left: -10px; clip-path: polygon(22% 0, 100% 0, 100% 100%, 0% 100%); padding-left: 14px; }
-  .theme-labels { display: flex; gap: 8px; }
-  .theme-label { flex: 1; text-align: center; font-size: 11.5px; font-weight: 500; color: var(--text-faint); }
-  .theme-label-active { font-weight: 700; color: var(--drawer-text); }
+  .theme-preview-half { flex: 1; }
+  .theme-preview-half-light { background: #EDEDED; }
+  .theme-preview-half-dark { background: #1C1C1E; }
+  .theme-item-label { font-size: 12.5px; font-weight: 500; }
+  .theme-item-label-active { font-weight: 700; }
 
-  /* ---------- Tom do app: barra scrollável horizontal de swatches ---------- */
-  .tone-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
-  .tone-header-sub { font-size: 12px; padding: 0 16px; }
+  .tone-block { padding: 16px 0 12px; }
+  .tone-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; padding: 0 16px; }
+  .tone-header-sub { font-size: 12px; }
   .tone-scroll {
     display: flex; gap: 12px; overflow-x: auto; padding: 2px 16px 6px;
     -webkit-overflow-scrolling: touch; scrollbar-width: thin;
@@ -831,11 +600,9 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s ease;
   }
   .tone-swatch-active { box-shadow: 0 0 0 2px var(--accent-primary); transform: scale(1.04); }
-  .tone-swatch-custom { background: transparent; border-style: dashed; }
   .tone-swatch-btn:active .tone-swatch { transform: scale(0.92); }
   .tone-swatch-label { font-size: 10.5px; font-weight: 500; max-width: 50px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* ---------- Modal genérico Fluent/M365 ---------- */
   .fluent-overlay {
     position: fixed; inset: 0; z-index: 800;
     background: rgba(0,0,0,0);
@@ -846,8 +613,8 @@
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.92);
     opacity: 0;
-    width: calc(100vw - 56px); max-width: 360px;
-    border-radius: 14px; z-index: 801;
+    width: calc(100vw - 56px); max-width: 340px;
+    border-radius: 16px; z-index: 801;
     padding: 20px 18px;
     box-shadow: 0 16px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.08);
     transition: transform .34s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .26s cubic-bezier(0.32, 0.72, 0, 1);
@@ -857,38 +624,13 @@
   .fluent-modal-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
   .fluent-modal-sub { font-size: 12.5px; margin-bottom: 16px; }
   .fluent-modal-actions { display: flex; gap: 8px; margin-top: 18px; }
-  .fluent-btn-cancel, .fluent-btn-save {
-    flex: 1; padding: 11px; border-radius: 8px; border: none;
-    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  .fluent-btn-save {
+    flex: 1; padding: 11px; border-radius: 10px; border: none;
+    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: #fff;
     transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .fluent-btn-cancel:active, .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
-  .fluent-btn-save { color: #fff; }
+  .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
 
-  .accent-preview-row {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
-    padding: 10px 12px; border-radius: 10px; background: rgba(127,127,127,0.08);
-  }
-  .accent-native-picker {
-    width: 40px; height: 40px; border-radius: 10px; border: none; padding: 0;
-    cursor: pointer; background: none;
-  }
-  .accent-native-picker::-webkit-color-swatch-wrapper { padding: 0; border-radius: 10px; }
-  .accent-native-picker::-webkit-color-swatch { border: none; border-radius: 10px; }
-  .accent-preview-hex { font-size: 14px; font-weight: 600; letter-spacing: .03em; }
-
-  .accent-swatch-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-  }
-  .accent-grid-swatch {
-    aspect-ratio: 1; border-radius: 10px; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .accent-grid-swatch:active { transform: scale(0.9); }
-  .accent-grid-swatch-active { box-shadow: 0 0 0 2px white, 0 0 0 4px var(--accent-primary); }
-
-  /* ---------- Bottom sheet (idioma) ---------- */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
@@ -904,7 +646,7 @@
   .bottom-sheet {
     position: fixed; left: 12px; right: 12px;
     bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
-    border-radius: 26px; z-index: 700;
+    border-radius: 24px; z-index: 700;
     padding: 0 0 10px;
     will-change: transform;
     box-shadow: 0 12px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
@@ -922,7 +664,6 @@
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
-  /* ---------- Confirmar logout ---------- */
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
     background: rgba(0, 0, 0, 0);
@@ -939,7 +680,7 @@
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.92);
     opacity: 0;
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 26px 22px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
     z-index: 81;
@@ -951,7 +692,7 @@
   .logout-dialog-text { font-size: 15.5px; line-height: 1.45; margin: 0 0 22px; text-align: center; font-family: inherit; }
   .logout-dialog-actions { display: flex; flex-direction: column; gap: 10px; }
   .logout-btn-cancel, .logout-btn-confirm {
-    width: 100%; padding: 13px 20px; border-radius: 10px; border: none;
+    width: 100%; padding: 13px 20px; border-radius: 12px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
@@ -963,7 +704,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .st-icon-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .overlay, .fluent-overlay, .fluent-modal, .theme-card, .tone-swatch, .accent-grid-swatch {
+    .overlay, .fluent-overlay, .fluent-modal, .theme-preview, .tone-swatch {
       transition: none !important;
     }
   }

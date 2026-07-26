@@ -115,64 +115,58 @@
   {/if}
 
   <div class="section-label">Aparência</div>
-  <div class="me-section">
-    <div class="me-theme-row">
-      <div class="me-theme-row-head">
-        <span class="icon-mask" style="mask-image:url('{ICON.moon}');-webkit-mask-image:url('{ICON.moon}');width:22px;height:22px;background:var(--drawer-text)"></span>
-        <span class="me-row-label">Tema</span>
-      </div>
-      <div class="me-theme-pills">
-        {#each THEME_OPTIONS as opt}
-          <button
-            class="me-theme-choice"
-            class:me-theme-choice-active={themeValue === opt.id}
-            on:click={() => onApplyTheme(opt.id)}
-          >{opt.label}</button>
-        {/each}
-      </div>
+  <div class="me-theme-row">
+    <div class="me-theme-row-head">
+      <span class="icon-mask" style="mask-image:url('{ICON.moon}');-webkit-mask-image:url('{ICON.moon}');width:22px;height:22px;background:var(--drawer-text)"></span>
+      <span class="me-row-label">Tema</span>
+    </div>
+    <div class="me-theme-pills">
+      {#each THEME_OPTIONS as opt}
+        <button
+          class="me-theme-choice"
+          class:me-theme-choice-active={themeValue === opt.id}
+          on:click={() => onApplyTheme(opt.id)}
+        >{opt.label}</button>
+      {/each}
     </div>
   </div>
 
   <div class="section-label">Conta</div>
-  <div class="me-section">
-    <button class="me-row native-tap" on:click={goProfile}>
-      <span class="me-row-icon" style="mask-image:url('{ICON.person}');-webkit-mask-image:url('{ICON.person}')"></span>
-      <span class="me-row-text">
-        <span class="me-row-label">Perfil</span>
-      </span>
-      <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-    </button>
-    <button class="me-row native-tap" on:click={goNotifications}>
-      <span class="me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
-      <span class="me-row-text">
-        <span class="me-row-label">Notificações</span>
-      </span>
-      <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-    </button>
-    <button class="me-row native-tap" on:click={goSettings}>
-      <span class="me-row-icon" style="mask-image:url('{ICON.settings}');-webkit-mask-image:url('{ICON.settings}')"></span>
-      <span class="me-row-text">
-        <span class="me-row-label">Definições</span>
-      </span>
-      <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-    </button>
-    <button class="me-row native-tap" on:click={goHelp}>
-      <span class="me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
-      <span class="me-row-text">
-        <span class="me-row-label">Ajuda e suporte</span>
-      </span>
-      <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-    </button>
-  </div>
+  <button class="me-row native-tap" on:click={goProfile}>
+    <span class="me-row-icon" style="mask-image:url('{ICON.person}');-webkit-mask-image:url('{ICON.person}')"></span>
+    <span class="me-row-text">
+      <span class="me-row-label">Perfil</span>
+    </span>
+    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
+  </button>
+  <button class="me-row native-tap" on:click={goNotifications}>
+    <span class="me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
+    <span class="me-row-text">
+      <span class="me-row-label">Notificações</span>
+    </span>
+    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
+  </button>
+  <button class="me-row native-tap" on:click={goSettings}>
+    <span class="me-row-icon" style="mask-image:url('{ICON.settings}');-webkit-mask-image:url('{ICON.settings}')"></span>
+    <span class="me-row-text">
+      <span class="me-row-label">Definições</span>
+    </span>
+    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
+  </button>
+  <button class="me-row native-tap" on:click={goHelp}>
+    <span class="me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
+    <span class="me-row-text">
+      <span class="me-row-label">Ajuda e suporte</span>
+    </span>
+    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
+  </button>
 
-  <div class="me-section me-section-danger">
-    <button class="me-row me-row-danger native-tap" on:click={openLogoutDialog}>
-      <span class="me-row-icon me-row-icon-danger" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
-      <span class="me-row-text">
-        <span class="me-row-label me-row-label-danger">Terminar sessão</span>
-      </span>
-    </button>
-  </div>
+  <button class="me-row me-row-danger me-row-danger-top native-tap" on:click={openLogoutDialog}>
+    <span class="me-row-icon me-row-icon-danger" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
+    <span class="me-row-text">
+      <span class="me-row-label me-row-label-danger">Terminar sessão</span>
+    </span>
+  </button>
 </div>
 
 {#if showLogoutDialog}
@@ -259,16 +253,9 @@
   }
   .me-tab > .section-label:first-of-type { margin-top: 4px; }
 
-  .me-section {
-    margin: 0 14px 0;
-    border-radius: 16px;
-    overflow: hidden;
-    background: var(--drawer-bg);
-  }
-  :global([data-theme="dark"]) .me-section { background: var(--btn-bg); }
-
   .me-theme-row {
-    padding: 14px 16px 16px;
+    margin: 0 14px;
+    padding: 14px 2px 16px;
     display: flex; flex-direction: column; gap: 12px;
   }
   .me-theme-row-head { display: flex; align-items: center; gap: 12px; }
@@ -302,7 +289,7 @@
     -webkit-tap-highlight-color: transparent;
     border-bottom: 1px solid var(--drawer-sep, rgba(127,127,127,0.14));
   }
-  .me-row:last-child { border-bottom: none; }
+  .me-row-danger-top { border-top: 1px solid var(--drawer-sep, rgba(127,127,127,0.14)); margin-top: 22px; }
   .me-row-icon {
     width: 24px; height: 24px; flex-shrink: 0; display: block;
     background: var(--icon-strong);
@@ -324,11 +311,6 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
     opacity: 0.5;
-  }
-
-  .me-section-danger {
-    margin-top: 22px;
-    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
   }
 
   .native-tap:active { background: var(--row-active, rgba(127,127,127,0.08)); }

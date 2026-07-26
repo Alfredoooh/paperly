@@ -18,8 +18,8 @@
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const ICON = {
     download: `${FLUENT_BASE}/arrow_download_24_regular.svg`,
-    bell: `${FLUENT_BASE}/alert_24_color.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_color.svg`,
+    bell: `${FLUENT_BASE}/alert_24_regular.svg`,
+    help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
   };
 
@@ -111,23 +111,24 @@
       <span class="me-row-label">Modo escuro</span>
     </span>
     <span
-      class="fluent-switch"
-      class:fluent-switch-on={isDark}
+      class="android-switch"
+      class:android-switch-on={isDark}
       role="switch"
       aria-checked={isDark}
     >
-      <span class="fluent-switch-thumb"></span>
+      <span class="android-switch-track"></span>
+      <span class="android-switch-thumb"></span>
     </span>
   </button>
 
   <button class="me-row native-tap" on:click={goNotifications}>
-    <img class="me-row-icon" src={ICON.bell} alt="" />
+    <span class="icon-mask me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Notificações</span>
     </span>
   </button>
   <button class="me-row native-tap" on:click={goHelp}>
-    <img class="me-row-icon" src={ICON.help} alt="" />
+    <span class="icon-mask me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Ajuda e suporte</span>
     </span>
@@ -140,13 +141,13 @@
 </button>
 
 {#if showLogoutDialog}
-  <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}>
-    <div class="logout-dialog" class:logout-dialog-in={dialogVisible} on:click|stopPropagation>
-      <p class="logout-dialog-text">Tens a certeza que queres terminar sessão?</p>
-      <div class="logout-dialog-actions">
-        <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
-        <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Terminar</button>
-      </div>
+  <div class="sheet-overlay" class:sheet-overlay-in={dialogVisible} on:click={cancelLogout}></div>
+  <div class="sheet-dialog" class:sheet-dialog-in={dialogVisible}>
+    <div class="sheet-handle"></div>
+    <p class="logout-dialog-text">Tens a certeza que queres terminar sessão?</p>
+    <div class="logout-dialog-actions">
+      <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Terminar</button>
+      <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
     </div>
   </div>
 {/if}
@@ -215,7 +216,13 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
-  .me-row-icon { width: 24px; height: 24px; flex-shrink: 0; display: block; }
+  .me-row-icon {
+    width: 24px; height: 24px; flex-shrink: 0; display: block;
+    background: var(--icon-strong);
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: center; -webkit-mask-position: center;
+  }
   .me-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
   .me-row-label {
     font-size: 15px; font-weight: 500;
@@ -235,36 +242,47 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* Fluent-style toggle switch */
-  .fluent-switch {
+  /* Android (Material) native switch: track + thumb that grows/moves,
+     matching the stock Android toggle look (not the thin Fluent rail). */
+  .android-switch {
     position: relative;
     flex-shrink: 0;
-    width: 40px;
-    height: 20px;
-    border-radius: 999px;
-    border: 2px solid var(--icon-faint);
-    background: transparent;
-    box-sizing: border-box;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), border-color .18s cubic-bezier(0.32, 0.72, 0, 1);
+    width: 52px;
+    height: 32px;
+    display: flex;
+    align-items: center;
   }
-  .fluent-switch-thumb {
+  .android-switch-track {
     position: absolute;
-    top: 2px; left: 2px;
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    background: var(--icon-faint);
-    transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1), background .18s cubic-bezier(0.32, 0.72, 0, 1);
+    inset: 0;
+    border-radius: 999px;
+    background: var(--switch-track-off, rgba(120,120,128,0.32));
+    border: 2px solid var(--switch-track-off, rgba(120,120,128,0.32));
+    transition: background .2s cubic-bezier(0.2, 0, 0, 1), border-color .2s cubic-bezier(0.2, 0, 0, 1);
   }
-  .fluent-switch-on {
+  .android-switch-thumb {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--switch-thumb-off, #787880);
+    transform: translate(0, -50%) scale(1);
+    transition: transform .2s cubic-bezier(0.2, 0, 0, 1), background .2s cubic-bezier(0.2, 0, 0, 1), width .15s ease, height .15s ease, left .2s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .android-switch-on .android-switch-track {
     background: #0078D4;
     border-color: #0078D4;
   }
-  .fluent-switch-on .fluent-switch-thumb {
+  .android-switch-on .android-switch-thumb {
+    left: 30px;
+    width: 24px;
+    height: 24px;
     background: #fff;
-    transform: translateX(20px);
+    transform: translate(0, -50%);
   }
 
-  /* Logout button: fixed above bottom bar, slim, Microsoft blue */
   .logout-fab {
     position: fixed;
     left: 14px;
@@ -280,10 +298,10 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #0078D4;
+    background: #FF444F;
   }
-  :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
-  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
+  :global([data-theme="dark"]) .logout-fab { background: rgba(255,68,79,0.5); }
+  :global([data-theme="light"]) .logout-fab { background: #FF444F; }
 
   .logout-fab-icon {
     width: 18px; height: 18px;
@@ -294,41 +312,48 @@
     color: #fff;
   }
 
-  .logout-overlay {
+  /* Bottom sheet style dialog — replaces the centered modal */
+  .sheet-overlay {
     position: fixed; inset: 0; z-index: 80;
     background: rgba(0,0,0,0);
-    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: background .3s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .logout-overlay.logout-overlay-in { background: rgba(0,0,0,0.5); }
-  .logout-dialog {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.90);
-    opacity: 0;
-    background: var(--surface);
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  .sheet-overlay.sheet-overlay-in { background: rgba(0,0,0,0.45); }
+  .sheet-dialog {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
     z-index: 81;
-    min-width: 280px; max-width: 90vw;
-    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform, opacity;
+    background: var(--surface);
+    border-radius: 28px 28px 0 0;
+    padding: 10px 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    transform: translateY(100%);
+    transition: transform .34s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
   }
-  .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  .sheet-dialog.sheet-dialog-in { transform: translateY(0); }
+  .sheet-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--icon-faint);
+    opacity: .6;
+    margin: 4px auto 18px;
+  }
   .logout-dialog-text { font-size: 16px; color: var(--text-primary); margin: 0 0 20px; text-align: center; font-family: inherit; }
-  .logout-dialog-actions { display: flex; gap: 12px; justify-content: center; }
+  .logout-dialog-actions { display: flex; flex-direction: column; gap: 10px; }
   .logout-btn-cancel, .logout-btn-confirm {
-    flex: 1; padding: 12px 20px; border-radius: 12px; border: none;
+    width: 100%; padding: 14px 20px; border-radius: 999px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .logout-btn-cancel { background: var(--btn-bg); color: var(--text-primary); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #0078D4; color: white; }
-  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
+  .logout-btn-confirm { background: #FF444F; color: white; }
+  :global([data-theme="dark"]) .logout-btn-confirm { background: rgba(255,68,79,0.5); }
+  :global([data-theme="light"]) .logout-btn-confirm { background: #FF444F; }
+  .logout-btn-confirm:active { transform: scale(0.96); opacity: .85; }
 
   @media (prefers-reduced-motion: reduce) {
     .me-row, .me-avatar-block, .me-install, .logout-fab,
-    .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .pulse-tap, .fluent-switch, .fluent-switch-thumb { transition: none !important; }
+    .sheet-overlay, .sheet-dialog, .logout-btn-cancel, .logout-btn-confirm,
+    .pulse-tap, .android-switch-track, .android-switch-thumb { transition: none !important; }
   }
 </style>

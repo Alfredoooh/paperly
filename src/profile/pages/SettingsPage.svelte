@@ -25,8 +25,8 @@
     bell: `${FLUENT_BASE}/alert_24_color.svg`,
     storage: `${FLUENT_BASE}/database_24_color.svg`,
     globe: `${FLUENT_BASE}/globe_24_color.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_color.svg`,
-    info: `${FLUENT_BASE}/info_24_color.svg`,
+    help: `${FLUENT_BASE}/chat_bubbles_question_24_color.svg`,
+    info: `${FLUENT_BASE}/certificate_24_color.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
   };
 
@@ -124,18 +124,18 @@
     showToast('Idioma atualizado');
   }
 
-  let showFieldModal = false;
-  let fieldModalVisible = false;
-  let fieldModalTitle = '';
+  let showFieldSheet = false;
+  let fieldSheetVisible = false;
+  let fieldSheetTitle = '';
 
-  function openPlaceholderModal(title) {
-    fieldModalTitle = title;
-    showFieldModal = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { fieldModalVisible = true; }));
+  function openPlaceholderSheet(title) {
+    fieldSheetTitle = title;
+    showFieldSheet = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { fieldSheetVisible = true; }));
   }
-  function closeFieldModal() {
-    fieldModalVisible = false;
-    setTimeout(() => { showFieldModal = false; }, 240);
+  function closeFieldSheet() {
+    fieldSheetVisible = false;
+    setTimeout(() => { showFieldSheet = false; }, 260);
   }
 
   let showLogoutDialog = false;
@@ -255,7 +255,7 @@
     </div>
 
     <div class="st-group">
-      <button class="st-row" on:click={() => openPlaceholderModal('Privacidade e segurança')}>
+      <button class="st-row" on:click={() => openPlaceholderSheet('Privacidade e segurança')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.shield} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
@@ -265,7 +265,7 @@
     </div>
 
     <div class="st-group">
-      <button class="st-row" on:click={() => openPlaceholderModal('Notificações por email')}>
+      <button class="st-row" on:click={() => openPlaceholderSheet('Notificações por email')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.bell} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
@@ -275,7 +275,7 @@
     </div>
 
     <div class="st-group">
-      <button class="st-row" on:click={() => openPlaceholderModal('Armazenamento')}>
+      <button class="st-row" on:click={() => openPlaceholderSheet('Armazenamento')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.storage} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
@@ -285,14 +285,14 @@
     </div>
 
     <div class="st-group">
-      <button class="st-row" on:click={() => openPlaceholderModal('Ajuda e suporte')}>
+      <button class="st-row" on:click={() => openPlaceholderSheet('Ajuda e suporte')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.help} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
         </div>
         <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
       </button>
-      <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
+      <button class="st-row" on:click={() => openPlaceholderSheet('Sobre')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.info} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
@@ -304,8 +304,8 @@
     <div class="st-group">
       <button class="st-row" on:click={() => openLogoutDialog('all')}>
         <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
+          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:#0078D4"></span>
+          <span class="st-row-label" style="color:#0078D4">Terminar sessão em todos os dispositivos</span>
         </div>
       </button>
     </div>
@@ -316,14 +316,13 @@
     <span class="logout-fab-label">Terminar sessão</span>
   </button>
 
-  {#if showFieldModal}
-    <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
-    <div class="fluent-modal" class:fluent-modal-in={fieldModalVisible} style="background:{c.dialogBackground}">
-      <div class="fluent-modal-title" style="color:{c.textPrimary}">{fieldModalTitle}</div>
-      <div class="fluent-modal-sub" style="color:{c.textSecondary}">Em breve</div>
-      <div class="fluent-modal-actions">
-        <button class="fluent-btn-save" on:click={closeFieldModal}>Entendido</button>
-      </div>
+  {#if showFieldSheet}
+    <div class="sheet-overlay" class:sheet-overlay-in={fieldSheetVisible} on:click={closeFieldSheet}></div>
+    <div class="sheet-dialog" class:sheet-dialog-in={fieldSheetVisible} style="background:{c.dialogBackground}">
+      <div class="sheet-handle" style="background:{c.divider}"></div>
+      <div class="fluent-sheet-title" style="color:{c.textPrimary}">{fieldSheetTitle}</div>
+      <div class="fluent-sheet-sub" style="color:{c.textSecondary}">Em breve</div>
+      <button class="fluent-btn-save" on:click={closeFieldSheet}>Entendido</button>
     </div>
   {/if}
 
@@ -352,8 +351,9 @@
   {/if}
 
   {#if showLogoutDialog}
-    <div class="logout-overlay" class:logout-overlay-in={logoutDialogVisible}></div>
-    <div class="logout-dialog" class:logout-dialog-in={logoutDialogVisible} style="background:{c.dialogBackground}">
+    <div class="sheet-overlay" class:sheet-overlay-in={logoutDialogVisible}></div>
+    <div class="sheet-dialog" class:sheet-dialog-in={logoutDialogVisible} style="background:{c.dialogBackground}">
+      <div class="sheet-handle" style="background:{c.divider}"></div>
       <p class="logout-dialog-text" style="color:{c.textPrimary}">
         {logoutMode === 'all' ? 'Tens a certeza que queres terminar a sessão em todos os dispositivos?' : 'Tens a certeza que queres terminar a sessão?'}
       </p>
@@ -446,39 +446,43 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #0078D4;
+    background: #FF444F;
   }
-  :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
-  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
+  :global([data-theme="dark"]) .logout-fab { background: rgba(255,68,79,0.5); }
+  :global([data-theme="light"]) .logout-fab { background: #FF444F; }
   .logout-fab-icon { width: 18px; height: 18px; background: #fff; }
   .logout-fab-label { font-size: 14px; font-weight: 700; color: #fff; }
   .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }
   .pulse-tap:active { transform: scale(0.97); opacity: .85; }
 
-  .fluent-overlay {
+  /* Bottom sheet style — replaces the centered fluent modal */
+  .sheet-overlay {
     position: fixed; inset: 0; z-index: 800;
     background: rgba(0,0,0,0);
     transition: background .3s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .fluent-overlay.fluent-overlay-in { background: rgba(0,0,0,.5); }
-  .fluent-modal {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.92);
-    opacity: 0;
-    width: calc(100vw - 56px); max-width: 340px;
-    border-radius: 16px; z-index: 801;
-    padding: 20px 18px;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.08);
-    transition: transform .34s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .26s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform, opacity;
+  .sheet-overlay.sheet-overlay-in { background: rgba(0,0,0,.45); }
+  .sheet-dialog {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 801;
+    border-radius: 28px 28px 0 0;
+    padding: 10px 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    transform: translateY(100%);
+    transition: transform .34s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
   }
-  .fluent-modal.fluent-modal-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  .fluent-modal-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-  .fluent-modal-sub { font-size: 12.5px; margin-bottom: 16px; }
-  .fluent-modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .sheet-dialog.sheet-dialog-in { transform: translateY(0); }
+  .sheet-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    opacity: .6;
+    margin: 4px auto 18px;
+  }
+  .fluent-sheet-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; text-align: center; }
+  .fluent-sheet-sub { font-size: 13px; margin-bottom: 20px; text-align: center; }
   .fluent-btn-save {
-    flex: 1; padding: 11px; border-radius: 10px; border: none;
-    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: #fff;
+    width: 100%; padding: 14px; border-radius: 999px; border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; color: #fff;
     background: #0078D4;
     transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
@@ -491,16 +495,14 @@
   }
   .overlay.overlay-in { background: rgba(0,0,0,.42); }
   .bottom-sheet {
-    position: fixed; left: 12px; right: 12px;
-    bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
-    border-radius: 24px; z-index: 700;
-    padding: 0 0 10px;
+    position: fixed; left: 0; right: 0;
+    bottom: 0;
+    border-radius: 28px 28px 0 0; z-index: 700;
+    padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 10px);
     will-change: transform;
-    box-shadow: 0 12px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
     overflow: hidden;
   }
   .sheet-grab-zone { touch-action: none; }
-  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; margin: 10px auto 8px; opacity: .8; }
   .sheet-title { font-size: 13px; font-weight: 700; padding: 4px 18px 8px; opacity: .6; text-transform: uppercase; letter-spacing: .05em; }
   .sheet-scroll { max-height: 50vh; overflow-y: auto; }
   .sheet-opt {
@@ -511,41 +513,24 @@
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
 
-  .logout-overlay {
-    position: fixed; inset: 0; z-index: 80;
-    background: rgba(0, 0, 0, 0);
-    transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .logout-overlay.logout-overlay-in { background: rgba(0, 0, 0, 0.45); }
-  .logout-dialog {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.92);
-    opacity: 0;
-    border-radius: 16px;
-    padding: 26px 22px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
-    z-index: 81;
-    width: calc(100vw - 56px); max-width: 320px;
-    transition: transform .4s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform, opacity;
-  }
-  .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
   .logout-dialog-text { font-size: 15.5px; line-height: 1.45; margin: 0 0 22px; text-align: center; font-family: inherit; }
   .logout-dialog-actions { display: flex; flex-direction: column; gap: 10px; }
   .logout-btn-cancel, .logout-btn-confirm {
-    width: 100%; padding: 13px 20px; border-radius: 12px; border: none;
+    width: 100%; padding: 14px 20px; border-radius: 999px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .logout-btn-cancel { background: var(--btn-bg); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #0078D4; color: white; }
-  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
+  .logout-btn-confirm { background: #FF444F; color: white; }
+  :global([data-theme="dark"]) .logout-btn-confirm { background: rgba(255,68,79,0.5); }
+  :global([data-theme="light"]) .logout-btn-confirm { background: #FF444F; }
+  .logout-btn-confirm:active { transform: scale(0.96); opacity: .85; }
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 
   @media (prefers-reduced-motion: reduce) {
-    .st-back-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab, .logout-fab, .pulse-tap {
+    .st-back-btn, .st-row, .sheet-opt, .sheet-overlay, .sheet-dialog, .logout-btn-cancel, .logout-btn-confirm,
+    .overlay, .st-theme-tab, .logout-fab, .pulse-tap {
       transition: none !important;
     }
   }

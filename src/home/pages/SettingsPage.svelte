@@ -25,7 +25,7 @@ const ICON = {
   storage: `${ICON_BASE}/database.svg`,
   globe: `${ICON_BASE}/globe.svg`,
   help: `${ICON_BASE}/question_circle.svg`,
-  info: `${ICON_BASE}/chat.svg`,
+  info: `${ICON_BASE}/info.svg`,
 };
 
   // Voltar: mesmo comportamento do botão/gesto nativo de voltar do Android.

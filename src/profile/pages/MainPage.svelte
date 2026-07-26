@@ -15,6 +15,21 @@
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
+  const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
+  const ICON = {
+    back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
+    settings: `${FLUENT_BASE}/settings_24_regular.svg`,
+    add: `${FLUENT_BASE}/add_24_regular.svg`,
+    edit: `${FLUENT_BASE}/edit_24_regular.svg`,
+    dismiss: `${FLUENT_BASE}/dismiss_24_regular.svg`,
+    checkmark: `${FLUENT_BASE}/checkmark_24_regular.svg`,
+    chevronRight: `${FLUENT_BASE}/chevron_right_20_regular.svg`,
+    download: `${FLUENT_BASE}/arrow_download_24_regular.svg`,
+    person: `${FLUENT_BASE}/person_24_regular.svg`,
+    briefcase: `${FLUENT_BASE}/briefcase_24_regular.svg`,
+    textDesc: `${FLUENT_BASE}/text_description_24_regular.svg`,
+  };
+
   // ── Entrada da página ────────────────────────────────────────────
   let pageVisible = false;
   onMount(() => { requestAnimationFrame(() => { pageVisible = true; }); });
@@ -101,20 +116,18 @@
   $: filledRows = INFO_ROWS.map(r => ({ ...r, value: r.get(form) })).filter(r => r.value);
 
   // ══════════════════════════════════════════════════════════════════
-  //  VISUALIZADOR DE AVATAR EM TELA CHEIA — container transform
+  //  VISUALIZADOR DE AVATAR EM TELA CHEIA — container transform.
+  //  Avatar agora é sempre circular (wrap + img + badge todos com
+  //  border-radius:50%). Ao abrir, empurra um estado de histórico
+  //  próprio ('nexaAvatarViewer') — o botão físico/gesto de voltar do
+  //  Android (popstate) fecha APENAS o visualizador, sem sair da
+  //  ProfilePage para o Home.
   // ══════════════════════════════════════════════════════════════════
-  // O avatar "expande" da posição/tamanho exatos do círculo pequeno na
-  // Hero até preencher o ecrã — FLIP technique: mede o rect de origem
-  // no clique, monta a camada fullscreen já posicionada/dimensionada
-  // EXATAMENTE como o círculo pequeno (via style inline, sem
-  // transition), e só no frame seguinte anima para inset:0. O caminho
-  // inverso (fechar) faz o mesmo em sentido contrário antes de
-  // desmontar — a mesma técnica de "origem visível" usada pelo resto
-  // da app para telas que abrem a partir de um elemento concreto.
   let avatarImgEl;
   let showAvatarViewer = false;
   let avatarViewerVisible = false;
-  let avatarViewerRect = null; // {top,left,width,height,borderRadius}
+  let avatarViewerRect = null; // {top,left,width,height}
+  let suppressAvatarPopstate = false;
 
   function openAvatarViewer() {
     if (!user?.avatar || !avatarImgEl) return;
@@ -122,21 +135,39 @@
     avatarViewerRect = { top: r.top, left: r.left, width: r.width, height: r.height };
     showAvatarViewer = true;
     avatarViewerVisible = false;
+    history.pushState({ nexaAvatarViewer: true }, '', window.location.pathname + window.location.search + '#avatar');
     requestAnimationFrame(() => requestAnimationFrame(() => { avatarViewerVisible = true; }));
   }
   function closeAvatarViewer() {
+    if (!showAvatarViewer) return;
     avatarViewerVisible = false;
     setTimeout(() => { showAvatarViewer = false; avatarViewerRect = null; }, 340);
+    if (history.state && history.state.nexaAvatarViewer) {
+      suppressAvatarPopstate = true;
+      history.back();
+      setTimeout(() => { suppressAvatarPopstate = false; }, 60);
+    }
+  }
+  function onAvatarPopState() {
+    if (suppressAvatarPopstate) return;
+    if (showAvatarViewer) {
+      avatarViewerVisible = false;
+      setTimeout(() => { showAvatarViewer = false; avatarViewerRect = null; }, 340);
+    }
   }
 
   $: avatarViewerStyle = avatarViewerRect
     ? (avatarViewerVisible
         ? 'top:0; left:0; width:100vw; height:100dvh; border-radius:0;'
-        : `top:${avatarViewerRect.top}px; left:${avatarViewerRect.left}px; width:${avatarViewerRect.width}px; height:${avatarViewerRect.height}px; border-radius:10px;`)
+        : `top:${avatarViewerRect.top}px; left:${avatarViewerRect.left}px; width:${avatarViewerRect.width}px; height:${avatarViewerRect.height}px; border-radius:50%;`)
     : '';
 
   // ══════════════════════════════════════════════════════════════════
-  //  TELA DE EDIÇÃO (fullscreen slide-up nativo — spring dedicado)
+  //  TELA DE EDIÇÃO — cards no MESMO padrão visual das secções da
+  //  tela de Definições (fundo var(--drawer-bg)/var(--btn-bg), sem
+  //  inputs inline dentro da linha). Cada linha é um BOTÃO que abre
+  //  um modal central nativo (estilo Fluent/M365) para inserir o
+  //  valor — nenhum campo de texto fica exposto na própria lista.
   // ══════════════════════════════════════════════════════════════════
   const editSlide = createSlideTransition({});
   let editSlideY = 100;
@@ -146,7 +177,6 @@
   let editForm = { ...form };
   let saving = false;
 
-  // ── Voltar físico/gesto fecha a tela de edição ─────────────────────
   let suppressEditPopstate = false;
   function onEditPopState() {
     if (suppressEditPopstate) return;
@@ -176,7 +206,6 @@
     }
   }
 
-  // ── Gesto de arrastar para fechar (swipe-down nativo) ───────────────
   const EDIT_CLOSE_THRESHOLD = 0.28;
   const EDIT_VELOCITY_FLING = 0.5;
   let editDragging = false;
@@ -246,6 +275,53 @@
     } finally {
       saving = false;
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  MODAL DE CAMPO — nativo estilo Fluent (M365): overlay + cartão
+  //  central com scale-in, título, um único input (texto/número/
+  //  textarea conforme o campo), botões Cancelar/Guardar.
+  // ══════════════════════════════════════════════════════════════════
+  let showFieldModal = false;
+  let fieldModalVisible = false;
+  let fieldModalKey = null;
+  let fieldModalLabel = '';
+  let fieldModalType = 'text'; // text | number | textarea
+  let fieldModalValue = '';
+
+  function openFieldModal(key, label, type = 'text') {
+    fieldModalKey = key;
+    fieldModalLabel = label;
+    fieldModalType = type;
+    fieldModalValue = editForm[key] ?? '';
+    showFieldModal = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { fieldModalVisible = true; }));
+  }
+  function closeFieldModal() {
+    fieldModalVisible = false;
+    setTimeout(() => { showFieldModal = false; fieldModalKey = null; }, 240);
+  }
+  function saveFieldModal() {
+    if (fieldModalKey) editForm[fieldModalKey] = fieldModalValue;
+    closeFieldModal();
+  }
+
+  // ── Modal de nome (título) — mesmo padrão de modal ─────────────────
+  let showNameModal = false;
+  let nameModalVisible = false;
+  let nameModalValue = '';
+  function openNameModal() {
+    nameModalValue = editForm.name;
+    showNameModal = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { nameModalVisible = true; }));
+  }
+  function closeNameModal() {
+    nameModalVisible = false;
+    setTimeout(() => { showNameModal = false; }, 240);
+  }
+  function saveNameModal() {
+    editForm.name = nameModalValue;
+    closeNameModal();
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -340,8 +416,6 @@
     };
     reader.readAsDataURL(file);
   }
-  // impede que o clique no badge de upload (que fica por cima do
-  // avatar) dispare também a abertura do visualizador em tela cheia
   function onUploadLabelClick(e) {
     e.stopPropagation();
   }
@@ -349,9 +423,11 @@
   onMount(() => {
     loadProfile();
     window.addEventListener('popstate', onEditPopState);
+    window.addEventListener('popstate', onAvatarPopState);
   });
   onDestroy(() => {
     window.removeEventListener('popstate', onEditPopState);
+    window.removeEventListener('popstate', onAvatarPopState);
     unsubscribeEditSlide?.();
     unsubscribeOccSheetSlide?.();
     editSlide.destroy();
@@ -360,8 +436,7 @@
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ROOT — o slide de entrada/saída é gerido pelo wrapper
-     .profile-main-layer no App.svelte pai.
+     ROOT
 ════════════════════════════════════════════════════════════════════ -->
 <div class="pf-root" class:pf-in={pageVisible}
   style="background:{c.background};color:{c.textPrimary};">
@@ -370,12 +445,12 @@
   <div class="pf-header">
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'home'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:{c.iconTint};width:24px;height:24px"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
     <span class="pf-header-title" style="color:{c.textPrimary}">{appTitle}</span>
     <button class="pf-icon-btn" style="background:{c.appbarBtnBg}"
       on:click={() => dispatch('nav',{to:'settings'})}>
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');background:{c.iconTint};width:24px;height:24px"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.settings}');-webkit-mask-image:url('{ICON.settings}');background:{c.iconTint};width:24px;height:24px"></span>
     </button>
   </div>
 
@@ -387,7 +462,7 @@
     on:touchcancel={onTouchEnd}>
     <div class="pf-body-inner" bind:this={bodyInnerEl}>
 
-      <!-- Hero -->
+      <!-- Hero — avatar SEMPRE circular -->
       <div class="pf-hero">
         <button class="pf-avatar-wrap" style="background:{c.primary}" on:click={openAvatarViewer}>
           {#if user?.avatar}
@@ -398,12 +473,9 @@
           {#if avatarUploading}
             <div class="pf-avatar-loading"><div class="pf-spinner"></div></div>
           {/if}
-          <!-- Badge de atualizar avatar: pequeno, ancorado no canto
-               inferior direito, SEMPRE por cima e sempre visível —
-               não cobre o círculo inteiro, não é um overlay ao toque. -->
           <label class="pf-avatar-edit-badge" style="background:{c.dialogBackground};border-color:{c.background}" on:click={onUploadLabelClick}>
             <input type="file" accept="image/*" on:change={handleAvatarPick} hidden />
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');background:{c.iconTint};width:13px;height:13px"></span>
+            <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');background:{c.iconTint};width:13px;height:13px"></span>
           </label>
         </button>
         <h1>{userName}</h1>
@@ -417,12 +489,11 @@
           {/each}
         </div>
       {:else}
-        <!-- Dados pessoais -->
         <div class="pf-section-title" style="color:{c.textSecondary}">Dados pessoais</div>
         <div class="pf-card">
           {#if filledRows.length === 0 && !occupationLabel && !form.bio}
             <button class="pf-empty-row" style="color:{c.textSecondary}" on:click={openEdit}>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/add.svg');-webkit-mask-image:url('/icons/svg/regular/add.svg');background:{c.primary};width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('{ICON.add}');-webkit-mask-image:url('{ICON.add}');background:{c.primary};width:16px;height:16px"></span>
               <span>Adicionar informações do perfil</span>
             </button>
           {:else}
@@ -460,7 +531,7 @@
         </div>
 
         <button class="pf-edit-btn" on:click={openEdit}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/edit.svg');-webkit-mask-image:url('/icons/svg/regular/edit.svg');background:#fff;width:15px;height:15px"></span>
+          <span class="icon-mask" style="mask-image:url('{ICON.edit}');-webkit-mask-image:url('{ICON.edit}');background:#fff;width:15px;height:15px"></span>
           Editar perfil
         </button>
       {/if}
@@ -469,9 +540,8 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
-       VISUALIZADOR DE AVATAR EM TELA CHEIA — container transform.
-       Abre a partir da posição/tamanho exatos do avatar pequeno na
-       Hero (FLIP), expande até inset:0, botão de voltar no canto.
+       VISUALIZADOR DE AVATAR — círculo pequeno → tela cheia (FLIP).
+       Fecha com o botão físico/gesto de voltar SEM sair da Profile.
   ══════════════════════════════════════════════════════════════ -->
   {#if showAvatarViewer && user?.avatar}
     <div class="avatar-viewer-overlay" class:avatar-viewer-overlay-in={avatarViewerVisible} on:click={closeAvatarViewer}></div>
@@ -479,14 +549,13 @@
       <img class="avatar-viewer-img" src={user.avatar} alt={userName} />
     </div>
     <button class="avatar-viewer-back" class:avatar-viewer-back-in={avatarViewerVisible} on:click={closeAvatarViewer} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_left.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_left.svg');background:#fff;width:24px;height:24px"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:#fff;width:24px;height:24px"></span>
     </button>
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       TELA FULLSCREEN DE EDIÇÃO — cards nativos + botão de guardar
-       como ícone check no appbar. Botão de fechar (X) e botão de
-       guardar (check) neutros, iguais ao resto dos ícones do appbar.
+       TELA FULLSCREEN DE EDIÇÃO — cards no padrão da tela de
+       Definições. Cada linha é um botão que abre um modal.
   ══════════════════════════════════════════════════════════════ -->
   {#if showEditScreen}
     <div class="edit-screen"
@@ -500,14 +569,14 @@
         <div class="edit-grabber" style="background:{c.divider}"></div>
         <div class="edit-header">
           <button class="pf-icon-btn" style="background:{c.appbarBtnBg}" on:click={closeEditScreen} disabled={saving}>
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/dismiss.svg');-webkit-mask-image:url('/icons/svg/regular/dismiss.svg');background:{c.iconTint};width:16px;height:16px"></span>
+            <span class="icon-mask" style="mask-image:url('{ICON.dismiss}');-webkit-mask-image:url('{ICON.dismiss}');background:{c.iconTint};width:18px;height:18px"></span>
           </button>
           <span class="edit-header-title" style="color:{c.textPrimary}">Editar perfil</span>
           <button class="pf-icon-btn edit-save-icon-btn" style="background:{c.appbarBtnBg}" on:click={saveProfile} disabled={saving}>
             {#if saving}
               <span class="edit-save-spinner" style="border-color:{c.divider};border-top-color:{c.iconTint}"></span>
             {:else}
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.iconTint};width:24px;height:24px"></span>
+              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:{c.iconTint};width:22px;height:22px"></span>
             {/if}
           </button>
         </div>
@@ -515,70 +584,88 @@
 
       <div class="edit-body">
 
-        <div class="edit-title-section" style="border-bottom:0.5px solid {c.divider}">
-          <input
-            class="edit-title-input"
-            style="color:{c.textPrimary};caret-color:{c.primary};border-bottom-color:{c.primary};background:transparent"
-            placeholder="O teu nome"
-            bind:value={editForm.name} />
+        <!-- Nome — mesma abordagem: botão que abre modal -->
+        <div class="edit-section-title" style="color:{c.textSecondary}">Nome</div>
+        <div class="edit-card">
+          <button class="edit-row edit-row-btn" on:click={openNameModal}>
+            <div class="edit-row-left">
+              <span class="icon-mask edit-row-icon" style="mask-image:url('{ICON.person}');-webkit-mask-image:url('{ICON.person}');background:{c.textSecondary}"></span>
+              <span class="edit-row-lbl" style="color:{c.textPrimary}">Nome</span>
+            </div>
+            <div class="edit-row-right-group">
+              <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.name || 'Adicionar'}</span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+            </div>
+          </button>
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Localização</div>
         <div class="edit-card">
-          <div class="edit-row">
+          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('age', 'Idade', 'number')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Idade</span>
-            <input type="number" min="0" max="120" class="edit-input-right" placeholder="—"
-              style="color:{c.textSecondary};background:transparent;border:none"
-              bind:value={editForm.age} />
-          </div>
-          <div class="edit-row">
+            <div class="edit-row-right-group">
+              <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.age ? `${editForm.age} anos` : 'Adicionar'}</span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+            </div>
+          </button>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('country', 'País', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">País</span>
-            <input class="edit-input-right" placeholder="Adicionar"
-              style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
-              bind:value={editForm.country} />
-          </div>
-          <div class="edit-row">
+            <div class="edit-row-right-group">
+              <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.country || 'Adicionar'}</span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+            </div>
+          </button>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('state', 'Estado / Província', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Estado / Província</span>
-            <input class="edit-input-right" placeholder="Adicionar"
-              style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
-              bind:value={editForm.state} />
-          </div>
-          <div class="edit-row">
+            <div class="edit-row-right-group">
+              <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.state || 'Adicionar'}</span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+            </div>
+          </button>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('city', 'Cidade', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Cidade</span>
-            <input class="edit-input-right" placeholder="Adicionar"
-              style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
-              bind:value={editForm.city} />
-          </div>
+            <div class="edit-row-right-group">
+              <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.city || 'Adicionar'}</span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+            </div>
+          </button>
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Ocupação</div>
         <div class="edit-card">
           <button class="edit-row edit-row-btn" on:click={openOccSheet}>
-            <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
+            <div class="edit-row-left">
+              <span class="icon-mask edit-row-icon" style="mask-image:url('{ICON.briefcase}');-webkit-mask-image:url('{ICON.briefcase}');background:{c.textSecondary}"></span>
+              <span class="edit-row-lbl" style="color:{c.textPrimary}">Ocupação</span>
+            </div>
             <div class="edit-row-right-group">
-              <span style="color:{c.textSecondary};font-size:14px">
+              <span class="edit-row-val" style="color:{c.textSecondary}">
                 {OCCUPATION_OPTIONS.find(o => o.id === editForm.occupation)?.label || 'Selecionar'}
               </span>
-              <span class="icon-mask" style="mask-image:url('/icons/svg/regular/chevron_right.svg');-webkit-mask-image:url('/icons/svg/regular/chevron_right.svg');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
             </div>
           </button>
-          <div class="edit-row">
+          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('occupationDetail', 'Detalhe da ocupação', 'text')}>
             <span class="edit-row-lbl" style="color:{c.textPrimary}">Detalhe</span>
-            <input class="edit-input-right" placeholder="Curso, cargo…"
-              style="color:{c.textSecondary};background:transparent;border:none;text-align:right;flex:1;min-width:0"
-              bind:value={editForm.occupationDetail} />
-          </div>
+            <div class="edit-row-right-group">
+              <span class="edit-row-val" style="color:{c.textSecondary}">{editForm.occupationDetail || 'Adicionar'}</span>
+              <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+            </div>
+          </button>
         </div>
 
         <div class="edit-section-title" style="color:{c.textSecondary}">Bio</div>
         <div class="edit-card">
-          <div class="edit-row edit-notes-row">
-            <textarea class="edit-textarea"
-              placeholder="Escreve uma pequena bio…"
-              style="color:{c.textPrimary};background:transparent;caret-color:{c.primary}"
-              rows="4"
-              bind:value={editForm.bio}></textarea>
-          </div>
+          <button class="edit-row edit-row-btn" on:click={() => openFieldModal('bio', 'Bio', 'textarea')}>
+            <div class="edit-row-left">
+              <span class="icon-mask edit-row-icon" style="mask-image:url('{ICON.textDesc}');-webkit-mask-image:url('{ICON.textDesc}');background:{c.textSecondary}"></span>
+              <span class="edit-row-lbl" style="color:{c.textPrimary}">Bio</span>
+            </div>
+            <span class="icon-mask" style="mask-image:url('{ICON.chevronRight}');-webkit-mask-image:url('{ICON.chevronRight}');background:{c.textSecondary};width:13px;height:13px;opacity:.5"></span>
+          </button>
+          {#if editForm.bio}
+            <div class="edit-bio-preview" style="color:{c.textSecondary};border-top:1px solid {c.divider}">{editForm.bio}</div>
+          {/if}
         </div>
 
       </div>
@@ -586,7 +673,62 @@
   {/if}
 
   <!-- ══════════════════════════════════════════════════════════════
-       BOTTOM SHEET — seletor de ocupação (flutuante, não toca nas bordas)
+       MODAL — Nome (estilo Fluent/M365: overlay + cartão central)
+  ══════════════════════════════════════════════════════════════ -->
+  {#if showNameModal}
+    <div class="fluent-overlay" class:fluent-overlay-in={nameModalVisible} on:click={closeNameModal}></div>
+    <div class="fluent-modal" class:fluent-modal-in={nameModalVisible} style="background:{c.dialogBackground}">
+      <div class="fluent-modal-title" style="color:{c.textPrimary}">Nome</div>
+      <input
+        class="fluent-modal-input"
+        style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
+        placeholder="O teu nome"
+        bind:value={nameModalValue} />
+      <div class="fluent-modal-actions">
+        <button class="fluent-btn-cancel" style="color:{c.textPrimary};background:{c.appbarBtnBg}" on:click={closeNameModal}>Cancelar</button>
+        <button class="fluent-btn-save" style="background:{c.primary}" on:click={saveNameModal}>Guardar</button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MODAL — Campo genérico (Idade / País / Estado / Cidade /
+       Detalhe / Bio), estilo Fluent/M365
+  ══════════════════════════════════════════════════════════════ -->
+  {#if showFieldModal}
+    <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
+    <div class="fluent-modal" class:fluent-modal-in={fieldModalVisible} style="background:{c.dialogBackground}">
+      <div class="fluent-modal-title" style="color:{c.textPrimary}">{fieldModalLabel}</div>
+      {#if fieldModalType === 'textarea'}
+        <textarea
+          class="fluent-modal-textarea"
+          style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
+          rows="4"
+          placeholder="Escreve aqui…"
+          bind:value={fieldModalValue}></textarea>
+      {:else if fieldModalType === 'number'}
+        <input
+          type="number" min="0" max="120"
+          class="fluent-modal-input"
+          style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
+          placeholder="—"
+          bind:value={fieldModalValue} />
+      {:else}
+        <input
+          class="fluent-modal-input"
+          style="color:{c.textPrimary};caret-color:{c.primary};border-color:{c.divider};background:{c.background}"
+          placeholder="Adicionar"
+          bind:value={fieldModalValue} />
+      {/if}
+      <div class="fluent-modal-actions">
+        <button class="fluent-btn-cancel" style="color:{c.textPrimary};background:{c.appbarBtnBg}" on:click={closeFieldModal}>Cancelar</button>
+        <button class="fluent-btn-save" style="background:{c.primary}" on:click={saveFieldModal}>Guardar</button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- ══════════════════════════════════════════════════════════════
+       BOTTOM SHEET — seletor de ocupação
   ══════════════════════════════════════════════════════════════ -->
   {#if showOccSheet}
     <button class="overlay" class:overlay-in={occOverlayVisible} on:click={closeOccSheet}></button>
@@ -604,7 +746,7 @@
         <button class="sheet-opt" on:click={() => pickOcc(opt.id)}>
           <span class="sheet-opt-label" style="color:{c.textPrimary}">{opt.label}</span>
           {#if editForm.occupation === opt.id}
-            <span class="icon-mask" style="mask-image:url('/icons/svg/regular/checkmark.svg');-webkit-mask-image:url('/icons/svg/regular/checkmark.svg');background:{c.primary};width:16px;height:16px"></span>
+            <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:{c.primary};width:16px;height:16px"></span>
           {/if}
         </button>
       {/each}
@@ -614,7 +756,6 @@
 </div>
 
 <style>
-  /* ── Root ─────────────────────────────────────────────────────────── */
   .pf-root {
     position: fixed; inset: 0;
     display: flex; flex-direction: column;
@@ -633,14 +774,14 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* ── Header ───────────────────────────────────────────────────────── */
   .pf-header {
     display: flex; align-items: center; gap: 8px;
     padding: calc(env(safe-area-inset-top,0px) + 14px) 14px 12px;
     flex-shrink: 0;
   }
+  /* Botões: sem pill, cantos moderados (não circulares, não quadrados-pill) */
   .pf-icon-btn {
-    width: 36px; height: 36px; border-radius:10px; border: none;
+    width: 36px; height: 36px; border-radius: 10px; border: none;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1), opacity .16s ease;
   }
@@ -648,7 +789,6 @@
   .pf-icon-btn:disabled { opacity: .4; }
   .pf-header-title { flex: 1; text-align: center; font-size: 16px; font-weight: 700; }
 
-  /* ── Corpo ────────────────────────────────────────────────────────── */
   .pf-body {
     flex: 1; min-height: 0; overflow-y: auto;
     padding-bottom: calc(env(safe-area-inset-bottom,0px) + 24px);
@@ -657,10 +797,11 @@
   }
   .pf-body-inner { width: 100%; will-change: transform; }
 
-  /* ── Hero ─────────────────────────────────────────────────────────── */
   .pf-hero { padding: 24px 16px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+
+  /* Avatar SEMPRE circular */
   .pf-avatar-wrap {
-    position: relative; width: 92px; height: 92px; border-radius:10px;
+    position: relative; width: 92px; height: 92px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; overflow: visible;
     border: none; padding: 0; cursor: pointer;
     box-shadow: 0 4px 16px rgba(0,0,0,0.1);
@@ -668,29 +809,25 @@
   }
   .pf-avatar-wrap:active { transform: scale(0.96); }
   .pf-avatar-wrap img {
-    width: 100%; height: 100%; object-fit: cover; border-radius:10px;
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
     display: block;
   }
   .pf-avatar-initial { font-size: 34px; font-weight: 700; color: #fff; }
   .pf-avatar-loading {
-    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius:10px;
+    position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
   }
   .pf-spinner {
-    width: 22px; height: 22px; border-radius:10px;
+    width: 22px; height: 22px; border-radius: 50%;
     border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff;
     animation: pf-spin .7s linear infinite;
   }
   @keyframes pf-spin { to { transform: rotate(360deg); } }
 
-  /* Badge de atualizar avatar: pequeno, ancorado no canto inferior
-     direito DO CONTAINER do avatar, sempre por cima e sempre visível
-     — exatamente como o preview mostra. Não cobre o círculo, não se
-     desloca, não depende de toque para aparecer. */
   .pf-avatar-edit-badge {
     position: absolute; bottom: -2px; right: -2px; z-index: 3;
     width: 30px; height: 30px;
-    border-radius:10px; border: 2.5px solid;
+    border-radius: 50%; border: 2.5px solid;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
@@ -701,23 +838,15 @@
   .pf-hero h1 { margin: 10px 0 0; font-size: 21px; font-weight: 800; line-height: 1.15; }
   .pf-hero p { margin: 0; font-size: 13.5px; }
 
-  /* ── Skeleton ─────────────────────────────────────────────────────── */
   .pf-skeleton-wrap { padding: 24px 16px 0; display: flex; flex-direction: column; gap: 10px; }
   .pf-skeleton-row {
     height: 54px; border-radius: 14px; opacity: .5;
     background: var(--drawer-bg);
     animation: pf-pulse 1.2s ease-in-out infinite;
   }
-  :global([data-theme="dark"]) .pf-skeleton-row {
-    background: var(--btn-bg);
-  }
+  :global([data-theme="dark"]) .pf-skeleton-row { background: var(--btn-bg); }
   @keyframes pf-pulse { 0%,100% { opacity: .35; } 50% { opacity: .65; } }
 
-  /* ── Secção / cartão ──────────────────────────────────────────────────
-     Cards agora seguem exatamente o mesmo padrão de superfície do
-     MeTab: var(--drawer-bg) no tema claro, var(--btn-bg) no escuro,
-     sem sombra pesada — só o raio de canto (14px, igual ao .me-section
-     do MeTab) faz o trabalho de destacar o card do fundo. ────────────── */
   .pf-section-title { padding: 22px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
   .pf-card {
     margin: 0 16px;
@@ -725,9 +854,7 @@
     overflow: hidden;
     background: var(--drawer-bg);
   }
-  :global([data-theme="dark"]) .pf-card {
-    background: var(--btn-bg);
-  }
+  :global([data-theme="dark"]) .pf-card { background: var(--btn-bg); }
   .pf-info-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 16px; border-bottom: 1px solid var(--drawer-sep); gap: 12px;
@@ -745,8 +872,6 @@
   }
   .pf-empty-row:active { opacity: .6; }
 
-  /* Botão de ação: sem pill — raio retangular moderado (14px), igual
-     ao dos cards, em vez do border-radius:16px arredondado anterior. */
   .pf-edit-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: calc(100% - 32px); margin: 20px 16px 0; padding: 15px;
@@ -756,14 +881,7 @@
   }
   .pf-edit-btn:active { transform: scale(0.98); opacity: .88; background: var(--accent-primary-active); }
 
-  /* ══════════════════════════════════════════════════════════════════
-     VISUALIZADOR DE AVATAR EM TELA CHEIA (container transform / FLIP)
-     .avatar-viewer usa position:fixed com top/left/width/height/
-     border-radius em style INLINE (calculados em JS), com UMA ÚNICA
-     transition CSS nessas propriedades — é isto que dá o efeito de o
-     círculo pequeno "esticar" até preencher o ecrã, exatamente a
-     mesma técnica FLIP usada em transições nativas de galeria.
-  ══════════════════════════════════════════════════════════════════ */
+  /* ── Visualizador de avatar (FLIP, sempre circular na origem) ── */
   .avatar-viewer-overlay {
     position: fixed; inset: 0; z-index: 550;
     background: rgba(0,0,0,0);
@@ -780,13 +898,11 @@
                 border-radius .38s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: top, left, width, height, border-radius;
   }
-  .avatar-viewer-img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-  }
+  .avatar-viewer-img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .avatar-viewer-back {
     position: fixed; z-index: 552;
     top: calc(env(safe-area-inset-top,0px) + 14px); left: 14px;
-    width: 40px; height: 40px; border-radius:10px;
+    width: 40px; height: 40px; border-radius: 10px;
     border: none; background: rgba(0,0,0,.4);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
@@ -796,15 +912,12 @@
   .avatar-viewer-back.avatar-viewer-back-in { opacity: 1; transform: scale(1); }
   .avatar-viewer-back:active { transform: scale(0.88); }
 
-  /* ══════════════════════════════════════════════════════════════════
-     TELA FULLSCREEN DE EDIÇÃO
-  ══════════════════════════════════════════════════════════════════ */
+  /* ── Tela de edição ── */
   .edit-screen {
     position: fixed; inset: 0; z-index: 500;
     display: flex; flex-direction: column;
     will-change: transform;
   }
-
   .edit-drag-zone { flex-shrink: 0; touch-action: none; }
   .edit-grabber { width: 36px; height: 4px; border-radius: 2px; margin: 8px auto 2px; opacity: .55; }
   .edit-header {
@@ -813,39 +926,24 @@
     gap: 8px;
   }
   .edit-header-title { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
-
-  /* Botão de guardar (check) e botão de fechar (X) reaproveitam ambos
-     .pf-icon-btn puro, com o mesmo fundo neutro appbarBtnBg — nenhum
-     dos dois usa cor de destaque, ambos ficam iguais aos outros
-     ícones do appbar. */
   .edit-save-icon-btn { position: relative; }
   .edit-save-icon-btn:disabled { opacity: .55; }
   .edit-save-spinner {
-    width: 15px; height: 15px; border-radius:10px;
+    width: 15px; height: 15px; border-radius: 50%;
     border: 2px solid; border-top-color: transparent;
     animation: pf-spin .7s linear infinite;
   }
 
   .edit-body { flex: 1; overflow-y: auto; padding-bottom: calc(env(safe-area-inset-bottom,0px) + 24px); }
-
-  .edit-title-section { padding: 16px 18px 20px; }
-  .edit-title-input {
-    width: 100%; font-size: 22px; font-weight: 700;
-    border: none; outline: none; border-bottom: 2px solid; padding-bottom: 10px; font-family: inherit;
-  }
-
   .edit-section-title { padding: 20px 16px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 
-  /* Mesmo tratamento de superfície que .pf-card acima. */
   .edit-card {
     margin: 0 16px;
     border-radius: 14px;
     overflow: hidden;
     background: var(--drawer-bg);
   }
-  :global([data-theme="dark"]) .edit-card {
-    background: var(--btn-bg);
-  }
+  :global([data-theme="dark"]) .edit-card { background: var(--btn-bg); }
 
   .edit-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -855,17 +953,54 @@
   .edit-row:last-child { border-bottom: none; }
   .edit-row-btn { cursor: pointer; text-align: left; transition: opacity .14s; }
   .edit-row-btn:active { opacity: .6; }
-  .edit-notes-row { align-items: flex-start; }
+  .edit-row-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .edit-row-icon { width: 20px; height: 20px; }
   .edit-row-lbl { font-size: 15px; font-weight: 500; }
-  .edit-row-right-group { display: flex; align-items: center; gap: 6px; }
-  .edit-input-right { font-size: 14px; outline: none; text-align: right; }
+  .edit-row-right-group { display: flex; align-items: center; gap: 6px; max-width: 60%; }
+  .edit-row-val { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .edit-textarea {
-    flex: 1; font-size: 15px; outline: none; border: none; resize: none;
-    font-family: inherit; line-height: 1.55; min-height: 80px; width: 100%;
+  .edit-bio-preview {
+    padding: 12px 16px 16px; font-size: 13.5px; line-height: 1.5;
   }
 
-  /* ── Overlay + bottom sheet (popup nativo, spring dedicado, flutuante) ── */
+  /* ── Modal genérico estilo Fluent/M365 (usado em Nome + Campo) ── */
+  .fluent-overlay {
+    position: fixed; inset: 0; z-index: 800;
+    background: rgba(0,0,0,0);
+    transition: background .3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .fluent-overlay.fluent-overlay-in { background: rgba(0,0,0,.5); }
+  .fluent-modal {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.92);
+    opacity: 0;
+    width: calc(100vw - 56px); max-width: 340px;
+    border-radius: 14px; z-index: 801;
+    padding: 20px 18px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform .34s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .26s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform, opacity;
+  }
+  .fluent-modal.fluent-modal-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  .fluent-modal-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .fluent-modal-input {
+    width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid;
+    font-size: 15px; outline: none; font-family: inherit;
+  }
+  .fluent-modal-textarea {
+    width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid;
+    font-size: 15px; outline: none; font-family: inherit; resize: none; line-height: 1.5;
+  }
+  .fluent-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .fluent-btn-cancel, .fluent-btn-save {
+    flex: 1; padding: 11px; border-radius: 8px; border: none;
+    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .fluent-btn-cancel:active, .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
+  .fluent-btn-save { color: #fff; }
+
+  /* ── Overlay + bottom sheet (ocupação) ── */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
@@ -900,7 +1035,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .pf-root, .pf-icon-btn, .pf-avatar-wrap, .pf-avatar-edit-badge, .pf-edit-btn, .edit-row-btn, .sheet-opt,
-    .avatar-viewer-overlay, .avatar-viewer, .avatar-viewer-back {
+    .avatar-viewer-overlay, .avatar-viewer, .avatar-viewer-back, .fluent-overlay, .fluent-modal {
       transition: none !important;
     }
   }

@@ -169,8 +169,6 @@
   // Definições (Settings): segue o MESMO padrão de history de
   // search/preview/AI modal — pushState próprio ao abrir, fecho VISUAL
   // só dentro de onPopState, nunca antecipado pelas funções close*().
-  // Isto garante que o botão físico/gesto de voltar do Android fecha
-  // a tela corretamente, exatamente como as outras overlays.
   // ------------------------------------------------------------------
   let settingsOpen = false;
   let settingsPushed = false;
@@ -427,10 +425,10 @@
       <ProjectsTab />
     {:else if activeTab === 'templates'}
       <TemplatesTab
-  view={templatesView}
-  isActive={activeTab === 'templates'}
-  onOpenPreview={openTemplatePreview}
-/>
+        view={templatesView}
+        isActive={activeTab === 'templates'}
+        onOpenPreview={openTemplatePreview}
+      />
     {:else if activeTab === 'me'}
       <MeTab
         {avatarUrl}
@@ -441,7 +439,8 @@
         {themeValue}
         onApplyTheme={applyThemeFromDrawer}
         onOpenProfile={openProfile}
-        onOpenSettings={openSettingsPage}
+        onOpenSettingsPage={openSettingsPage}
+        onOpenSettings={() => {}}
         onLogout={logout}
         {showInstall}
         onInstall={handleInstall}

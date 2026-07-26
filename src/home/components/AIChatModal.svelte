@@ -1,15 +1,18 @@
 <!-- src/home/components/AIChatModal.svelte -->
 <!-- Modal em tela cheia que nasce por container-transform a partir da
-     posição/tamanho exatos do botão FAB da bottombar, crescendo até
-     cobrir o ecrã inteiro. Fecho: só pelo botão X, que reverte a
-     mesma animação (encolhe de volta na direção do FAB). Sem drag,
-     sem sheet, sem handle — decisão explícita do pedido. -->
+     posição/tamanho exatos do botão de IA na bottombar, crescendo até
+     cobrir o ecrã inteiro. O transform-origin é dinâmico, calculado a
+     partir de 'origin' (DOMRect medido pelo pai) e expresso em % do
+     próprio container — assim o scale() sempre encolhe/cresce em
+     direção ao ponto exato do botão, sem depender de translate para
+     compensar (era aí que nascia o desvio para a esquerda). Fecho:
+     só pelo botão X, que reverte a mesma animação. -->
 <script>
   import AiApp from '../../ai/App.svelte';
   
   export let open = false; // montado no DOM
   export let pushed = false; // deve estar na posição aberta (fonte: App.svelte)
-  export let origin = null; // DOMRect do botão FAB, medido pelo pai antes de abrir
+  export let origin = null; // DOMRect do botão de IA, medido pelo pai antes de abrir
   export let onClose = () => {};
   
   function handleClose() {
@@ -17,10 +20,6 @@
     onClose();
   }
   
-  // Container transform: calcula scale/translate para ir da posição
-  // exata do FAB (origin) até cobrir 100% do ecrã. Quando pushed=false
-  // (fechado), o transform volta a ser o do FAB — mesmo cálculo,
-  // reverso automático porque é function-of-state, não de keyframes.
   $: vw = typeof window !== 'undefined' ? window.innerWidth : 360;
   $: vh = typeof window !== 'undefined' ? window.innerHeight : 800;
   
@@ -29,20 +28,20 @@
   $: fabW = origin ? origin.width : 44;
   $: fabH = origin ? origin.height : 40;
   
-  // Fator de escala do FAB até cobrir a tela inteira
+  // Fator de escala do botão até cobrir a tela inteira
   $: scaleClosedX = fabW / vw;
   $: scaleClosedY = fabH / vh;
   
-  // Deslocamento necessário para que o centro do container (que ocupa
-  // 100vw x 100vh, ancorado em top:0/left:0) coincida com o centro do
-  // FAB quando encolhido.
-  $: translateClosedX = fabCenterX - vw / 2;
-  $: translateClosedY = fabCenterY - vh / 2;
-  
   $: scaleX = pushed ? 1 : scaleClosedX;
   $: scaleY = pushed ? 1 : scaleClosedY;
-  $: translateX = pushed ? 0 : translateClosedX;
-  $: translateY = pushed ? 0 : translateClosedY;
+  
+  // transform-origin em % do próprio container (que cobre 100vw/100vh),
+  // apontando exatamente para o centro do botão — o scale() encolhe/
+  // cresce SEMPRE em direção a esse ponto, sem precisar de translate
+  // nenhum para compensar.
+  $: originXPercent = (fabCenterX / vw) * 100;
+  $: originYPercent = (fabCenterY / vh) * 100;
+  
   $: contentOpacity = pushed ? 1 : 0;
   
   function handleAiNav(e) {
@@ -58,7 +57,7 @@
   ></div>
   <div
     class="ai-container"
-    style="transform: translate3d({translateX}px, {translateY}px, 0) scale({scaleX}, {scaleY});"
+    style="transform: scale({scaleX}, {scaleY}); transform-origin: {originXPercent}% {originYPercent}%;"
   >
     <div class="ai-inner" style="opacity:{contentOpacity};">
       <button class="close-btn" on:click={handleClose} aria-label="Fechar">
@@ -85,10 +84,6 @@
     will-change: opacity;
   }
 
-  /* Container ancorado top:0/left:0 cobrindo 100% do viewport — o
-     "encolhimento" até o FAB é feito via transform (scale+translate),
-     nunca mudando width/height reais, para manter a transição suave
-     numa única propriedade composta pelo navegador. */
   .ai-container {
     position: fixed;
     inset: 0;
@@ -96,7 +91,6 @@
     width: 100vw;
     height: 100dvh;
     background: var(--app-bg);
-    transform-origin: top left;
     will-change: transform;
     overflow: hidden;
     contain: layout style paint;

@@ -1,9 +1,6 @@
 <script>
   import { createEventDispatcher, onDestroy } from 'svelte';
-  import {
-    getThemeColors, getTheme,
-    getSurfaceTone, setSurfaceTone, getSurfaceTones,
-  } from '$shared/theme.js';
+  import { getThemeColors, getTheme } from '$shared/theme.js';
   import { logout } from '$shared/auth-guard.js';
   import { AuthApiService } from '$shared/api.js';
   import { AVAILABLE_LANGUAGES } from '$shared/plans.js';
@@ -24,9 +21,6 @@
     back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
     checkmark: `${FLUENT_BASE}/checkmark_24_regular.svg`,
     chevron: `${FLUENT_BASE}/chevron_right_20_regular.svg`,
-    person: `${FLUENT_BASE}/person_24_regular.svg`,
-    mail: `${FLUENT_BASE}/mail_24_regular.svg`,
-    lock: `${FLUENT_BASE}/lock_closed_24_regular.svg`,
     shield: `${FLUENT_BASE}/shield_24_regular.svg`,
     bell: `${FLUENT_BASE}/alert_24_regular.svg`,
     storage: `${FLUENT_BASE}/database_24_regular.svg`,
@@ -34,7 +28,6 @@
     help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
     info: `${FLUENT_BASE}/info_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
-    add: `${FLUENT_BASE}/add_24_regular.svg`,
   };
 
   const EDGE_ZONE = 24;
@@ -91,9 +84,6 @@
   let themeValue = getTheme();
   let currentLang = user?.preferences?.language || 'pt';
 
-  $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
-  $: userEmail = user?.email || '';
-  $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
   $: currentLangLabel = AVAILABLE_LANGUAGES.find(l => l.code === currentLang)?.native || 'Português (Portugal)';
 
   const THEME_OPTIONS = [
@@ -102,22 +92,11 @@
     { id: 'system', label: 'Sistema' },
   ];
 
-  $: effectiveIsDark = themeValue === 'dark' || (themeValue === 'system' && isDark);
-
   function setThemeValue(v) {
     themeValue = v;
     localStorage.setItem('nexa_theme', v);
     const dark = v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     dispatch('nav', { to: 'settings', data: { isDark: dark } });
-  }
-
-  $: surfaceTones = getSurfaceTones(effectiveIsDark);
-  let currentTone = getSurfaceTone(effectiveIsDark);
-  $: currentTone = getSurfaceTone(effectiveIsDark);
-
-  function pickTone(toneId) {
-    setSurfaceTone(toneId, effectiveIsDark);
-    currentTone = toneId;
   }
 
   const langSlide = createSlideTransition({});
@@ -157,10 +136,6 @@
   function closeFieldModal() {
     fieldModalVisible = false;
     setTimeout(() => { showFieldModal = false; }, 240);
-  }
-
-  function goEditProfile() {
-    dispatch('nav', { to: 'profile' });
   }
 
   let showLogoutDialog = false;
@@ -255,176 +230,79 @@
 
   <div class="st-body">
 
-    <button class="st-profile-card" on:click={goEditProfile}>
-      {#if user?.avatar}
-        <img class="st-avatar-img" src={user.avatar} alt={userName} />
-      {:else}
-        <div class="st-avatar" style="background:{c.primary}">{userInitial}</div>
-      {/if}
-      <div class="st-profile-info">
-        <div class="st-profile-name" style="color:{c.textPrimary}">{userName}</div>
-        {#if userEmail}<div class="st-profile-email" style="color:{c.textSecondary}">{userEmail}</div>{/if}
+    <div class="st-theme-tabs" style="background:{c.appbarBtnBg}">
+      {#each THEME_OPTIONS as opt}
+        <button
+          class="st-theme-tab"
+          class:st-theme-tab-active={themeValue === opt.id}
+          style={themeValue === opt.id ? `background:${c.background};color:${c.textPrimary}` : `color:${c.textSecondary}`}
+          on:click={() => setThemeValue(opt.id)}
+        >{opt.label}</button>
+      {/each}
+    </div>
+
+    <button class="st-row" on:click={openLangSheet}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.globe}');-webkit-mask-image:url('{ICON.globe}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
       </div>
-      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:16px;height:16px;opacity:.5"></span>
+      <div class="st-row-right-group">
+        <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
+        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+      </div>
     </button>
 
-    <div class="st-section-label" style="color:{c.settings_section_label}">Aparência</div>
-    <div class="st-section">
-      <div class="st-theme-row">
-        {#each THEME_OPTIONS as opt}
-          <button class="st-theme-item" on:click={() => setThemeValue(opt.id)}>
-            <div class="theme-preview" class:theme-preview-active={themeValue === opt.id}>
-              {#if opt.id === 'light'}
-                <div class="theme-preview-face theme-preview-light">
-                  <span class="theme-line" style="width:70%"></span>
-                  <span class="theme-line" style="width:85%"></span>
-                </div>
-              {:else if opt.id === 'dark'}
-                <div class="theme-preview-face theme-preview-dark">
-                  <span class="theme-line theme-line-dark" style="width:70%"></span>
-                  <span class="theme-line theme-line-dark" style="width:85%"></span>
-                </div>
-              {:else}
-                <div class="theme-preview-face theme-preview-system">
-                  <div class="theme-preview-half theme-preview-half-light"></div>
-                  <div class="theme-preview-half theme-preview-half-dark"></div>
-                </div>
-              {/if}
-            </div>
-            <span class="theme-item-label" class:theme-item-label-active={themeValue === opt.id} style="color:{themeValue === opt.id ? c.textPrimary : c.textSecondary}">{opt.label}</span>
-          </button>
-        {/each}
+    <button class="st-row" on:click={() => openPlaceholderModal('Privacidade e segurança')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.shield}');-webkit-mask-image:url('{ICON.shield}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
       </div>
+      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+    </button>
 
-      <button class="st-row" on:click={openLangSheet}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.globe}');-webkit-mask-image:url('{ICON.globe}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Idioma da app</span>
-        </div>
-        <div class="st-row-right-group">
-          <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
-          <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-        </div>
-      </button>
-
-      <div class="tone-block">
-        <div class="tone-header">
-          <span class="st-row-label" style="color:{c.textPrimary}">Tom do app</span>
-          <span class="tone-header-sub" style="color:{c.textSecondary}">Aplica-se ao tema {effectiveIsDark ? 'escuro' : 'claro'}</span>
-        </div>
-        <div class="tone-scroll">
-          {#each surfaceTones as tone (tone.id)}
-            <button class="tone-swatch-btn" on:click={() => pickTone(tone.id)} aria-label={tone.label}>
-              <span
-                class="tone-swatch"
-                class:tone-swatch-active={currentTone === tone.id}
-                style="background:{tone.swatch};border-color:{c.divider}"
-              >
-                {#if currentTone === tone.id}
-                  <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:{effectiveIsDark ? '#fff' : '#111'};width:15px;height:15px"></span>
-                {/if}
-              </span>
-              <span class="tone-swatch-label" style="color:{c.textSecondary}">{tone.label}</span>
-            </button>
-          {/each}
-        </div>
+    <button class="st-row" on:click={() => openPlaceholderModal('Notificações por email')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
       </div>
-    </div>
+      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+    </button>
 
-    <div class="st-section-label" style="color:{c.settings_section_label}">Conta</div>
-    <div class="st-section">
-      <button class="st-row" on:click={goEditProfile}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.person}');-webkit-mask-image:url('{ICON.person}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Editar perfil</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-      <button class="st-row" on:click={() => openPlaceholderModal('Email')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.mail}');-webkit-mask-image:url('{ICON.mail}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Email</span>
-        </div>
-        <div class="st-row-right-group">
-          <span class="st-row-value" style="color:{c.textSecondary}">{userEmail || '—'}</span>
-          <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-        </div>
-      </button>
-      <button class="st-row" on:click={() => openPlaceholderModal('Palavra-passe')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.lock}');-webkit-mask-image:url('{ICON.lock}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Palavra-passe</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-    </div>
+    <button class="st-row" on:click={() => openPlaceholderModal('Armazenamento')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.storage}');-webkit-mask-image:url('{ICON.storage}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
+      </div>
+      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+    </button>
 
-    <div class="st-section-label" style="color:{c.settings_section_label}">Privacidade e segurança</div>
-    <div class="st-section">
-      <button class="st-row" on:click={() => openPlaceholderModal('Privacidade e segurança')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.shield}');-webkit-mask-image:url('{ICON.shield}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-    </div>
+    <button class="st-row" on:click={() => openPlaceholderModal('Ajuda e suporte')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
+      </div>
+      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+    </button>
+    <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.info}');-webkit-mask-image:url('{ICON.info}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
+      </div>
+      <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+    </button>
 
-    <div class="st-section-label" style="color:{c.settings_section_label}">Notificações</div>
-    <div class="st-section">
-      <button class="st-row" on:click={() => openPlaceholderModal('Notificações por email')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-    </div>
-
-    <div class="st-section-label" style="color:{c.settings_section_label}">Preferências</div>
-    <div class="st-section">
-      <button class="st-row" on:click={() => openPlaceholderModal('Armazenamento')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.storage}');-webkit-mask-image:url('{ICON.storage}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-    </div>
-
-    <div class="st-section-label" style="color:{c.settings_section_label}">Geral</div>
-    <div class="st-section">
-      <button class="st-row" on:click={() => openPlaceholderModal('Ajuda e suporte')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-      <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.info}');-webkit-mask-image:url('{ICON.info}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
-        </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-    </div>
-
-    <div class="st-section-label" style="color:{c.settings_section_label}">Sessão</div>
-    <div class="st-section">
-      <button class="st-row" on:click={() => openLogoutDialog('all')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
-        </div>
-      </button>
-      <button class="st-row st-danger" on:click={() => openLogoutDialog('single')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:var(--danger)"></span>
-          <span class="st-row-label" style="color:var(--danger)">Terminar sessão</span>
-        </div>
-      </button>
-    </div>
+    <button class="st-row" on:click={() => openLogoutDialog('all')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:{c.textSecondary}"></span>
+        <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
+      </div>
+    </button>
+    <button class="st-row st-danger" on:click={() => openLogoutDialog('single')}>
+      <div class="st-row-left">
+        <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:var(--danger)"></span>
+        <span class="st-row-label" style="color:var(--danger)">Terminar sessão</span>
+      </div>
+    </button>
   </div>
 
   {#if showFieldModal}
@@ -501,29 +379,22 @@
   .st-header-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
   .st-body { flex: 1; overflow-y: auto; padding: 8px 16px 24px; -webkit-overflow-scrolling: touch; }
 
-  .st-profile-card {
-    display: flex; align-items: center; gap: 14px; padding: 16px; width: 100%;
-    border: none; cursor: pointer; text-align: left; font: inherit;
-    border-radius: 16px; margin-bottom: 26px;
-    background: var(--drawer-bg);
-    transition: opacity .16s ease;
+  .st-theme-tabs {
+    display: flex; gap: 4px;
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 8px;
   }
-  .st-profile-card:active { opacity: .8; }
-  :global([data-theme="dark"]) .st-profile-card { background: var(--btn-bg); }
-  .st-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0; }
-  .st-avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-  .st-profile-info { flex: 1; min-width: 0; }
-  .st-profile-name { font-size: 16px; font-weight: 700; }
-  .st-profile-email { font-size: 13px; margin-top: 2px; }
-
-  .st-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 22px 4px 10px; }
-  .st-body > .st-section-label:first-of-type { padding-top: 0; }
-
-  .st-section {
-    border-radius: 16px; overflow: hidden;
-    background: var(--drawer-bg);
+  .st-theme-tab {
+    flex: 1;
+    padding: 9px 0;
+    border: none; border-radius: 8px;
+    background: transparent;
+    font-size: 13.5px; font-weight: 600; font-family: inherit;
+    cursor: pointer;
+    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), color .18s ease;
   }
-  :global([data-theme="dark"]) .st-section { background: var(--btn-bg); }
+  .st-theme-tab-active { font-weight: 700; }
 
   .st-row {
     width: 100%; background: transparent; border: none; display: flex; align-items: center;
@@ -547,61 +418,6 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
-
-  .st-theme-row {
-    display: flex; gap: 10px;
-    padding: 16px 16px 14px;
-    border-bottom: 1px solid var(--drawer-sep);
-  }
-  .st-theme-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
-    background: none; border: none; cursor: pointer; padding: 0;
-  }
-  .theme-preview {
-    width: 100%; aspect-ratio: 1 / 0.68;
-    border-radius: 10px;
-    border: 2px solid transparent;
-    padding: 3px;
-    display: flex;
-    transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .theme-preview-active { border-color: var(--accent-primary); }
-  .theme-preview-face {
-    flex: 1; border-radius: 7px; overflow: hidden;
-    display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 8px;
-  }
-  .theme-preview-light { background: #EDEDED; }
-  .theme-preview-dark { background: #1C1C1E; }
-  .theme-line { display: block; height: 4px; border-radius: 2px; background: #D9D9DE; }
-  .theme-line-dark { background: #48484A; }
-  .theme-preview-system { padding: 0; flex-direction: row; }
-  .theme-preview-half { flex: 1; }
-  .theme-preview-half-light { background: #EDEDED; }
-  .theme-preview-half-dark { background: #1C1C1E; }
-  .theme-item-label { font-size: 12.5px; font-weight: 500; }
-  .theme-item-label-active { font-weight: 700; }
-
-  .tone-block { padding: 16px 0 12px; }
-  .tone-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; padding: 0 16px; }
-  .tone-header-sub { font-size: 12px; }
-  .tone-scroll {
-    display: flex; gap: 12px; overflow-x: auto; padding: 2px 16px 6px;
-    -webkit-overflow-scrolling: touch; scrollbar-width: thin;
-  }
-  .tone-scroll::-webkit-scrollbar { height: 4px; }
-  .tone-scroll::-webkit-scrollbar-thumb { background: rgba(127,127,127,0.3); border-radius: 2px; }
-  .tone-swatch-btn {
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    background: none; border: none; cursor: pointer; flex-shrink: 0; padding: 2px;
-  }
-  .tone-swatch {
-    width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid;
-    display: flex; align-items: center; justify-content: center;
-    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), box-shadow .16s ease;
-  }
-  .tone-swatch-active { box-shadow: 0 0 0 2px var(--accent-primary); transform: scale(1.04); }
-  .tone-swatch-btn:active .tone-swatch { transform: scale(0.92); }
-  .tone-swatch-label { font-size: 10.5px; font-weight: 500; max-width: 50px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .fluent-overlay {
     position: fixed; inset: 0; z-index: 800;
@@ -635,14 +451,8 @@
     position: fixed; inset: 0; background: rgba(0,0,0,0);
     z-index: 600; border: none; cursor: default; width: 100%; height: 100%;
     transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
-    -webkit-backdrop-filter: blur(0px);
-    backdrop-filter: blur(0px);
   }
-  .overlay.overlay-in {
-    background: rgba(0,0,0,.42);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-  }
+  .overlay.overlay-in { background: rgba(0,0,0,.42); }
   .bottom-sheet {
     position: fixed; left: 12px; right: 12px;
     bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
@@ -668,14 +478,8 @@
     position: fixed; inset: 0; z-index: 80;
     background: rgba(0, 0, 0, 0);
     transition: background .34s cubic-bezier(0.32, 0.72, 0, 1);
-    -webkit-backdrop-filter: blur(0px);
-    backdrop-filter: blur(0px);
   }
-  .logout-overlay.logout-overlay-in {
-    background: rgba(0, 0, 0, 0.45);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-  }
+  .logout-overlay.logout-overlay-in { background: rgba(0, 0, 0, 0.45); }
   .logout-dialog {
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.92);
@@ -704,7 +508,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .st-icon-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .overlay, .fluent-overlay, .fluent-modal, .theme-preview, .tone-swatch {
+    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab {
       transition: none !important;
     }
   }

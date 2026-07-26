@@ -1,655 +1,320 @@
-<!-- src/home/components/AppDrawer.svelte -->
+<!-- src/home/components/AppHeader.svelte -->
 <script>
-  import { onDestroy, createEventDispatcher } from 'svelte';
-  import { createSlideTransition } from '../lib/nav-transition.js';
-  import { DRAWER_ITEMS } from '../lib/constants.js';
+  export let mounted = false;
+  export let topPanelEl;
+  export let scrolled = 0;
 
-  export let drawerOpen = false;
-  export let drawerPushed = false;
-  export let rootEl = null;
-  export let themeValue = 'dark';
+  export let title = '';
 
-  export let avatarColor = '#FF3B30';
-  export let userInitial = 'U';
-  export let userName = 'Utilizador';
-  export let avatarUrl = '';
+  export let solidOnScroll = false;
 
-  export let showInstall = false;
+  export let showSearchBtn = false;
+  export let onOpenSearch = () => {};
 
-  export let onClose;
-  export let onApplyTheme;
-  export let onLogout;
-  export let onInstall;
-  export let onOpenProfile = () => {};
+  export let showToggle = false;
+  export let toggleOptions = [];
+  export let toggleValue = '';
+  export let onToggleChange = () => {};
 
-  const dispatch = createEventDispatcher();
+  const SILVER_THRESHOLD = 0.4;
+  $: isSolid = solidOnScroll && scrolled >= SILVER_THRESHOLD;
 
-  let showLogoutDialog = false;
-  let dialogVisible = false;
-
-  const slide = createSlideTransition({
-    onSettleClosed: () => { onClose && closeSettled(); }
-  });
-  let slideX = 100;
-  const unsubscribeSlide = slide.subscribe((v) => {
-    slideX = v;
-  });
-
-  function applyRootPush(x) {
-    return x;
+  function buzz() {
+    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
 
-  let lastPushed = null;
-  $: if (drawerPushed !== lastPushed) {
-    lastPushed = drawerPushed;
-    if (drawerPushed) slide.open();
-    else slide.close();
+  function handleSearch() {
+    buzz();
+    onOpenSearch();
   }
 
-  function closeSettled() {}
-
-  function goProfile() { onOpenProfile(); }
-
-  function goSettings() {
-    onClose();
-    dispatch('nav', { to: 'settings' });
+  function selectToggle(id) {
+    if (id === toggleValue) return;
+    buzz();
+    onToggleChange(id);
   }
 
-  function goHelp() {
-    onClose();
-    dispatch('nav', { to: 'help' });
-  }
-
-  function goOthers() {
-    onClose();
-  }
-
-  function handleItemClick(item) {
-    if (typeof item.action === 'function') item.action();
-    onClose();
-  }
-
-  function openLogoutDialog() {
-    showLogoutDialog = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => { dialogVisible = true; }));
-  }
-
-  function confirmLogout() {
-    dialogVisible = false;
-    setTimeout(() => { showLogoutDialog = false; }, 260);
-    onClose();
-    if (onLogout) onLogout();
-    if (window.AndroidSession) window.AndroidSession.onLogout();
-  }
-
-  function cancelLogout() {
-    dialogVisible = false;
-    setTimeout(() => { showLogoutDialog = false; }, 260);
-  }
-
-  const CLOSE_THRESHOLD = 0.35;
-  const VELOCITY_FLING = 0.55;
-
-  let dragging = false;
-  let dragStartX = 0;
-  let dragStartTime = 0;
-  let dragCurrentX = 0;
-  let dragW = 300;
-  let liveDragActive = false;
-  let drawerEl;
-
-  function getDrawerWidth() {
-    if (drawerEl) return drawerEl.getBoundingClientRect().width;
-    return window.innerWidth;
-  }
-
-  function onDrawerTouchStart(e) {
-    if (!drawerOpen) return;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    dragging = true;
-    liveDragActive = false;
-    dragStartX = x;
-    dragCurrentX = x;
-    dragStartTime = performance.now();
-    dragW = getDrawerWidth();
-  }
-
-  function onDragMove(e) {
-    if (!dragging || !drawerOpen) return;
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    dragCurrentX = x;
-    const delta = x - dragStartX;
-
-    if (delta < -6 && !liveDragActive) return;
-    if (delta <= 6) return;
-    if (!liveDragActive) {
-      liveDragActive = true;
-      document.documentElement.style.touchAction = 'none';
-    }
-    const progress = Math.min(1, Math.max(0, delta / dragW));
-    slide.setDragValue(progress * 100);
-    e.preventDefault();
-  }
-
-  function onDragEnd(e) {
-    if (!dragging) return;
-    dragging = false;
-    document.documentElement.style.touchAction = '';
-    const elapsed = Math.max(1, performance.now() - dragStartTime);
-    const delta = dragCurrentX - dragStartX;
-    const velocity = Math.abs(delta) / elapsed;
-
-    if (!liveDragActive) {
-      liveDragActive = false;
-      return;
-    }
-    liveDragActive = false;
-
-    const closedFraction = Math.min(1, Math.max(0, delta / dragW));
-    const shouldClose = closedFraction > CLOSE_THRESHOLD || (delta > 0 && velocity > VELOCITY_FLING);
-    if (shouldClose) {
-      onClose();
-    } else {
-      slide.releaseDragTo('open');
-    }
-  }
-
-  function bindWindowTouchListeners(node) {
-    const opts = { passive: false };
-    const tm = (e) => { if (dragging) onDragMove(e); };
-    const te = (e) => { if (dragging) onDragEnd(e); };
-    node.addEventListener('touchmove', tm, opts);
-    node.addEventListener('touchend', te, opts);
-    node.addEventListener('touchcancel', te, opts);
-    return {
-      destroy() {
-        node.removeEventListener('touchmove', tm, opts);
-        node.removeEventListener('touchend', te, opts);
-        node.removeEventListener('touchcancel', te, opts);
-      }
-    };
-  }
-
-  onDestroy(() => {
-    unsubscribeSlide();
-    slide.destroy();
-  });
+  $: toggleIndex = Math.max(0, toggleOptions.findIndex(o => o.id === toggleValue));
 </script>
 
-
-{#if drawerOpen}
-  <div
-    class="drawer-overlay"
-    style="opacity:{1 - slideX / 100}"
-    on:click={onClose}
-  ></div>
-  <div
-    class="drawer"
-    bind:this={drawerEl}
-    style="transform: translate3d({slideX}%, 0, 0);"
-    on:touchstart={onDrawerTouchStart}
-  >
-    <button class="drawer-avatar-block pulse-tap" on:click={goProfile}>
-      {#if avatarUrl}
-        <img src={avatarUrl} alt={userName} class="drawer-avatar-img" />
-      {:else}
-        <div class="drawer-avatar" style="background:{avatarColor}">{userInitial}</div>
-      {/if}
-      <span class="drawer-user-name">{userName}</span>
-    </button>
-    <div class="drawer-sep"></div>
-    <nav class="drawer-nav">
-
-      {#if showInstall}
-        <button class="drawer-item pulse-tap" on:click={onInstall}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/arrow_download.svg');-webkit-mask-image:url('/icons/svg/regular/arrow_download.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Instalar app</span>
-        </button>
-      {/if}
-
-      <div class="m3-group">
-        <!-- 1º card: cantos superiores grandes (18px), inferiores pequenos (5px) -->
-        <button class="m3-item m3-item-first pulse-tap" on:click={goHelp}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/info.svg');-webkit-mask-image:url('/icons/svg/regular/info.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Ajuda</span>
-        </button>
-
-        <!-- 2º card: cantos todos pequenos (5px) -->
-        <div class="m3-item m3-item-mid theme-section">
-          <div class="theme-cards">
-            <button
-              class="theme-card"
-              class:theme-card-active={themeValue === 'light'}
-              on:click={() => onApplyTheme('light')}
-              aria-label="Tema claro"
-            >
-              <div class="theme-preview theme-preview-light">
-                <span class="theme-line" style="width:70%"></span>
-                <span class="theme-line" style="width:85%"></span>
-                <span class="theme-line" style="width:55%"></span>
-              </div>
-            </button>
-            <button
-              class="theme-card"
-              class:theme-card-active={themeValue === 'system'}
-              on:click={() => onApplyTheme('system')}
-              aria-label="Tema automático"
-            >
-              <div class="theme-preview theme-preview-system">
-                <div class="theme-preview-half theme-preview-half-light">
-                  <span class="theme-line" style="width:70%"></span>
-                  <span class="theme-line" style="width:55%"></span>
-                </div>
-                <div class="theme-preview-half theme-preview-half-dark">
-                  <span class="theme-line theme-line-dark" style="width:70%"></span>
-                  <span class="theme-line theme-line-dark" style="width:55%"></span>
-                </div>
-              </div>
-            </button>
-            <button
-              class="theme-card"
-              class:theme-card-active={themeValue === 'dark'}
-              on:click={() => onApplyTheme('dark')}
-              aria-label="Tema escuro"
-            >
-              <div class="theme-preview theme-preview-dark">
-                <span class="theme-line theme-line-dark" style="width:70%"></span>
-                <span class="theme-line theme-line-dark" style="width:85%"></span>
-                <span class="theme-line theme-line-dark" style="width:55%"></span>
-              </div>
-            </button>
-          </div>
+<div
+  class="top-panel"
+  class:in={mounted}
+  class:solid={isSolid}
+  bind:this={topPanelEl}
+>
+  <div class="gradient-layer"></div>
+  <header class="header">
+    <div class="header-inner">
+      <h1 class="header-title" class:solid-title={isSolid}>{title}</h1>
+      {#if showSearchBtn}
+        <div class="header-actions">
+          <button class="action-btn pulse-tap" class:solid-btn={isSolid} on:click={handleSearch} aria-label="Pesquisar">
+            <span class="icon-mask" class:solid-icon={isSolid} style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+          </button>
         </div>
-
-        <!-- 3º card: cantos superiores pequenos (5px), inferiores grandes (18px) -->
-        <button class="m3-item m3-item-last pulse-tap" on:click={goOthers}>
-          <span class="icon-mask" style="mask-image:url('/icons/svg/regular/more_horizontal.svg');-webkit-mask-image:url('/icons/svg/regular/more_horizontal.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
-          <span class="drawer-item-label" style="flex:1">Outros</span>
-        </button>
-      </div>
-
-      {#each DRAWER_ITEMS as item}
-        <button class="drawer-item pulse-tap" on:click={() => handleItemClick(item)}>
-          {#if item.icon}
-            <span class="icon-mask" style="mask-image:url('{item.icon}');-webkit-mask-image:url('{item.icon}');width:24px;height:24px;background:var(--drawer-text)"></span>
-          {/if}
-          <span class="drawer-item-label" style="flex:1">{item.label}</span>
-        </button>
-      {/each}
-    </nav>
-
-    <div class="drawer-bottom-row">
-      <button class="drawer-logout pulse-tap" on:click={openLogoutDialog}>
-        <span class="drawer-logout-label">Terminar sessão</span>
-      </button>
-      <button class="drawer-settings-btn pulse-tap" on:click={goSettings} aria-label="Definições">
-        <span class="icon-mask" style="mask-image:url('/icons/svg/regular/settings.svg');-webkit-mask-image:url('/icons/svg/regular/settings.svg');width:24px;height:24px;background:var(--drawer-text)"></span>
-      </button>
+      {/if}
     </div>
-  </div>
-{/if}
 
-<svelte:body use:bindWindowTouchListeners />
-
-{#if showLogoutDialog}
-  <div class="logout-overlay" class:logout-overlay-in={dialogVisible} on:click={cancelLogout}>
-    <div class="logout-dialog" class:logout-dialog-in={dialogVisible} on:click|stopPropagation>
-      <p class="logout-dialog-text">Tens a certeza que queres terminar sessão?</p>
-      <div class="logout-dialog-actions">
-        <button class="logout-btn-cancel pulse-tap" on:click={cancelLogout}>Cancelar</button>
-        <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Terminar</button>
+    {#if showToggle && toggleOptions.length > 0}
+      <div class="segmented" class:solid-segmented={isSolid} style="--count:{toggleOptions.length}">
+        <div class="segmented-thumb" style="--index:{toggleIndex}"></div>
+        {#each toggleOptions as opt}
+          <button
+            class="segmented-opt"
+            class:active={toggleValue === opt.id}
+            on:click={() => selectToggle(opt.id)}
+          >
+            <span class="segmented-opt-label">{opt.label}</span>
+          </button>
+        {/each}
       </div>
-    </div>
-  </div>
-{/if}
+    {/if}
+  </header>
+  <div class="header-elevate" style="opacity:{isSolid ? 0 : scrolled}"></div>
+</div>
 
 <style>
-  .drawer-overlay {
+  .top-panel {
     position: fixed;
-    inset: 0;
-    z-index: 60;
-    background: var(--drawer-overlay-in);
-    will-change: opacity;
-  }
-  .drawer {
-    position: fixed;
-    inset: 0 0 0 auto;
-    z-index: 61;
-    width: 86%;
-    max-width: 340px;
-    background: var(--drawer-bg-strong);
-    box-shadow: -4px 0 24px rgba(0,0,0,0.22);
+    top: 0; left: 0; right: 0;
+    z-index: 15;
     display: flex;
     flex-direction: column;
-    will-change: transform;
+    background: rgba(var(--header-glass-rgb), 0.74);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    opacity: 0;
+    transform: translateY(-16px) translateZ(0);
+    transition: opacity .5s cubic-bezier(0.16,1,0.3,1), transform .5s cubic-bezier(0.16,1,0.3,1), background .24s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
     contain: layout style paint;
-    touch-action: pan-y;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .top-panel.in {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+    pointer-events: auto;
   }
 
-  .drawer-avatar-block {
+  /* Silver: azul Microsoft que muda por tema — mesmo par de cores do
+     botão "Terminar sessão" (#0078D4 claro / #4CC2FF escuro, este
+     último de alto contraste) — em vez do #185ABD fixo anterior. */
+  .top-panel.solid {
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+  :global([data-theme="light"]) .top-panel.solid { background: #0078D4; }
+  :global([data-theme="dark"]) .top-panel.solid { background: #4CC2FF; }
+
+  .gradient-layer {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--header-glass-rgb), 1) 0%,
+      rgba(var(--header-glass-rgb), 1) 78%,
+      rgba(var(--header-glass-rgb), 0) 100%
+    );
+    transition: opacity .2s ease;
+    pointer-events: none;
+  }
+  .top-panel.solid .gradient-layer {
+    opacity: 0;
+  }
+
+  .header-elevate {
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 1px;
+    background: var(--border-soft);
+    box-shadow: 0 8px 20px var(--drawer-shadow);
+    pointer-events: none;
+    transition: opacity .18s linear;
+  }
+
+  .header {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 10px;
-    padding: 22px 20px 18px;
-    flex-shrink: 0;
-    background: transparent;
-    border: none;
-    width: 100%;
-    cursor: pointer;
-    font-family: inherit;
+    padding: calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
   }
-  .drawer-avatar-block:active { opacity: .7; }
-  .drawer-avatar {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    flex-shrink: 0;
+  .header-inner {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    font-weight: 700;
-    color: #fff;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 640px;
   }
-  .drawer-avatar-img {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-  .drawer-user-name {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--drawer-text);
-    text-align: center;
-    white-space: nowrap;
+
+  .header-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--icon-strong);
+    margin: 0;
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
+    white-space: nowrap;
+    transition: color .2s ease;
   }
-  .drawer-sep {
-    height: 0.5px;
-    background: var(--drawer-sep);
-    margin: 0 14px;
-    flex-shrink: 0;
+  /* Tema escuro: quando "solid", o fundo é #4CC2FF (claro), então o
+     título precisa de texto escuro para manter contraste — ao
+     contrário do #0078D4 (claro) do tema light, que continua com
+     texto branco. */
+  .header-title.solid-title {
+    color: #FFFFFF;
   }
-  .drawer-nav {
-    display: flex;
-    flex-direction: column;
-    padding: 8px 6px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    flex: 1;
-  }
-  .drawer-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 13px 14px;
-    border-radius: 10px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    font-family: inherit;
-    text-align: left;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
-    width: 100%;
-  }
-  .drawer-item:active { background: var(--drawer-row-active, var(--btn-bg)); }
-  .drawer-item-label {
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--drawer-text);
+  :global([data-theme="dark"]) .header-title.solid-title {
+    color: #001A2C;
   }
 
-  /* ── Grupo M3 ────────────────────────────────────────────────────
-     Pontas externas do grupo: 18px (grandes mas não exageradas).
-     Junções internas entre os 3 cards: 5px (quase retas).
-     Gap de 2px entre cada card — sem linha divisória, o espaçamento
-     é a separação visual. Fundo a 55% para não ficar pesado.      */
-  .m3-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin: 6px 8px 10px;
-  }
-  .m3-item {
-    width: 100%;
-    background: color-mix(in srgb, var(--btn-bg) 55%, transparent);
-  }
-  /* 1º card: superiores grandes (18px), inferiores pequenos (5px) */
-  .m3-item-first {
-    border-radius: 18px 18px 5px 5px;
-  }
-  /* card do meio: todos os cantos pequenos (5px) */
-  .m3-item-mid {
-    border-radius: 5px;
-  }
-  /* 3º card: superiores pequenos (5px), inferiores grandes (18px) */
-  .m3-item-last {
-    border-radius: 5px 5px 18px 18px;
-  }
-  button.m3-item {
+  .header-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 15px 16px;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    text-align: left;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  button.m3-item:active {
-    background: color-mix(in srgb, var(--btn-bg-active) 65%, transparent);
-  }
-
-  .theme-section {
-    padding: 10px 12px;
-  }
-  .theme-cards {
-    display: flex;
     gap: 8px;
-  }
-  .theme-card {
-    flex: 1;
-    aspect-ratio: 1 / 0.62;
-    padding: 3px;
-    border-radius: 10px;
-    border: 2px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    transition: border-color .2s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .theme-card-active { border-color: #0A84FF; }
-  .theme-preview {
-    flex: 1;
-    border-radius: 7px;
-    border: 1px solid rgba(0,0,0,0.08);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    padding: 0 7px;
-    overflow: hidden;
-    position: relative;
-  }
-  .theme-preview-light { background: #EDEDED; }
-  .theme-preview-dark  { background: #1C1C1E; }
-  .theme-line {
-    display: block;
-    height: 4px;
-    border-radius: 2px;
-    background: #D9D9DE;
-  }
-  .theme-line-dark { background: #48484A; }
-
-  .theme-preview-system {
-    padding: 0;
-    flex-direction: row;
-  }
-  .theme-preview-half {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    padding: 0 6px;
-    position: relative;
-  }
-  .theme-preview-half-light {
-    background: #EDEDED;
-    clip-path: polygon(0 0, 100% 0, 78% 100%, 0% 100%);
-    padding-right: 12px;
-  }
-  .theme-preview-half-dark {
-    background: #1C1C1E;
-    margin-left: -10px;
-    clip-path: polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
-    padding-left: 14px;
-  }
-
-  .drawer-bottom-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 14px);
     flex-shrink: 0;
   }
-  .drawer-logout {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 16px;
-    border-radius: 999px;
-    border: 0.5px solid var(--border-soft);
-    background: var(--btn-bg);
-    cursor: pointer;
-    font-family: inherit;
-    flex: 1;
-    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1), transform .24s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .drawer-logout:active {
-    background: var(--btn-bg-active);
-    transform: scale(0.96);
-  }
-  .drawer-logout-label {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--logout-icon);
-  }
-  .drawer-settings-btn {
-    flex-shrink: 0;
-    width: 54px;
-    height: 54px;
-    border-radius: 10px;
-    border: 0.5px solid var(--border-soft);
-    background: var(--btn-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1), transform .24s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .drawer-settings-btn:active {
-    background: var(--btn-bg-active);
-    transform: scale(0.9);
-  }
 
-  .logout-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 80;
-    background: rgba(0,0,0,0);
-    transition: background .32s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .logout-overlay.logout-overlay-in { background: rgba(0,0,0,0.5); }
-  .logout-dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.90);
-    opacity: 0;
-    background: var(--surface);
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    z-index: 81;
-    min-width: 280px;
-    max-width: 90vw;
-    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform, opacity;
-  }
-  .logout-dialog.logout-dialog-in {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-  .logout-dialog-text {
-    font-size: 16px;
-    color: var(--text-primary);
-    margin: 0 0 20px;
-    text-align: center;
-    font-family: inherit;
-  }
-  .logout-dialog-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-  }
-  .logout-btn-cancel,
-  .logout-btn-confirm {
-    flex: 1;
-    padding: 12px 20px;
-    border-radius: 999px;
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: none;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: center;
-    transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .logout-btn-cancel {
     background: var(--btn-bg);
-    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .logout-btn-cancel:active {
+  .action-btn.solid-btn {
+    background: transparent;
+  }
+  .action-btn:active {
     background: var(--btn-bg-active);
-    transform: scale(0.96);
+    transform: scale(0.88);
   }
-  .logout-btn-confirm { background: #FF3B30; color: white; }
-  .logout-btn-confirm:active {
-    background: #E0342A;
-    transform: scale(0.96);
+  .action-btn.solid-btn:active {
+    background: rgba(255,255,255,0.16);
   }
-
-  .icon-mask {
-    display: block;
+  :global([data-theme="dark"]) .action-btn.solid-btn:active {
+    background: rgba(0,0,0,0.10);
+  }
+  .action-btn .icon-mask {
+    width: 17px;
+    height: 17px;
+    background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-    flex-shrink: 0;
   }
-  .pulse-tap {
+  .action-btn .icon-mask.solid-icon {
+    background: #FFFFFF;
+  }
+  :global([data-theme="dark"]) .action-btn .icon-mask.solid-icon {
+    background: #001A2C;
+  }
+
+  .segmented {
+    position: relative;
+    display: flex;
+    width: 100%;
+    max-width: 640px;
+    background: var(--btn-bg);
+    border-radius: 999px;
+    padding: 4px;
+    transition: background .22s cubic-bezier(0.16,1,0.3,1);
+  }
+  .segmented.solid-segmented {
+    background: rgba(255,255,255,0.14);
+  }
+  :global([data-theme="dark"]) .segmented.solid-segmented {
+    background: rgba(0,0,0,0.10);
+  }
+  .segmented-thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 8px) / var(--count));
+    height: calc(100% - 8px);
+    border-radius: 999px;
+    background: var(--btn-solid-bg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.12);
+    transform: translateX(calc(var(--index) * 100%));
+    transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .solid-segmented .segmented-thumb {
+    background: #FFFFFF;
+  }
+  :global([data-theme="dark"]) .solid-segmented .segmented-thumb {
+    background: #001A2C;
+  }
+  .segmented-opt {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border: none;
+    background: transparent;
+    font: inherit;
     cursor: pointer;
-    transition: transform .18s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .18s cubic-bezier(0.32, 0.72, 0, 1);
+    border-radius: 999px;
+    -webkit-tap-highlight-color: transparent;
   }
-  .pulse-tap:active { transform: scale(0.96); opacity: .80; }
+  .segmented-opt-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    transition: color .22s ease, transform .3s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .solid-segmented .segmented-opt-label {
+    color: rgba(255,255,255,0.75);
+  }
+  :global([data-theme="dark"]) .solid-segmented .segmented-opt-label {
+    color: rgba(0,26,44,0.65);
+  }
+  .segmented-opt.active .segmented-opt-label {
+    color: var(--btn-solid-text);
+    transform: scale(1.04);
+  }
+  .solid-segmented .segmented-opt.active .segmented-opt-label {
+    color: #0078D4;
+  }
+  :global([data-theme="dark"]) .solid-segmented .segmented-opt.active .segmented-opt-label {
+    color: #4CC2FF;
+  }
+  .segmented-opt:active .segmented-opt-label {
+    transform: scale(0.92);
+  }
+
+  @media (hover:hover) and (pointer:fine) {
+    .action-btn:not(.solid-btn):hover { background: var(--btn-bg-active); }
+    .action-btn.solid-btn:hover { background: rgba(255,255,255,0.16); }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .drawer-item, .theme-card, .drawer-logout, .drawer-settings-btn,
-    .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .pulse-tap { transition: none !important; }
+    .top-panel, .action-btn, .header-elevate, .segmented-thumb, .segmented-opt-label { transition: none !important; }
   }
+
+  @media (min-width: 720px) {
+    .header-inner, .segmented { max-width:760px; }
+  }
+
+  .pulse-tap {
+    cursor: pointer;
+    transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
+  }
+  .pulse-tap:active { transform: scale(0.96); opacity: .80; }
 </style>

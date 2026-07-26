@@ -1,3 +1,4 @@
+<!-- src/home/pages/SettingsPage.svelte -->
 <script>
   import { onDestroy } from 'svelte';
   import { getThemeColors, getTheme } from '$shared/theme.js';
@@ -41,6 +42,8 @@
     { id: 'dark', label: 'Escuro' },
     { id: 'system', label: 'Sistema' },
   ];
+
+  $: themeIndex = Math.max(0, THEME_OPTIONS.findIndex(o => o.id === themeValue));
 
   function setThemeValue(v) {
     themeValue = v;
@@ -165,14 +168,19 @@
   <div class="st-body">
 
     <div class="st-group">
-      <div class="st-theme-tabs" style="background:{c.appbarBtnBg}">
+      <!-- Segmented control: mesmo padrão visual do toggle do
+           TemplatesTab/AppHeader — thumb deslizante com azul Microsoft
+           que muda por tema (#0078D4 claro / #4CC2FF escuro). -->
+      <div class="segmented" style="--count:{THEME_OPTIONS.length}">
+        <div class="segmented-thumb" style="--index:{themeIndex}"></div>
         {#each THEME_OPTIONS as opt}
           <button
-            class="st-theme-tab"
-            class:st-theme-tab-active={themeValue === opt.id}
-            style={themeValue === opt.id ? `background:${c.background};color:${c.textPrimary}` : `color:${c.textSecondary}`}
+            class="segmented-opt"
+            class:active={themeValue === opt.id}
             on:click={() => setThemeValue(opt.id)}
-          >{opt.label}</button>
+          >
+            <span class="segmented-opt-label">{opt.label}</span>
+          </button>
         {/each}
       </div>
 
@@ -302,27 +310,68 @@
   }
   .st-back-btn:active { opacity: .55; }
   .st-header-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
-  .st-body { flex: 1; overflow-y: auto; padding: 8px 16px calc(env(safe-area-inset-bottom,0px) + 88px); -webkit-overflow-scrolling: touch; }
+  /* padding-bottom aumentado (88px → 130px) para dar espaço extra ao
+     botão de logout, que agora está mais perto do fundo real da tela. */
+  .st-body { flex: 1; overflow-y: auto; padding: 8px 16px calc(env(safe-area-inset-bottom,0px) + 130px); -webkit-overflow-scrolling: touch; }
 
   .st-group { margin-bottom: 26px; }
   .st-group:last-child { margin-bottom: 0; }
 
-  .st-theme-tabs {
-    display: flex; gap: 4px;
-    border-radius: 10px;
-    padding: 3px;
+  /* Segmented control: mesmo estilo visual do AppHeader/TemplatesTab —
+     thumb deslizante, azul Microsoft que muda por tema. */
+  .segmented {
+    position: relative;
+    display: flex;
+    width: 100%;
+    background: var(--btn-bg);
+    border-radius: 999px;
+    padding: 4px;
     margin-bottom: 8px;
   }
-  .st-theme-tab {
-    flex: 1;
-    padding: 9px 0;
-    border: none; border-radius: 8px;
-    background: transparent;
-    font-size: 13.5px; font-weight: 600; font-family: inherit;
-    cursor: pointer;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), color .18s ease;
+  .segmented-thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 8px) / var(--count));
+    height: calc(100% - 8px);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.12);
+    transform: translateX(calc(var(--index) * 100%));
+    transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
-  .st-theme-tab-active { font-weight: 700; }
+  :global([data-theme="light"]) .segmented-thumb { background: #0078D4; }
+  :global([data-theme="dark"]) .segmented-thumb { background: #4CC2FF; }
+  .segmented-opt {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+    border-radius: 999px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .segmented-opt-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    transition: color .22s ease, transform .3s cubic-bezier(0.22, 1.42, 0.36, 1);
+  }
+  .segmented-opt.active .segmented-opt-label {
+    color: #FFFFFF;
+    transform: scale(1.04);
+  }
+  :global([data-theme="dark"]) .segmented-opt.active .segmented-opt-label {
+    color: #001A2C;
+  }
+  .segmented-opt:active .segmented-opt-label {
+    transform: scale(0.92);
+  }
 
   .st-row {
     width: 100%; background: transparent; border: none; display: flex; align-items: center;
@@ -343,11 +392,15 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
+  /* Botão de logout mais perto do fundo real da tela (14px → 6px de
+     distância do safe-area-inset-bottom) — antes tinha o mesmo offset
+     "+54px" pensado para conviver com a bottombar por trás, que aqui
+     não existe (o SettingsPage é tela cheia própria). */
   .logout-fab {
     position: fixed;
     left: 16px;
     right: 16px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 54px + 14px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -390,9 +443,9 @@
   .fluent-btn-save {
     flex: 1; padding: 11px; border-radius: 10px; border: none;
     font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: #fff;
-    background: #0078D4;
-    transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
+  :global([data-theme="light"]) .fluent-btn-save { background: #0078D4; }
+  :global([data-theme="dark"]) .fluent-btn-save { background: #4CC2FF; color: #001A2C; }
   .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
 
   .overlay {
@@ -451,11 +504,12 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #0078D4; color: white; }
-  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
+  :global([data-theme="light"]) .logout-btn-confirm { background: #0078D4; color: white; }
+  :global([data-theme="dark"]) .logout-btn-confirm { background: #4CC2FF; color: #001A2C; }
+  .logout-btn-confirm:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
     .st-back-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab, .logout-fab, .pulse-tap, .st-root { transition: none !important; }
+    .overlay, .fluent-overlay, .fluent-modal, .segmented-thumb, .segmented-opt-label, .logout-fab, .pulse-tap, .st-root { transition: none !important; }
   }
 </style>

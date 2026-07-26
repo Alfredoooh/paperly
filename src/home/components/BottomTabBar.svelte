@@ -25,10 +25,14 @@
     onSelect(tab.id);
   }
 
+  // Ícone do FAB gira em torno de si mesmo (direita → esquerda,
+  // sentido anti-horário) a cada clique.
   let fabPressed = false;
+  let fabRotation = 0;
   function openAI() {
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
     fabPressed = true;
+    fabRotation -= 360;
     setTimeout(() => { fabPressed = false; }, 150);
     onOpenAI();
   }
@@ -71,7 +75,7 @@
       on:click={openAI}
       aria-label={AI_FAB.label}
     >
-      <img class="fab-icon" src={AI_FAB.icon} alt={AI_FAB.label} />
+      <img class="fab-icon" src={AI_FAB.icon} alt={AI_FAB.label} style="transform: rotate({fabRotation}deg);" />
     </button>
   </div>
 
@@ -295,9 +299,10 @@
     object-fit: contain;
     display: block;
     pointer-events: none;
+    transition: transform .5s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .icon-mask, .tab-label, .tab-icon, .fab-btn { transition: none !important; }
+    .icon-mask, .tab-label, .tab-icon, .fab-btn, .fab-icon { transition: none !important; }
   }
 </style>

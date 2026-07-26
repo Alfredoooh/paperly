@@ -1,18 +1,10 @@
 <!-- src/home/components/AIChatModal.svelte -->
-<!-- Modal em tela cheia que nasce por container-transform a partir da
-     posição/tamanho exatos do botão de IA na bottombar, crescendo até
-     cobrir o ecrã inteiro. O transform-origin é dinâmico, calculado a
-     partir de 'origin' (DOMRect medido pelo pai) e expresso em % do
-     próprio container — assim o scale() sempre encolhe/cresce em
-     direção ao ponto exato do botão, sem depender de translate para
-     compensar (era aí que nascia o desvio para a esquerda). Fecho:
-     só pelo botão X, que reverte a mesma animação. -->
 <script>
   import AiApp from '../../ai/App.svelte';
   
-  export let open = false; // montado no DOM
-  export let pushed = false; // deve estar na posição aberta (fonte: App.svelte)
-  export let origin = null; // DOMRect do botão de IA, medido pelo pai antes de abrir
+  export let open = false;
+  export let pushed = false;
+  export let origin = null;
   export let onClose = () => {};
   
   function handleClose() {
@@ -28,17 +20,12 @@
   $: fabW = origin ? origin.width : 44;
   $: fabH = origin ? origin.height : 40;
   
-  // Fator de escala do botão até cobrir a tela inteira
   $: scaleClosedX = fabW / vw;
   $: scaleClosedY = fabH / vh;
   
   $: scaleX = pushed ? 1 : scaleClosedX;
   $: scaleY = pushed ? 1 : scaleClosedY;
   
-  // transform-origin em % do próprio container (que cobre 100vw/100vh),
-  // apontando exatamente para o centro do botão — o scale() encolhe/
-  // cresce SEMPRE em direção a esse ponto, sem precisar de translate
-  // nenhum para compensar.
   $: originXPercent = (fabCenterX / vw) * 100;
   $: originYPercent = (fabCenterY / vh) * 100;
   
@@ -80,10 +67,16 @@
     z-index: 90;
     background: #000;
     pointer-events: none;
-    transition: opacity .38s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: opacity .52s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: opacity;
   }
 
+  /* Cantos SEMPRE arredondados (24px), mesmo em tela cheia — pedido
+     explícito, comportamento diferente do container-transform
+     "Material You" padrão que reto-ifica ao expandir. Duração da
+     transição aumentada (.42s → .62s) e easing trocado para uma curva
+     mais suave (0.22,1,0.36,1 — "ease-out-quint"-like), para reduzir
+     a sensação de "salto" e aproximar de uma animação nativa. */
   .ai-container {
     position: fixed;
     inset: 0;
@@ -91,10 +84,11 @@
     width: 100vw;
     height: 100dvh;
     background: var(--app-bg);
+    border-radius: 24px;
     will-change: transform;
     overflow: hidden;
     contain: layout style paint;
-    transition: transform .42s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform .62s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .ai-inner {
@@ -102,7 +96,7 @@
     inset: 0;
     display: flex;
     flex-direction: column;
-    transition: opacity .28s ease;
+    transition: opacity .34s ease;
   }
 
   .close-btn {

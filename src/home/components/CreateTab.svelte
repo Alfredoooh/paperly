@@ -1,12 +1,4 @@
 <!-- src/home/components/CreateTab.svelte -->
-<!-- Header próprio, fixo, sempre transparente/branco no topo e sólido
-     ao deslizar. O antigo "silver appbar" duplicado foi removido —
-     este único header cobre agora os dois estados (transparente e
-     sólido), tal como o resto dos tabs faz através do AppHeader.
-     O avatar/perfil deixou de aparecer aqui: o acesso ao perfil é
-     feito exclusivamente pelo tab "Eu" da bottombar e pelo bloco de
-     perfil dentro do MeTab — sem duplicar o ponto de entrada no
-     appbar do Criar. -->
 <script>
   export let platformApps = null;
   export let onOpenSearch = () => {};
@@ -15,56 +7,32 @@
   export let heroProgress = 0;
   export let isDark = false;
 
-  // dados do header próprio
   export let mounted = false;
   export let title = '';
 
-  // Notificações: aberto pelo App.svelte.
   export let onOpenNotifications = () => {};
   export let hasUnreadNotifications = false;
 
-  // Mantidas apenas para não quebrar o binding vindo do App.svelte —
-  // já não são usadas aqui (o sheet deixou de ter push/limite).
   export let rootEl = null;
   export let appbarHeight = 56;
 
-  // Recentes: lista de projetos recentes do utilizador. Cada item
-  // esperado com {id, title, thumbnail, updatedAt}. Enquanto
-  // recentProjects é null/undefined mostramos skeleton loader; um
-  // array vazio [] significa "carregado, sem projetos" — mostra a
-  // ilustração de estado vazio (sem skeleton).
   export let recentProjects = null;
   export let onOpenProject = () => {};
 
-  // Ícones da biblioteca oficial Fluent System Icons (Microsoft),
-  // servidos via CDN — mesmo padrão já usado em TemplatePreviewPage.svelte.
-  // Usado apenas para o ícone de notificações; o resto do header
-  // continua a usar o conjunto local /icons/svg/regular/ como sempre.
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const NOTIF_ICON = `${FLUENT_BASE}/alert_24_regular.svg`;
 
-  // O header fica sólido a partir de metade do percurso do hero —
-  // mantido exatamente como antes, só que agora é o ÚNICO header
-  // (o silver-appbar duplicado foi removido).
-  const SOLID_THRESHOLD = 0.5;
-  $: isSolid = heroProgress >= SOLID_THRESHOLD;
-
-  // A search-bar desaparece progressivamente com o próprio scroll —
-  // opacity e scale seguem heroProgress (0→1) continuamente, sem
-  // liga/desliga abrupto. Só fica não-interativa perto do fim.
+  // silver appbar REMOVIDO por completo — o header do Create fica
+  // sempre no estado glass/transparente original, nunca fica sólido
+  // ao rolar. isSolid deixou de existir; searchBtnVisible/demais
+  // lógicas de opacidade continuam iguais, só a mudança de fundo foi
+  // retirada.
   $: searchBarOpacity = 1 - heroProgress;
   $: searchBarScale = 1 - 0.08 * heroProgress;
   $: searchBarInert = heroProgress > 0.9;
 
-  // Botão de pesquisa no appbar: só aparece quando o input de busca
-  // já está COMPLETAMENTE atrás do appbar (opacidade 0, heroProgress
-  // no máximo) — não antes disso, mesmo que a search-bar já esteja
-  // quase invisível. Fica assim garantido que nunca há sobreposição
-  // visual entre "ainda vejo a search-bar" e "já vejo a lupa".
   $: searchBtnVisible = searchBarOpacity <= 0;
 
-  // Fallback de segurança para o título "Criar" nunca ficar preso a
-  // opacity:0 caso `mounted` nunca chegue a `true` por fora.
   import { onMount as onLocalMount } from 'svelte';
   let localMounted = false;
   $: effectiveMounted = mounted || localMounted;
@@ -84,8 +52,6 @@
     try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
   }
 
-  // Clique na search-bar: sempre slide normal, sem container
-  // transform/origin — nada de medir getBoundingClientRect aqui.
   function handleOpenSearch() {
     buzz();
     onOpenSearch(null);
@@ -101,8 +67,6 @@
     onOpenProject(p);
   }
 
-  // Formata "há X" de forma simples a partir de updatedAt (ISO string
-  // ou timestamp), sem depender de libs externas.
   function timeAgo(updatedAt) {
     if (!updatedAt) return '';
     const then = new Date(updatedAt).getTime();
@@ -120,16 +84,14 @@
   }
 
   const SKELETON_COUNT = 4;
-  const APPS_SKELETON_COUNT = 6; // 2 filas de 3 colunas
+  const APPS_SKELETON_COUNT = 6;
 </script>
 
-<!-- Header próprio do Create: título fixo "Criar" + pesquisa (só quando
-     a search-bar está totalmente escondida) + notificações. `isSolid`
-     controla a mudança de fundo transparente → sólido (azul Fluent),
-     igual ao padrão usado pelo AppHeader nos outros tabs. -->
-<div class="create-header" class:in={effectiveMounted} class:solid={isSolid}>
+<!-- Header próprio do Create: SEM estado "solid" — fica sempre no
+     mesmo visual glass/transparente, independentemente do scroll. -->
+<div class="create-header" class:in={effectiveMounted}>
   <div class="create-header-inner">
-    <h1 class="create-header-title visible" class:solid-title={isSolid}>Criar</h1>
+    <h1 class="create-header-title visible">Criar</h1>
     <div class="header-actions">
       <button
         class="search-btn pulse-tap"
@@ -139,13 +101,10 @@
         on:click={handleOpenSearch}
         aria-label="Pesquisar"
       >
-        <span class="icon-mask header-icon" class:header-icon-solid={isSolid} style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
+        <span class="icon-mask header-icon" style="mask-image:url('/icons/svg/regular/search.svg');-webkit-mask-image:url('/icons/svg/regular/search.svg')"></span>
       </button>
-      <!-- Notificações: ícone da biblioteca oficial Fluent System Icons
-           (Microsoft), via CDN — sem círculo de fundo, sem sombra, só
-           o glyph, igual ao tratamento visual que já existia. -->
       <button class="notif-btn pulse-tap" on:click={handleNotifications} aria-label="Notificações">
-        <span class="icon-mask notif-icon" class:notif-icon-solid={isSolid} style="mask-image:url('{NOTIF_ICON}');-webkit-mask-image:url('{NOTIF_ICON}')"></span>
+        <span class="icon-mask notif-icon" style="mask-image:url('{NOTIF_ICON}');-webkit-mask-image:url('{NOTIF_ICON}')"></span>
         {#if hasUnreadNotifications}
           <span class="notif-dot"></span>
         {/if}
@@ -156,8 +115,6 @@
 
 <div class="create-tab">
 
-  <!-- Sem saudação: a search-bar sobe para logo depois do appbar,
-       com respiro mínimo. -->
   <div class="hero-bg">
     <button
       class="search-bar pulse-tap"
@@ -170,12 +127,6 @@
     </button>
   </div>
 
-  <!-- Apps: card estilo Android M3 — sólido, pouca sombra, cantos
-       generosos. Título pequeno FORA/ACIMA do card + grid 3 colunas,
-       ícones PNG soltos (sem círculo/fundo colorido). A Nexa IA NÃO
-       aparece aqui — platformApps já vem filtrado (id !== 'ai') a
-       partir de App.svelte, porque a IA agora abre exclusivamente
-       pelo pill central da bottombar, como modal. -->
   <span class="apps-card-title">Comece a criar com</span>
   <div class="apps-card">
     {#if platformApps === null || platformApps === undefined || platformApps.length === 0}
@@ -201,12 +152,6 @@
     {/if}
   </div>
 
-  <!-- Continuar a criar: skeleton enquanto carrega, ilustração de
-       estado vazio quando não há nenhum projeto recente, lista
-       normal quando há. Os cards agora NUNCA tocam as bordas do
-       telemóvel, mesmo com scroll-snap ativo — ver spacers reais em
-       .recent-row-spacer no CSS (padding puro podia ser recortado
-       visualmente pelo motor de snap em alguns Android/Chromium). -->
   {#if recentProjects === null}
     <div class="recent-section">
       <div class="recent-section-head">
@@ -259,7 +204,7 @@
           <rect x="26" y="32" width="46" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.3))" />
           <rect x="26" y="44" width="34" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.22))" />
           <rect x="26" y="56" width="24" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.18))" />
-          <circle cx="92" cy="66" r="20" fill="#185ABD" />
+          <circle cx="92" cy="66" r="20" fill="#0078D4" />
           <path d="M92 57v18M83 66h18" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
         </svg>
         <p class="empty-state-title">Ainda sem criações recentes</p>
@@ -271,12 +216,6 @@
 </div>
 
 <style>
-  /* ════════════════════════════════════════════════════════════════
-     M3 EXPRESSIVE: fonte usada nos apps do Material 3 Expressive
-     (Google Sans Text é a fonte de produto usada nas apps Google/M3
-     Expressive mais recentes; Roboto Flex como intermediário e
-     system-ui como fallback universal).
-     ════════════════════════════════════════════════════════════════ */
   .create-tab,
   .apps-card,
   .search-bar,
@@ -294,7 +233,9 @@
     font-family: 'Google Sans Text', 'Roboto Flex', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
   }
 
-  /* ---------- Header próprio do Create ---------- */
+  /* Header do Create: SEMPRE glass/transparente, nunca sólido —
+     silver appbar removido por completo, sem classe .solid, sem
+     transição de background. */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -305,8 +246,7 @@
     transform: translateY(-16px) translateZ(0);
     transition:
       opacity .42s cubic-bezier(0.32, 0.72, 0, 1),
-      transform .42s cubic-bezier(0.32, 0.72, 0, 1),
-      background .28s cubic-bezier(0.32, 0.72, 0, 1);
+      transform .42s cubic-bezier(0.32, 0.72, 0, 1);
     pointer-events: none;
     contain: layout style paint;
     overflow: hidden;
@@ -315,13 +255,6 @@
     opacity: 1;
     transform: translateY(0) translateZ(0);
     pointer-events: auto;
-  }
-  /* Sólido: mesmo azul Fluent usado no AppHeader dos outros tabs
-     (#185ABD), em vez do var(--app-bg) genérico anterior — assim o
-     Create passa a ficar visualmente igual a Projetos/Templates
-     quando desliza. */
-  .create-header.solid {
-    background: #185ABD;
   }
   .create-header-inner {
     display: flex;
@@ -334,28 +267,26 @@
     margin: 0 auto;
     padding: env(safe-area-inset-top, 0px) 16px 0;
   }
+  /* Título "Criar": peso máximo (900, tipo WhatsApp) e azul Microsoft
+     que muda por tema — antes tinha lógica de cor separada para
+     "solid", que deixou de existir junto com o silver appbar. */
   .create-header-title {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0;
-    color: var(--drawer-text);
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.4px;
     margin: 0;
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* Título "Criar" é sempre visível assim que o header monta —
-       .visible fica sempre aplicada no markup; a transição de
-       opacidade só suaviza o mount. A cor sim muda com isSolid. */
     opacity: 0;
-    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1), color .2s ease;
+    transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
+  :global([data-theme="light"]) .create-header-title { color: #0078D4; }
+  :global([data-theme="dark"]) .create-header-title { color: #4CC2FF; }
   .create-header-title.visible {
     opacity: 1;
-  }
-  .create-header-title.solid-title {
-    color: #FFFFFF;
   }
   .header-actions {
     display: flex;
@@ -365,9 +296,6 @@
     margin-left: auto;
   }
 
-  /* ---------- Pesquisa: só aparece quando a search-bar já está
-     totalmente atrás do appbar (searchBtnVisible), sem círculo nem
-     sombra — só o glyph, igual ao tratamento das notificações. ---------- */
   .search-btn {
     position: relative;
     width: 40px;
@@ -402,14 +330,7 @@
     height: 21px;
     background: var(--drawer-text);
   }
-  .header-icon.header-icon-solid {
-    background: #FFFFFF;
-  }
 
-  /* ---------- Notificações: SEM círculo, SEM sombra ----------
-     Só a área de toque (44px, mínimo recomendado de acessibilidade)
-     com o glyph Fluent oficial centrado dentro. Nada de background
-     nem box-shadow em nenhum estado. */
   .notif-btn {
     position: relative;
     width: 40px;
@@ -435,9 +356,6 @@
     height: 21px;
     background: var(--drawer-text);
   }
-  .notif-icon.notif-icon-solid {
-    background: #FFFFFF;
-  }
   .notif-dot {
     position: absolute;
     top: 9px;
@@ -453,7 +371,6 @@
     .create-header-inner { max-width:760px; }
   }
 
-  /* ---------- Conteúdo do Create ---------- */
   .create-tab {
     width: 100%;
   }
@@ -482,9 +399,8 @@
     z-index: 1;
     transition: border-color .16s cubic-bezier(0.32,0.72,0,1), background .2s cubic-bezier(0.32,0.72,0,1);
   }
-  .search-bar:active {
-    border-color: #185ABD;
-  }
+  :global([data-theme="light"]) .search-bar:active { border-color: #0078D4; }
+  :global([data-theme="dark"]) .search-bar:active { border-color: #4CC2FF; }
   .search-bar.search-bar-inert {
     pointer-events: none;
   }
@@ -507,11 +423,6 @@
     color: var(--text-faint);
   }
 
-  /* ------------------------------------------------------------------
-     Título "Comece a criar com" vive FORA do card, por cima dele —
-     igual ao padrão dos outros títulos de secção da página (ex:
-     .recent-section-title).
-     ------------------------------------------------------------------ */
   .apps-card-title {
     display: block;
     margin: 18px 14px 10px;
@@ -521,17 +432,6 @@
     color: var(--text-faint);
   }
 
-  /* ------------------------------------------------------------------
-     Card estilo Android M3: sólido, pouca sombra, cantos generosos.
-     No tema claro mantém var(--drawer-bg) (comportamento original).
-     No tema escuro usa var(--btn-bg) — a MESMA variável usada pelos
-     botões sólidos em todo o projeto (AppDrawer .m3-item, SearchPage),
-     e portanto o mesmo tom dos "botões do TemplatesTab" pedido: o
-     TemplatesTab também assenta as suas superfícies nas variáveis
-     centrais de tema em vez de um valor hardcoded próprio. Isto
-     substitui o anterior #24272D fixo, que era um valor isolado só
-     deste componente e não batia certo com o resto da app.
-     ------------------------------------------------------------------ */
   .apps-card {
     margin: 0 14px 0;
     padding: 16px 12px 12px;
@@ -622,7 +522,6 @@
   }
   .pulse-tap:active { transform: scale(0.98); opacity: .85; }
 
-  /* ---------- Recentes ---------- */
   .recent-section {
     margin-top: 28px;
   }
@@ -642,18 +541,10 @@
   .recent-section-cta {
     font-size: 13px;
     font-weight: 600;
-    color: #185ABD;
   }
+  :global([data-theme="light"]) .recent-section-cta { color: #0078D4; }
+  :global([data-theme="dark"]) .recent-section-cta { color: #4CC2FF; }
 
-  /* SEM padding no container — usa spacers reais (elementos flex
-     nas duas pontas) em vez disso. Padding puro em containers com
-     overflow-x + scroll-snap-align:start pode ser visualmente
-     recortado pelo motor de snap em alguns browsers Android/
-     Chromium (o snap "puxa" o primeiro/último item para a borda
-     exata do viewport de scroll, ignorando o padding declarado) —
-     um elemento real com largura fixa nunca sofre disso, porque
-     participa do layout flex como um item normal, não como
-     padding. */
   .recent-row {
     display: flex;
     gap: 12px;
@@ -668,7 +559,7 @@
   }
   .recent-row-spacer {
     flex: 0 0 auto;
-    width: 2px; /* o respiro real vem do gap:12px + este mínimo */
+    width: 2px;
     scroll-snap-align: none;
   }
   .recent-card {
@@ -724,7 +615,6 @@
     transform: scale(0.97);
   }
 
-  /* ---------- Estado vazio ---------- */
   .empty-state {
     display: flex;
     flex-direction: column;
@@ -752,7 +642,6 @@
     max-width: 260px;
   }
 
-  /* ---------- Skeleton loader ---------- */
   .recent-skeleton {
     position: relative;
     overflow: hidden;

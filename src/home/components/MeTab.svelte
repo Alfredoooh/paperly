@@ -18,9 +18,12 @@
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const ICON = {
     download: `${FLUENT_BASE}/arrow_download_24_regular.svg`,
-    bell: `${FLUENT_BASE}/alert_24_color.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_color.svg`,
+    bell: `${FLUENT_BASE}/alert_24_regular.svg`,
+    help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
+    chevron: `${FLUENT_BASE}/chevron_right_24_regular.svg`,
+    sun: `${FLUENT_BASE}/weather_sunny_24_regular.svg`,
+    moon: `${FLUENT_BASE}/weather_moon_24_regular.svg`,
   };
 
   $: isDark = themeValue === 'dark';
@@ -97,6 +100,7 @@
         <p class="me-email">{userEmail}</p>
       {/if}
     </div>
+    <span class="icon-mask me-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
   </button>
 
   {#if showInstall}
@@ -107,6 +111,7 @@
   {/if}
 
   <button class="me-row native-tap" on:click={toggleDarkMode} type="button">
+    <span class="icon-mask me-row-icon" style="mask-image:url('{isDark ? ICON.moon : ICON.sun}');-webkit-mask-image:url('{isDark ? ICON.moon : ICON.sun}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Modo escuro</span>
     </span>
@@ -121,13 +126,13 @@
   </button>
 
   <button class="me-row native-tap" on:click={goNotifications}>
-    <img class="me-row-icon" src={ICON.bell} alt="" />
+    <span class="icon-mask me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Notificações</span>
     </span>
   </button>
   <button class="me-row native-tap" on:click={goHelp}>
-    <img class="me-row-icon" src={ICON.help} alt="" />
+    <span class="icon-mask me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Ajuda e suporte</span>
     </span>
@@ -198,6 +203,10 @@
     margin: 0; font-size: 13px; font-weight: 500; color: var(--text-faint);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  .me-chevron {
+    width: 20px; height: 20px; flex-shrink: 0;
+    background: var(--text-faint);
+  }
 
   .me-install {
     display: flex; align-items: center; gap: 10px;
@@ -215,7 +224,10 @@
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
   }
-  .me-row-icon { width: 24px; height: 24px; flex-shrink: 0; display: block; }
+  .me-row-icon {
+    width: 24px; height: 24px; flex-shrink: 0;
+    background: var(--drawer-text);
+  }
   .me-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
   .me-row-label {
     font-size: 15px; font-weight: 500;
@@ -235,25 +247,26 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* Fluent-style toggle switch */
+  /* Fluent-style toggle switch — suavizado */
   .fluent-switch {
     position: relative;
     flex-shrink: 0;
-    width: 40px;
-    height: 20px;
+    width: 42px;
+    height: 24px;
     border-radius: 999px;
-    border: 2px solid var(--icon-faint);
+    border: 1.5px solid var(--icon-faint);
     background: transparent;
     box-sizing: border-box;
-    transition: background .18s cubic-bezier(0.32, 0.72, 0, 1), border-color .18s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: background .28s cubic-bezier(0.32, 0.72, 0, 1), border-color .28s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fluent-switch-thumb {
     position: absolute;
-    top: 2px; left: 2px;
-    width: 12px; height: 12px;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
     border-radius: 50%;
     background: var(--icon-faint);
-    transition: transform .18s cubic-bezier(0.32, 0.72, 0, 1), background .18s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform .28s cubic-bezier(0.34, 1.3, 0.64, 1), background .28s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fluent-switch-on {
     background: #0078D4;
@@ -261,10 +274,10 @@
   }
   .fluent-switch-on .fluent-switch-thumb {
     background: #fff;
-    transform: translateX(20px);
+    transform: translateX(18px);
   }
 
-  /* Logout button: fixed above bottom bar, slim, Microsoft blue */
+  /* Logout button: fixed above bottom bar, azul Microsoft com contraste correto por tema */
   .logout-fab {
     position: fixed;
     left: 14px;
@@ -280,15 +293,17 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #0078D4;
   }
-  :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
+  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
   :global([data-theme="light"]) .logout-fab { background: #0078D4; }
 
   .logout-fab-icon {
     width: 18px; height: 18px;
     background: #fff;
   }
+  :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
+  :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
+
   .logout-fab-label {
     font-size: 14px; font-weight: 700;
     color: #fff;

@@ -8,7 +8,6 @@
   export let themeValue = 'dark';
   export let onApplyTheme = () => {};
 
-  export let onOpenProfile = () => {};
   export let onOpenSettings = () => {};
   export let onLogout = () => {};
 
@@ -17,10 +16,7 @@
 
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const ICON = {
-    chevron: `${FLUENT_BASE}/chevron_right_20_regular.svg`,
     download: `${FLUENT_BASE}/arrow_download_24_regular.svg`,
-    settings: `${FLUENT_BASE}/settings_24_regular.svg`,
-    person: `${FLUENT_BASE}/person_24_regular.svg`,
     bell: `${FLUENT_BASE}/alert_24_regular.svg`,
     help: `${FLUENT_BASE}/question_circle_24_regular.svg`,
     signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
@@ -40,11 +36,6 @@
     try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
 
-  function goProfile() {
-    buzz();
-    onOpenProfile();
-  }
-
   function openSetting(id) {
     buzz();
     onOpenSettings(id);
@@ -56,10 +47,6 @@
 
   function goNotifications() {
     openSetting('notifications');
-  }
-
-  function goSettings() {
-    openSetting('settings');
   }
 
   let showLogoutDialog = false;
@@ -90,7 +77,7 @@
 </script>
 
 <div class="me-tab">
-  <button class="me-avatar-block pulse-tap" on:click={goProfile}>
+  <div class="me-avatar-block">
     <div class="me-avatar">
       {#if avatarUrl}
         <img src={avatarUrl} alt={userName} class="me-avatar-img" />
@@ -104,8 +91,7 @@
         <p class="me-email">{userEmail}</p>
       {/if}
     </div>
-    <span class="icon-mask me-avatar-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-  </button>
+  </div>
 
   {#if showInstall}
     <button class="me-install pulse-tap" on:click={handleInstall}>
@@ -132,40 +118,22 @@
   </div>
 
   <div class="section-label">Conta</div>
-  <button class="me-row native-tap" on:click={goProfile}>
-    <span class="me-row-icon" style="mask-image:url('{ICON.person}');-webkit-mask-image:url('{ICON.person}')"></span>
-    <span class="me-row-text">
-      <span class="me-row-label">Perfil</span>
-    </span>
-    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-  </button>
   <button class="me-row native-tap" on:click={goNotifications}>
     <span class="me-row-icon" style="mask-image:url('{ICON.bell}');-webkit-mask-image:url('{ICON.bell}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Notificações</span>
     </span>
-    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
-  </button>
-  <button class="me-row native-tap" on:click={goSettings}>
-    <span class="me-row-icon" style="mask-image:url('{ICON.settings}');-webkit-mask-image:url('{ICON.settings}')"></span>
-    <span class="me-row-text">
-      <span class="me-row-label">Definições</span>
-    </span>
-    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
   </button>
   <button class="me-row native-tap" on:click={goHelp}>
     <span class="me-row-icon" style="mask-image:url('{ICON.help}');-webkit-mask-image:url('{ICON.help}')"></span>
     <span class="me-row-text">
       <span class="me-row-label">Ajuda e suporte</span>
     </span>
-    <span class="me-row-chevron" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}')"></span>
   </button>
 
-  <button class="me-row me-row-danger me-row-danger-top native-tap" on:click={openLogoutDialog}>
-    <span class="me-row-icon me-row-icon-danger" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
-    <span class="me-row-text">
-      <span class="me-row-label me-row-label-danger">Terminar sessão</span>
-    </span>
+  <button class="logout-card pulse-tap" on:click={openLogoutDialog}>
+    <span class="icon-mask logout-card-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
+    <span class="logout-card-label">Terminar sessão</span>
   </button>
 </div>
 
@@ -194,13 +162,6 @@
     width: calc(100% - 28px);
     margin: 0 14px 22px;
     padding: 4px 2px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    text-align: left;
-    font: inherit;
-    color: var(--drawer-text);
-    -webkit-tap-highlight-color: transparent;
   }
   .me-avatar {
     width: 60px;
@@ -227,14 +188,6 @@
   .me-email {
     margin: 0; font-size: 13px; font-weight: 500; color: var(--text-faint);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .me-avatar-chevron {
-    width: 18px; height: 18px; flex-shrink: 0; display: block;
-    background: var(--icon-faint);
-    mask-size: contain; -webkit-mask-size: contain;
-    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center;
-    opacity: 0.5;
   }
 
   .me-install {
@@ -287,9 +240,7 @@
     border: none; background: transparent; cursor: pointer; font: inherit;
     color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
-    border-bottom: 1px solid var(--drawer-sep, rgba(127,127,127,0.14));
   }
-  .me-row-danger-top { border-top: 1px solid var(--drawer-sep, rgba(127,127,127,0.14)); margin-top: 22px; }
   .me-row-icon {
     width: 24px; height: 24px; flex-shrink: 0; display: block;
     background: var(--icon-strong);
@@ -297,20 +248,10 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
-  .me-row-icon-danger { background: #FF3B30; }
   .me-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
   .me-row-label {
     font-size: 15px; font-weight: 500;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .me-row-label-danger { color: #FF3B30; }
-  .me-row-chevron {
-    width: 18px; height: 18px; flex-shrink: 0;
-    background: var(--icon-faint);
-    mask-size: contain; -webkit-mask-size: contain;
-    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
-    mask-position: center; -webkit-mask-position: center;
-    opacity: 0.5;
   }
 
   .native-tap:active { background: var(--row-active, rgba(127,127,127,0.08)); }
@@ -325,6 +266,35 @@
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
   }
+
+  .logout-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: calc(100% - 28px);
+    margin: 22px 14px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding: 16px 20px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    background: light-dark(#FFEAE8, rgba(255,59,48,0.16));
+  }
+  :global([data-theme="dark"]) .logout-card { background: rgba(255,59,48,0.16); }
+  :global([data-theme="light"]) .logout-card { background: #FFEAE8; }
+  .logout-card-icon {
+    width: 22px; height: 22px;
+    background: light-dark(#D9291F, #FF453A);
+  }
+  :global([data-theme="dark"]) .logout-card-icon { background: #FF453A; }
+  :global([data-theme="light"]) .logout-card-icon { background: #D9291F; }
+  .logout-card-label {
+    font-size: 15px; font-weight: 700;
+    color: light-dark(#D9291F, #FF453A);
+  }
+  :global([data-theme="dark"]) .logout-card-label { color: #FF453A; }
+  :global([data-theme="light"]) .logout-card-label { color: #D9291F; }
 
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
@@ -359,7 +329,7 @@
   .logout-btn-confirm:active { background: #E0342A; transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
-    .me-row, .me-avatar-block, .me-install,
+    .me-row, .me-install,
     .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
     .pulse-tap, .me-theme-choice { transition: none !important; }
   }

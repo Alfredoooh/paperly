@@ -19,6 +19,7 @@
   import SearchPage from './components/SearchPage.svelte';
   import TemplatePreviewPage from './components/TemplatePreviewPage.svelte';
   import AIChatModal from './components/AIChatModal.svelte';
+  import SettingsPage from './pages/SettingsPage.svelte';
 
   export let pushed = false;
   // pushed é controlado pelo shell raiz; esta app não usa slide interno próprio.
@@ -65,11 +66,6 @@
 
   let rootEl;
 
-  // ------------------------------------------------------------------
-  // Instalar app (PWA): antes vivia junto ao estado do drawer; agora
-  // o drawer não existe, mas o MeTab continua a precisar destes dois
-  // — mantidos aqui, soltos, exatamente com o mesmo comportamento.
-  // ------------------------------------------------------------------
   let showInstall = false;
   let unsubscribeInstall;
 
@@ -89,8 +85,6 @@
     }, 2200);
   }
 
-  // Sem drawer a fechar antes — o prompt de instalação é despoletado
-  // diretamente a partir do MeTab, sem física de overlay a coordenar.
   async function handleInstall() {
     const result = await promptPwaInstall();
     if (result.outcome === 'accepted') {
@@ -109,19 +103,12 @@
     requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
   }
 
-  // ------------------------------------------------------------------
-  // Navegação nativa via history real (push + popstate) — search e
-  // preview já usavam createSlideTransition via a prop `pushed`
-  // passada aos componentes. Aqui não muda nada na física, só mantém
-  // a mesma "regra de ouro": o fecho VISUAL só acontece dentro de
-  // onPopState, nunca antecipado pelas funções close*().
-  // ------------------------------------------------------------------
   let searchOpen = false;
   let searchPushed = false;
-  let searchOrigin = null; // {top,left,width,height} do elemento clicado, ou null = slide normal
+  let searchOrigin = null;
   let previewOpen = false;
   let previewPushed = false;
-  let previewData = null; // { kind: 'image'|'doc', item }
+  let previewData = null;
   let suppressRouterPopstate = false;
 
   function pushOverlayState(hash, extra) {
@@ -129,9 +116,6 @@
     history.pushState({ nexaOverlay: hash, fromPath: currentPath, ...extra }, '', currentPath + '#' + hash);
   }
 
-  // origin = DOMRect (ou null) do elemento que disparou a abertura —
-  // vindo da search-bar do CreateTab (container transform) ou do botão
-  // de lupa do AppHeader (nesse caso não passamos origin = slide normal).
   function openSearch(origin = null) {
     if (searchOpen) return;
     searchOrigin = origin;
@@ -182,13 +166,36 @@
   }
 
   // ------------------------------------------------------------------
-  // Modal da Nexa IA (bottom-sheet) — segue EXATAMENTE o mesmo padrão
-  // de history de search/preview: pushState próprio ao abrir, fecho
-  // VISUAL só dentro de onPopState (nunca antecipado por
-  // closeAIModal), para o botão físico de voltar do Android funcionar
-  // corretamente. É o ÚNICO "app" que abre assim — nunca navega para
-  // uma rota/path próprio como os outros itens de ALL_APPS.
+  // Definições (Settings): segue o MESMO padrão de history de
+  // search/preview/AI modal — pushState próprio ao abrir, fecho VISUAL
+  // só dentro de onPopState, nunca antecipado pelas funções close*().
+  // Isto garante que o botão físico/gesto de voltar do Android fecha
+  // a tela corretamente, exatamente como as outras overlays.
   // ------------------------------------------------------------------
+  let settingsOpen = false;
+  let settingsPushed = false;
+
+  function openSettingsPage() {
+    if (settingsOpen) return;
+    pushOverlayState('settings', { nexaSettings: true });
+    settingsOpen = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { settingsPushed = true; }));
+  }
+
+  function closeSettingsVisual() {
+    settingsPushed = false;
+    setTimeout(() => { settingsOpen = false; }, 340);
+  }
+
+  function closeSettingsPage() {
+    if (!settingsOpen) return;
+    if (history.state && history.state.nexaSettings) {
+      history.back();
+    } else {
+      closeSettingsVisual();
+    }
+  }
+
   let aiModalOpen = false;
   let aiModalPushed = false;
 
@@ -229,13 +236,6 @@
     dispatch('nav', { to: app.id, data: { path: app.path } });
   }
 
-  // ------------------------------------------------------------------
-  // Perfil: o AppDrawer foi eliminado, por isso já não existe nenhum
-  // overlay/drawer a fechar antes de navegar — a navegação passa a ser
-  // direta e síncrona, sempre. O dispatch('nav', ...) é EXATAMENTE o
-  // mesmo usado antes (mesma rota '/profile/'), preservado tal e qual
-  // porque é essa navegação que comunica com o app nativo.
-  // ------------------------------------------------------------------
   function openProfile() {
     dispatch('nav', { to: 'profile', data: { path: '/profile/' } });
   }
@@ -248,27 +248,8 @@
     }
   }
 
-  // ------------------------------------------------------------------
-  // FIX (bug: "não é possível deslizar a tela por completo"):
-  // .scroll-root tinha um padding-bottom FIXO de 84px, que não batia
-  // certo com a altura REAL da bottombar (42px de tab-btn + 12px de
-  // padding vertical + env(safe-area-inset-bottom) variável por
-  // aparelho) — em qualquer dispositivo com safe-area-inset-bottom
-  // maior que ~30px (a generalidade dos Android/iPhone recentes com
-  // gesture nav), o padding ficava CURTO, e o fim do conteúdo (ex: a
-  // última linha de "Continue a criar designs") ficava permanentemente
-  // tapado atrás da bottombar, sem forma de rolar mais para o revelar
-  // — dava a sensação de "não desliza até ao fim".
-  // Agora a altura real da bottombar é MEDIDA em runtime via
-  // ResizeObserver (ela reserva o próprio espaço no layout através de
-  // um elemento sentinela) e aplicada como custom property
-  // --bottombar-h, consumida pelo padding-bottom do .scroll-root. Isto
-  // acompanha automaticamente qualquer safe-area-inset-bottom,
-  // rotação de ecrã, ou mudança futura de altura da bottombar, sem
-  // números mágicos.
-  // ------------------------------------------------------------------
   let bottombarSentinelEl;
-  let bottombarH = 84; // fallback inicial, igual ao valor antigo, até à 1ª medição
+  let bottombarH = 84;
   let bottombarResizeObserver;
 
   function measureBottombar() {
@@ -291,14 +272,8 @@
 
   let mounted = false;
 
-  // ------------------------------------------------------------------
-  // Recuo do fundo (.root) quando um overlay full-screen entra — usa
-  // o motor de spring via rAF do nav-transition.js. O drawer já não
-  // existe, por isso este recoil é agora o ÚNICO dono de
-  // rootEl.style.transform — sem qualquer disputa entre dois motores.
-  // ------------------------------------------------------------------
   const backRecoil = createBackRecoilTransition();
-  let rootRecoilValue = 0; // 0..1
+  let rootRecoilValue = 0;
   const unsubscribeBackRecoil = backRecoil.subscribe((v) => {
     rootRecoilValue = v;
     if (rootEl) {
@@ -335,10 +310,6 @@
     window.addEventListener('resize', measureAppbar);
     window.addEventListener('resize', measureBottombar);
 
-    // ResizeObserver acompanha mudanças de altura da bottombar que não
-    // vêm de um resize da janela (ex: fonte do sistema, densidade,
-    // ou futura alteração de padding) — window 'resize' sozinho não
-    // apanha isso.
     if (bottombarSentinelEl && typeof ResizeObserver !== 'undefined') {
       bottombarResizeObserver = new ResizeObserver(() => measureBottombar());
       bottombarResizeObserver.observe(bottombarSentinelEl);
@@ -361,11 +332,6 @@
       requestAnimationFrame(() => requestAnimationFrame(measureAppbar));
     });
 
-    // Fonte ÚNICA de verdade para fechar overlays — o drawer foi
-    // eliminado, por isso este ramo desapareceu; search/preview/modal
-    // IA continuam tratados exatamente como antes: consome-se o
-    // popstate, desliga-se o *Pushed correspondente (cada componente
-    // reage e trata da física sozinho).
     function onPopState() {
       if (suppressRouterPopstate) return;
       const state = history.state;
@@ -380,6 +346,10 @@
       } else if (aiModalOpen && (!state || state.nexaAI === undefined)) {
         suppressRouterPopstate = true;
         closeAIModalVisual();
+        suppressRouterPopstate = false;
+      } else if (settingsOpen && (!state || state.nexaSettings === undefined)) {
+        suppressRouterPopstate = true;
+        closeSettingsVisual();
         suppressRouterPopstate = false;
       }
     }
@@ -471,7 +441,7 @@
         {themeValue}
         onApplyTheme={applyThemeFromDrawer}
         onOpenProfile={openProfile}
-        onOpenSettings={() => {}}
+        onOpenSettings={openSettingsPage}
         onLogout={logout}
         {showInstall}
         onInstall={handleInstall}
@@ -503,17 +473,21 @@
   />
 {/if}
 
+{#if settingsOpen}
+  <SettingsPage
+    pushed={settingsPushed}
+    {isDark}
+    {user}
+    onClose={closeSettingsPage}
+  />
+{/if}
+
 <AIChatModal
   open={aiModalOpen}
   pushed={aiModalPushed}
   onClose={closeAIModal}
 />
 
-<!-- Sentinela invisível com EXATAMENTE o mesmo espaço reservado no
-     fluxo do documento que a BottomTabBar real (que é position:fixed
-     e por isso não ocupa espaço por si só) — serve só para o
-     ResizeObserver medir a altura correta a aplicar como padding do
-     scroll-root. pointer-events:none para nunca interceptar toques. -->
 <div class="bottombar-sentinel" bind:this={bottombarSentinelEl} aria-hidden="true"></div>
 
 <BottomTabBar {activeTab} onSelect={selectTab} onOpenAI={openAIModal} {avatarUrl} {avatarColor} {userInitial} />
@@ -547,16 +521,8 @@
     overflow-y:auto; overflow-x:hidden;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior-y:contain;
-    /* padding-bottom agora vem via style inline (bottombarH), medido
-       em runtime a partir da bottombar real — ver measureBottombar(). */
   }
 
-  /* Sentinela: fixed, mesma altura/posição que a BottomTabBar real
-     ocuparia se não fosse position:fixed. display:none evitaria que o
-     ResizeObserver a conseguisse medir corretamente em alguns
-     browsers, por isso usa-se opacity:0 + pointer-events:none em vez
-     disso — visualmente invisível, mas continua "presente" para
-     efeitos de medição/layout. */
   .bottombar-sentinel {
     position: fixed;
     left: 0; right: 0; bottom: 0;

@@ -1,44 +1,36 @@
 <script>
-  import { createEventDispatcher, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { getThemeColors, getTheme } from '$shared/theme.js';
   import { logout } from '$shared/auth-guard.js';
-  import { AuthApiService } from '$shared/api.js';
   import { AVAILABLE_LANGUAGES } from '$shared/plans.js';
   import { setLanguage } from '$shared/i18n.js';
   import { showToast } from '$shared/utils.js';
-  import { createSlideTransition } from '../../home/lib/nav-transition.js';
+  import { createSlideTransition } from '../lib/nav-transition.js';
 
-  export let slideX = 100;
+  export let pushed = false;
   export let isDark = false;
   export let user = null;
-  export let appTitle = 'Perfil';
+  export let onClose = () => {};
 
-  const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
 
-  const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
-  const ICON = {
-    back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
-    checkmark: `${FLUENT_BASE}/checkmark_24_regular.svg`,
-    chevron: `${FLUENT_BASE}/chevron_right_20_regular.svg`,
-    shield: `${FLUENT_BASE}/shield_24_color.svg`,
-    bell: `${FLUENT_BASE}/alert_24_color.svg`,
-    storage: `${FLUENT_BASE}/database_24_color.svg`,
-    globe: `${FLUENT_BASE}/globe_24_color.svg`,
-    help: `${FLUENT_BASE}/question_circle_24_color.svg`,
-    info: `${FLUENT_BASE}/info_24_color.svg`,
-    signout: `${FLUENT_BASE}/arrow_exit_24_regular.svg`,
-  };
+  const ICON_BASE = '/icons/svg/color';
+const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
+const ICON = {
+  back: `${FLUENT_BASE}/arrow_left_24_regular.svg`,
+  checkmark: `${ICON_BASE}/checkmark_circle.svg`,
+  chevron: `${ICON_BASE}/options.svg`,
+  shield: `${ICON_BASE}/lock_shield.svg`,
+  bell: `${ICON_BASE}/alert.svg`,
+  storage: `${ICON_BASE}/database.svg`,
+  globe: `${ICON_BASE}/globe.svg`,
+  help: `${ICON_BASE}/question_circle.svg`,
+  info: `${ICON_BASE}/chat.svg`,
+};
 
   // Voltar: mesmo comportamento do botão/gesto nativo de voltar do Android.
-  // Usa o bridge nativo se existir (equivalente ao window.AndroidSession já usado
-  // para logout), senão cai para window.history.back() do WebView/PWA.
   function goBack() {
-    if (window.AndroidNav && typeof window.AndroidNav.goBack === 'function') {
-      window.AndroidNav.goBack();
-    } else {
-      window.history.back();
-    }
+    onClose();
   }
 
   const EDGE_ZONE = 24;
@@ -90,7 +82,7 @@
     }
   }
 
-  $: displayX = liveOverrideX !== null ? liveOverrideX : slideX;
+  $: displayX = liveOverrideX !== null ? liveOverrideX : (pushed ? 0 : 100);
 
   let themeValue = getTheme();
   let currentLang = user?.preferences?.language || 'pt';
@@ -106,8 +98,6 @@
   function setThemeValue(v) {
     themeValue = v;
     localStorage.setItem('nexa_theme', v);
-    const dark = v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    dispatch('nav', { to: 'settings', data: { isDark: dark } });
   }
 
   const langSlide = createSlideTransition({});
@@ -151,10 +141,8 @@
 
   let showLogoutDialog = false;
   let logoutDialogVisible = false;
-  let logoutMode = 'single';
 
-  function openLogoutDialog(mode) {
-    logoutMode = mode;
+  function openLogoutDialog() {
     showLogoutDialog = true;
     requestAnimationFrame(() => requestAnimationFrame(() => { logoutDialogVisible = true; }));
   }
@@ -163,21 +151,11 @@
     setTimeout(() => { showLogoutDialog = false; }, 260);
   }
 
-  let loggingOut = false;
-  async function confirmLogout() {
-    loggingOut = true;
-    try {
-      if (logoutMode === 'all' && user?.token && AuthApiService.logoutAll) {
-        const ok = await AuthApiService.logoutAll(user.token);
-        showToast(ok ? 'Sessões terminadas em todos os dispositivos' : 'Não foi possível terminar as outras sessões');
-        if (!ok) { loggingOut = false; cancelLogoutDialog(); return; }
-      }
-      logoutDialogVisible = false;
-      setTimeout(() => { showLogoutDialog = false; }, 260);
-      logout();
-    } finally {
-      loggingOut = false;
-    }
+  function confirmLogout() {
+    logoutDialogVisible = false;
+    setTimeout(() => { showLogoutDialog = false; }, 260);
+    logout();
+    if (window.AndroidSession) window.AndroidSession.onLogout();
   }
 
   function makeSheetDrag(slideCtrl, getHeight, onClose) {
@@ -233,8 +211,8 @@
 <div class="st-root" bind:this={rootEl} style="background:{c.background}; transform: translate3d({displayX}%, 0, 0);">
   <div class="st-header">
     <button class="st-back-btn" on:click={goBack} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:{c.iconTint};width:24px;height:24px"></span>
-    </button>
+  <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background:{c.iconTint};width:24px;height:24px"></span>
+</button>
     <span class="st-header-title" style="color:{c.textPrimary}">Definições</span>
     <div style="width:36px"></div>
   </div>
@@ -260,7 +238,7 @@
         </div>
         <div class="st-row-right-group">
           <span class="st-row-value" style="color:{c.textSecondary}">{currentLangLabel}</span>
-          <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+          <img class="st-row-chevron" src={ICON.chevron} alt="" />
         </div>
       </button>
     </div>
@@ -271,7 +249,7 @@
           <img class="st-row-icon" src={ICON.shield} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Privacidade e segurança</span>
         </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
 
@@ -281,7 +259,7 @@
           <img class="st-row-icon" src={ICON.bell} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Notificações por email</span>
         </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
 
@@ -291,7 +269,7 @@
           <img class="st-row-icon" src={ICON.storage} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Armazenamento</span>
         </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
 
@@ -301,31 +279,21 @@
           <img class="st-row-icon" src={ICON.help} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Ajuda e suporte</span>
         </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
+        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
       <button class="st-row" on:click={() => openPlaceholderModal('Sobre')}>
         <div class="st-row-left">
           <img class="st-row-icon" src={ICON.info} alt="" />
           <span class="st-row-label" style="color:{c.textPrimary}">Sobre</span>
         </div>
-        <span class="icon-mask" style="mask-image:url('{ICON.chevron}');-webkit-mask-image:url('{ICON.chevron}');background:{c.textSecondary};width:14px;height:14px;opacity:.5"></span>
-      </button>
-    </div>
-
-    <div class="st-group">
-      <button class="st-row" on:click={() => openLogoutDialog('all')}>
-        <div class="st-row-left">
-          <span class="icon-mask st-row-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}');background:{c.textSecondary}"></span>
-          <span class="st-row-label" style="color:{c.textPrimary}">Terminar sessão em todos os dispositivos</span>
-        </div>
+        <img class="st-row-chevron" src={ICON.chevron} alt="" />
       </button>
     </div>
   </div>
 
-  <button class="logout-fab pulse-tap" on:click={() => openLogoutDialog('single')}>
-    <span class="icon-mask logout-fab-icon" style="mask-image:url('{ICON.signout}');-webkit-mask-image:url('{ICON.signout}')"></span>
-    <span class="logout-fab-label">Terminar sessão</span>
-  </button>
+  <button class="logout-fab pulse-tap" on:click={openLogoutDialog}>
+  <span class="logout-fab-label">Terminar sessão</span>
+</button>
 
   {#if showFieldModal}
     <div class="fluent-overlay" class:fluent-overlay-in={fieldModalVisible} on:click={closeFieldModal}></div>
@@ -354,7 +322,7 @@
           <button class="sheet-opt" on:click={() => selectLang(lang.code)}>
             <span class="sheet-opt-label" style="color:{c.textPrimary}">{lang.native}</span>
             {#if currentLang === lang.code}
-              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:#0078D4;width:16px;height:16px"></span>
+              <img class="sheet-opt-check" src={ICON.checkmark} alt="" />
             {/if}
           </button>
         {/each}
@@ -365,14 +333,10 @@
   {#if showLogoutDialog}
     <div class="logout-overlay" class:logout-overlay-in={logoutDialogVisible}></div>
     <div class="logout-dialog" class:logout-dialog-in={logoutDialogVisible} style="background:{c.dialogBackground}">
-      <p class="logout-dialog-text" style="color:{c.textPrimary}">
-        {logoutMode === 'all' ? 'Tens a certeza que queres terminar a sessão em todos os dispositivos?' : 'Tens a certeza que queres terminar a sessão?'}
-      </p>
+      <p class="logout-dialog-text" style="color:{c.textPrimary}">Tens a certeza que queres terminar sessão?</p>
       <div class="logout-dialog-actions">
-        <button class="logout-btn-confirm" on:click={confirmLogout} disabled={loggingOut}>
-          {loggingOut ? 'A terminar…' : 'Terminar sessão'}
-        </button>
-        <button class="logout-btn-cancel" style="color:{c.textPrimary}" on:click={cancelLogoutDialog} disabled={loggingOut}>Cancelar</button>
+        <button class="logout-btn-cancel pulse-tap" style="color:{c.textPrimary}" on:click={cancelLogoutDialog}>Cancelar</button>
+        <button class="logout-btn-confirm pulse-tap" on:click={confirmLogout}>Terminar</button>
       </div>
     </div>
   {/if}
@@ -385,6 +349,7 @@
     will-change: transform;
     box-shadow: -6px 0 24px rgba(0,0,0,0.18);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .st-root * { box-sizing: border-box; }
 
@@ -434,6 +399,7 @@
   .st-row-label { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .st-row-right-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .st-row-value { font-size: 13.5px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .st-row-chevron { width: 16px; height: 16px; flex-shrink: 0; display: block; opacity: .6; }
 
   .icon-mask {
     display: block; flex-shrink: 0;
@@ -457,11 +423,12 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #0078D4;
   }
-  :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
+  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
   :global([data-theme="light"]) .logout-fab { background: #0078D4; }
   .logout-fab-icon { width: 18px; height: 18px; background: #fff; }
+  :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
+  :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
   .logout-fab-label { font-size: 14px; font-weight: 700; color: #fff; }
   .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }
   .pulse-tap:active { transform: scale(0.97); opacity: .85; }
@@ -521,6 +488,7 @@
   }
   .sheet-opt:active { opacity: .6; }
   .sheet-opt-label { font-size: 15px; font-weight: 500; }
+  .sheet-opt-check { width: 16px; height: 16px; }
 
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
@@ -533,18 +501,18 @@
     transform: translate(-50%, -50%) scale(0.92);
     opacity: 0;
     border-radius: 16px;
-    padding: 26px 22px;
+    padding: 24px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0,0,0,0.08);
     z-index: 81;
-    width: calc(100vw - 56px); max-width: 320px;
-    transition: transform .4s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
+    min-width: 280px; max-width: 90vw;
+    transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform, opacity;
   }
   .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  .logout-dialog-text { font-size: 15.5px; line-height: 1.45; margin: 0 0 22px; text-align: center; font-family: inherit; }
-  .logout-dialog-actions { display: flex; flex-direction: column; gap: 10px; }
+  .logout-dialog-text { font-size: 16px; margin: 0 0 20px; text-align: center; font-family: inherit; }
+  .logout-dialog-actions { display: flex; gap: 12px; justify-content: center; }
   .logout-btn-cancel, .logout-btn-confirm {
-    width: 100%; padding: 13px 20px; border-radius: 12px; border: none;
+    flex: 1; padding: 12px 20px; border-radius: 12px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
@@ -552,12 +520,9 @@
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
   .logout-btn-confirm { background: #0078D4; color: white; }
   .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
-  .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 
   @media (prefers-reduced-motion: reduce) {
     .st-back-btn, .st-row, .sheet-opt, .logout-overlay, .logout-dialog, .logout-btn-cancel, .logout-btn-confirm,
-    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab, .logout-fab, .pulse-tap {
-      transition: none !important;
-    }
+    .overlay, .fluent-overlay, .fluent-modal, .st-theme-tab, .logout-fab, .pulse-tap, .st-root { transition: none !important; }
   }
 </style>

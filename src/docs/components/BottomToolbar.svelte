@@ -219,7 +219,10 @@
           disabled={item.disabled ? item.disabled() : false}
           on:click={() => pressFromSheet(item)}
         >
-          <span class="tb-sheet-icon" style="background:{item.panel && activePanel === item.id ? (c.accentPrimary ? c.accentPrimary + '18' : 'rgba(127,127,127,0.14)') : 'transparent'};">
+          <span
+            class="tb-sheet-icon"
+            style="background:{item.panel && activePanel === item.id ? (c.accentSoftBg || 'rgba(127,127,127,0.12)') : 'transparent'};"
+          >
             {#if item.colorIcon}
               <img src={iconUrl(item)} alt="" width="20" height="20" />
             {:else if item.swatch === 'font'}
@@ -250,24 +253,29 @@
 {/if}
 
 <style>
+  /* .tb-wrap — MUDANÇA-CHAVE: position:absolute (era fixed) e
+     bottom:0 do .root, exatamente como .bottom-bar do
+     ChatPage.svelte. O .root já recebe a sua altura em px via JS
+     (window.visualViewport.height, aplicada em MainPage.svelte), por
+     isso quando o teclado abre e o .root encolhe, esta barra sobe
+     "de graça" só por estar colada ao fundo dele — sem precisar de
+     nenhum transform nem de --kb-offset (essa variável e o cálculo
+     innerHeight - visualViewport.height foram removidos: em
+     Chrome/Android ambos encolhem juntos com o teclado e o cálculo
+     dava quase sempre 0, por isso a barra não reagia lá). */
   .tb-wrap {
-    position: fixed;
+    position: absolute;
     left: 0; right: 0; bottom: 0;
     z-index: 40;
     padding: 8px 0 calc(env(safe-area-inset-bottom,0px) + 8px);
     box-shadow: 0 -0.5px 0 0 rgba(127,127,127,0.18);
     transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
     opacity: 1;
-    /* A barra sobe exatamente o valor do teclado (--kb-offset), a
-       ÚNICA variável de referência, também usada em MainPage.svelte
-       para calcular a altura útil do canvas. O appbar nunca lê esta
-       variável, por isso só a toolbar sobe, nunca o appbar. */
-    transform: translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
   }
   .tb-wrap.tb-hidden {
     opacity: 0;
     pointer-events: none;
-    transform: translate3d(0, calc(100% + var(--kb-offset, 0px)), 0);
+    transform: translate3d(0, 100%, 0);
   }
 
   .tb-row {

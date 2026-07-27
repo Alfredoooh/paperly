@@ -4,7 +4,6 @@
   import { GeminiApiService, AuthApiService, CreditsApiService } from '$shared/api.js';
   import { showToast } from '$shared/utils.js';
   import { AVAILABLE_MODELS, AVAILABLE_LANGUAGES, ALL_APPS } from '$shared/plans.js';
-  import Drawer       from '../components/Drawer.svelte';
   import ModalSheet   from '../components/ModalSheet.svelte';
 
   export let isDark = false;
@@ -20,16 +19,9 @@
 
   let currentModelId   = localStorage.getItem('nexa_model') || 'gemini-2.5-flash';
   let currentLanguage  = localStorage.getItem('nexa_language') || 'pt';
-  let drawerOpen       = false;
   let activeApp        = localStorage.getItem('nexa_active_app') || 'ai';
   let conversations    = [];
   let loadingConversations = false;
-
-  const drawerMenuItems = [
-    { icon: 'chat_add', label: 'Nova conversa', action: () => newChat() },
-    { icon: 'folder', label: 'Projetos', action: () => showToast('Projetos em breve'), keepOpen: true },
-    { icon: 'apps', label: 'Extras', action: () => { sheetMode = 'extras'; showSheet = true; } },
-  ];
 
   let displayMessages  = [];
   let chatHistory      = [];
@@ -74,8 +66,6 @@
   $: greeting = (() => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; })();
   $: currentModelName = AVAILABLE_MODELS.find(m => m.id === currentModelId)?.name || 'Gemini 2.5 Flash';
   $: recTimerStr = (() => { const m=Math.floor(recSeconds/60),s=recSeconds%60; return `${m}:${s.toString().padStart(2,'0')}`; })();
-
-  const DRAWER_APPS = ALL_APPS.filter(a => a.id !== 'home');
 
   onMount(() => {
   chatRootEl = document.querySelector('.chat-root');
@@ -617,7 +607,6 @@
     titleGenerated = false;
     pendingAttachments = [];
     inputText = '';
-    drawerOpen = false;
   }
 
   async function sendMessage(overrideText) {
@@ -701,7 +690,7 @@
 <div class="chat-root" class:dark={isDark}>
   <div class="appbar-gradient" class:dark={isDark}></div>
   <div class="appbar">
-    <button class="w10 px2" on:click={() => drawerOpen = true}>
+    <button class="w10 px2">
       <span class="icon-mask" style="mask-image:url('/icons/svg/regular/line-horizontal-3.svg');-webkit-mask-image:url('/icons/svg/regular/line-horizontal-3.svg');width:22px;height:22px;background:{c.textPrimary}"></span>
     </button>
     <div class="flex1"></div>
@@ -787,16 +776,6 @@
       </button>
     </div>
   </div>
-
-  {#if drawerOpen}
-    <Drawer
-      {isDark}
-      items={drawerMenuItems}
-      apps={DRAWER_APPS}
-      {conversations}
-      on:close={() => drawerOpen = false}
-    />
-  {/if}
 
   {#if showSheet}
     <ModalSheet

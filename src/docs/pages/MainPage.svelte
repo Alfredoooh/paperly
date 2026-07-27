@@ -81,7 +81,7 @@
     // dentro do contenteditable (selectionchange dispara em todo
     // movimento de cursor), o que recomputava kbOffset e reescrevia
     // a CSS var --kb-offset constantemente enquanto se escrevia —
-    // essa era uma das causas dos saltos do appbar/canvas durante a
+    // essa era uma das causas dos saltos do canvas durante a
     // digitação. 'focusin' sozinho já é suficiente para detetar a
     // entrada em qualquer campo editável.
   });
@@ -222,6 +222,11 @@
   //     Cabeçalhos / Editar / Partilhar / Ler em Voz Alta).
   //  O botão "Editar" do CreationToolsBar volta a pôr isEditing=true.
   //  NENHUM botão do appbar tem fundo/container.
+  //
+  //  IMPORTANTE: o appbar é 100% ESTÁTICO — nunca sobe, nunca desce,
+  //  nunca desaparece, independentemente do teclado ou de qualquer
+  //  ação. Fica sempre fixo no topo do ecrã. Só a bottom bar
+  //  (BottomToolbar) reage ao teclado.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -423,6 +428,12 @@
     else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  KEYBOARD AVOIDANCE — afeta APENAS a BottomToolbar/CreationToolsBar
+  //  (via --kb-offset) e a altura do canvas (via --app-vh). O appbar
+  //  NUNCA lê --kb-offset e nunca se move — está fora deste circuito
+  //  por completo.
+  // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
   let rootEl;
@@ -433,17 +444,12 @@
   }
 
   function computeKbOffset() {
-    // FIX (appbar/canvas saltando com o teclado):
     // window.innerHeight NÃO encolhe quando o teclado abre (ao
     // contrário de 100dvh, que em WebViews Android costuma encolher
     // sozinho assim que o teclado aparece). Ao fixar --app-vh a
     // partir de innerHeight aqui, garantimos que o layout inteiro
     // (via calc(var(--app-vh)) no #app/.root) tem UMA ÚNICA fonte de
-    // verdade para a sua altura — deixa de haver o dvh nativo do
-    // browser a encolher o container AO MESMO TEMPO que o nosso
-    // próprio kbOffset desloca a bottom bar. Antes, essas duas coisas
-    // aconteciam em instantes ligeiramente diferentes e é isso que
-    // lia-se como o appbar "subindo e pulando".
+    // verdade para a sua altura.
     document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
 
     const vv = window.visualViewport;
@@ -614,7 +620,7 @@
   bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
-  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
+  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};">
     <!--
       Botão esquerdo do appbar (SEM fundo/container):
       - isEditing=true  → ícone de check. Clicar SÓ conclui a edição
@@ -820,21 +826,16 @@
     overscroll-behavior: none;
   }
 
+  /* APPBAR — ESTÁTICO. Sem transform, sem transition de posição, sem
+     ligação a --kb-offset. Ocupa o fluxo normal (flex-shrink:0 no
+     topo do .root) e nunca se mexe, nunca desaparece, seja qual for
+     a ação do utilizador ou o estado do teclado. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
     flex-shrink: 0;
     background: inherit;
     contain: paint;
-    /* FIX (appbar saltando / deve subir com o teclado):
-       o appbar sobe o mesmo valor exato que a bottombar desce em
-       BottomToolbar.svelte, usando a MESMA variável --kb-offset —
-       uma única fonte de verdade, sem dessincronização entre os
-       dois. will-change ajuda o compositor a não repintar o texto
-       do input a cada frame da transição. */
-    transform: translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
-    transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform;
   }
   /* Botões do appbar SEM nenhum container: sem fundo, sem
      border-radius, sem círculo/quadrado atrás do ícone — o ícone
@@ -863,17 +864,6 @@
     display: flex;
     flex-direction: column;
     contain: strict;
-    /* FIX (o "papel" tem de ampliar onde se está a escrever):
-       como o appbar sobe por transform (não sai do fluxo, continua a
-       ocupar o mesmo espaço no flex), o canvas-area por si só não
-       ganharia altura extra. Este padding-bottom negativo NÃO é
-       usado — em vez disso, o canvas-area cresce porque o .root tem
-       overflow:hidden e o appbar/bottombar saem do espaço visível ao
-       subir; o motor de scroll do DocPage (dentro deste container)
-       é quem trata o "seguir o cursor" via scrollIntoView, já
-       existente no componente DocPage. Aqui garantimos apenas que
-       este container nunca fica com uma altura desatualizada: */
-    transition: none;
   }
 
   .icon-mask {

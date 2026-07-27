@@ -84,6 +84,40 @@
     // essa era uma das causas dos saltos da bottombar durante a
     // digitação. 'focusin' sozinho já é suficiente para detetar a
     // entrada em qualquer campo editável.
+
+    // ══════════════════════════════════════════════════════════════
+    //  FIX #24 (appbar/bottombar saltando ao clicar em QUALQUER botão
+    //  fora da folha — bold, cor, undo, ⋮, etc. — mesmo depois de
+    //  --app-vh já não depender do ciclo do teclado):
+    //
+    //  A CAUSA: kbUpdatesSuspended só era ligado dentro de undo()/
+    //  redo(). Qualquer outro clique fora do contenteditable (num
+    //  botão do appbar, do BottomToolbar, abrir um modal) tira o foco
+    //  do editor por uma fração de segundo ANTES de qualquer
+    //  focusEditor() de volta correr (exec(), setFont(), etc. só
+    //  chamam focusEditor() DEPOIS do clique já ter disparado blur no
+    //  contenteditable). Essa perda de foco momentânea faz o Android
+    //  reportar uma mudança transitória em visualViewport.height —
+    //  como se o teclado tremesse — o que disparava resize→
+    //  computeKbOffset() com um valor intermédio, mudando
+    //  --kb-offset e dando a impressão de salto, exactamente como no
+    //  undo/redo original, só que agora despoletado por QUALQUER
+    //  botão, não só undo/redo.
+    //
+    //  CORREÇÃO: capturar 'pointerdown' em todo o document, em fase
+    //  de CAPTURA (antes do blur do editor disparar). Se o alvo do
+    //  toque estiver DENTRO da folha (contenteditable), não faz nada
+    //  — clicar na folha nunca deve suspender nada, o foco só se
+    //  desloca dentro do mesmo contenteditable. Se o alvo estiver
+    //  FORA da folha (appbar, bottombar, modais), suspende
+    //  imediatamente --kb-offset ANTES do blur/focus real
+    //  acontecerem, e só liberta depois de dois requestAnimationFrame
+    //  (tempo suficiente para o foco assentar de volta, seja porque
+    //  focusEditor() foi chamado, seja porque o utilizador saiu
+    //  mesmo do modo de edição) — aí sim recomputa UMA VEZ o valor
+    //  final estável.
+    // ══════════════════════════════════════════════════════════════
+    document.addEventListener('pointerdown', handleGlobalPointerDown, true);
   });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
@@ -177,13 +211,12 @@
     if (historyIndex <= 0) return;
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
-    kbUpdatesSuspended = true;
+    suspendKbUpdates();
     historyIndex -= 1;
     setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
-    kbUpdatesSuspended = false;
-    computeKbOffset();
+    resumeKbUpdatesSoon();
     scheduleSave();
     buzz();
   }
@@ -191,13 +224,12 @@
     if (historyIndex >= historyStack.length - 1) return;
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
-    kbUpdatesSuspended = true;
+    suspendKbUpdates();
     historyIndex += 1;
     setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
-    kbUpdatesSuspended = false;
-    computeKbOffset();
+    resumeKbUpdatesSoon();
     scheduleSave();
     buzz();
   }
@@ -507,6 +539,8 @@
   let vvRef = null;
   let kbUpdatesSuspended = false;
   let windowResizeRaf = null;
+  let kbResumeRaf1 = null;
+  let kbResumeRaf2 = null;
 
   function syncKbOffsetVar() {
     document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
@@ -528,6 +562,48 @@
     if (kbUpdatesSuspended) return;
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     kbUpdateRaf = requestAnimationFrame(computeKbOffset);
+  }
+
+  // Suspende/retoma --kb-offset. Usado tanto pelo undo/redo (FIX
+  // original) como agora pelo handleGlobalPointerDown (FIX #24) —
+  // ambos partilham a mesma necessidade: "algo vai tirar e devolver
+  // o foco num instante, não deixes isso mexer no --kb-offset".
+  function suspendKbUpdates() {
+    kbUpdatesSuspended = true;
+    if (kbUpdateRaf) { cancelAnimationFrame(kbUpdateRaf); kbUpdateRaf = null; }
+    if (kbResumeRaf1) { cancelAnimationFrame(kbResumeRaf1); kbResumeRaf1 = null; }
+    if (kbResumeRaf2) { cancelAnimationFrame(kbResumeRaf2); kbResumeRaf2 = null; }
+  }
+
+  // Retoma passado 2x requestAnimationFrame — tempo suficiente para
+  // o browser já ter processado o blur+focus (ou blur+permanência
+  // fora do editor) e o visualViewport já ter estabilizado no valor
+  // FINAL, não num intermédio. Só então recomputa uma única vez.
+  function resumeKbUpdatesSoon() {
+    kbResumeRaf1 = requestAnimationFrame(() => {
+      kbResumeRaf2 = requestAnimationFrame(() => {
+        kbUpdatesSuspended = false;
+        computeKbOffset();
+      });
+    });
+  }
+
+  // ── FIX #24: handler global de pointerdown, em fase de captura ──
+  // Corre ANTES de qualquer blur/focus disparado pelo clique.
+  function handleGlobalPointerDown(e) {
+    const target = e.target;
+    // Clicar dentro do próprio contenteditable (a folha) nunca deve
+    // suspender nada — o foco não sai do editor, só se move dentro
+    // dele. Isto preserva o comportamento correto da Imagem 1.
+    if (target && typeof target.closest === 'function' && target.closest('.conteudo')) {
+      return;
+    }
+    // Qualquer toque fora da folha (appbar, bottombar, modais,
+    // backdrop) pode causar uma perda de foco momentânea do editor.
+    // Suspende já, e só recalcula depois do foco assentar.
+    if (!isEditing) return; // fora do modo de edição não há teclado para saltar
+    suspendKbUpdates();
+    resumeKbUpdatesSoon();
   }
 
   // --app-vh só existe agora para eventuais consumidores externos
@@ -633,8 +709,11 @@
     window.removeEventListener('resize', scheduleWindowVhUpdate);
     window.removeEventListener('orientationchange', scheduleWindowVhUpdate);
     document.removeEventListener('focusin', lockViewport, true);
+    document.removeEventListener('pointerdown', handleGlobalPointerDown, true);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     if (windowResizeRaf) cancelAnimationFrame(windowResizeRaf);
+    if (kbResumeRaf1) cancelAnimationFrame(kbResumeRaf1);
+    if (kbResumeRaf2) cancelAnimationFrame(kbResumeRaf2);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();

@@ -1,6 +1,6 @@
 <!-- docs/components/LayersModal.svelte -->
 <script>
-  import { fluentIconUrl } from '../shared/fluent-online.js';
+  import { localIconPath } from '$shared/local-icon.js';
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
@@ -116,7 +116,7 @@
           <button class="layer-row" on:click={() => selectLayer(layer)}>
             <span
               class="layer-icon icon-mask"
-              style="mask-image:url('{fluentIconUrl(TYPE_ICONS[layer.type] || 'image_24_regular')}');-webkit-mask-image:url('{fluentIconUrl(TYPE_ICONS[layer.type] || 'image_24_regular')}');background:{c.iconTint};width:24px;height:24px;"
+              style="mask-image:url('{localIconPath(TYPE_ICONS[layer.type] || 'image_24_regular')}');-webkit-mask-image:url('{localIconPath(TYPE_ICONS[layer.type] || 'image_24_regular')}');background:{c.iconTint};width:24px;height:24px;"
             ></span>
             <span class="layer-label" style="color:{c.textPrimary}">{layer.label}</span>
             <button

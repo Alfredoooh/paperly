@@ -1,5 +1,6 @@
+<!-- pages/MainPage.svelte -->
 <script>
-  import { fluentIconUrl } from '../shared/fluent-online.js';
+  import { localIconPath } from '$shared/local-icon.js';
 
   import { onMount, onDestroy, tick } from 'svelte';
   import { createEventDispatcher } from 'svelte';
@@ -611,7 +612,7 @@
 <div
   class="root"
   bind:this={rootEl}
-  style="background:{c.background};color:{c.textPrimary};--kb-offset:{kbOffset}px;{mainTransformStyle}"
+  style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};backface-visibility:hidden;">
     <!--
@@ -623,9 +624,9 @@
     -->
     <button class="appbar-btn" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
       {#if isEditing}
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('checkmark_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       {:else}
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('dismiss_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('dismiss_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('dismiss_24_regular')}');-webkit-mask-image:url('{localIconPath('dismiss_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       {/if}
     </button>
 
@@ -646,26 +647,26 @@
     {#if isEditing}
       <!-- Grupo direito em modo de edição: lápis / lupa / documento / undo / ⋮ — todos SEM fundo/container -->
       <button class="appbar-btn" on:click={() => showToast('Caligrafia em breve')} aria-label="Caligrafia">
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('pen_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('pen_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('calligraphy_pen_24_regular')}');-webkit-mask-image:url('{localIconPath('calligraphy_pen_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
       <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('search_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('search_24_regular')}');-webkit-mask-image:url('{localIconPath('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
       <button class="appbar-btn" on:click={() => showToast('Esquema em breve')} aria-label="Esquema">
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('document_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('document_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('document_24_regular')}');-webkit-mask-image:url('{localIconPath('document_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
       <button class="appbar-btn" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('arrow_undo_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('arrow_undo_24_regular')}');background:{c.iconTint};width:24px;height:24px;opacity:{canUndo ? 1 : 0.32};"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_undo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_undo_24_regular')}');background:{c.iconTint};width:24px;height:24px;opacity:{canUndo ? 1 : 0.32};"></span>
       </button>
     {:else}
       <!-- Grupo direito fora de edição: lupa — SEM fundo/container -->
       <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
-        <span class="icon-mask" style="mask-image:url('{fluentIconUrl('search_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('search_24_regular')}');-webkit-mask-image:url('{localIconPath('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
     {/if}
 
     <button class="appbar-btn" bind:this={docMenuBtnEl} on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('{fluentIconUrl('more_vertical_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('more_vertical_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+      <span class="icon-mask" style="mask-image:url('{localIconPath('more_horizontal_24_regular')}');-webkit-mask-image:url('{localIconPath('more_horizontal_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
   </div>
 
@@ -825,8 +826,15 @@
     flex-shrink: 0;
     background: inherit;
     contain: paint;
-    transform: translate3d(0, calc(min(var(--kb-offset, 0px), 16px) * -1), 0);
-    transition: transform .22s cubic-bezier(0.32, 0.72, 0, 1);
+    /* FIX (appbar saltando / deve subir com o teclado):
+       o appbar sobe o mesmo valor exato que a bottombar desce em
+       BottomToolbar.svelte, usando a MESMA variável --kb-offset —
+       uma única fonte de verdade, sem dessincronização entre os
+       dois. will-change ajuda o compositor a não repintar o texto
+       do input a cada frame da transição. */
+    transform: translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
+    transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
   }
   /* Botões do appbar SEM nenhum container: sem fundo, sem
      border-radius, sem círculo/quadrado atrás do ícone — o ícone
@@ -855,7 +863,17 @@
     display: flex;
     flex-direction: column;
     contain: strict;
-    padding-bottom: calc(var(--kb-offset, 0px) + 8px);
+    /* FIX (o "papel" tem de ampliar onde se está a escrever):
+       como o appbar sobe por transform (não sai do fluxo, continua a
+       ocupar o mesmo espaço no flex), o canvas-area por si só não
+       ganharia altura extra. Este padding-bottom negativo NÃO é
+       usado — em vez disso, o canvas-area cresce porque o .root tem
+       overflow:hidden e o appbar/bottombar saem do espaço visível ao
+       subir; o motor de scroll do DocPage (dentro deste container)
+       é quem trata o "seguir o cursor" via scrollIntoView, já
+       existente no componente DocPage. Aqui garantimos apenas que
+       este container nunca fica com uma altura desatualizada: */
+    transition: none;
   }
 
   .icon-mask {

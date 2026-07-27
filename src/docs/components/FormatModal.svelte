@@ -1,5 +1,5 @@
 <script>
-  import { fluentIconUrl } from '../shared/fluent-online.js';
+  import { localIconPath } from '$shared/local-icon.js';
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
@@ -134,25 +134,25 @@
       {:else if activePanel === 'align'}
         <div class="opt-grid">
           <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyLeft')}>
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_align_left_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('text_align_left_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_align_left_24_regular')}');-webkit-mask-image:url('{localIconPath('text_align_left_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyCenter')}>
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_align_center_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('text_align_center_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_align_center_24_regular')}');-webkit-mask-image:url('{localIconPath('text_align_center_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyRight')}>
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_align_right_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('text_align_right_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_align_right_24_regular')}');-webkit-mask-image:url('{localIconPath('text_align_right_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setalign', 'justifyFull')}>
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_align_justify_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('text_align_justify_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_align_justify_24_regular')}');-webkit-mask-image:url('{localIconPath('text_align_justify_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
         </div>
       {:else if activePanel === 'list'}
         <div class="opt-grid">
           <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setlist', 'insertUnorderedList')}>
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_bullet_list_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('text_bullet_list_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_bullet_list_24_regular')}');-webkit-mask-image:url('{localIconPath('text_bullet_list_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
           <button class="opt-icon-btn" style="background:{c.appbarBtnBg}" on:click={() => dispatch('setlist', 'insertOrderedList')}>
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl('text_number_list_ltr_24_regular')}');-webkit-mask-image:url('{fluentIconUrl('text_number_list_ltr_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath('text_number_list_ltr_24_regular')}');-webkit-mask-image:url('{localIconPath('text_number_list_ltr_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
           </button>
         </div>
       {:else if activePanel === 'link'}

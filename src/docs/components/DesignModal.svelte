@@ -1,5 +1,5 @@
 <script>
-  import { fluentIconUrl } from '../shared/fluent-online.js';
+  import { localIconPath } from '$shared/local-icon.js';
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
@@ -12,16 +12,16 @@
   const dispatch = createEventDispatcher();
 
   const TOOLS = [
-    { id: 'pencil', label: 'Lápis', kind: 'icon', icon: 'pen_24_regular' },
-    { id: 'crayon', label: 'Marcador', kind: 'icon', icon: 'edit_24_regular' },
-    { id: 'paintbrush', label: 'Pincel', kind: 'icon', icon: 'paint_brush_24_regular' },
-    { id: 'artistpalette', label: 'Paleta', kind: 'icon', icon: 'color_24_regular' },
-    { id: 'straightruler', label: 'Régua', kind: 'icon', icon: 'ruler_24_regular' },
-    { id: 'triangularruler', label: 'Esquadro', kind: 'icon', icon: 'ruler_24_regular' },
-    { id: 'scissors', label: 'Tesoura', kind: 'icon', icon: 'cut_24_regular' },
-    { id: 'eraser', label: 'Borracha', kind: 'icon', icon: 'eraser_24_regular' },
-    { id: 'mechanicalpencil', label: 'Lapiseira', kind: 'icon', icon: 'pen_24_regular' },
-  ]
+    { id: 'pencil', label: 'Lápis', src: localIconPath('pen_24_regular') },
+    { id: 'crayon', label: 'Marcador', src: localIconPath('calligraphy_pen_24_regular') },
+    { id: 'paintbrush', label: 'Pincel', src: localIconPath('paint_brush_24_regular') },
+    { id: 'artistpalette', label: 'Paleta', src: localIconPath('color_24_regular') },
+    { id: 'straightruler', label: 'Régua', src: localIconPath('ruler_24_regular') },
+    { id: 'triangularruler', label: 'Esquadro', src: localIconPath('triangle_24_regular') },
+    { id: 'scissors', label: 'Tesoura', src: localIconPath('cut_24_regular') },
+    { id: 'eraser', label: 'Borracha', src: localIconPath('eraser_24_regular') },
+    { id: 'mechanicalpencil', label: 'Lapiseira', src: localIconPath('edit_24_regular') },
+  ];
 
   const slide = createSlideTransition({});
   let sheetY = 100;
@@ -80,7 +80,7 @@
           aria-label={item.label}
         >
           <span class="dg-icon-wrap">
-            <span class="icon-mask dg-icon" style="mask-image:url('{fluentIconUrl(item.icon)}');-webkit-mask-image:url('{fluentIconUrl(item.icon)}');background:{c.iconTint};"></span>
+            <span class="icon-mask dg-icon" style="mask-image:url('{item.src}');-webkit-mask-image:url('{item.src}');background:{c.iconTint};"></span>
           </span>
           <span class="dg-label" style="color:{c.textPrimary}">{item.label}</span>
         </button>

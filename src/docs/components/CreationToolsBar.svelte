@@ -1,5 +1,5 @@
 <script>
-  import { fluentIconUrl } from '../shared/fluent-online.js';
+  import { localIconPath } from '$shared/local-icon.js';
 
   import { createEventDispatcher } from 'svelte';
 
@@ -42,7 +42,7 @@
     >
       <span
         class="icon-mask"
-        style="mask-image:url('{fluentIconUrl(item.icon)}');-webkit-mask-image:url('{fluentIconUrl(item.icon)}');background:{c.iconTint};width:24px;height:24px;max-width:24px;max-height:24px;"
+        style="mask-image:url('{localIconPath(item.icon)}');-webkit-mask-image:url('{localIconPath(item.icon)}');background:{c.iconTint};width:24px;height:24px;max-width:24px;max-height:24px;"
       ></span>
       <span class="ctb-label" style="color:{c.textSecondary}">{item.label}</span>
     </button>
@@ -52,12 +52,12 @@
 <style>
   .ctb-wrap {
     position: fixed;
-    left: 0; right: 0; bottom: var(--kb-offset, 0px);
+    left: 0; right: 0; bottom: 0;
     z-index: 40;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 10px + var(--kb-offset, 0px));
+    padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 10px);
     box-shadow: 0 -0.5px 0 0 rgba(127,127,127,0.18);
     transition: opacity .3s cubic-bezier(0.32, 0.72, 0, 1), transform .3s cubic-bezier(0.32, 0.72, 0, 1);
     opacity: 1;

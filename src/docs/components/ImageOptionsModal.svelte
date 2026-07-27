@@ -1,5 +1,5 @@
 <script>
-  import { fluentIconUrl } from '../shared/fluent-online.js';
+  import { localIconPath } from '$shared/local-icon.js';
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
@@ -140,7 +140,7 @@
             style="background:{wrapMode === opt.id ? 'rgba(47,123,246,0.14)' : c.appbarBtnBg}"
             on:click={() => setLayer(opt.id)}
           >
-            <span class="icon-mask" style="mask-image:url('{fluentIconUrl(opt.icon)}');-webkit-mask-image:url('{fluentIconUrl(opt.icon)}');background:{wrapMode === opt.id ? 'var(--accent-primary)' : c.iconTint};width:24px;height:24px;"></span>
+            <span class="icon-mask" style="mask-image:url('{localIconPath(opt.icon)}');-webkit-mask-image:url('{localIconPath(opt.icon)}');background:{wrapMode === opt.id ? 'var(--accent-primary)' : c.iconTint};width:24px;height:24px;"></span>
             <span class="wrap-label" style="color:{wrapMode === opt.id ? 'var(--accent-primary)' : c.textPrimary}">{opt.label}</span>
           </button>
         {/each}

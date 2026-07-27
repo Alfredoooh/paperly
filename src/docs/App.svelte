@@ -6,12 +6,11 @@
   import { syncTheme, getTheme } from '$shared/theme.js';
   import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
-  import { localIconPath } from '$shared/local-icon.js';
   import MainPage from './pages/MainPage.svelte';
 
   const APP_ID = 'docs';
   const APP_TITLE = 'Nexa Docs';
-  const APP_ICON = localIconPath('document_24_regular');
+  const APP_ICON = '/icons/svg/apps/docs.svg';
   const BASE = '/docs/';
   const VALID_ROUTES = [];
   const router = createRouter(BASE, VALID_ROUTES, 'main');

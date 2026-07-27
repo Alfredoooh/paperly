@@ -1,5 +1,5 @@
 <script>
-  import { localIconPath } from '$shared/local-icon.js';
+  import { fluentIconUrl } from '../shared/fluent-online.js';
 
   import { createEventDispatcher } from 'svelte';
   
@@ -19,7 +19,7 @@
     { id: 'underline', icon: 'text_underline_24_regular', label: 'Sublinhado' },
     { id: 'strikethrough', icon: 'text_strikethrough_24_regular', label: 'Rasurado' },
     { id: 'color', icon: 'highlight_24_regular', label: 'Realçador', panel: true },
-    { id: 'fontcolor', icon: 'text_color_24_regular', label: 'Cor da fonte', panel: true },
+    { id: 'fontcolor', icon: 'font_color_24_regular', label: 'Cor da fonte', panel: true },
     { id: 'font', icon: 'text_font_24_regular', label: 'Fonte', panel: true },
     { id: 'size', icon: 'text_font_size_24_regular', label: 'Tamanho', panel: true },
     { id: 'align', icon: 'text_align_left_24_regular', label: 'Alinhamento', panel: true },
@@ -55,7 +55,7 @@
       >
         <span
           class="icon-mask"
-          style="mask-image:url('{localIconPath(item.icon)}');-webkit-mask-image:url('{localIconPath(item.icon)}');background:{c.iconTint};width:24px;height:24px;max-width:24px;max-height:24px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
+          style="mask-image:url('{fluentIconUrl(item.icon)}');-webkit-mask-image:url('{fluentIconUrl(item.icon)}');background:{c.iconTint};width:24px;height:24px;max-width:24px;max-height:24px;opacity:{item.disabled && item.disabled() ? 0.32 : 1};"
         ></span>
       </button>
     {/each}
@@ -65,9 +65,9 @@
 <style>
   .tb-wrap {
     position: fixed;
-    left: 0; right: 0; bottom: 0;
+    left: 0; right: 0; bottom: var(--kb-offset, 0px);
     z-index: 40;
-    padding: 10px 0 calc(env(safe-area-inset-bottom,0px) + 10px);
+    padding: 10px 0 calc(env(safe-area-inset-bottom,0px) + 10px + var(--kb-offset, 0px));
     box-shadow: 0 -0.5px 0 0 rgba(127,127,127,0.18);
     transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1), opacity .3s cubic-bezier(0.32, 0.72, 0, 1);
     opacity: 1;

@@ -1,5 +1,5 @@
 <script>
-  import { localIconPath } from '$shared/local-icon.js';
+  import { fluentIconUrl } from '../shared/fluent-online.js';
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
@@ -14,7 +14,7 @@
   const ITEMS = [
     { id: 'duplicate', label: 'Duplicar', icon: 'copy_24_regular' },
     { id: 'share', label: 'Partilhar', icon: 'share_24_regular' },
-    { id: 'export', label: 'Exportar', icon: 'arrow_export_ltr_24_regular' },
+    { id: 'export', label: 'Exportar', icon: 'arrow_export_24_regular' },
     { id: 'delete', label: 'Apagar', icon: 'delete_24_regular', danger: true },
   ];
 
@@ -72,7 +72,7 @@
     <div class="dm-handle" style="background:{c.divider}"></div>
     {#each ITEMS as item, i}
       <button class="dm-item" class:dm-danger={item.danger} style={item.danger ? '' : `color:${c.textPrimary}`} on:click={() => select(item.id)}>
-        <span class="icon-mask" style="mask-image:url('{localIconPath(item.icon)}');-webkit-mask-image:url('{localIconPath(item.icon)}');background:{item.danger ? 'var(--danger)' : c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{fluentIconUrl(item.icon)}');-webkit-mask-image:url('{fluentIconUrl(item.icon)}');background:{item.danger ? 'var(--danger)' : c.iconTint};width:24px;height:24px;"></span>
         <span>{item.label}</span>
       </button>
       {#if i < ITEMS.length - 1}

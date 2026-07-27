@@ -1,4 +1,4 @@
-<!-- src/home/widgets/PinchZoom.svelte -->
+<!-- widgets/PinchZoom.svelte -->
 <script>
   import { onDestroy } from 'svelte';
   import { createEventDispatcher } from 'svelte';
@@ -158,17 +158,11 @@
     }
   }
 
-  function onDblClick() {
-    // Duplo toque: alterna entre a base (1) e 2x, tal como Preview/Fotos no iOS.
-    if (scale > minScale + 0.01) {
-      scale = minScale;
-      panX = 0;
-      panY = 0;
-    } else {
-      scale = clampScale(2);
-    }
-    dispatch('zoomchange', { scale });
-  }
+  // FIX: zoom só pode acontecer com pinch de dois dedos. O
+  // double-tap-to-zoom foi removido de propósito — estava a disparar
+  // zoom acidental sempre que o utilizador tocava duas vezes
+  // rapidamente no papel (ex: para posicionar o cursor), o que nunca
+  // foi a intenção. Zoom agora É EXCLUSIVAMENTE via pinch (2 dedos).
 
   onDestroy(() => {
     pointers.clear();
@@ -183,7 +177,6 @@
   on:pointermove={onPointerMove}
   on:pointerup={onPointerUp}
   on:pointercancel={onPointerUp}
-  on:dblclick={onDblClick}
 >
   <div
     class="pinch-content"

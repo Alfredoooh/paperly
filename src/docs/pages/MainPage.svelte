@@ -81,7 +81,7 @@
     // dentro do contenteditable (selectionchange dispara em todo
     // movimento de cursor), o que recomputava kbOffset e reescrevia
     // a CSS var --kb-offset constantemente enquanto se escrevia —
-    // essa era uma das causas dos saltos do canvas durante a
+    // essa era uma das causas dos saltos da bottombar durante a
     // digitação. 'focusin' sozinho já é suficiente para detetar a
     // entrada em qualquer campo editável.
   });
@@ -158,14 +158,32 @@
 
   function initHistory(html) { historyStack = [html || '']; historyIndex = 0; }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  FIX (bottombar "pulando" no undo/redo com teclado aberto):
+  //  setEditorHTML() → DocPage.setContent() recria as divs
+  //  contenteditable do zero (await tick()), o que tira e devolve o
+  //  foco num instante. Isso dispara eventos intermédios de
+  //  visualViewport.resize/scroll com valores TRANSITÓRIOS (o teclado
+  //  "parece" fechar e reabrir durante uma fração de segundo aos
+  //  olhos do browser), e cada um desses eventos recalculava
+  //  --kb-offset imediatamente — daí o salto visual da bottombar.
+  //
+  //  Correção: suspende o recálculo de --kb-offset (via
+  //  kbUpdatesSuspended) enquanto undo/redo estão a decorrer, e só
+  //  volta a calcular UMA VEZ, depois do DOM e do foco já estarem
+  //  estáveis outra vez.
+  // ══════════════════════════════════════════════════════════════════
   async function undo() {
     if (historyIndex <= 0) return;
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
+    kbUpdatesSuspended = true;
     historyIndex -= 1;
     setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
+    kbUpdatesSuspended = false;
+    computeKbOffset();
     scheduleSave();
     buzz();
   }
@@ -173,10 +191,13 @@
     if (historyIndex >= historyStack.length - 1) return;
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
+    kbUpdatesSuspended = true;
     historyIndex += 1;
     setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
+    kbUpdatesSuspended = false;
+    computeKbOffset();
     scheduleSave();
     buzz();
   }
@@ -192,6 +213,17 @@
   let layersModalOpen = false;
   let designModalOpen = false;
   let activeDesignTool = null;
+
+  // Grupo ativo no BottomToolbar (Base / Inserir / Desenhar) — vive
+  // aqui para poder ser restaurado a 'base' sempre que se sai do modo
+  // de edição, tal como o Word faz.
+  let activeToolbarGroup = 'base';
+
+  // Cor atual do texto/realçador — refletida nas swatches do
+  // BottomToolbar. fontColorHex começa a preto (padrão do texto);
+  // highlightHex começa null (sem realce, swatch cinza).
+  let fontColorHex = '#1a1a1a';
+  let highlightHex = null;
 
   // ── Estado das camadas da folha atual ─────────────────────────────
   let currentPageLayers = [];
@@ -238,6 +270,7 @@
     docPageComp && docPageComp.deselectFloat();
     activePanel = null;
     designModalOpen = false;
+    activeToolbarGroup = 'base';
     isEditing = false;
   }
 
@@ -266,6 +299,10 @@
     if (id === 'layers') { refreshLayers(); layersModalOpen = true; return; }
     if (id === 'design') { designModalOpen = true; return; }
     activePanel = id;
+  }
+
+  function handleToolbarGroupChange(id) {
+    activeToolbarGroup = id;
   }
 
   function handleCreationToolAction(id) {
@@ -342,7 +379,11 @@
     pushHistory(true);
   }
 
-  function selectColor(hex) { exec('foreColor', hex); colorModalOpen = false; }
+  function selectColor(hex) {
+    exec('foreColor', hex);
+    fontColorHex = hex;
+    colorModalOpen = false;
+  }
   function requestAddColor() { colorModalOpen = false; colorPickerOpen = true; }
   function confirmCustomColor(hex) {
     if (!customColors.includes(hex)) { customColors = [...customColors, hex]; persistCustomColors(); }
@@ -432,18 +473,25 @@
   //  KEYBOARD AVOIDANCE — afeta APENAS a BottomToolbar/CreationToolsBar
   //  (via --kb-offset) e a altura do canvas (via --app-vh). O appbar
   //  NUNCA lê --kb-offset e nunca se move — está fora deste circuito
-  //  por completo.
+  //  por completo, e assim NUNCA pula, mesmo durante undo/redo.
+  //
+  //  kbUpdatesSuspended: enquanto true, scheduleKbUpdate() ignora
+  //  qualquer evento de visualViewport (resize/scroll). Usado durante
+  //  undo/redo para não reagir aos eventos transitórios de foco que
+  //  o recreate do contenteditable dispara.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
   let rootEl;
   let vvRef = null;
+  let kbUpdatesSuspended = false;
 
   function syncViewportVars() {
     document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
   }
 
   function computeKbOffset() {
+    if (kbUpdatesSuspended) return;
     // window.innerHeight NÃO encolhe quando o teclado abre (ao
     // contrário de 100dvh, que em WebViews Android costuma encolher
     // sozinho assim que o teclado aparece). Ao fixar --app-vh a
@@ -463,6 +511,7 @@
     syncViewportVars();
   }
   function scheduleKbUpdate() {
+    if (kbUpdatesSuspended) return;
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     kbUpdateRaf = requestAnimationFrame(computeKbOffset);
   }
@@ -701,8 +750,12 @@
   <BottomToolbar
     {c}
     {activePanel}
+    bind:activeGroup={activeToolbarGroup}
+    {fontColorHex}
+    {highlightHex}
     visible={isEditing}
     on:action={(e) => handleToolbarAction(e.detail)}
+    on:groupchange={(e) => handleToolbarGroupChange(e.detail)}
   />
 
   <!--
@@ -829,7 +882,9 @@
   /* APPBAR — ESTÁTICO. Sem transform, sem transition de posição, sem
      ligação a --kb-offset. Ocupa o fluxo normal (flex-shrink:0 no
      topo do .root) e nunca se mexe, nunca desaparece, seja qual for
-     a ação do utilizador ou o estado do teclado. */
+     a ação do utilizador ou o estado do teclado — inclusive durante
+     undo/redo, já que kbUpdatesSuspended garante que nem sequer
+     --kb-offset oscila nesse intervalo. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;

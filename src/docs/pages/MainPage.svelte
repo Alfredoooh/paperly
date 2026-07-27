@@ -73,61 +73,19 @@
     try { localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(customColors)); } catch (e) {}
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDANCE — arquitetura idêntica à do ChatPage.svelte
-  //  (referência validada): window.visualViewport é a ÚNICA fonte de
-  //  verdade, e a altura que ele reporta é aplicada DIRETAMENTE como
-  //  height (em px) do container .root via JS.
-  //
-  //  Isto substitui por completo a tentativa anterior com 100dvh: em
-  //  Chrome/Android, 100dvh recalcula-se sozinho quando o teclado
-  //  abre (arrastando .root, .appbar e a folha consigo de forma
-  //  descontrolada), e a fórmula antiga de --kb-offset
-  //  (innerHeight - visualViewport.height) dava quase sempre 0 em
-  //  Android, porque aí innerHeight TAMBÉM encolhe com o teclado — só
-  //  em iOS Safari é que innerHeight fica fixo. Por isso a barra não
-  //  reagia lá e reagia mal noutros dispositivos.
-  //
-  //  Com .root a receber a altura exata do visualViewport em px:
-  //   • .appbar é flex-shrink:0 no topo do .root — nunca é tocado por
-  //     nenhuma variável de teclado, nunca sobe nem um pixel.
-  //   • .canvas-area (onde vive a folha) é flex:1 puro — não tem
-  //     nenhum estilo ligado ao teclado; ocupa sempre "o que sobra"
-  //     dentro de um pai já com a altura correta, por isso a folha
-  //     em si não sobe nem encolhe de forma visível.
-  //   • BottomToolbar/CreationToolsBar são position:absolute;
-  //     bottom:0 DENTRO do .root (não fixed ao viewport). Como o
-  //     .root encolhe via JS quando o teclado abre, a barra ativa
-  //     sobe "de graça" só por estar colada ao fundo desse pai — sem
-  //     precisar de nenhum transform nem variável --kb-offset.
-  // ══════════════════════════════════════════════════════════════════
-  let rootEl;
-  let vvRef = null;
-
-  function applyViewportHeight() {
-    const vv = window.visualViewport;
-    if (!rootEl) return;
-    const h = vv ? vv.height : window.innerHeight;
-    rootEl.style.height = h + 'px';
-  }
-
-  function setupKeyboardAvoidance() {
-    applyViewportHeight();
-    vvRef = window.visualViewport;
-    if (vvRef) {
-      vvRef.addEventListener('resize', applyViewportHeight);
-      vvRef.addEventListener('scroll', applyViewportHeight);
-    }
-    window.addEventListener('resize', applyViewportHeight);
-    window.addEventListener('orientationchange', handleOrientationChange);
-  }
-
-  function handleOrientationChange() {
-    setTimeout(applyViewportHeight, 120);
-  }
-
   onMount(() => {
     setupKeyboardAvoidance();
+    // NOTA: os listeners de 'focusin'/'selectionchange'/'pointerdown'
+    // globais que existiam aqui em versões anteriores foram REMOVIDOS
+    // de propósito. Cada um deles era uma tentativa de "compensar"
+    // reflows causados por outra parte do sistema (--app-vh a mudar,
+    // o .root a redimensionar) — mas como agora .root é 100dvh FIXO
+    // e o appbar não lê nenhuma variável de teclado, não há reflow
+    // nenhum para compensar. A única fonte de verdade do teclado é
+    // window.visualViewport, e a única coisa que reage a ela é
+    // --kb-offset, que só a BottomToolbar/CreationToolsBar leem via
+    // transform. Menos código a reagir ao teclado = menos formas de
+    // ele saltar.
   });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
@@ -140,86 +98,388 @@
     try {
       localStorage.setItem(STORAGE_PREFIX + docId, JSON.stringify(payload));
       const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
-      const index = indexRaw ? JSON.parse(indexRaw) : {};
-      index[docId] = { name: docName, updatedAt: payload.updatedAt };
+      const index = indexRaw ? JSON.parse(indexRaw) : [];
+      const existing = index.find(d => d.id === docId);
+      if (existing) { existing.name = docName; existing.updatedAt = payload.updatedAt; }
+      else index.push({ id: docId, name: docName, updatedAt: payload.updatedAt });
       localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
       savedState = 'saved';
-    } catch (e) { savedState = 'saved'; }
+    } catch (e) { savedState = 'dirty'; }
   }
 
   function scheduleSave() {
-    savedState = 'saving';
+    savedState = 'dirty';
     clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(persist, 600);
+    saveTimeout = setTimeout(persist, 700);
   }
 
-  function handleInput() {
-    scheduleSave();
-    updateUndoRedoAvailability();
-  }
+  function handleInput() { scheduleSave(); pushHistory(); }
 
-  function handleDocReady() {
-    pushHistorySnapshot(true);
-  }
-
-  function handleNameInput(e) {
-    docName = e.target.value;
-    scheduleSave();
-  }
-  function handleNameBlur() {
-    if (!docName || !docName.trim()) docName = 'Documento sem título';
+  function handleNameInput(e) { docName = e.target.value; scheduleSave(); }
+  function handleNameBlur(e) {
+    if (!docName || !docName.trim()) {
+      docName = 'Documento sem título';
+      e.target.value = docName;
+    }
     scheduleSave();
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  HISTÓRICO (undo/redo)
-  // ══════════════════════════════════════════════════════════════════
+  function exec(command, value = null) {
+    focusEditor();
+    document.execCommand(command, false, value);
+    scheduleSave();
+    pushHistory();
+  }
+
+  function buzz() {
+    try { navigator.vibrate && navigator.vibrate(6); } catch (e) {}
+  }
+
   let historyStack = [];
   let historyIndex = -1;
+  let isRestoringHistory = false;
   let historyDebounce;
-  let canUndo = false;
-  let canRedo = false;
+  const HISTORY_LIMIT = 100;
 
-  function updateUndoRedoAvailability() {
-    canUndo = historyIndex > 0;
-    canRedo = historyIndex < historyStack.length - 1;
+  function snapshotNow() {
+    const html = getEditorHTML();
+    if (historyStack[historyIndex] === html) return;
+    historyStack = historyStack.slice(0, historyIndex + 1);
+    historyStack.push(html);
+    if (historyStack.length > HISTORY_LIMIT) historyStack.shift();
+    historyIndex = historyStack.length - 1;
+    historyStack = historyStack;
   }
 
-  function pushHistorySnapshot(isInitial = false) {
+  function pushHistory(immediate = false) {
+    if (isRestoringHistory) return;
+    if (immediate) { clearTimeout(historyDebounce); snapshotNow(); return; }
     clearTimeout(historyDebounce);
-    const doPush = () => {
-      const html = getEditorHTML();
-      if (historyIndex >= 0 && historyStack[historyIndex] === html && !isInitial) return;
-      historyStack = historyStack.slice(0, historyIndex + 1);
-      historyStack.push(html);
-      if (historyStack.length > 60) historyStack.shift();
-      historyIndex = historyStack.length - 1;
-      updateUndoRedoAvailability();
-    };
-    if (isInitial) doPush();
-    else historyDebounce = setTimeout(doPush, 500);
+    historyDebounce = setTimeout(snapshotNow, 350);
   }
 
-  function undo() {
+  function initHistory(html) { historyStack = [html || '']; historyIndex = 0; }
+
+  // undo/redo já não precisam de suspender nada relacionado ao
+  // teclado — setEditorHTML() ainda tira/devolve o foco por um
+  // instante, mas como --kb-offset só é recomputado no
+  // resize/scroll real do visualViewport (nunca a partir de
+  // focusin/pointerdown), essa perda de foco momentânea já não
+  // dispara nenhum recálculo. Simplesmente já não há nada para a
+  // recriação do DOM "confundir".
+  async function undo() {
     if (historyIndex <= 0) return;
+    clearTimeout(historyDebounce);
+    isRestoringHistory = true;
     historyIndex -= 1;
     setEditorHTML(historyStack[historyIndex]);
-    updateUndoRedoAvailability();
+    await tick();
+    isRestoringHistory = false;
     scheduleSave();
+    buzz();
   }
-  function redo() {
+  async function redo() {
     if (historyIndex >= historyStack.length - 1) return;
+    clearTimeout(historyDebounce);
+    isRestoringHistory = true;
     historyIndex += 1;
     setEditorHTML(historyStack[historyIndex]);
-    updateUndoRedoAvailability();
+    await tick();
+    isRestoringHistory = false;
     scheduleSave();
+    buzz();
+  }
+  $: canUndo = historyIndex > 0;
+  $: canRedo = historyIndex < historyStack.length - 1;
+
+  function handleDocReady(e) { initHistory(e.detail?.html || ''); }
+
+  let activePanel = null;
+  let colorModalOpen = false;
+  let colorPickerOpen = false;
+  let tableModalOpen = false;
+  let layersModalOpen = false;
+  let designModalOpen = false;
+  let activeDesignTool = null;
+
+  // Grupo ativo no BottomToolbar (Base / Inserir / Desenhar) — vive
+  // aqui para poder ser restaurado a 'base' sempre que se sai do modo
+  // de edição, tal como o Word faz.
+  let activeToolbarGroup = 'base';
+
+  // Cor atual do texto/realçador — refletida nas swatches do
+  // BottomToolbar. fontColorHex começa a preto (padrão do texto);
+  // highlightHex começa null (sem realce, swatch cinza).
+  let fontColorHex = '#1a1a1a';
+  let highlightHex = null;
+
+  // ── Estado das camadas da folha atual ─────────────────────────────
+  let currentPageLayers = [];
+
+  function refreshLayers() {
+    if (!docPageComp) { currentPageLayers = []; return; }
+    const objs = docPageComp.getFloatingObjectsForPage(activePageIndex) || [];
+    currentPageLayers = objs.map((o, i) => ({
+      id: `${activePageIndex}:${o.id}`,
+      pageIndex: activePageIndex,
+      objId: o.id,
+      type: 'image',
+      label: `Imagem ${i + 1}`,
+    }));
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  ESTADO DE EDIÇÃO — isEditing controla TANTO o appbar (que grupo
+  //  de botões aparece à esquerda/direita) COMO qual bottom bar
+  //  aparece.
+  //  O appbar é 100% ESTÁTICO — nunca sobe, nunca desce, nunca
+  //  desaparece, independentemente do teclado ou de qualquer ação.
+  //  Fica sempre fixo no topo do ecrã. Só a bottom bar
+  //  (BottomToolbar/CreationToolsBar) reage ao teclado, exatamente
+  //  como no ChatPage.svelte: só o input/toolbar sobe, o appbar
+  //  fica parado.
+  // ══════════════════════════════════════════════════════════════════
+  let isEditing = false;
+
+  function handlePageFocus() { if (!isEditing) isEditing = true; }
+
+  function confirmDoneEditing() {
+    buzz();
+    docPageComp && docPageComp.blurEditor();
+    docPageComp && docPageComp.deselectFloat();
+    activePanel = null;
+    designModalOpen = false;
+    activeToolbarGroup = 'base';
+    isEditing = false;
+  }
+
+  function handleAppbarLeftAction() {
+    buzz();
+    if (isEditing) { confirmDoneEditing(); return; }
+    dispatch('nav', { to: 'home' });
+  }
+
+  function handleToolbarAction(id) {
+    buzz();
+    if (id === 'done') { confirmDoneEditing(); return; }
+    if (id === 'undo') { undo(); return; }
+    if (id === 'redo') { redo(); return; }
+    if (id === 'bold') { exec('bold'); return; }
+    if (id === 'italic') { exec('italic'); return; }
+    if (id === 'underline') { exec('underline'); return; }
+    if (id === 'strikethrough') { exec('strikeThrough'); return; }
+    if (id === 'color' || id === 'fontcolor') { colorModalOpen = true; return; }
+    if (id === 'link') { openLinkPanel(); return; }
+    if (id === 'footnote') { openFootnotePanel(); return; }
+    if (id === 'insert') { triggerImagePicker(); return; }
+    if (id === 'table') { tableModalOpen = true; return; }
+    if (id === 'layers') { refreshLayers(); layersModalOpen = true; return; }
+    if (id === 'design') { designModalOpen = true; return; }
+    activePanel = id;
+  }
+
+  function handleToolbarGroupChange(id) {
+    activeToolbarGroup = id;
+  }
+
+  function handleCreationToolAction(id) {
+    buzz();
+    if (id === 'edit') { isEditing = true; requestAnimationFrame(() => focusEditor()); return; }
+    if (id === 'devicelayout') { showToast('Vista para dispositivo em breve'); return; }
+    if (id === 'headings') { showToast('Cabeçalhos em breve'); return; }
+    if (id === 'share') { openExport('share'); return; }
+    if (id === 'readaloud') { showToast('Ler em voz alta em breve'); return; }
+  }
+
+  function handleDesignSelect(e) {
+    activeDesignTool = e.detail;
+    designModalOpen = false;
+    showToast('Ferramenta selecionada');
+  }
+
+  function closeFormatModal() { activePanel = null; }
+
+  function setFont(value) { exec('fontName', value); activePanel = null; }
+  function setSize(px) {
+    focusEditor();
+    document.execCommand('fontSize', false, '7');
+    docPageComp && docPageComp.normalizeFontSizeMarkers(px);
+    scheduleSave();
+    pushHistory(true);
+    activePanel = null;
+  }
+  function setAlign(cmd) { exec(cmd); activePanel = null; }
+  function setList(cmd) { exec(cmd); activePanel = null; }
+
+  function insertImage(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      docPageComp && docPageComp.insertImageAtCursor(ev.target.result);
+      scheduleSave();
+      pushHistory(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  function handleImageRequestEdit(e) {
+    refreshLayers();
+    layersModalOpen = true;
+  }
+
+  function handleLayerSelect(e) {
+    const [pageIndexStr, objIdStr] = String(e.detail).split(':');
+    docPageComp && docPageComp.selectFloatById(Number(pageIndexStr), Number(objIdStr));
+    layersModalOpen = false;
+  }
+
+  function handleLayerDelete(e) {
+    const [pageIndexStr, objIdStr] = String(e.detail).split(':');
+    docPageComp && docPageComp.deleteImage({ pageIndex: Number(pageIndexStr), objId: Number(objIdStr) });
+    scheduleSave();
+    pushHistory(true);
+    refreshLayers();
+    if (currentPageLayers.length === 0) layersModalOpen = false;
+  }
+
+  function insertTable(e) {
+    const { rows, cols } = e.detail;
+    docPageComp && docPageComp.insertTable(rows, cols);
+    tableModalOpen = false;
+    scheduleSave();
+    pushHistory(true);
+  }
+
+  function selectColor(hex) {
+    exec('foreColor', hex);
+    fontColorHex = hex;
+    colorModalOpen = false;
+  }
+  function requestAddColor() { colorModalOpen = false; colorPickerOpen = true; }
+  function confirmCustomColor(hex) {
+    if (!customColors.includes(hex)) { customColors = [...customColors, hex]; persistCustomColors(); }
+    colorPickerOpen = false;
+    colorModalOpen = true;
+  }
+  function cancelCustomColor() { colorPickerOpen = false; colorModalOpen = true; }
+
+  let linkUrlDraft = '';
+  let savedSelectionRange = null;
+
+  function openLinkPanel() {
+    focusEditor();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+      savedSelectionRange = sel.getRangeAt(0).cloneRange();
+    } else { savedSelectionRange = null; }
+    linkUrlDraft = '';
+    activePanel = 'link';
+  }
+  function restoreSelection() {
+    if (!savedSelectionRange) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedSelectionRange);
+  }
+  function confirmInsertLink() {
+    const url = linkUrlDraft.trim();
+    if (!url) return;
+    focusEditor();
+    restoreSelection();
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      document.execCommand('insertHTML', false,
+        `<a href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
+    } else {
+      document.execCommand('createLink', false, url);
+      docPageComp && docPageComp.tagLinksWithHref(url);
+    }
+    scheduleSave(); pushHistory(true);
+    linkUrlDraft = ''; savedSelectionRange = null; activePanel = null;
+  }
+  function removeLink() {
+    focusEditor(); restoreSelection();
+    document.execCommand('unlink');
+    scheduleSave(); pushHistory(true); activePanel = null;
+  }
+  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escapeAttr(str) { return escapeHtml(str).replace(/"/g,'&quot;'); }
+
+  let footnotes = [];
+  let footnoteDraft = '';
+  let footnoteCounter = 0;
+
+  function openFootnotePanel() { focusEditor(); footnoteDraft = ''; activePanel = 'footnote'; }
+  function confirmInsertFootnote() {
+    const text = footnoteDraft.trim();
+    if (!text) return;
+    focusEditor();
+    footnoteCounter += 1;
+    const num = footnoteCounter;
+    const noteId = 'fn' + num + '_' + Date.now().toString(36);
+    footnotes = [...footnotes, { id: noteId, num, text }];
+    document.execCommand('insertHTML', false,
+      `<sup class="footnote-ref" data-footnote-id="${noteId}">${num}</sup>`);
+    scheduleSave(); pushHistory(true);
+    footnoteDraft = ''; activePanel = null;
+  }
+  function removeFootnote(id) {
+    footnotes = footnotes.filter(f => f.id !== id);
+    docPageComp && docPageComp.removeFootnoteRef(id);
+    scheduleSave(); pushHistory(true);
+  }
+
+  let fileInputEl;
+  function triggerImagePicker() { fileInputEl?.click(); }
+
   function handleKeydown(e) {
-    if (!(e.ctrlKey || e.metaKey)) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (!mod) return;
     const key = e.key.toLowerCase();
     if (key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  KEYBOARD AVOIDANCE — versão mínima, igual em espírito ao
+  //  setupKeyboard() do ChatPage.svelte (referência que o utilizador
+  //  deu como "certo"): window.visualViewport é a ÚNICA fonte de
+  //  verdade, --kb-offset é a ÚNICA variável escrita, e SÓ a
+  //  BottomToolbar/CreationToolsBar leem essa variável via
+  //  transform. O appbar não tem NENHUMA linha de código, em lado
+  //  nenhum deste ficheiro, que o ligue ao teclado — por isso não
+  //  há forma de ele saltar.
+  //
+  //  --app-vh deixou de existir por completo — já não é necessário,
+  //  porque .root usa 100dvh diretamente no CSS (ver <style> abaixo),
+  //  que já lida nativamente com a barra de UI do Android/iOS sem
+  //  nenhum JS a recalcular nada.
+  // ══════════════════════════════════════════════════════════════════
+  let kbOffset = 0;
+  let kbUpdateRaf = null;
+  let vvRef = null;
+
+  function computeKbOffset() {
+    const vv = window.visualViewport;
+    if (!vv) { kbOffset = 0; return; }
+    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
+    kbOffset = overlap > 40 ? Math.round(overlap) : 0;
+    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
+  }
+  function scheduleKbUpdate() {
+    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
+    kbUpdateRaf = requestAnimationFrame(computeKbOffset);
+  }
+
+  function setupKeyboardAvoidance() {
+    computeKbOffset();
+    vvRef = window.visualViewport;
+    if (vvRef) {
+      vvRef.addEventListener('resize', scheduleKbUpdate);
+      vvRef.addEventListener('scroll', scheduleKbUpdate);
+    }
   }
 
   let activePageIndex = 0;
@@ -271,243 +531,67 @@
 
   onDestroy(() => {
     if (vvRef) {
-      vvRef.removeEventListener('resize', applyViewportHeight);
-      vvRef.removeEventListener('scroll', applyViewportHeight);
+      vvRef.removeEventListener('resize', scheduleKbUpdate);
+      vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
-    window.removeEventListener('resize', applyViewportHeight);
-    window.removeEventListener('orientationchange', handleOrientationChange);
+    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();
     unsubscribeExportSlide?.();
+    mainRecoil.destroy?.();
+    exportSlide.destroy?.();
   });
 
-  // ══════════════════════════════════════════════════════════════════
-  //  ESTADO DE EDIÇÃO — isEditing controla TANTO o appbar (que grupo
-  //  de botões aparece à esquerda/direita) COMO qual bottom bar
-  //  aparece.
-  //  O appbar é 100% ESTÁTICO — nunca sobe, nunca desce, nunca
-  //  desaparece, independentemente do teclado ou de qualquer ação.
-  //  Fica sempre fixo no topo do ecrã. Só a bottom bar
-  //  (BottomToolbar/CreationToolsBar) reage ao teclado, exatamente
-  //  como no ChatPage.svelte: só o input/toolbar sobe, o appbar
-  //  fica parado.
-  // ══════════════════════════════════════════════════════════════════
-  let isEditing = false;
-
-  function handlePageFocus() { if (!isEditing) isEditing = true; }
-
-  function confirmDoneEditing() {
-    buzz();
-    docPageComp && docPageComp.blurEditor();
-    docPageComp && docPageComp.deselectFloat();
-    activePanel = null;
-    designModalOpen = false;
-    activeToolbarGroup = 'base';
-    isEditing = false;
-  }
-
-  function handleAppbarLeftAction() {
-    buzz();
-    if (isEditing) { confirmDoneEditing(); return; }
-    dispatch('nav', { to: 'home' });
-  }
-
-  function handleToolbarAction(id) {
-    buzz();
-    if (id === 'done') { confirmDoneEditing(); return; }
-    if (id === 'undo') { undo(); return; }
-    if (id === 'redo') { redo(); return; }
-    if (id === 'bold') { exec('bold'); return; }
-    if (id === 'italic') { exec('italic'); return; }
-    if (id === 'underline') { exec('underline'); return; }
-    if (id === 'strikethrough') { exec('strikeThrough'); return; }
-    if (id === 'color') { openColorPanel('highlight'); return; }
-    if (id === 'fontcolor') { openColorPanel('font'); return; }
-    if (id === 'font') { activePanel = 'font'; return; }
-    if (id === 'size') { activePanel = 'size'; return; }
-    if (id === 'align') { activePanel = 'align'; return; }
-    if (id === 'list') { setList('bullet'); return; }
-    if (id === 'numbering') { setList('number'); return; }
-    if (id === 'link') { openLinkPanel(); return; }
-    if (id === 'footnote') { openFootnotePanel(); return; }
-    if (id === 'layers') { openLayersModal(); return; }
-    if (id === 'insert') { fileInputEl && fileInputEl.click(); return; }
-    if (id === 'table') { tableModalOpen = true; return; }
-    if (id === 'design') { designModalOpen = true; return; }
-  }
-
-  function handleToolbarGroupChange(id) {
-    activeToolbarGroup = id;
-  }
-
-  function handleCreationToolAction(id) {
-    buzz();
-    if (id === 'edit') {
-      isEditing = true;
-      tick().then(() => focusEditor());
-      return;
-    }
-    if (id === 'share') { showToast('Partilhar em breve'); return; }
-    if (id === 'readaloud') { showToast('Ler em voz alta em breve'); return; }
-    if (id === 'devicelayout') { showToast('Vista para dispositivo em breve'); return; }
-    if (id === 'headings') { showToast('Cabeçalhos em breve'); return; }
-  }
-
-  let activePanel = null;
-  let activeToolbarGroup = 'base';
-  let linkUrlDraft = '';
-  let footnoteDraft = '';
-  let colorModalOpen = false;
-  let colorPickerOpen = false;
-  let tableModalOpen = false;
-  let layersModalOpen = false;
-  let designModalOpen = false;
-  let activeDesignTool = null;
-  let colorPanelMode = 'font';
-  let fontColorHex = '#1a1a1a';
-  let highlightHex = null;
-  let footnotes = [];
   let showDocMenu = false;
-  let docMenuAnchor = null;
   let docMenuBtnEl;
-  let showDeleteConfirm = false;
-  let fileInputEl;
-
-  function buzz() { try { navigator.vibrate && navigator.vibrate(6); } catch (e) {} }
-
-  function exec(cmd) {
-    docPageComp && docPageComp.exec(cmd);
-    scheduleSave();
-  }
-
-  function setAlign(v) { docPageComp && docPageComp.setAlign(v); activePanel = null; scheduleSave(); }
-  function setList(v) { docPageComp && docPageComp.setList(v); activePanel = null; scheduleSave(); }
-  function setFont(v) { docPageComp && docPageComp.setFont(v); activePanel = null; scheduleSave(); }
-  function setSize(v) { docPageComp && docPageComp.setSize(v); activePanel = null; scheduleSave(); }
-
-  function openColorPanel(mode) {
-    colorPanelMode = mode;
-    colorModalOpen = true;
-  }
-  function selectColor(hex) {
-    if (colorPanelMode === 'font') {
-      fontColorHex = hex;
-      docPageComp && docPageComp.exec('foreColor', hex);
-    } else {
-      highlightHex = hex;
-      docPageComp && docPageComp.exec('hiliteColor', hex);
-    }
-    colorModalOpen = false;
-    scheduleSave();
-  }
-  function requestAddColor() {
-    colorModalOpen = false;
-    colorPickerOpen = true;
-  }
-  function confirmCustomColor(hex) {
-    if (!customColors.includes(hex)) {
-      customColors = [hex, ...customColors].slice(0, 20);
-      persistCustomColors();
-    }
-    colorPickerOpen = false;
-    colorModalOpen = true;
-    selectColor(hex);
-  }
-  function cancelCustomColor() {
-    colorPickerOpen = false;
-    colorModalOpen = true;
-  }
-
-  function openLinkPanel() {
-    linkUrlDraft = docPageComp ? (docPageComp.getExistingLink() || '') : '';
-    activePanel = 'link';
-  }
-  function confirmInsertLink(e) {
-    const url = e.detail;
-    docPageComp && docPageComp.insertLink(url);
-    activePanel = null;
-    scheduleSave();
-  }
-  function removeLink() {
-    docPageComp && docPageComp.removeLink();
-    activePanel = null;
-    scheduleSave();
-  }
-
-  function openFootnotePanel() {
-    footnoteDraft = '';
-    activePanel = 'footnote';
-  }
-  function confirmInsertFootnote(e) {
-    const text = e.detail;
-    if (!text || !text.trim()) { activePanel = null; return; }
-    const note = docPageComp && docPageComp.insertFootnote(text.trim());
-    if (note) footnotes = [...footnotes, note];
-    activePanel = null;
-    scheduleSave();
-  }
-  function removeFootnote(id) {
-    footnotes = footnotes.filter(f => f.id !== id);
-    scheduleSave();
-  }
-
-  function openLayersModal() {
-    layersModalOpen = true;
-  }
-  $: currentPageLayers = docPageComp ? docPageComp.getLayers ? docPageComp.getLayers() : [] : [];
-
-  function handleLayerSelect(e) {
-    docPageComp && docPageComp.selectLayer && docPageComp.selectLayer(e.detail);
-    layersModalOpen = false;
-  }
-  function handleLayerDelete(e) {
-    docPageComp && docPageComp.deleteLayer && docPageComp.deleteLayer(e.detail);
-    layersModalOpen = false;
-  }
-
-  function handleImageRequestEdit(e) {
-    activeDesignTool = e.detail;
-    designModalOpen = true;
-  }
-  function handleDesignSelect(e) {
-    docPageComp && docPageComp.applyDesignTool && docPageComp.applyDesignTool(e.detail);
-  }
-
-  function insertImage(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      docPageComp && docPageComp.insertImage(ev.target.result);
-      scheduleSave();
-    };
-    reader.readAsDataURL(file);
-    fileInputEl.value = '';
-  }
+  let docMenuAnchor = { top: 0, right: 0 };
 
   function openDocMenu() {
-    docMenuAnchor = docMenuBtnEl;
+    buzz();
+    if (docMenuBtnEl) {
+      const r = docMenuBtnEl.getBoundingClientRect();
+      docMenuAnchor = { top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) };
+    }
     showDocMenu = true;
   }
-  function closeDocMenu() {
-    showDocMenu = false;
-  }
+  function closeDocMenu() { showDocMenu = false; }
+
   function handleDocMenuSelect(e) {
     const id = e.detail;
-    closeDocMenu();
-    if (id === 'export') { openExport('export'); return; }
-    if (id === 'print') { openExport('print'); return; }
-    if (id === 'share') { showToast('Partilhar em breve'); return; }
-    if (id === 'rename') { showToast('Toca no nome no topo para renomear'); return; }
-    if (id === 'delete') { showDeleteConfirm = true; return; }
-    if (id === 'duplicate') { showToast('Duplicar em breve'); return; }
+    showDocMenu = false;
+    if (id === 'duplicate') duplicateDoc();
+    else if (id === 'share') openExport('share');
+    else if (id === 'export') openExport('export');
+    else if (id === 'delete') askDeleteDoc();
   }
 
-  function cancelDeleteDoc() {
-    showDeleteConfirm = false;
+  function duplicateDoc() {
+    const raw = localStorage.getItem(STORAGE_PREFIX + docId);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      const newId = 'doc_' + Date.now().toString(36);
+      const payload = { name: parsed.name + ' (cópia)', content: parsed.content, updatedAt: Date.now() };
+      localStorage.setItem(STORAGE_PREFIX + newId, JSON.stringify(payload));
+      const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
+      const index = indexRaw ? JSON.parse(indexRaw) : [];
+      index.push({ id: newId, name: payload.name, updatedAt: payload.updatedAt });
+      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
+      showToast('Documento duplicado');
+    } catch (e) { showToast('Não foi possível duplicar'); }
   }
+
+  let showDeleteConfirm = false;
+  function askDeleteDoc() { showDeleteConfirm = true; }
+  function cancelDeleteDoc() { showDeleteConfirm = false; }
   function confirmDeleteDoc() {
+    try {
+      localStorage.removeItem(STORAGE_PREFIX + docId);
+      const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
+      const index = indexRaw ? JSON.parse(indexRaw) : [];
+      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index.filter(d => d.id !== docId)));
+    } catch (e) {}
     showDeleteConfirm = false;
     dispatch('nav', { to: 'home' });
   }
@@ -515,12 +599,9 @@
 
 <div
   class="root"
-  bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
-  <div class="appbar-gradient" class:dark={isDark}></div>
-
-  <div class="appbar" style="color:{c.textPrimary};">
+  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};">
     <button class="appbar-btn" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
       {#if isEditing}
         <span class="icon-mask" style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
@@ -698,18 +779,14 @@
     position: relative;
   }
 
-  /* ROOT — altura em px, imposta via JS a partir de
-     window.visualViewport.height (ver applyViewportHeight no script
-     acima). NENHUM dvh/vh aqui: são essas unidades que recalculavam
-     sozinhas em Chrome/Android quando o teclado abria, arrastando
-     tudo lá dentro de forma descontrolada. Com height em px fixo por
-     JS, .root só muda quando NÓS mandamos mudar — e só a bottom bar
-     ativa (position:absolute; bottom:0 dela) é que está posicionada
-     de forma a reagir a essa mudança. */
   .root {
     position: fixed;
     left: 0; right: 0; top: 0;
-    height: 100vh; /* valor inicial só para o primeiro paint, antes do JS correr; é substituído em px no onMount */
+    /* 100dvh fixo, sem nenhuma dependência de variável JS de altura.
+       Isto é a base de tudo: como esta altura NUNCA muda por causa
+       do teclado, nada dentro deste container é forçado a
+       reposicionar-se quando o teclado abre/fecha. */
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -719,38 +796,17 @@
     overscroll-behavior: none;
   }
 
-  /* GRADIENTE DE TRANSPARÊNCIA DO APPBAR — mesmo efeito do
-     ChatPage.svelte: uma camada atrás do appbar que desvanece de
-     opaco (no topo) para transparente, deixando o conteúdo da folha
-     visível por trás quando se faz scroll. O appbar em si fica com
-     fundo transparente (ver .appbar abaixo) para este gradiente
-     aparecer através dele. */
-  .appbar-gradient {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 110px;
-    pointer-events: none;
-    z-index: 39;
-  }
-  .appbar-gradient:not(.dark) {
-    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,.97) 50%, rgba(255,255,255,0) 100%);
-  }
-  .appbar-gradient.dark {
-    background: linear-gradient(to bottom, rgba(15,15,15,1) 0%, rgba(15,15,15,.95) 45%, rgba(15,15,15,0) 100%);
-  }
-
-  /* APPBAR — 100% ESTÁTICO e agora TRANSPARENTE (o gradiente acima é
-     quem dá a leitura visual). flex-shrink:0 no topo do .root
-     significa que nunca é redimensionado nem reposicionado por nada
-     relacionado ao teclado: só a bottombar/CreationToolsBar sobem, o
-     appbar fica sempre parado. */
+  /* APPBAR — 100% ESTÁTICO. Nenhuma propriedade aqui referencia
+     --kb-offset, --app-vh, ou qualquer variável ligada ao teclado.
+     flex-shrink:0 no topo do .root (que tem altura fixa) significa
+     que este elemento nunca é redimensionado nem reposicionado por
+     nada relacionado ao teclado — exatamente como pedido: só a
+     bottombar/input sobe, o appbar fica sempre parado. */
   .appbar {
-    position: relative;
-    z-index: 40;
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
     flex-shrink: 0;
-    background: transparent;
+    background: inherit;
     contain: paint;
   }
   .appbar-btn {
@@ -769,12 +825,6 @@
     border: none; background: transparent; outline: none; padding: 0;
   }
 
-  /* CANVAS-AREA — onde vive a folha (DocPage). flex:1 puro, sem
-     nenhuma propriedade ligada ao teclado ou a --kb-offset (essa
-     variável deixou de existir em todo o projeto). A folha ocupa
-     sempre "o que sobra" dentro de um .root já com a altura correta
-     — por isso ela não sobe nem encolhe de forma visível por conta
-     própria quando o teclado abre. */
   .canvas-area {
     flex: 1;
     min-height: 0;

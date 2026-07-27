@@ -50,15 +50,8 @@
 </div>
 
 <style>
-  /* .ctb-wrap — MUDANÇA-CHAVE: position:absolute (era fixed) e
-     bottom:0 do .root, exatamente como .tb-wrap acima e como
-     .bottom-bar do ChatPage.svelte. Esta é a barra que aparece ANTES
-     de clicar na folha (visible = !isEditing); ao clicar na folha,
-     isEditing passa a true, esta barra desliza para fora e a
-     BottomToolbar assume — ambas seguem agora o mesmo mecanismo de
-     "subir de graça" quando o .root encolhe via JS. */
   .ctb-wrap {
-    position: absolute;
+    position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 40;
     display: flex;

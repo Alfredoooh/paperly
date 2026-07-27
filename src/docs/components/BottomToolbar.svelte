@@ -29,13 +29,6 @@
 
   export let activeGroup = 'base';
 
-  // `colorIcon: true` → usa o ícone Fluent "_color" (multicolorido,
-  // estilo Office/Word) em vez do "_regular" mono. Só faz sentido
-  // para ícones de INSERÇÃO DE CONTEÚDO (imagem, tabela), porque o
-  // pacote Fluent não tem variante colorida para ícones de
-  // formatação de texto (bold/italic/etc) — esses ficam sempre mono.
-  // `swatch: true` → em vez do ícone normal, desenha o ícone com uma
-  // pequena barra de cor por baixo (cor da fonte / realçador).
   const ITEMS_BASE = [
     { id: 'bold', icon: 'text_bold_24_regular', label: 'Negrito' },
     { id: 'italic', icon: 'text_italic_24_regular', label: 'Itálico' },
@@ -125,15 +118,21 @@
       </button>
 
       {#if groupMenuOpen}
-        <div class="tb-group-menu" style="background:{c.dialogBackground || c.toolbarSolidBg};">
+        <div class="tb-group-menu" style="background:{c.dialogBackground || c.toolbarSolidBg};border-color:{c.divider};">
           {#each GROUPS as g}
             <button
               class="tb-group-item"
               class:tb-group-item-active={g.id === activeGroup}
               on:click={() => pickGroup(g.id)}
-              style="color:{c.textPrimary};"
+              style="color:{g.id === activeGroup ? (c.accentPrimary || c.textPrimary) : c.textPrimary};"
             >
               {g.label}
+              {#if g.id === activeGroup}
+                <span
+                  class="icon-mask"
+                  style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.accentPrimary || c.iconTint};width:15px;height:15px;"
+                ></span>
+              {/if}
             </button>
           {/each}
         </div>
@@ -203,7 +202,15 @@
   <div class="tb-sheet-overlay" on:click={closeSheet}></div>
   <div class="tb-sheet" style="background:{c.dialogBackground || '#1c1c1e'};">
     <div class="tb-sheet-handle"></div>
-    <div class="tb-sheet-title" style="color:{c.textPrimary};">{activeGroupLabel}</div>
+    <div class="tb-sheet-title-row">
+      <span class="tb-sheet-title" style="color:{c.textPrimary};">{activeGroupLabel}</span>
+      <button class="tb-sheet-close" on:click={closeSheet} aria-label="Fechar">
+        <span
+          class="icon-mask"
+          style="mask-image:url('{localIconPath('dismiss_24_regular')}');-webkit-mask-image:url('{localIconPath('dismiss_24_regular')}');background:{c.textSecondary || c.iconTint};width:18px;height:18px;"
+        ></span>
+      </button>
+    </div>
     <div class="tb-sheet-list">
       {#each ITEMS as item}
         <button
@@ -212,28 +219,28 @@
           disabled={item.disabled ? item.disabled() : false}
           on:click={() => pressFromSheet(item)}
         >
-          <span class="tb-sheet-icon">
+          <span class="tb-sheet-icon" style="background:{item.panel && activePanel === item.id ? (c.accentPrimary ? c.accentPrimary + '18' : 'rgba(127,127,127,0.14)') : 'transparent'};">
             {#if item.colorIcon}
-              <img src={iconUrl(item)} alt="" width="22" height="22" />
+              <img src={iconUrl(item)} alt="" width="20" height="20" />
             {:else if item.swatch === 'font'}
-              <span class="swatch-wrap">
-                <span class="swatch-letter" style="color:{c.iconTint};">A</span>
+              <span class="swatch-wrap swatch-wrap-sheet">
+                <span class="swatch-letter" style="color:{c.iconTint};font-size:16px;">A</span>
                 <span class="swatch-bar" style="background:{fontColorHex || '#1a1a1a'};"></span>
               </span>
             {:else if item.swatch === 'highlight'}
-              <span class="swatch-wrap">
-                <span class="icon-mask" style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{c.iconTint};width:20px;height:20px;"></span>
+              <span class="swatch-wrap swatch-wrap-sheet">
+                <span class="icon-mask" style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{c.iconTint};width:18px;height:18px;"></span>
                 <span class="swatch-bar" style="background:{highlightHex || '#c9c9c9'};"></span>
               </span>
             {:else}
-              <span class="icon-mask" style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{c.iconTint};width:22px;height:22px;"></span>
+              <span class="icon-mask" style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{item.panel && activePanel === item.id ? (c.accentPrimary || c.iconTint) : c.iconTint};width:20px;height:20px;"></span>
             {/if}
           </span>
-          <span class="tb-sheet-label" style="color:{c.textPrimary};">{item.label}</span>
+          <span class="tb-sheet-label" style="color:{item.panel && activePanel === item.id ? (c.accentPrimary || c.textPrimary) : c.textPrimary};">{item.label}</span>
           {#if item.panel}
             <span
               class="icon-mask tb-sheet-chevron"
-              style="mask-image:url('{localIconPath('chevron_right_24_regular')}');-webkit-mask-image:url('{localIconPath('chevron_right_24_regular')}');background:{c.textSecondary || c.iconTint};width:16px;height:16px;"
+              style="mask-image:url('{localIconPath('chevron_right_24_regular')}');-webkit-mask-image:url('{localIconPath('chevron_right_24_regular')}');background:{c.textSecondary || c.iconTint};width:15px;height:15px;"
             ></span>
           {/if}
         </button>
@@ -253,7 +260,8 @@
     opacity: 1;
     /* A barra sobe exatamente o valor do teclado (--kb-offset), a
        ÚNICA variável de referência, também usada em MainPage.svelte
-       para calcular a altura útil do canvas. */
+       para calcular a altura útil do canvas. O appbar nunca lê esta
+       variável, por isso só a toolbar sobe, nunca o appbar. */
     transform: translate3d(0, calc(-1 * var(--kb-offset, 0px)), 0);
   }
   .tb-wrap.tb-hidden {
@@ -281,28 +289,35 @@
   }
   .tb-chevron { transition: transform .18s ease; }
   .tb-chevron-open { transform: rotate(180deg); }
+  /* Cantos mais finos e sombra mais discreta — aproxima do estilo
+     nativo de menus contextuais Android/iOS em vez do border-radius
+     16px genérico anterior. Sem backdrop-filter em lado nenhum. */
   .tb-group-menu {
     position: absolute;
     bottom: calc(100% + 8px);
     left: 8px;
-    min-width: 150px;
+    min-width: 160px;
     border-radius: 10px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.28);
-    padding: 6px;
+    border: 0.5px solid;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.16), 0 8px 24px rgba(0,0,0,0.12);
+    padding: 4px;
     z-index: 50;
   }
   .tb-group-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     width: 100%;
     text-align: left;
-    padding: 10px 12px;
+    padding: 9px 10px;
     border: none; background: transparent;
-    border-radius: 6px;
+    border-radius: 7px;
     font-size: 14px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
-  .tb-group-item:active { background: rgba(127,127,127,0.14); }
+  .tb-group-item:active { background: rgba(127,127,127,0.12); }
   .tb-group-item-active { font-weight: 600; }
 
   /* Scroll horizontal nativo: todas as opções do grupo ficam
@@ -361,6 +376,7 @@
     align-items: center;
     gap: 2px;
   }
+  .swatch-wrap-sheet { gap: 3px; }
   .swatch-letter {
     font-size: 17px;
     font-weight: 600;
@@ -374,21 +390,26 @@
   }
 
   /* ── Sheet cheio (lista vertical), aberto pela seta ⌃ ─────────── */
+  /* Overlay sólido semi-transparente, sem blur — igual ao pedido de
+     remover backdrop-filter em todos os overlays. */
   .tb-sheet-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.32);
+    background: rgba(0,0,0,0.36);
     z-index: 49;
   }
+  /* Cantos superiores mais finos (14px em vez de 16px), sombra mais
+     rasa e mais próxima do padrão nativo de bottom sheets Android
+     (Material 3) / iOS, em vez da sombra genérica anterior. */
   .tb-sheet {
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 51;
     max-height: 62vh;
-    border-radius: 16px 16px 0 0;
+    border-radius: 14px 14px 0 0;
     padding: 8px 0 calc(env(safe-area-inset-bottom,0px) + 8px);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.22);
   }
   .tb-sheet-handle {
     width: 36px; height: 4px; border-radius: 2px;
@@ -396,41 +417,64 @@
     margin: 4px auto 10px;
     flex-shrink: 0;
   }
+  .tb-sheet-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 8px 20px;
+    flex-shrink: 0;
+  }
   .tb-sheet-title {
     font-size: 13px;
     font-weight: 600;
     opacity: 0.6;
-    padding: 0 20px 6px;
-    flex-shrink: 0;
   }
+  .tb-sheet-close {
+    width: 30px; height: 30px;
+    border: none; background: transparent;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tb-sheet-close:active { background: rgba(127,127,127,0.12); }
   .tb-sheet-list {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding: 0 8px;
   }
+  /* Cada linha ganha raio próprio, mais fino (10px) e organizado —
+     lista de opções agora lê-se como cartões discretos em vez de
+     uma lista plana, ainda mais próximo do padrão nativo de menus
+     de contexto do Word/iOS. */
   .tb-sheet-item {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 13px 20px;
+    gap: 12px;
+    padding: 11px 12px;
     border: none;
     background: transparent;
+    border-radius: 10px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     text-align: left;
   }
-  .tb-sheet-item:active { background: rgba(127,127,127,0.12); }
+  .tb-sheet-item:active { background: rgba(127,127,127,0.10); }
   .tb-sheet-item:disabled { opacity: 0.4; cursor: default; }
   .tb-sheet-icon {
     display: flex; align-items: center; justify-content: center;
-    width: 26px; flex-shrink: 0;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    transition: background .15s;
   }
   .tb-sheet-label {
     flex: 1;
     font-size: 15px;
   }
-  .tb-sheet-chevron { flex-shrink: 0; }
-  .tb-sheet-item-active .tb-sheet-label { color: var(--accent-primary) !important; font-weight: 600; }
+  .tb-sheet-chevron { flex-shrink: 0; opacity: 0.5; }
+  .tb-sheet-item-active .tb-sheet-label { font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) {
     .tb-wrap { transition: none !important; }

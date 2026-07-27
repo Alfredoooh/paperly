@@ -24,13 +24,6 @@
 
   const dispatch = createEventDispatcher();
 
-  // ══════════════════════════════════════════════════════════════════
-  //  MESMA "REGRA DE OURO" do App.svelte do home: qualquer overlay
-  //  full-screen próprio (aqui, a ExportPickerPage) que precise reagir
-  //  ao popstate do botão físico/gesto do Android seta esta flag antes
-  //  de tratar o pop, para o router.bindPopState ignorar esse evento
-  //  em vez de tentar reagir a uma rota que não mudou de facto.
-  // ══════════════════════════════════════════════════════════════════
   let suppressRouterPopstate = false;
   function setSuppressRouterPopstate(v) { suppressRouterPopstate = v; }
 
@@ -111,9 +104,17 @@
     font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition:background-color .3s ease, color .3s ease;
   }
+  /* FIX RAIZ: --app-vh removido por completo. #app agora usa 100dvh
+     diretamente, exatamente como o .root do MainPage.svelte já
+     fazia — os dois container aninhados precisavam ser consistentes,
+     porque uma altura de pai instável (o antigo 100vh de fallback)
+     empurrava o filho mesmo que o filho estivesse correto por
+     dentro. dvh já trata nativamente a barra de UI do
+     Android/iOS e não muda com o teclado, então nem #app nem .root
+     precisam de nenhum JS para se manterem estáveis. */
   :global(#app) {
     width:100%;
-    height:calc(var(--app-vh, 100vh));
+    height:100dvh;
     display:flex;
     flex-direction:column;
     position:fixed;

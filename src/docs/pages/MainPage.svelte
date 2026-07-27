@@ -75,49 +75,17 @@
 
   onMount(() => {
     setupKeyboardAvoidance();
-    document.addEventListener('focusin', lockViewport, true);
-    // NOTA: o listener de 'selectionchange' que existia aqui foi
-    // removido de propósito. Ele disparava a CADA tecla premida
-    // dentro do contenteditable (selectionchange dispara em todo
-    // movimento de cursor), o que recomputava kbOffset e reescrevia
-    // a CSS var --kb-offset constantemente enquanto se escrevia —
-    // essa era uma das causas dos saltos da bottombar durante a
-    // digitação. 'focusin' sozinho já é suficiente para detetar a
-    // entrada em qualquer campo editável.
-
-    // ══════════════════════════════════════════════════════════════
-    //  FIX #24 (appbar/bottombar saltando ao clicar em QUALQUER botão
-    //  fora da folha — bold, cor, undo, ⋮, etc. — mesmo depois de
-    //  --app-vh já não depender do ciclo do teclado):
-    //
-    //  A CAUSA: kbUpdatesSuspended só era ligado dentro de undo()/
-    //  redo(). Qualquer outro clique fora do contenteditable (num
-    //  botão do appbar, do BottomToolbar, abrir um modal) tira o foco
-    //  do editor por uma fração de segundo ANTES de qualquer
-    //  focusEditor() de volta correr (exec(), setFont(), etc. só
-    //  chamam focusEditor() DEPOIS do clique já ter disparado blur no
-    //  contenteditable). Essa perda de foco momentânea faz o Android
-    //  reportar uma mudança transitória em visualViewport.height —
-    //  como se o teclado tremesse — o que disparava resize→
-    //  computeKbOffset() com um valor intermédio, mudando
-    //  --kb-offset e dando a impressão de salto, exactamente como no
-    //  undo/redo original, só que agora despoletado por QUALQUER
-    //  botão, não só undo/redo.
-    //
-    //  CORREÇÃO: capturar 'pointerdown' em todo o document, em fase
-    //  de CAPTURA (antes do blur do editor disparar). Se o alvo do
-    //  toque estiver DENTRO da folha (contenteditable), não faz nada
-    //  — clicar na folha nunca deve suspender nada, o foco só se
-    //  desloca dentro do mesmo contenteditable. Se o alvo estiver
-    //  FORA da folha (appbar, bottombar, modais), suspende
-    //  imediatamente --kb-offset ANTES do blur/focus real
-    //  acontecerem, e só liberta depois de dois requestAnimationFrame
-    //  (tempo suficiente para o foco assentar de volta, seja porque
-    //  focusEditor() foi chamado, seja porque o utilizador saiu
-    //  mesmo do modo de edição) — aí sim recomputa UMA VEZ o valor
-    //  final estável.
-    // ══════════════════════════════════════════════════════════════
-    document.addEventListener('pointerdown', handleGlobalPointerDown, true);
+    // NOTA: os listeners de 'focusin'/'selectionchange'/'pointerdown'
+    // globais que existiam aqui em versões anteriores foram REMOVIDOS
+    // de propósito. Cada um deles era uma tentativa de "compensar"
+    // reflows causados por outra parte do sistema (--app-vh a mudar,
+    // o .root a redimensionar) — mas como agora .root é 100dvh FIXO
+    // e o appbar não lê nenhuma variável de teclado, não há reflow
+    // nenhum para compensar. A única fonte de verdade do teclado é
+    // window.visualViewport, e a única coisa que reage a ela é
+    // --kb-offset, que só a BottomToolbar/CreationToolsBar leem via
+    // transform. Menos código a reagir ao teclado = menos formas de
+    // ele saltar.
   });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
@@ -192,31 +160,21 @@
 
   function initHistory(html) { historyStack = [html || '']; historyIndex = 0; }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  FIX (bottombar "pulando" no undo/redo com teclado aberto):
-  //  setEditorHTML() → DocPage.setContent() recria as divs
-  //  contenteditable do zero (await tick()), o que tira e devolve o
-  //  foco num instante. Isso dispara eventos intermédios de
-  //  visualViewport.resize/scroll com valores TRANSITÓRIOS (o teclado
-  //  "parece" fechar e reabrir durante uma fração de segundo aos
-  //  olhos do browser), e cada um desses eventos recalculava
-  //  --kb-offset imediatamente — daí o salto visual da bottombar.
-  //
-  //  Correção: suspende o recálculo de --kb-offset (via
-  //  kbUpdatesSuspended) enquanto undo/redo estão a decorrer, e só
-  //  volta a calcular UMA VEZ, depois do DOM e do foco já estarem
-  //  estáveis outra vez.
-  // ══════════════════════════════════════════════════════════════════
+  // undo/redo já não precisam de suspender nada relacionado ao
+  // teclado — setEditorHTML() ainda tira/devolve o foco por um
+  // instante, mas como --kb-offset só é recomputado no
+  // resize/scroll real do visualViewport (nunca a partir de
+  // focusin/pointerdown), essa perda de foco momentânea já não
+  // dispara nenhum recálculo. Simplesmente já não há nada para a
+  // recriação do DOM "confundir".
   async function undo() {
     if (historyIndex <= 0) return;
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
-    suspendKbUpdates();
     historyIndex -= 1;
     setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
-    resumeKbUpdatesSoon();
     scheduleSave();
     buzz();
   }
@@ -224,12 +182,10 @@
     if (historyIndex >= historyStack.length - 1) return;
     clearTimeout(historyDebounce);
     isRestoringHistory = true;
-    suspendKbUpdates();
     historyIndex += 1;
     setEditorHTML(historyStack[historyIndex]);
     await tick();
     isRestoringHistory = false;
-    resumeKbUpdatesSoon();
     scheduleSave();
     buzz();
   }
@@ -275,22 +231,13 @@
   // ══════════════════════════════════════════════════════════════════
   //  ESTADO DE EDIÇÃO — isEditing controla TANTO o appbar (que grupo
   //  de botões aparece à esquerda/direita) COMO qual bottom bar
-  //  aparece:
-  //   - isEditing = true  → appbar: check (esquerda) + lápis/lupa/
-  //     documento/undo/⋮ (direita), SEM nome do documento visível;
-  //     bottom bar: BottomToolbar (formatação, scroll horizontal,
-  //     todas as opções, incl. Design).
-  //   - isEditing = false → appbar: X (esquerda, fecha e navega para
-  //     'home') + lupa/⋮ (direita), COM nome do documento visível;
-  //     bottom bar: CreationToolsBar (Vista Para Dispositivo /
-  //     Cabeçalhos / Editar / Partilhar / Ler em Voz Alta).
-  //  O botão "Editar" do CreationToolsBar volta a pôr isEditing=true.
-  //  NENHUM botão do appbar tem fundo/container.
-  //
-  //  IMPORTANTE: o appbar é 100% ESTÁTICO — nunca sobe, nunca desce,
-  //  nunca desaparece, independentemente do teclado ou de qualquer
-  //  ação. Fica sempre fixo no topo do ecrã. Só a bottom bar
-  //  (BottomToolbar) reage ao teclado.
+  //  aparece.
+  //  O appbar é 100% ESTÁTICO — nunca sobe, nunca desce, nunca
+  //  desaparece, independentemente do teclado ou de qualquer ação.
+  //  Fica sempre fixo no topo do ecrã. Só a bottom bar
+  //  (BottomToolbar/CreationToolsBar) reage ao teclado, exatamente
+  //  como no ChatPage.svelte: só o input/toolbar sobe, o appbar
+  //  fica parado.
   // ══════════════════════════════════════════════════════════════════
   let isEditing = false;
 
@@ -309,8 +256,6 @@
   function handleAppbarLeftAction() {
     buzz();
     if (isEditing) { confirmDoneEditing(); return; }
-    // Fora do modo de edição, o botão esquerdo é o X: fecha o
-    // documento e navega de volta para 'home'.
     dispatch('nav', { to: 'home' });
   }
 
@@ -379,16 +324,12 @@
     e.target.value = '';
   }
 
-  // Imagem: sem modal — gestos diretos no DocPage tratam tudo.
-  // Ao tocar numa imagem já selecionada abre o painel de camadas
-  // para o utilizador poder apagá-la se quiser.
   function handleImageRequestEdit(e) {
     refreshLayers();
     layersModalOpen = true;
   }
 
   function handleLayerSelect(e) {
-    // seleciona a camada no DocPage
     const [pageIndexStr, objIdStr] = String(e.detail).split(':');
     docPageComp && docPageComp.selectFloatById(Number(pageIndexStr), Number(objIdStr));
     layersModalOpen = false;
@@ -502,163 +443,50 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDANCE — afeta APENAS a BottomToolbar/CreationToolsBar
-  //  (via --kb-offset). O appbar NUNCA lê --kb-offset e nunca se
-  //  move — está fora deste circuito por completo.
+  //  KEYBOARD AVOIDANCE — versão mínima, igual em espírito ao
+  //  setupKeyboard() do ChatPage.svelte (referência que o utilizador
+  //  deu como "certo"): window.visualViewport é a ÚNICA fonte de
+  //  verdade, --kb-offset é a ÚNICA variável escrita, e SÓ a
+  //  BottomToolbar/CreationToolsBar leem essa variável via
+  //  transform. O appbar não tem NENHUMA linha de código, em lado
+  //  nenhum deste ficheiro, que o ligue ao teclado — por isso não
+  //  há forma de ele saltar.
   //
-  //  FIX (appbar/bottombar "saltando" com o teclado, mesmo com o
-  //  keyboard avoidance desligado):
-  //  A CAUSA REAL não estava no appbar em si (que já não tinha
-  //  transform nem top ligados ao teclado), mas no .root, que tinha
-  //  `height: calc(var(--app-vh, 100vh))`. O antigo computeKbOffset()
-  //  escrevia `--app-vh` a CADA evento de visualViewport.resize —
-  //  e o teclado a abrir dispara uma RAJADA desses eventos com
-  //  alturas intermédias/transitórias antes de estabilizar. Cada
-  //  escrita de --app-vh forçava um reflow do .root inteiro (que usa
-  //  contain:layout, isolando-o do resto da página), e como o
-  //  .appbar é flex-shrink:0 no topo desse .root, ele era
-  //  fisicamente empurrado/reposicionado toda vez que o contentor
-  //  pai mudava de altura — dando a impressão de "saltar", mesmo sem
-  //  nenhum CSS do próprio appbar referenciar o teclado.
-  //
-  //  CORREÇÃO: `.root` passa a usar 100dvh FIXO no CSS (ver <style>
-  //  abaixo) — já não depende de --app-vh para a sua altura de todo.
-  //  --app-vh deixa de ser escrito a partir do ciclo do teclado
-  //  (visualViewport.resize/scroll). Só é atualizado por eventos
-  //  reais de rotação/redimensionamento da JANELA (window.resize +
-  //  orientationchange), que são raros e legítimos — nunca pelo
-  //  teclado a abrir/fechar. Isto elimina o reflow em rajada do
-  //  .root, e o appbar deixa de saltar porque o contentor que o
-  //  envolve deixa de mudar de altura durante o ciclo do teclado.
-  //  --kb-offset continua a ser a ÚNICA variável que a bottombar lê,
-  //  exatamente como antes.
+  //  --app-vh deixou de existir por completo — já não é necessário,
+  //  porque .root usa 100dvh diretamente no CSS (ver <style> abaixo),
+  //  que já lida nativamente com a barra de UI do Android/iOS sem
+  //  nenhum JS a recalcular nada.
   // ══════════════════════════════════════════════════════════════════
   let kbOffset = 0;
   let kbUpdateRaf = null;
-  let rootEl;
   let vvRef = null;
-  let kbUpdatesSuspended = false;
-  let windowResizeRaf = null;
-  let kbResumeRaf1 = null;
-  let kbResumeRaf2 = null;
-
-  function syncKbOffsetVar() {
-    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
-  }
 
   function computeKbOffset() {
-    if (kbUpdatesSuspended) return;
     const vv = window.visualViewport;
-    if (!vv) {
-      kbOffset = 0;
-      syncKbOffsetVar();
-      return;
-    }
+    if (!vv) { kbOffset = 0; return; }
     const overlap = window.innerHeight - (vv.height + vv.offsetTop);
     kbOffset = overlap > 40 ? Math.round(overlap) : 0;
-    syncKbOffsetVar();
+    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
   }
   function scheduleKbUpdate() {
-    if (kbUpdatesSuspended) return;
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
     kbUpdateRaf = requestAnimationFrame(computeKbOffset);
   }
 
-  // Suspende/retoma --kb-offset. Usado tanto pelo undo/redo (FIX
-  // original) como agora pelo handleGlobalPointerDown (FIX #24) —
-  // ambos partilham a mesma necessidade: "algo vai tirar e devolver
-  // o foco num instante, não deixes isso mexer no --kb-offset".
-  function suspendKbUpdates() {
-    kbUpdatesSuspended = true;
-    if (kbUpdateRaf) { cancelAnimationFrame(kbUpdateRaf); kbUpdateRaf = null; }
-    if (kbResumeRaf1) { cancelAnimationFrame(kbResumeRaf1); kbResumeRaf1 = null; }
-    if (kbResumeRaf2) { cancelAnimationFrame(kbResumeRaf2); kbResumeRaf2 = null; }
-  }
-
-  // Retoma passado 2x requestAnimationFrame — tempo suficiente para
-  // o browser já ter processado o blur+focus (ou blur+permanência
-  // fora do editor) e o visualViewport já ter estabilizado no valor
-  // FINAL, não num intermédio. Só então recomputa uma única vez.
-  function resumeKbUpdatesSoon() {
-    kbResumeRaf1 = requestAnimationFrame(() => {
-      kbResumeRaf2 = requestAnimationFrame(() => {
-        kbUpdatesSuspended = false;
-        computeKbOffset();
-      });
-    });
-  }
-
-  // ── FIX #24: handler global de pointerdown, em fase de captura ──
-  // Corre ANTES de qualquer blur/focus disparado pelo clique.
-  function handleGlobalPointerDown(e) {
-    const target = e.target;
-    // Clicar dentro do próprio contenteditable (a folha) nunca deve
-    // suspender nada — o foco não sai do editor, só se move dentro
-    // dele. Isto preserva o comportamento correto da Imagem 1.
-    if (target && typeof target.closest === 'function' && target.closest('.conteudo')) {
-      return;
-    }
-    // Qualquer toque fora da folha (appbar, bottombar, modais,
-    // backdrop) pode causar uma perda de foco momentânea do editor.
-    // Suspende já, e só recalcula depois do foco assentar.
-    if (!isEditing) return; // fora do modo de edição não há teclado para saltar
-    suspendKbUpdates();
-    resumeKbUpdatesSoon();
-  }
-
-  // --app-vh só existe agora para eventuais consumidores externos
-  // (ex.: App.svelte global via :global(#app)) que ainda a leiam.
-  // É recalculada exclusivamente em resize real de janela/rotação —
-  // nunca a partir de visualViewport, para nunca reagir ao teclado.
-  function computeWindowVh() {
-    document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
-  }
-  function scheduleWindowVhUpdate() {
-    if (windowResizeRaf) cancelAnimationFrame(windowResizeRaf);
-    windowResizeRaf = requestAnimationFrame(computeWindowVh);
-  }
-
   function setupKeyboardAvoidance() {
-    computeWindowVh();
-    requestAnimationFrame(() => {
-      computeKbOffset();
-      vvRef = window.visualViewport;
-      if (vvRef) {
-        vvRef.addEventListener('resize', scheduleKbUpdate);
-        vvRef.addEventListener('scroll', scheduleKbUpdate);
-      }
-      window.addEventListener('resize', scheduleWindowVhUpdate);
-      window.addEventListener('orientationchange', scheduleWindowVhUpdate);
-    });
-  }
-
-  function lockViewport() {
-    const active = document.activeElement;
-    const tag = active?.tagName?.toLowerCase?.() || '';
-    const isEditable = !!active && (
-      active.classList?.contains('conteudo') ||
-      active.isContentEditable ||
-      tag === 'input' ||
-      tag === 'textarea'
-    );
-    if (!isEditable) return;
     computeKbOffset();
+    vvRef = window.visualViewport;
+    if (vvRef) {
+      vvRef.addEventListener('resize', scheduleKbUpdate);
+      vvRef.addEventListener('scroll', scheduleKbUpdate);
+    }
   }
 
-  // activePageIndex/totalPages continuam a existir (o DocPage ainda
-  // os expõe e usa-os internamente para saber onde inserir imagem/
-  // tabela), mas os botões de navegação por página saíram do appbar —
-  // a navegação volta a ser 100% por scroll vertical contínuo.
   let activePageIndex = 0;
   let totalPages = 1;
 
   function handlePageFocusFromChild(e) { activePageIndex = e.detail; handlePageFocus(); }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  ANIMAÇÃO EXPORT — mainRecoil (fundo recua) + exportSlide (overlay
-  //  entra da direita), EXACTAMENTE o mesmo padrão do profile/home.
-  //  Dois springs independentes, nunca o mesmo valor.
-  // ══════════════════════════════════════════════════════════════════
   const mainRecoil = createBackRecoilTransition();
   let mainRecoilValue = 0;
   const unsubscribeMainRecoil = mainRecoil.subscribe((v) => { mainRecoilValue = v; });
@@ -668,7 +496,7 @@
   const unsubscribeExportSlide = exportSlide.subscribe((v) => { exportSlideX = v; });
 
   let exportPickerOpen = false;
-  let exportPickerVisible = false; // controla montagem
+  let exportPickerVisible = false;
   let exportPickerMode = 'export';
   let exportNavToken = 0;
 
@@ -706,14 +534,7 @@
       vvRef.removeEventListener('resize', scheduleKbUpdate);
       vvRef.removeEventListener('scroll', scheduleKbUpdate);
     }
-    window.removeEventListener('resize', scheduleWindowVhUpdate);
-    window.removeEventListener('orientationchange', scheduleWindowVhUpdate);
-    document.removeEventListener('focusin', lockViewport, true);
-    document.removeEventListener('pointerdown', handleGlobalPointerDown, true);
     if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
-    if (windowResizeRaf) cancelAnimationFrame(windowResizeRaf);
-    if (kbResumeRaf1) cancelAnimationFrame(kbResumeRaf1);
-    if (kbResumeRaf2) cancelAnimationFrame(kbResumeRaf2);
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
     unsubscribeMainRecoil?.();
@@ -778,17 +599,9 @@
 
 <div
   class="root"
-  bind:this={rootEl}
   style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
 >
   <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};">
-    <!--
-      Botão esquerdo do appbar (SEM fundo/container):
-      - isEditing=true  → ícone de check. Clicar SÓ conclui a edição
-        (confirmDoneEditing), nunca navega para trás.
-      - isEditing=false → ícone de X. Clicar fecha o documento e
-        navega para 'home' (dispatch('nav', {to:'home'})).
-    -->
     <button class="appbar-btn" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
       {#if isEditing}
         <span class="icon-mask" style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
@@ -799,7 +612,6 @@
 
     <div class="appbar-center">
       {#if !isEditing}
-        <!-- Nome do documento só aparece FORA do modo de edição. -->
         <input
           class="doc-name-input"
           style="color:{c.textPrimary}"
@@ -812,7 +624,6 @@
     </div>
 
     {#if isEditing}
-      <!-- Grupo direito em modo de edição: lápis / lupa / documento / undo / ⋮ — todos SEM fundo/container -->
       <button class="appbar-btn" on:click={() => showToast('Caligrafia em breve')} aria-label="Caligrafia">
         <span class="icon-mask" style="mask-image:url('{localIconPath('calligraphy_pen_24_regular')}');-webkit-mask-image:url('{localIconPath('calligraphy_pen_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
@@ -826,7 +637,6 @@
         <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_undo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_undo_24_regular')}');background:{c.iconTint};width:24px;height:24px;opacity:{canUndo ? 1 : 0.32};"></span>
       </button>
     {:else}
-      <!-- Grupo direito fora de edição: lupa — SEM fundo/container -->
       <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
         <span class="icon-mask" style="mask-image:url('{localIconPath('search_24_regular')}');-webkit-mask-image:url('{localIconPath('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
@@ -870,11 +680,6 @@
     on:groupchange={(e) => handleToolbarGroupChange(e.detail)}
   />
 
-  <!--
-    DocMenu agora é um bottom sheet (sobe do fundo), fundo branco
-    puro no tema claro. A prop `anchor` deixou de influenciar o
-    posicionamento (mantida só por compatibilidade de assinatura).
-  -->
   <DocMenu
     visible={showDocMenu}
     anchor={docMenuAnchor}
@@ -931,9 +736,6 @@
     on:delete={handleLayerDelete}
   />
 
-  <!-- Novo: modal (bottom sheet) de equipamentos de design, com
-       ícones Fluent Emoji coloridos (lápis, marcador, pincel,
-       paleta, régua, esquadro, tesoura, borracha, lapiseira). -->
   <DesignModal
     visible={designModalOpen}
     {c}
@@ -955,7 +757,6 @@
   <input type="file" accept="image/*" bind:this={fileInputEl} on:change={insertImage} style="display:none" />
 </div>
 
-<!-- Camada de overlay (ExportPickerPage) — desliza da direita por cima -->
 {#if exportPickerVisible}
   <ExportPickerPage
     slideX={exportSlideX}
@@ -981,11 +782,10 @@
   .root {
     position: fixed;
     left: 0; right: 0; top: 0;
-    /* FIX: altura fixa via dvh, já não depende de --app-vh (que
-       era reescrita a cada evento de teclado e causava o reflow em
-       rajada que fazia o appbar/bottombar saltarem). dvh já lida
-       nativamente com a barra de UI do browser em Android/iOS sem
-       precisar de nenhum JS a recalcular no ciclo do teclado. */
+    /* 100dvh fixo, sem nenhuma dependência de variável JS de altura.
+       Isto é a base de tudo: como esta altura NUNCA muda por causa
+       do teclado, nada dentro deste container é forçado a
+       reposicionar-se quando o teclado abre/fecha. */
     height: 100dvh;
     display: flex;
     flex-direction: column;
@@ -996,15 +796,12 @@
     overscroll-behavior: none;
   }
 
-  /* APPBAR — ESTÁTICO. Sem transform, sem transition de posição, sem
-     ligação a --kb-offset. Ocupa o fluxo normal (flex-shrink:0 no
-     topo do .root) e nunca se mexe, nunca desaparece, seja qual for
-     a ação do utilizador ou o estado do teclado — inclusive durante
-     undo/redo, já que kbUpdatesSuspended garante que nem sequer
-     --kb-offset oscila nesse intervalo. Como .root agora tem altura
-     fixa em 100dvh (já não lê --app-vh), o contentor deste appbar
-     deixou de ser redimensionado durante o ciclo do teclado, o que
-     elimina o salto físico que existia antes. */
+  /* APPBAR — 100% ESTÁTICO. Nenhuma propriedade aqui referencia
+     --kb-offset, --app-vh, ou qualquer variável ligada ao teclado.
+     flex-shrink:0 no topo do .root (que tem altura fixa) significa
+     que este elemento nunca é redimensionado nem reposicionado por
+     nada relacionado ao teclado — exatamente como pedido: só a
+     bottombar/input sobe, o appbar fica sempre parado. */
   .appbar {
     display: flex; align-items: center; gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px;
@@ -1012,9 +809,6 @@
     background: inherit;
     contain: paint;
   }
-  /* Botões do appbar SEM nenhum container: sem fundo, sem
-     border-radius, sem círculo/quadrado atrás do ícone — o ícone
-     fica solto diretamente sobre a barra. */
   .appbar-btn {
     width: 36px; height: 36px; border-radius: 0; border: none;
     background: transparent;

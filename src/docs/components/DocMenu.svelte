@@ -14,7 +14,7 @@
   const ITEMS = [
     { id: 'duplicate', label: 'Duplicar', icon: 'copy_24_regular' },
     { id: 'share', label: 'Partilhar', icon: 'share_24_regular' },
-    { id: 'export', label: 'Exportar', icon: 'arrow_export_24_regular' },
+    { id: 'export', label: 'Exportar', icon: 'arrow_export_ltr_24_regular' },
     { id: 'delete', label: 'Apagar', icon: 'delete_24_regular', danger: true },
   ];
 

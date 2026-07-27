@@ -19,7 +19,7 @@
     { id: 'underline', icon: 'text_underline_24_regular', label: 'Sublinhado' },
     { id: 'strikethrough', icon: 'text_strikethrough_24_regular', label: 'Rasurado' },
     { id: 'color', icon: 'highlight_24_regular', label: 'Realçador', panel: true },
-    { id: 'fontcolor', icon: 'font_color_24_regular', label: 'Cor da fonte', panel: true },
+    { id: 'fontcolor', icon: 'text_color_24_regular', label: 'Cor da fonte', panel: true },
     { id: 'font', icon: 'text_font_24_regular', label: 'Fonte', panel: true },
     { id: 'size', icon: 'text_font_size_24_regular', label: 'Tamanho', panel: true },
     { id: 'align', icon: 'text_align_left_24_regular', label: 'Alinhamento', panel: true },

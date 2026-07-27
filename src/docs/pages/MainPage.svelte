@@ -623,9 +623,9 @@
     -->
     <button class="appbar-btn" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
       {#if isEditing}
-        <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_left_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       {:else}
-        <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('dismiss_24_regular')}');-webkit-mask-image:url('{localIconPath('dismiss_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       {/if}
     </button>
 
@@ -646,26 +646,26 @@
     {#if isEditing}
       <!-- Grupo direito em modo de edição: lápis / lupa / documento / undo / ⋮ — todos SEM fundo/container -->
       <button class="appbar-btn" on:click={() => showToast('Caligrafia em breve')} aria-label="Caligrafia">
-        <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('calligraphy_pen_24_regular')}');-webkit-mask-image:url('{localIconPath('calligraphy_pen_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
       <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
-        <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('search_24_regular')}');-webkit-mask-image:url('{localIconPath('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
       <button class="appbar-btn" on:click={() => showToast('Esquema em breve')} aria-label="Esquema">
-        <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('document_24_regular')}');-webkit-mask-image:url('{localIconPath('document_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
       <button class="appbar-btn" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
-        <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;opacity:{canUndo ? 1 : 0.32};"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_undo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_undo_24_regular')}');background:{c.iconTint};width:24px;height:24px;opacity:{canUndo ? 1 : 0.32};"></span>
       </button>
     {:else}
       <!-- Grupo direito fora de edição: lupa — SEM fundo/container -->
       <button class="appbar-btn" on:click={() => showToast('Pesquisar em breve')} aria-label="Pesquisar">
-        <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+        <span class="icon-mask" style="mask-image:url('{localIconPath('search_24_regular')}');-webkit-mask-image:url('{localIconPath('search_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
       </button>
     {/if}
 
     <button class="appbar-btn" bind:this={docMenuBtnEl} on:click={openDocMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('{localIconPath('question_circle_24_regular')}');-webkit-mask-image:url('{localIconPath('question_circle_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
+      <span class="icon-mask" style="mask-image:url('{localIconPath('more_horizontal_24_regular')}');-webkit-mask-image:url('{localIconPath('more_horizontal_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
   </div>
 

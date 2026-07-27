@@ -12,15 +12,15 @@
   const dispatch = createEventDispatcher();
 
   const TOOLS = [
-    { id: 'pencil', label: 'Lápis', kind: 'emoji', emoji: '✏️' },
-    { id: 'crayon', label: 'Marcador', kind: 'emoji', emoji: '🖍️' },
-    { id: 'paintbrush', label: 'Pincel', kind: 'emoji', emoji: '🖌️' },
-    { id: 'artistpalette', label: 'Paleta', kind: 'emoji', emoji: '🎨' },
-    { id: 'straightruler', label: 'Régua', kind: 'emoji', emoji: '📏' },
-    { id: 'triangularruler', label: 'Esquadro', kind: 'emoji', emoji: '📐' },
-    { id: 'scissors', label: 'Tesoura', kind: 'emoji', emoji: '✂️' },
-    { id: 'eraser', label: 'Borracha', kind: 'icon', src: localIconPath('eraser_24_regular') },
-    { id: 'mechanicalpencil', label: 'Lapiseira', kind: 'icon', src: localIconPath('pen_24_regular') },
+    { id: 'pencil', label: 'Lápis', src: localIconPath('pen_24_regular') },
+    { id: 'crayon', label: 'Marcador', src: localIconPath('calligraphy_pen_24_regular') },
+    { id: 'paintbrush', label: 'Pincel', src: localIconPath('paint_brush_24_regular') },
+    { id: 'artistpalette', label: 'Paleta', src: localIconPath('color_24_regular') },
+    { id: 'straightruler', label: 'Régua', src: localIconPath('ruler_24_regular') },
+    { id: 'triangularruler', label: 'Esquadro', src: localIconPath('triangle_24_regular') },
+    { id: 'scissors', label: 'Tesoura', src: localIconPath('cut_24_regular') },
+    { id: 'eraser', label: 'Borracha', src: localIconPath('eraser_24_regular') },
+    { id: 'mechanicalpencil', label: 'Lapiseira', src: localIconPath('edit_24_regular') },
   ];
 
   const slide = createSlideTransition({});
@@ -80,11 +80,7 @@
           aria-label={item.label}
         >
           <span class="dg-icon-wrap">
-            {#if item.kind === 'emoji'}
-              <span class="dg-emoji">{item.emoji}</span>
-            {:else}
-              <span class="icon-mask dg-icon" style="mask-image:url('{item.src}');-webkit-mask-image:url('{item.src}');background:{c.iconTint};"></span>
-            {/if}
+            <span class="icon-mask dg-icon" style="mask-image:url('{item.src}');-webkit-mask-image:url('{item.src}');background:{c.iconTint};"></span>
           </span>
           <span class="dg-label" style="color:{c.textPrimary}">{item.label}</span>
         </button>

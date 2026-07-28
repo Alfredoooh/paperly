@@ -1,3 +1,4 @@
+<!-- docs/components/DesignModal.svelte -->
 <script>
   import { localIconPath } from '$shared/local-icon.js';
 
@@ -132,7 +133,7 @@
     transition: background .12s, transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
   .dg-item:active { background: rgba(127,127,127,0.10); transform: scale(0.95); }
-  .dg-active { background: rgba(47,123,246,0.12); }
+  .dg-active { background: color-mix(in srgb, var(--accent-primary) 12%, transparent); }
   .dg-icon-wrap {
     width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;

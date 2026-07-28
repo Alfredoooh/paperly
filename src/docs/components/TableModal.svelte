@@ -1,3 +1,4 @@
+<!-- docs/components/TableModal.svelte -->
 <script>
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { createSlideTransition } from '../../home/lib/nav-transition.js';
@@ -118,7 +119,7 @@
               <button
                 class="grid-cell"
                 class:grid-cell-active={r < rowsInput && col < colsInput}
-                style="background:{r < rowsInput && col < colsInput ? '#2F7BF6' : c.appbarBtnBg}"
+                style="background:{r < rowsInput && col < colsInput ? 'var(--accent-primary)' : c.appbarBtnBg}"
                 on:click={() => pickCell(r + 1, col + 1)}
                 aria-label={`${r + 1} por ${col + 1}`}
               ></button>
@@ -190,7 +191,7 @@
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .btn-primary { background: #2F7BF6; color: #fff; }
+  .btn-primary { background: var(--accent-primary); color: #fff; }
   .btn-primary:active, .btn-secondary:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {

@@ -193,17 +193,9 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s;
   }
   .preview-btn:active { transform: scale(0.96); opacity: 0.8; }
-  /* Antes: light-dark(rgba(255,255,255,0.2), rgba(0,0,0,0.6)) e
-     light-dark(#2a2a2a, #f5f5f5) — uma fonte de cor à parte, que só
-     segue prefers-color-scheme do SO e ignora completamente o
-     data-theme/os tons de superfície custom que o resto da app usa
-     (o mesmo bug que já foi corrigido na app de IA). Trocado por
-     var(--btn-bg-active)/var(--btn-solid-bg)/var(--btn-solid-text),
-     que já são as variáveis que TemplatesSearchPage e
-     TemplatePreviewPage usam para este mesmo par de botões. */
   .preview-btn-cancel {
-    background: var(--btn-bg-active);
-    color: var(--drawer-text);
+    background: light-dark(rgba(255,255,255,0.2), rgba(0,0,0,0.6));
+    color: var(--text-on-accent);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }

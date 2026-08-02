@@ -183,7 +183,7 @@
               {#if p.thumbnail}
                 <img src={p.thumbnail} alt={p.title} loading="lazy" />
               {:else}
-                <div class="recent-thumb-fallback" style="background:{p.color || '#8E8E93'}"></div>
+                <div class="recent-thumb-fallback" style="background:{p.color || 'var(--accent-primary)'}"></div>
               {/if}
             </div>
             <span class="recent-card-title">{p.title}</span>
@@ -205,7 +205,7 @@
           <rect x="26" y="44" width="34" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.22))" />
           <rect x="26" y="56" width="24" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.18))" />
           <circle cx="92" cy="66" r="20" fill="var(--accent-primary)" />
-          <path d="M92 57v18M83 66h18" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
+          <path d="M92 57v18M83 66h18" stroke="var(--text-on-accent)" stroke-width="3.4" stroke-linecap="round" />
         </svg>
         <p class="empty-state-title">Ainda sem criações recentes</p>
         <p class="empty-state-text">Os teus projetos vão aparecer aqui assim que começares a criar.</p>
@@ -363,8 +363,8 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #E3242B;
-    border: 1.5px solid var(--app-bg, #fff);
+    background: var(--danger-active);
+    border: 1.5px solid var(--app-bg, #ffffff);
   }
 
   @media (min-width: 720px) {

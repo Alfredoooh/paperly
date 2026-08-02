@@ -163,11 +163,9 @@
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s;
   }
   .preview-btn:active { transform: scale(0.96); opacity: 0.8; }
-  /* Mesma correção do DocumentsTab: light-dark() removido, agora usa
-     as variáveis do sistema de tema ativo em toda a app. */
   .preview-btn-cancel {
-    background: var(--btn-bg-active);
-    color: var(--drawer-text);
+    background: light-dark(rgba(255,255,255,0.2), rgba(0,0,0,0.6));
+    color: var(--text-on-accent);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }

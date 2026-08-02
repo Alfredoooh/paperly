@@ -1,4 +1,3 @@
-<!-- src/home/components/MeTab.svelte -->
 <script>
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
@@ -113,7 +112,7 @@
 
   {#if showInstall}
     <button class="me-install pulse-tap" on:click={handleInstall}>
-      <span class="icon-mask me-install-icon" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}')"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');width:22px;height:22px;background:var(--accent-primary)"></span>
       <span class="me-install-label">Instalar app</span>
     </button>
   {/if}
@@ -224,23 +223,12 @@
     background: var(--text-faint);
   }
 
-  /* Antes: fundo/texto em rgba(24,90,189,...) e cor sólida #185ABD
-     (azul OneDrive antigo) hardcoded — nada a ver com a paleta ativa
-     da app. Agora deriva tudo de --accent-primary, que já é a MESMA
-     variável usada por docs/sheets/slides/whiteboard, incluindo no
-     tema escuro (onde --accent-primary passa a ser o azul mais claro
-     #4DA8FF). */
   .me-install {
     display: flex; align-items: center; gap: 10px;
     width: calc(100% - 28px); margin: 0 14px 20px; padding: 13px 16px;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
-    background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+    border-radius: 14px; border: 1px solid rgba(24,90,189,0.28);
+    background: rgba(24,90,189,0.08);
     cursor: pointer; font: inherit;
-  }
-  .me-install-icon {
-    width: 22px; height: 22px; flex-shrink: 0;
-    background: var(--accent-primary);
   }
   .me-install-label { font-size: 14.5px; font-weight: 600; color: var(--accent-primary); }
 
@@ -318,19 +306,17 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: var(--accent-primary);
   }
+  :global([data-theme="dark"]) .logout-fab { background: var(--accent-primary); }
+  :global([data-theme="light"]) .logout-fab { background: var(--accent-primary); }
 
-  /* Antes: #001A2C fixo (azul-marinho quase-preto) hardcoded só no
-     tema escuro. docs/sheets/slides/whiteboard usam sempre
-     var(--text-on-accent) sobre --accent-primary, em qualquer tema —
-     essa variável já resolve para #1A1A1A no escuro e #FFFFFF no
-     claro (ver shared/colors.js), por isso passa a bastar UMA regra,
-     sem :global([data-theme="dark"]) nenhum. */
   .logout-fab-icon {
     width: 18px; height: 18px;
-    background: var(--text-on-accent);
+    background: var(--bg-elevated);
   }
+  :global([data-theme="dark"]) .logout-fab-icon { background: var(--text-on-accent); }
+  :global([data-theme="dark"]) .logout-fab-label { color: var(--text-on-accent); }
+
   .logout-fab-label {
     font-size: 14px; font-weight: 700;
     color: var(--text-on-accent);

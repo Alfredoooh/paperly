@@ -141,44 +141,10 @@
     }, 140);
   }
 
-  // ------------------------------------------------------------------
-  // "Partilhar" agora usa o Web Share API nativo do navegador
-  // (navigator.share) em vez de só disparar um evento que ninguém
-  // tratava de facto — é o mesmo padrão já usado em
-  // ai/pages/ChatPage.svelte. Em ecrãs sem suporte (ex: desktop sem
-  // HTTPS ou browser antigo), cai para navigator.clipboard como
-  // fallback silencioso, e só chama onShare(item) por fora depois de
-  // resolvido, para quem estiver a ouvir esse evento continuar a
-  // funcionar.
-  // ------------------------------------------------------------------
-  async function shareItem(target) {
-    if (!target) return;
-    const shareData = {
-      title: target.label || 'Nexa',
-      text: target.label ? `Modelo Nexa: ${target.label}` : 'Modelo Nexa',
-      url: typeof window !== 'undefined' ? window.location.href : undefined,
-    };
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch (e) {
-        // utilizador cancelou o picker nativo, ou falhou — não faz
-        // fallback nesse caso, só sai em silêncio.
-        if (e?.name === 'AbortError') return;
-      }
-    }
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(shareData.url || shareData.text);
-      } catch (e) {}
-    }
-  }
-
   function selectOption(id) {
     buzz();
     requestClose();
-    if (id === 'share') shareItem(item).then(() => onShare(item));
+    if (id === 'share') onShare(item);
     else if (id === 'pin') onPin(item);
     else if (id === 'search') onSearch(item);
     else if (id === 'reply') onReply(item);

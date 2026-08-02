@@ -206,7 +206,7 @@
   .me-avatar-initial {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 700; color: #fff;
+    font-size: 24px; font-weight: 700; color: var(--text-on-accent);
   }
   .me-identity { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .me-name {
@@ -283,11 +283,11 @@
     transition: transform .28s cubic-bezier(0.34, 1.3, 0.64, 1), background .28s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fluent-switch-on {
-    background: #0078D4;
-    border-color: #0078D4;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
   .fluent-switch-on .fluent-switch-thumb {
-    background: #fff;
+    background: var(--bg-elevated);
     transform: translateX(18px);
   }
 
@@ -307,19 +307,19 @@
     font: inherit;
     z-index: 10;
   }
-  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
-  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
+  :global([data-theme="dark"]) .logout-fab { background: var(--accent-primary); }
+  :global([data-theme="light"]) .logout-fab { background: var(--accent-primary); }
 
   .logout-fab-icon {
     width: 18px; height: 18px;
-    background: #fff;
+    background: var(--bg-elevated);
   }
   :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
   :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
 
   .logout-fab-label {
     font-size: 14px; font-weight: 700;
-    color: #fff;
+    color: var(--text-on-accent);
   }
 
   .logout-overlay {
@@ -351,7 +351,7 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); color: var(--text-primary); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #0078D4; color: white; }
+  .logout-btn-confirm { background: var(--accent-primary); color: white; }
   .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {

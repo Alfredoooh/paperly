@@ -454,14 +454,14 @@
   }
   .preview-btn-cancel {
     background: var(--danger);
-    color: #fff;
+    color: var(--text-on-accent);
   }
   .preview-btn-cancel:active {
     background: var(--danger-active);
   }
   .preview-btn-use {
     background: var(--accent-primary);
-    color: #fff;
+    color: var(--text-on-accent);
     box-shadow: 0 2px 8px rgba(0,0,0,0.14);
   }
   .preview-btn-use:active {

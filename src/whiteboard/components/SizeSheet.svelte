@@ -130,8 +130,8 @@
     </div>
     <div class="sheet-body">
       <div class="unit-switch" style="background:{c.appbarBtnBg}">
-        <button class="unit-btn" style={sizeUnit === 'px' ? 'background:var(--accent-primary);color:#fff' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('px')}>px</button>
-        <button class="unit-btn" style={sizeUnit === 'cm' ? 'background:var(--accent-primary);color:#fff' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('cm')}>cm</button>
+        <button class="unit-btn" style={sizeUnit === 'px' ? 'background:var(--accent-primary);color:var(--text-on-accent)' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('px')}>px</button>
+        <button class="unit-btn" style={sizeUnit === 'cm' ? 'background:var(--accent-primary);color:var(--text-on-accent)' : `color:${c.textPrimary}`} on:click={() => setSizeUnit('cm')}>cm</button>
       </div>
 
       <div class="custom-size-row">
@@ -208,7 +208,7 @@
   .field-col label { font-size:11px; font-weight:600; }
   .field-col input[type="number"] { width:100%; padding:11px 12px; border:none; border-radius:12px; font-size:15px; box-sizing:border-box; }
   .size-x { font-size:16px; font-weight:600; padding-bottom:11px; }
-  .apply-btn { width:100%; margin-top:14px; border:none; border-radius:999px; padding:13px 16px; font-size:14px; font-weight:700; cursor:pointer; background:var(--accent-primary); color:#fff; -webkit-tap-highlight-color:transparent; transition:transform .16s cubic-bezier(0.34,1.56,0.64,1); }
+  .apply-btn { width:100%; margin-top:14px; border:none; border-radius:999px; padding:13px 16px; font-size:14px; font-weight:700; cursor:pointer; background:var(--accent-primary); color:var(--text-on-accent); -webkit-tap-highlight-color:transparent; transition:transform .16s cubic-bezier(0.34,1.56,0.64,1); }
   .apply-btn:active { transform:scale(0.97); }
   .section-label { font-size:12px; font-weight:700; margin:18px 0 8px; text-transform:uppercase; letter-spacing:.04em; }
   .field-label { font-size:12px; font-weight:600; margin:14px 0 10px; text-transform:uppercase; letter-spacing:.04em; }

@@ -119,9 +119,9 @@
   }
 
   /* ---------- Silver: azul Fluent sólido, igual ao header do
-     CreateTab (#185ABD), ativado por scroll via isSolid. ---------- */
+     CreateTab (var(--accent-primary)), ativado por scroll via isSolid. ---------- */
   .top-panel.solid {
-    background: #185ABD;
+    background: var(--accent-primary);
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
   }
@@ -194,7 +194,7 @@
     transition: color .2s ease;
   }
   .header-title.solid-title {
-    color: #FFFFFF;
+    color: var(--text-on-accent);
   }
 
   .header-actions {
@@ -226,7 +226,7 @@
     transform: scale(0.88);
   }
   .action-btn.solid-btn:active {
-    background: rgba(255,255,255,0.16);
+    background: var(--btn-bg-active);
   }
   .action-btn .icon-mask {
     width: 17px;
@@ -240,7 +240,7 @@
     -webkit-mask-position: center;
   }
   .action-btn .icon-mask.solid-icon {
-    background: #FFFFFF;
+    background: var(--text-on-accent);
   }
 
   .segmented {
@@ -254,7 +254,7 @@
     transition: background .22s cubic-bezier(0.16,1,0.3,1);
   }
   .segmented.solid-segmented {
-    background: rgba(255,255,255,0.14);
+    background: var(--btn-bg-active);
   }
   .segmented-thumb {
     position: absolute;
@@ -269,7 +269,7 @@
     transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
   .solid-segmented .segmented-thumb {
-    background: #FFFFFF;
+    background: var(--text-on-accent);
   }
   .segmented-opt {
     position: relative;
@@ -300,7 +300,7 @@
     transform: scale(1.04);
   }
   .solid-segmented .segmented-opt.active .segmented-opt-label {
-    color: #185ABD;
+    color: var(--accent-primary);
   }
   .segmented-opt:active .segmented-opt-label {
     transform: scale(0.92);
@@ -308,7 +308,7 @@
 
   @media (hover:hover) and (pointer:fine) {
     .action-btn:not(.solid-btn):hover { background: var(--btn-bg-active); }
-    .action-btn.solid-btn:hover { background: rgba(255,255,255,0.16); }
+    .action-btn.solid-btn:hover { background: var(--btn-bg-active); }
   }
 
   @media (prefers-reduced-motion: reduce) {

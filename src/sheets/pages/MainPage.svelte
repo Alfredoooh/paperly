@@ -949,7 +949,7 @@
 
   .sheet-tab-actions {
     display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-    padding-left: 4px; border-left: 1px solid rgba(127,127,127,0.16);
+    padding-left: 4px; border-left: 1px solid var(--border-soft);
   }
   .sheet-tab-action-btn {
     width: 30px; height: 30px; border: none; border-radius: 8px;
@@ -980,8 +980,8 @@
     font-size: 14px; font-family: 'SF Mono', 'Courier New', monospace; padding: 6px 4px;
   }
   .fx-error-badge {
-    font-size: 11px; font-weight: 700; color: #C42B1C;
-    background: rgba(196,43,28,0.12); padding: 3px 7px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; color: var(--danger);
+    background: rgba(217,45,45,0.12); padding: 3px 7px; border-radius: 6px;
     flex-shrink: 0;
   }
 

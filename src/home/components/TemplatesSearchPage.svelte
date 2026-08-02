@@ -341,7 +341,7 @@
     bottom: 9px;
     font-size: 12px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-on-accent);
     text-align: left;
     text-shadow: 0 1px 4px rgba(0,0,0,0.5);
     overflow: hidden;
@@ -496,7 +496,7 @@
   .preview-btn:active { transform: scale(0.96); opacity: 0.8; }
   .preview-btn-cancel {
     background: rgba(0,0,0,0.6);
-    color: #fff;
+    color: var(--text-on-accent);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }

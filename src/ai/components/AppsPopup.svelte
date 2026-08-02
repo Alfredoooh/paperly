@@ -93,6 +93,6 @@
   .app-label { flex: 1; font-size: 14px; font-weight: 500; }
   .active-dot {
     width: 7px; height: 7px; border-radius: 50%;
-    background: #2F7BF6; flex-shrink: 0;
+    background: var(--accent-primary); flex-shrink: 0;
   }
 </style>

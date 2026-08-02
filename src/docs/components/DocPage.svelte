@@ -715,7 +715,7 @@
     gap: 28px;
   }
   .page-a4 {
-    background: #FFFFFF;
+    background: var(--bg-elevated);
     border-radius: 2px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.16);
     box-sizing: border-box;
@@ -731,7 +731,7 @@
     width: 100%;
     font-size: 15px;
     line-height: 1.6;
-    color: #1a1a1a;
+    color: var(--text-primary);
     outline: none;
     overflow: hidden;
     overflow-wrap: break-word;
@@ -746,7 +746,7 @@
   }
   .page-number {
     position: absolute; bottom: 14px; right: 0; left: 0;
-    text-align: center; font-size: 10px; color: #9a9a9a; pointer-events: none;
+    text-align: center; font-size: 10px; color: var(--text-tertiary); pointer-events: none;
     z-index: 1;
   }
 
@@ -774,14 +774,14 @@
     border-radius: 2px;
   }
   .float-obj.float-selected {
-    outline: 1.5px solid #2F7BF6;
+    outline: 1.5px solid var(--accent-primary);
     outline-offset: 2px;
   }
   .float-handle {
     position: absolute;
     width: 16px;
     height: 16px;
-    background: #2F7BF6;
+    background: var(--accent-primary);
     border: 2px solid #fff;
     border-radius: 50%;
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
@@ -798,7 +798,7 @@
     top: -28px;
     width: 1.5px;
     height: 26px;
-    background: #2F7BF6;
+    background: var(--accent-primary);
     transform: translateX(-50%);
   }
   .float-handle-rotate {
@@ -812,21 +812,21 @@
   :global(.doc-table td) { border: 1px solid #d0d0d0; padding: 8px; min-width: 32px; height: 26px; vertical-align: top; }
   :global(.doc-table-wrap) { position: relative; display: block; margin: 8px 0; }
   :global(.doc-table-handle) {
-    position: absolute; width: 14px; height: 14px; background: #2F7BF6; border: 2px solid #fff;
+    position: absolute; width: 14px; height: 14px; background: var(--accent-primary); border: 2px solid #fff;
     border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); touch-action: none;
   }
   :global(.doc-table-handle-se) { right: -7px; bottom: -7px; cursor: nwse-resize; }
 
-  :global(a) { color: #2F7BF6; text-decoration: underline; }
-  :global(.footnote-ref) { color: #2F7BF6; cursor: default; }
+  :global(a) { color: var(--accent-primary); text-decoration: underline; }
+  :global(.footnote-ref) { color: var(--accent-primary); cursor: default; }
 
   .footnotes-block { margin-top: 24px; flex-shrink: 0; position: relative; z-index: 1; }
   .footnotes-divider { width: 120px; height: 1px; background: #d0d0d0; margin-bottom: 10px; }
-  .footnote-line { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: #555; margin-bottom: 4px; }
+  .footnote-line { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: var(--text-primary); margin-bottom: 4px; }
   .footnote-num { font-weight: 700; flex-shrink: 0; }
   .footnote-text { flex: 1; line-height: 1.5; }
   .footnote-remove {
-    border: none; background: transparent; color: #999; font-size: 14px; line-height: 1; cursor: pointer;
+    border: none; background: transparent; color: var(--text-primary); font-size: 14px; line-height: 1; cursor: pointer;
     padding: 0 2px; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
   }
   .footnote-remove:active { color: #F0384A; }

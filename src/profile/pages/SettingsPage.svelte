@@ -343,7 +343,7 @@
           <button class="sheet-opt" on:click={() => selectLang(lang.code)}>
             <span class="sheet-opt-label" style="color:{c.textPrimary}">{lang.native}</span>
             {#if currentLang === lang.code}
-              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:#0078D4;width:16px;height:16px"></span>
+              <span class="icon-mask" style="mask-image:url('{ICON.checkmark}');-webkit-mask-image:url('{ICON.checkmark}');background:var(--accent-primary);width:16px;height:16px"></span>
             {/if}
           </button>
         {/each}
@@ -446,12 +446,12 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #0078D4;
+    background: var(--accent-primary);
   }
   :global([data-theme="dark"]) .logout-fab { background: rgba(0,120,212,0.55); }
-  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
-  .logout-fab-icon { width: 18px; height: 18px; background: #fff; }
-  .logout-fab-label { font-size: 14px; font-weight: 700; color: #fff; }
+  :global([data-theme="light"]) .logout-fab { background: var(--accent-primary); }
+  .logout-fab-icon { width: 18px; height: 18px; background: var(--bg-elevated); }
+  .logout-fab-label { font-size: 14px; font-weight: 700; color: var(--text-on-accent); }
   .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }
   .pulse-tap:active { transform: scale(0.97); opacity: .85; }
 
@@ -478,8 +478,8 @@
   .fluent-modal-actions { display: flex; gap: 8px; margin-top: 18px; }
   .fluent-btn-save {
     flex: 1; padding: 11px; border-radius: 10px; border: none;
-    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: #fff;
-    background: #0078D4;
+    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-on-accent);
+    background: var(--accent-primary);
     transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
   .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
@@ -539,7 +539,7 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #0078D4; color: white; }
+  .logout-btn-confirm { background: var(--accent-primary); color: white; }
   .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
   .logout-btn-cancel:disabled, .logout-btn-confirm:disabled { opacity: .6; }
 

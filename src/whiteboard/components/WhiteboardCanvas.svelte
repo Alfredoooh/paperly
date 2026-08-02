@@ -5,7 +5,7 @@
   export let c;
   export let boardW = 512;
   export let boardH = 512;
-  export let background = { type: 'color', color: '#FFFFFF', image: null, opacity: 1 };
+  export let background = { type: 'color', color: 'var(--bg-elevated)', image: null, opacity: 1 };
   export let elements = [];
   export let selectedId = null;
 
@@ -278,7 +278,7 @@
 
   $: bgStyle = background.type === 'image' && background.image
     ? `background-image:url('${background.image}'); background-size:cover; background-position:center;`
-    : `background:${background.color || '#FFFFFF'};`;
+    : `background:${background.color || 'var(--bg-elevated)'};`;
 </script>
 
 <div
@@ -386,13 +386,13 @@
     overflow:hidden;
   }
 
-  .guide { position:absolute; background:#FF3B87; z-index:50; pointer-events:none; }
+  .guide { position:absolute; background:var(--warning); z-index:50; pointer-events:none; }
   .guide-v { top:0; bottom:0; width:1px; }
   .guide-h { left:0; right:0; height:1px; }
 
   .el { position:absolute; touch-action:none; -webkit-user-select:none; user-select:none; cursor:grab; }
   .el:active { cursor:grabbing; }
-  .el-selected { outline:1.5px solid #2F7BF6; outline-offset:2px; }
+  .el-selected { outline:1.5px solid var(--accent-primary); outline-offset:2px; }
 
   .shape-fill { width:100%; height:100%; box-sizing:border-box; }
 
@@ -401,20 +401,20 @@
      definido cresce em altura sozinho); o wrapper .el é que carrega
      o h calculado via scrollHeight, sincronizado em onTextInput. */
   .text-el { width:100%; min-height:100%; outline:none; overflow-wrap:break-word; white-space:pre-wrap; display:block; }
-  .text-editing { cursor:text; box-shadow:0 0 0 1.5px #2F7BF6 inset; }
+  .text-editing { cursor:text; box-shadow:0 0 0 1.5px var(--accent-primary) inset; }
 
   .image-crop-window { position:relative; width:100%; height:100%; overflow:hidden; }
   .image-crop-window img { position:absolute; max-width:none; pointer-events:none; }
 
-  .handle { position:absolute; background:#2F7BF6; touch-action:none; }
-  .handle-corner { width:16px; height:16px; border:2px solid #fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+  .handle { position:absolute; background:var(--accent-primary); touch-action:none; }
+  .handle-corner { width:16px; height:16px; border:2px solid var(--text-on-accent); border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
   .handle-tl { left:-8px; top:-8px; cursor:nwse-resize; }
   .handle-tr { right:-8px; top:-8px; cursor:nesw-resize; }
   .handle-bl { left:-8px; bottom:-8px; cursor:nesw-resize; }
   .handle-br { right:-8px; bottom:-8px; cursor:nwse-resize; }
 
   /* handles de lado em formato pílula, como no Canva */
-  .handle-side { border:2px solid #fff; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+  .handle-side { border:2px solid var(--text-on-accent); border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
   .handle-t, .handle-b { left:50%; width:22px; height:10px; transform:translateX(-50%); }
   .handle-t { top:-6px; cursor:ns-resize; }
   .handle-b { bottom:-6px; cursor:ns-resize; }
@@ -422,6 +422,6 @@
   .handle-l { left:-6px; cursor:ew-resize; }
   .handle-r { right:-6px; cursor:ew-resize; }
 
-  .rotate-line { position:absolute; left:50%; top:-28px; width:1.5px; height:26px; background:#2F7BF6; transform:translateX(-50%); }
-  .handle-rotate { width:16px; height:16px; border:2px solid #fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.3); left:50%; top:-36px; transform:translateX(-50%); cursor:grab; }
+  .rotate-line { position:absolute; left:50%; top:-28px; width:1.5px; height:26px; background:var(--accent-primary); transform:translateX(-50%); }
+  .handle-rotate { width:16px; height:16px; border:2px solid var(--text-on-accent); border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.3); left:50%; top:-36px; transform:translateX(-50%); cursor:grab; }
 </style>

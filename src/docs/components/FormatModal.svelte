@@ -232,7 +232,7 @@
     -webkit-tap-highlight-color: transparent;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .btn-primary { background: var(--accent-primary); color: var(--icon-strong); }
+  .btn-primary { background: var(--accent-primary); color: var(--text-on-accent); }
   .btn-primary:active, .btn-secondary:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {

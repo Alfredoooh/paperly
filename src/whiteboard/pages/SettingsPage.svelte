@@ -68,7 +68,7 @@
   .topbar-title { font-size:16px; font-weight:700; text-align:center; flex:1; }
   .content { flex:1; overflow-y:auto; padding:8px 16px 16px; }
   .profile-card { display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:24px; }
-  .avatar { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color: var(--icon-strong); flex-shrink:0; }
+  .avatar { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:var(--text-on-accent); flex-shrink:0; }
   .profile-name { font-size:16px; font-weight:700; }
   .profile-email { font-size:13px; margin-top:2px; }
   .section-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:0 2px 10px; }

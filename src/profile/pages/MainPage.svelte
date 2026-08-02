@@ -535,7 +535,7 @@
         </div>
 
         <button class="pf-edit-btn" on:click={openEdit}>
-          <span class="icon-mask" style="mask-image:url('{ICON.edit}');-webkit-mask-image:url('{ICON.edit}');background: var(--surface);width:15px;height:15px"></span>
+          <span class="icon-mask" style="mask-image:url('{ICON.edit}');-webkit-mask-image:url('{ICON.edit}');background: var(--bg-elevated);width:15px;height:15px"></span>
           Editar perfil
         </button>
       {/if}
@@ -549,7 +549,7 @@
       <img class="avatar-viewer-img" src={user.avatar} alt={userName} />
     </div>
     <button class="avatar-viewer-back" class:avatar-viewer-back-in={avatarViewerVisible} on:click={closeAvatarViewer} aria-label="Voltar">
-      <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background: var(--surface);width:24px;height:24px"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.back}');-webkit-mask-image:url('{ICON.back}');background: var(--bg-elevated);width:24px;height:24px"></span>
     </button>
   {/if}
 
@@ -822,14 +822,14 @@
     width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
     display: block;
   }
-  .pf-avatar-initial { font-size: 34px; font-weight: 700; color: var(--icon-strong); }
+  .pf-avatar-initial { font-size: 34px; font-weight: 700; color: var(--text-on-accent); }
   .pf-avatar-loading {
     position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 2; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
   }
   .pf-spinner {
     width: 22px; height: 22px; border-radius: 50%;
-    border: 2.5px solid rgba(255,255,255,.35); border-top-color: var(--icon-strong);
+    border: 2.5px solid rgba(255,255,255,.35); border-top-color: var(--text-on-accent);
     animation: pf-spin .7s linear infinite;
   }
   @keyframes pf-spin { to { transform: rotate(360deg); } }
@@ -886,7 +886,7 @@
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: calc(100% - 32px); margin: 20px 16px 0; padding: 15px;
     border: none; border-radius: 16px; background: var(--accent-primary);
-    color: var(--icon-strong); font-size: 15px; font-weight: 700; cursor: pointer;
+    color: var(--text-on-accent); font-size: 15px; font-weight: 700; cursor: pointer;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .14s, background .18s ease;
   }
   .pf-edit-btn:active { transform: scale(0.98); opacity: .88; background: var(--accent-primary-active); }
@@ -992,7 +992,7 @@
   }
   .field-sheet-save-btn {
     width: 100%; padding: 14px; border-radius: 12px; border: none;
-    color: var(--icon-strong); font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+    color: var(--text-on-accent); font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
     transition: opacity .15s ease, transform .15s cubic-bezier(0.34,1.56,0.64,1);
   }
   .field-sheet-save-btn:active { transform: scale(0.98); opacity: .88; }

@@ -96,7 +96,7 @@
   }
   .img-box:active { cursor: grabbing; }
   .img-box.img-selected {
-    outline: 1.5px solid #2F7BF6;
+    outline: 1.5px solid var(--accent-primary);
     outline-offset: 2px;
     z-index: 6;
   }

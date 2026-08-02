@@ -247,7 +247,7 @@
     justify-content: center;
     font-size: 11px;
     font-weight: 700;
-    color: var(--icon-strong);
+    color: var(--text-on-accent);
   }
 
   .tab-label {

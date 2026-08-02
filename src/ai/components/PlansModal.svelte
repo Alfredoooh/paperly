@@ -72,7 +72,7 @@
   .plan-price { font-size: 26px; font-weight: 800; margin-bottom: 12px; }
   .plan-features { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   .plan-feature { font-size: 13.5px; display: flex; gap: 6px; }
-  .plan-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; color: var(--icon-strong); font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .plan-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; color: var(--text-on-accent); font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
   .plan-btn:active { opacity: 0.8; }
   .plan-btn:disabled { opacity: 0.5; }
 </style>

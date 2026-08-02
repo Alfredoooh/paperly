@@ -1,3 +1,4 @@
+<!-- src/home/components/MeTab.svelte -->
 <script>
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
@@ -112,7 +113,7 @@
 
   {#if showInstall}
     <button class="me-install pulse-tap" on:click={handleInstall}>
-      <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');width:22px;height:22px;background: var(--accent-primary)"></span>
+      <span class="icon-mask me-install-icon" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}')"></span>
       <span class="me-install-label">Instalar app</span>
     </button>
   {/if}
@@ -206,7 +207,7 @@
   .me-avatar-initial {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 700; color: var(--icon-strong);
+    font-size: 24px; font-weight: 700; color: var(--text-on-accent);
   }
   .me-identity { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .me-name {
@@ -223,12 +224,23 @@
     background: var(--text-faint);
   }
 
+  /* Antes: fundo/texto em rgba(24,90,189,...) e cor sólida #185ABD
+     (azul OneDrive antigo) hardcoded — nada a ver com a paleta ativa
+     da app. Agora deriva tudo de --accent-primary, que já é a MESMA
+     variável usada por docs/sheets/slides/whiteboard, incluindo no
+     tema escuro (onde --accent-primary passa a ser o azul mais claro
+     #4DA8FF). */
   .me-install {
     display: flex; align-items: center; gap: 10px;
     width: calc(100% - 28px); margin: 0 14px 20px; padding: 13px 16px;
-    border-radius: 14px; border: 1px solid rgba(24,90,189,0.28);
-    background: rgba(24,90,189,0.08);
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
     cursor: pointer; font: inherit;
+  }
+  .me-install-icon {
+    width: 22px; height: 22px; flex-shrink: 0;
+    background: var(--accent-primary);
   }
   .me-install-label { font-size: 14.5px; font-weight: 600; color: var(--accent-primary); }
 
@@ -283,11 +295,11 @@
     transition: transform .28s cubic-bezier(0.34, 1.3, 0.64, 1), background .28s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fluent-switch-on {
-    background: #0078D4;
-    border-color: #0078D4;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
   .fluent-switch-on .fluent-switch-thumb {
-    background: var(--surface);
+    background: var(--bg-elevated);
     transform: translateX(18px);
   }
 
@@ -306,20 +318,22 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
+    background: var(--accent-primary);
   }
-  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
-  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
 
+  /* Antes: #001A2C fixo (azul-marinho quase-preto) hardcoded só no
+     tema escuro. docs/sheets/slides/whiteboard usam sempre
+     var(--text-on-accent) sobre --accent-primary, em qualquer tema —
+     essa variável já resolve para #1A1A1A no escuro e #FFFFFF no
+     claro (ver shared/colors.js), por isso passa a bastar UMA regra,
+     sem :global([data-theme="dark"]) nenhum. */
   .logout-fab-icon {
     width: 18px; height: 18px;
-    background: var(--surface);
+    background: var(--text-on-accent);
   }
-  :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
-  :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
-
   .logout-fab-label {
     font-size: 14px; font-weight: 700;
-    color: var(--icon-strong);
+    color: var(--text-on-accent);
   }
 
   .logout-overlay {
@@ -351,8 +365,8 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); color: var(--text-primary); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: #0078D4; color: white; }
-  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
+  .logout-btn-confirm { background: var(--accent-primary); color: var(--text-on-accent); }
+  .logout-btn-confirm:active { background: var(--accent-primary-active); transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
     .me-row, .me-avatar-block, .me-install, .logout-fab,

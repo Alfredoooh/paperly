@@ -59,17 +59,17 @@
 
   :global([data-theme="dark"]) {
     --nf-bg: var(--app-bg);
-    --nf-text: var(--icon-strong);
-    --nf-text-secondary: rgba(255,255,255,0.55);
+    --nf-text: var(--text-primary);
+    --nf-text-secondary: var(--text-secondary);
     --nf-code-a: var(--accent-primary);
     --nf-code-b: var(--accent-primary-active);
     --nf-btn-bg: var(--accent-primary);
     --nf-btn-text: var(--text-on-accent);
   }
   :global([data-theme="light"]) {
-    --nf-bg: var(--app-bg);
-    --nf-text: var(--icon-strong);
-    --nf-text-secondary: rgba(20,20,20,0.55);
+    --nf-bg: var(--bg-elevated);
+    --nf-text: var(--text-primary);
+    --nf-text-secondary: var(--text-secondary);
     --nf-code-a: var(--accent-primary);
     --nf-code-b: var(--accent-primary-active);
     --nf-btn-bg: var(--accent-primary);

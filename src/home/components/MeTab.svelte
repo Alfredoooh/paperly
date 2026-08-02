@@ -112,7 +112,7 @@
 
   {#if showInstall}
     <button class="me-install pulse-tap" on:click={handleInstall}>
-      <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');width:22px;height:22px;background:#185ABD"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');width:22px;height:22px;background: var(--accent-primary)"></span>
       <span class="me-install-label">Instalar app</span>
     </button>
   {/if}
@@ -206,7 +206,7 @@
   .me-avatar-initial {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 700; color: var(--text-on-accent);
+    font-size: 24px; font-weight: 700; color: var(--icon-strong);
   }
   .me-identity { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .me-name {
@@ -230,7 +230,7 @@
     background: rgba(24,90,189,0.08);
     cursor: pointer; font: inherit;
   }
-  .me-install-label { font-size: 14.5px; font-weight: 600; color: #185ABD; }
+  .me-install-label { font-size: 14.5px; font-weight: 600; color: var(--accent-primary); }
 
   .me-row {
     display: flex; align-items: center; gap: 14px;
@@ -283,11 +283,11 @@
     transition: transform .28s cubic-bezier(0.34, 1.3, 0.64, 1), background .28s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .fluent-switch-on {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
+    background: #0078D4;
+    border-color: #0078D4;
   }
   .fluent-switch-on .fluent-switch-thumb {
-    background: var(--bg-elevated);
+    background: var(--surface);
     transform: translateX(18px);
   }
 
@@ -307,19 +307,19 @@
     font: inherit;
     z-index: 10;
   }
-  :global([data-theme="dark"]) .logout-fab { background: var(--accent-primary); }
-  :global([data-theme="light"]) .logout-fab { background: var(--accent-primary); }
+  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
+  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
 
   .logout-fab-icon {
     width: 18px; height: 18px;
-    background: var(--bg-elevated);
+    background: var(--surface);
   }
   :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
   :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
 
   .logout-fab-label {
     font-size: 14px; font-weight: 700;
-    color: var(--text-on-accent);
+    color: var(--icon-strong);
   }
 
   .logout-overlay {
@@ -351,7 +351,7 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); color: var(--text-primary); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  .logout-btn-confirm { background: var(--accent-primary); color: white; }
+  .logout-btn-confirm { background: #0078D4; color: white; }
   .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {

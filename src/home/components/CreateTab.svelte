@@ -204,7 +204,7 @@
           <rect x="26" y="32" width="46" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.3))" />
           <rect x="26" y="44" width="34" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.22))" />
           <rect x="26" y="56" width="24" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.18))" />
-          <circle cx="92" cy="66" r="20" fill="var(--accent-primary)" />
+          <circle cx="92" cy="66" r="20" fill="#0078D4" />
           <path d="M92 57v18M83 66h18" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
         </svg>
         <p class="empty-state-title">Ainda sem criações recentes</p>
@@ -283,8 +283,8 @@
     opacity: 0;
     transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  :global([data-theme="light"]) .create-header-title { color: var(--accent-primary); }
-  :global([data-theme="dark"]) .create-header-title { color: var(--accent-primary); }
+  :global([data-theme="light"]) .create-header-title { color: #0078D4; }
+  :global([data-theme="dark"]) .create-header-title { color: #4CC2FF; }
   .create-header-title.visible {
     opacity: 1;
   }
@@ -399,8 +399,8 @@
     z-index: 1;
     transition: border-color .16s cubic-bezier(0.32,0.72,0,1), background .2s cubic-bezier(0.32,0.72,0,1);
   }
-  :global([data-theme="light"]) .search-bar:active { border-color: var(--accent-primary); }
-  :global([data-theme="dark"]) .search-bar:active { border-color: var(--accent-primary); }
+  :global([data-theme="light"]) .search-bar:active { border-color: #0078D4; }
+  :global([data-theme="dark"]) .search-bar:active { border-color: #4CC2FF; }
   .search-bar.search-bar-inert {
     pointer-events: none;
   }
@@ -542,8 +542,8 @@
     font-size: 13px;
     font-weight: 600;
   }
-  :global([data-theme="light"]) .recent-section-cta { color: var(--accent-primary); }
-  :global([data-theme="dark"]) .recent-section-cta { color: var(--accent-primary); }
+  :global([data-theme="light"]) .recent-section-cta { color: #0078D4; }
+  :global([data-theme="dark"]) .recent-section-cta { color: #4CC2FF; }
 
   .recent-row {
     display: flex;

@@ -1,13 +1,26 @@
+
 :root {
   color-scheme: light dark;
 }
 
-body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--app-bg);
+  color: var(--icon-strong);
 }
 
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.dark,
+body.light,
 [data-theme="dark"],
 [data-theme="light"] {
-  color-scheme: light dark;
+  background: var(--app-bg);
+  color: var(--icon-strong);
 }

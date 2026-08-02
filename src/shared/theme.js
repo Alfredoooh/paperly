@@ -1,10 +1,43 @@
-import { darkPalette, lightPalette, getPalette, applyPaletteToRoot } from './colors.js';
 
-export const lightColors = lightPalette;
-export const darkColors = darkPalette;
+import { applyPalette, darkPalette, lightPalette } from './colors.js';
+
+const toThemeColors = (palette) => ({
+  background: palette.bgPrimary,
+  textPrimary: palette.textPrimary,
+  textSecondary: palette.textSecondary,
+  textHint: palette.textTertiary,
+  iconTint: palette.textPrimary,
+  iconTintSecondary: palette.textSecondary,
+  divider: palette.border,
+  drawerBackground: palette.bgSecondary,
+  drawerText: palette.textPrimary,
+  bottomBarSolid: palette.bgElevated,
+  dialogBackground: palette.bgElevated,
+  sendBtnColor: palette.accentPrimary,
+  sendIconColor: palette.textOnAccent,
+  addCircleBg: palette.bgTertiary,
+  tabPreviewPillBg: palette.bgTertiary,
+  extrasCardActive: palette.bgTertiary,
+  extrasCardActiveText: palette.accentPrimary,
+  settings_section_label: palette.textTertiary,
+  userBubbleBg: palette.bgTertiary,
+  assistantBubbleBg: palette.bgElevated,
+  authBtnBg: palette.accentPrimary,
+  authBtnText: palette.textOnAccent,
+  authInputFill: palette.bgElevated,
+  appbarBtnBg: palette.bgTertiary,
+  primary: palette.accentPrimary,
+  appbarSurface: palette.bgElevated,
+  docCanvasBg: palette.bgPrimary,
+  creationBarBg: palette.bgElevated,
+  toolbarSolidBg: palette.bgElevated,
+});
+
+export const lightColors = toThemeColors(lightPalette);
+export const darkColors = toThemeColors(darkPalette);
 
 export function getThemeColors(isDark) {
-  return getPalette(isDark);
+  return isDark ? darkColors : lightColors;
 }
 
 export function getTheme() {
@@ -21,11 +54,10 @@ export function setTheme(value) {
 
 export function syncTheme(isDark) {
   if (typeof document === 'undefined') return;
+  applyPalette(!!isDark);
+
   const root = document.documentElement;
   const body = document.body;
-
-  applyPaletteToRoot(isDark);
-
   root.classList.toggle('dark', isDark);
   root.classList.toggle('light', !isDark);
   body.classList.toggle('dark', isDark);
@@ -73,11 +105,17 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  TOM DE SUPERFÍCIE CUSTOMIZÁVEL — por tema
+//  Guardado separadamente para light/dark; cada tema mantém a sua
+//  própria escolha mesmo trocando de tema.
+// ══════════════════════════════════════════════════════════════════
+
 const TONE_KEY_LIGHT = 'nexa_surface_tone_light';
 const TONE_KEY_DARK = 'nexa_surface_tone_dark';
 
 export const SURFACE_TONES_DARK = [
-  { id: 'default', label: 'Padrão', swatch: '#0F0F0F', appBg: '#0F0F0F', surface: '#0F0F0F', drawerBg: '#1C1C1E', btnBg: 'rgba(255,255,255,0.10)' },
+  { id: 'default', label: 'Padrão', swatch: '#242424', appBg: '#242424', surface: '#3A3A3D', drawerBg: '#2C2C2E', btnBg: 'rgba(255,255,255,0.10)' },
   { id: 'charcoal', label: 'Carvão', swatch: '#161616', appBg: '#161616', surface: '#161616', drawerBg: '#212123', btnBg: 'rgba(255,255,255,0.09)' },
   { id: 'slate', label: 'Ardósia', swatch: '#14161A', appBg: '#14161A', surface: '#14161A', drawerBg: '#1F2227', btnBg: 'rgba(255,255,255,0.09)' },
   { id: 'midnight', label: 'Meia-noite', swatch: '#0B0F1A', appBg: '#0B0F1A', surface: '#0B0F1A', drawerBg: '#161B2C', btnBg: 'rgba(255,255,255,0.09)' },
@@ -88,7 +126,7 @@ export const SURFACE_TONES_DARK = [
 ];
 
 export const SURFACE_TONES_LIGHT = [
-  { id: 'default', label: 'Padrão', swatch: '#FFFFFF', appBg: '#FFFFFF', surface: '#FFFFFF', drawerBg: '#FFFFFF', btnBg: 'rgba(0,0,0,0.06)' },
+  { id: 'default', label: 'Padrão', swatch: '#FAFAFA', appBg: '#FAFAFA', surface: '#FFFFFF', drawerBg: '#FFFFFF', btnBg: 'rgba(0,0,0,0.06)' },
   { id: 'mist', label: 'Névoa', swatch: '#F5F6F8', appBg: '#F5F6F8', surface: '#F5F6F8', drawerBg: '#FFFFFF', btnBg: 'rgba(0,0,0,0.05)' },
   { id: 'sand', label: 'Areia', swatch: '#F7F4EE', appBg: '#F7F4EE', surface: '#F7F4EE', drawerBg: '#FFFFFF', btnBg: 'rgba(0,0,0,0.05)' },
   { id: 'sky', label: 'Céu', swatch: '#F2F6FB', appBg: '#F2F6FB', surface: '#F2F6FB', drawerBg: '#FFFFFF', btnBg: 'rgba(0,0,0,0.05)' },
@@ -114,18 +152,24 @@ export function setSurfaceTone(toneId, isDark) {
 }
 
 function applySurfaceTone(toneId, isDark) {
+  if (typeof document === 'undefined') return;
   const tones = getSurfaceTones(isDark);
   const tone = tones.find(t => t.id === toneId) || tones[0];
+  const root = document.documentElement;
+
   if (tone.id === 'default') {
-    ['--app-bg', '--surface', '--surface-strong', '--drawer-bg', '--btn-bg'].forEach(v => {
-      document.documentElement.style.removeProperty(v);
-    });
     return;
   }
-  const root = document.documentElement;
+
+  root.style.setProperty('--bg-primary', tone.appBg);
   root.style.setProperty('--app-bg', tone.appBg);
+  root.style.setProperty('--bg-secondary', tone.appBg);
+  root.style.setProperty('--bg-tertiary', tone.surface);
+  root.style.setProperty('--bg-elevated', tone.surface);
   root.style.setProperty('--surface', tone.surface);
   root.style.setProperty('--surface-strong', tone.surface);
+  root.style.setProperty('--surface-apps-tab', tone.drawerBg);
   root.style.setProperty('--drawer-bg', tone.drawerBg);
+  root.style.setProperty('--drawer-bg-strong', tone.drawerBg);
   root.style.setProperty('--btn-bg', tone.btnBg);
 }

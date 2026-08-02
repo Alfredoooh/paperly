@@ -108,7 +108,7 @@
     bottom: 9px;
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--text-on-accent);
+    color: var(--icon-strong);
     text-align: left;
     text-shadow: 0 1px 4px rgba(0,0,0,0.5);
     overflow: hidden;

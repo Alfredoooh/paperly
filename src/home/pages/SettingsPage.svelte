@@ -170,7 +170,7 @@
     <div class="st-group">
       <!-- Segmented control: mesmo padrão visual do toggle do
            TemplatesTab/AppHeader — thumb deslizante com azul Microsoft
-           que muda por tema (var(--accent-primary) claro / var(--accent-primary) escuro). -->
+           que muda por tema (#0078D4 claro / #4CC2FF escuro). -->
       <div class="segmented" style="--count:{THEME_OPTIONS.length}">
         <div class="segmented-thumb" style="--index:{themeIndex}"></div>
         {#each THEME_OPTIONS as opt}
@@ -339,8 +339,8 @@
     transform: translateX(calc(var(--index) * 100%));
     transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
-  :global([data-theme="light"]) .segmented-thumb { background: var(--accent-primary); }
-  :global([data-theme="dark"]) .segmented-thumb { background: var(--accent-primary); }
+  :global([data-theme="light"]) .segmented-thumb { background: #0078D4; }
+  :global([data-theme="dark"]) .segmented-thumb { background: #4CC2FF; }
   .segmented-opt {
     position: relative;
     z-index: 1;
@@ -363,7 +363,7 @@
     transition: color .22s ease, transform .3s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
   .segmented-opt.active .segmented-opt-label {
-    color: var(--text-on-accent);
+    color: var(--icon-strong);
     transform: scale(1.04);
   }
   :global([data-theme="dark"]) .segmented-opt.active .segmented-opt-label {
@@ -412,10 +412,10 @@
     font: inherit;
     z-index: 10;
   }
-  :global([data-theme="dark"]) .logout-fab { background: var(--accent-primary); }
-  :global([data-theme="light"]) .logout-fab { background: var(--accent-primary); }
+  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
+  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
   :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
-  .logout-fab-label { font-size: 14px; font-weight: 700; color: var(--text-on-accent); }
+  .logout-fab-label { font-size: 14px; font-weight: 700; color: var(--icon-strong); }
   .pulse-tap { transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1); }
   .pulse-tap:active { transform: scale(0.97); opacity: .85; }
 
@@ -442,10 +442,10 @@
   .fluent-modal-actions { display: flex; gap: 8px; margin-top: 18px; }
   .fluent-btn-save {
     flex: 1; padding: 11px; border-radius: 10px; border: none;
-    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-on-accent);
+    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--icon-strong);
   }
-  :global([data-theme="light"]) .fluent-btn-save { background: var(--accent-primary); }
-  :global([data-theme="dark"]) .fluent-btn-save { background: var(--accent-primary); color: #001A2C; }
+  :global([data-theme="light"]) .fluent-btn-save { background: #0078D4; }
+  :global([data-theme="dark"]) .fluent-btn-save { background: #4CC2FF; color: #001A2C; }
   .fluent-btn-save:active { transform: scale(0.97); opacity: .85; }
 
   .overlay {
@@ -504,8 +504,8 @@
   }
   .logout-btn-cancel { background: var(--btn-bg); }
   .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
-  :global([data-theme="light"]) .logout-btn-confirm { background: var(--accent-primary); color: white; }
-  :global([data-theme="dark"]) .logout-btn-confirm { background: var(--accent-primary); color: #001A2C; }
+  :global([data-theme="light"]) .logout-btn-confirm { background: #0078D4; color: white; }
+  :global([data-theme="dark"]) .logout-btn-confirm { background: #4CC2FF; color: #001A2C; }
   .logout-btn-confirm:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {

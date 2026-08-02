@@ -269,7 +269,7 @@
     user-select: none;
   }
   .chart-selected {
-    outline: 1.5px solid var(--accent-primary);
+    outline: 1.5px solid #2F7BF6;
     outline-offset: 2px;
     z-index: 6;
   }
@@ -296,7 +296,7 @@
   .resize-handle {
     position: absolute; right: -8px; bottom: -8px;
     width: 16px; height: 16px; border-radius: 50%;
-    background: var(--accent-primary); border: 2px solid #fff;
+    background: #2F7BF6; border: 2px solid #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     cursor: nwse-resize;
     touch-action: none;

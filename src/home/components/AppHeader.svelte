@@ -119,7 +119,7 @@
   }
 
   /* ---------- Silver: azul Fluent sólido, igual ao header do
-     CreateTab (var(--accent-primary)), ativado por scroll via isSolid. ---------- */
+     CreateTab (#185ABD), ativado por scroll via isSolid. ---------- */
   .top-panel.solid {
     background: var(--accent-primary);
     backdrop-filter: blur(18px) saturate(140%);
@@ -194,7 +194,7 @@
     transition: color .2s ease;
   }
   .header-title.solid-title {
-    color: var(--text-on-accent);
+    color: var(--icon-strong);
   }
 
   .header-actions {
@@ -226,7 +226,7 @@
     transform: scale(0.88);
   }
   .action-btn.solid-btn:active {
-    background: var(--btn-bg-active);
+    background: rgba(255,255,255,0.16);
   }
   .action-btn .icon-mask {
     width: 17px;
@@ -240,7 +240,7 @@
     -webkit-mask-position: center;
   }
   .action-btn .icon-mask.solid-icon {
-    background: var(--text-on-accent);
+    background: var(--surface);
   }
 
   .segmented {
@@ -254,7 +254,7 @@
     transition: background .22s cubic-bezier(0.16,1,0.3,1);
   }
   .segmented.solid-segmented {
-    background: var(--btn-bg-active);
+    background: rgba(255,255,255,0.14);
   }
   .segmented-thumb {
     position: absolute;
@@ -269,7 +269,7 @@
     transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
   .solid-segmented .segmented-thumb {
-    background: var(--text-on-accent);
+    background: var(--surface);
   }
   .segmented-opt {
     position: relative;
@@ -308,7 +308,7 @@
 
   @media (hover:hover) and (pointer:fine) {
     .action-btn:not(.solid-btn):hover { background: var(--btn-bg-active); }
-    .action-btn.solid-btn:hover { background: var(--btn-bg-active); }
+    .action-btn.solid-btn:hover { background: rgba(255,255,255,0.16); }
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -210,7 +210,7 @@
   // Cor atual do texto/realçador — refletida nas swatches do
   // BottomToolbar. fontColorHex começa a preto (padrão do texto);
   // highlightHex começa null (sem realce, swatch cinza).
-  let fontColorHex = 'var(--text-primary)';
+  let fontColorHex = '#1a1a1a';
   let highlightHex = null;
 
   // ── Estado das camadas da folha atual ─────────────────────────────

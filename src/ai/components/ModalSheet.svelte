@@ -23,13 +23,13 @@
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0;
     z-index: 301; border-radius: 20px 20px 0 0;
-    background: var(--bg-elevated);
+    background: var(--surface);
     transform: translateY(100%);
     transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
     max-height: 80dvh; display: flex; flex-direction: column;
     padding-bottom: env(safe-area-inset-bottom);
   }
-  .sheet.dark { background: #1C1C1E; }
+  .sheet.dark { background: var(--surface); }
   .sheet.open { transform: translateY(0); }
   .sheet-handle {
     width: 36px; height: 4px; border-radius: 2px;

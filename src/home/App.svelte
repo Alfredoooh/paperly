@@ -54,7 +54,6 @@
     isDark = resolveIsDark(v);
     if (persist) localStorage.setItem('nexa_theme', v);
     syncTheme(isDark);
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }
   function handleSystemChange() {
     if (themeValue === 'system') applyThemeValue('system', false);

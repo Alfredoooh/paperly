@@ -78,9 +78,13 @@
     cursor: pointer;
     border-radius: 20px;
     overflow: hidden;
-    background: var(--surface-apps-tab);
-    box-shadow: 0 2px 10px var(--drawer-shadow);
+    background: #F0F0F1;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.13);
     transition: transform .18s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  :global([data-theme="dark"]) .img-card {
+    background: #2C2C2E;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.45);
   }
   .masonry-col:first-child .img-card:nth-child(3n+1) { aspect-ratio: 3 / 4; }
   .masonry-col:first-child .img-card:nth-child(3n+2) { aspect-ratio: 1 / 1; }
@@ -108,12 +112,15 @@
     bottom: 9px;
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--text-on-accent);
+    color: #FFFFFF;
     text-align: left;
     text-shadow: 0 1px 4px rgba(0,0,0,0.5);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  :global([data-theme="dark"]) .img-card-label {
+    color: #1A1A1A;
   }
 
   .preview-overlay {
@@ -164,14 +171,22 @@
   }
   .preview-btn:active { transform: scale(0.96); opacity: 0.8; }
   .preview-btn-cancel {
-    background: light-dark(rgba(255,255,255,0.2), rgba(0,0,0,0.6));
-    color: var(--text-on-accent);
+    background: rgba(255,255,255,0.2);
+    color: #FFFFFF;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+  :global([data-theme="dark"]) .preview-btn-cancel {
+    background: rgba(0,0,0,0.6);
+    color: #1A1A1A;
+  }
   .preview-btn-use {
-    background: var(--btn-solid-bg);
-    color: var(--btn-solid-text);
+    background: #2a2a2a;
+    color: #ffffff;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  :global([data-theme="dark"]) .preview-btn-use {
+    background: #f5f5f5;
+    color: #1a1a1a;
   }
 </style>

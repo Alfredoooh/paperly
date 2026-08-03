@@ -53,7 +53,10 @@
     padding: 0;
     cursor: pointer;
     font: inherit;
-    color: var(--drawer-text);
+    color: rgba(26,26,26,0.94);
+  }
+  :global([data-theme="dark"]) .app-item {
+    color: rgba(242,242,242,0.86);
   }
   .app-icon-img {
     width: 48px;

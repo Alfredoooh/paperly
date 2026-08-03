@@ -220,11 +220,14 @@
     z-index: 30;
     display: flex;
     flex-direction: column;
-    background: var(--app-bg);
+    background: #FAFAFA;
     border-radius: 18px;
     overflow: hidden;
     will-change: transform;
     box-shadow: -2px 0 8px rgba(0,0,0,0.08);
+  }
+  :global([data-theme="dark"]) .preview-page {
+    background: #242424;
   }
 
   .preview-header {
@@ -240,7 +243,7 @@
     height: 36px;
     border-radius: 50%;
     border: none;
-    background: var(--btn-bg);
+    background: rgba(26,26,26,0.06);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -249,9 +252,17 @@
     padding: 0;
     transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
+  :global([data-theme="dark"]) .back-btn,
+  :global([data-theme="dark"]) .more-btn {
+    background: rgba(242,242,242,0.10);
+  }
   .back-btn:active, .more-btn:active {
-    background: var(--btn-bg-active);
+    background: rgba(26,26,26,0.11);
     transform: scale(0.88);
+  }
+  :global([data-theme="dark"]) .back-btn:active,
+  :global([data-theme="dark"]) .more-btn:active {
+    background: rgba(242,242,242,0.18);
   }
   .back-btn .icon-mask {
     width: 18px;
@@ -268,25 +279,31 @@
     min-width: 0;
     font-size: 16px;
     font-weight: 700;
-    color: var(--drawer-text);
+    color: rgba(26,26,26,0.94);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  :global([data-theme="dark"]) .preview-header-title {
+    color: rgba(242,242,242,0.86);
+  }
 
   .ios-menu {
     position: fixed;
-    background: var(--surface-apps-tab);
-    background: color-mix(in srgb, var(--surface-apps-tab) 82%, transparent);
+    background: rgba(240,240,241,0.82);
     backdrop-filter: blur(12px) saturate(160%);
     -webkit-backdrop-filter: blur(12px) saturate(160%);
-    border: 0.5px solid var(--border-soft);
+    border: 0.5px solid rgba(26,26,26,0.09);
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
     overflow: hidden;
     z-index: 500;
     transform-origin: top right;
     animation: iosMenuIn .18s cubic-bezier(0.19,1,0.22,1) forwards;
+  }
+  :global([data-theme="dark"]) .ios-menu {
+    background: rgba(44,44,46,0.82);
+    border-color: rgba(242,242,242,0.12);
   }
   .ios-menu.origin-left {
     transform-origin: top left;
@@ -324,35 +341,47 @@
   .ios-menu-label {
     font-size: 15.5px;
     font-weight: 400;
-    color: var(--drawer-text);
+    color: rgba(26,26,26,0.94);
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  :global([data-theme="dark"]) .ios-menu-label {
+    color: rgba(242,242,242,0.86);
+  }
   .ios-menu-icon {
     width: 19px;
     height: 19px;
     flex-shrink: 0;
-    background: var(--drawer-text);
+    background: rgba(26,26,26,0.94);
     opacity: 0.85;
+  }
+  :global([data-theme="dark"]) .ios-menu-icon {
+    background: rgba(242,242,242,0.86);
   }
   .ios-menu-divider {
     height: 0.5px;
     margin: 0 16px;
-    background: var(--border-soft);
+    background: rgba(26,26,26,0.09);
+  }
+  :global([data-theme="dark"]) .ios-menu-divider {
+    background: rgba(242,242,242,0.12);
   }
 
   .icon-mask {
     display: block;
-    background: var(--icon-strong);
+    background: rgba(26,26,26,0.85);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
+  }
+  :global([data-theme="dark"]) .icon-mask {
+    background: rgba(242,242,242,0.88);
   }
 
   .preview-body {
@@ -372,11 +401,11 @@
     box-shadow: 0 4px 14px rgba(0,0,0,0.14);
   }
   .preview-doc-sheet {
-    background: var(--surface-apps-tab);
+    background: #F0F0F1;
     width: 100%;
     height: 100%;
     max-width: 420px;
-    border: 1px solid var(--border-soft);
+    border: 1px solid rgba(26,26,26,0.09);
     border-radius: 14px;
     display: flex;
     flex-direction: column;
@@ -385,10 +414,14 @@
     gap: 18px;
     padding: 24px;
   }
+  :global([data-theme="dark"]) .preview-doc-sheet {
+    background: #2C2C2E;
+    border-color: rgba(242,242,242,0.12);
+  }
   .preview-doc-icon {
     width: 96px;
     height: 96px;
-    background: var(--icon-strong);
+    background: rgba(26,26,26,0.85);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
@@ -396,11 +429,17 @@
     mask-position: center;
     -webkit-mask-position: center;
   }
+  :global([data-theme="dark"]) .preview-doc-icon {
+    background: rgba(242,242,242,0.88);
+  }
   .preview-doc-label {
     font-size: 19px;
     font-weight: 700;
-    color: var(--drawer-text);
+    color: rgba(26,26,26,0.94);
     text-align: center;
+  }
+  :global([data-theme="dark"]) .preview-doc-label {
+    color: rgba(242,242,242,0.86);
   }
 
   .preview-actions {
@@ -421,19 +460,30 @@
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s, background .14s;
   }
   .preview-btn-cancel {
-    background: var(--danger);
-    color: var(--text-on-accent);
+    background: #D92D2D;
+    color: #FFFFFF;
+  }
+  :global([data-theme="dark"]) .preview-btn-cancel {
+    background: #FF6B6B;
+    color: #1A1A1A;
   }
   .preview-btn-cancel:active {
-    background: var(--danger-active);
+    background: #E0342A;
   }
   .preview-btn-use {
-    background: var(--accent-primary);
-    color: var(--text-on-accent);
+    background: #0866D1;
+    color: #FFFFFF;
     box-shadow: 0 2px 8px rgba(0,0,0,0.14);
   }
+  :global([data-theme="dark"]) .preview-btn-use {
+    background: #4DA8FF;
+    color: #1A1A1A;
+  }
   .preview-btn-use:active {
-    background: var(--accent-primary-active);
+    background: #06529E;
+  }
+  :global([data-theme="dark"]) .preview-btn-use:active {
+    background: #2F8FE8;
   }
 
   .pulse-tap {

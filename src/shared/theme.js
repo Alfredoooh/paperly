@@ -23,9 +23,9 @@ export function syncTheme(isDark) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   const body = document.body;
-
+  
   applyPaletteToRoot(isDark);
-
+  
   root.classList.toggle('dark', isDark);
   root.classList.toggle('light', !isDark);
   body.classList.toggle('dark', isDark);
@@ -33,12 +33,12 @@ export function syncTheme(isDark) {
   body.dataset.theme = isDark ? 'dark' : 'light';
   body.style.background = 'var(--app-bg)';
   body.style.color = 'var(--icon-strong)';
-
+  
   const bgColor = getComputedStyle(root).getPropertyValue('--app-bg').trim() || (isDark ? '#242424' : '#FAFAFA');
   syncStatusBar(isDark, bgColor);
-
+  
   applySurfaceTone(getSurfaceTone(isDark), isDark);
-
+  
   if (window.AndroidTheme && typeof window.AndroidTheme.onThemeChanged === 'function') {
     window.AndroidTheme.onThemeChanged(isDark);
   }
@@ -52,7 +52,7 @@ function syncStatusBar(isDark, bgColor) {
     document.head.appendChild(meta);
   }
   meta.setAttribute('content', bgColor);
-
+  
   let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (!appleMeta) {
     appleMeta = document.createElement('meta');
@@ -111,6 +111,15 @@ export function setSurfaceTone(toneId, isDark) {
   const key = isDark ? TONE_KEY_DARK : TONE_KEY_LIGHT;
   localStorage.setItem(key, toneId);
   syncTheme(isDark);
+}
+
+export function resetSurfaceTone() {
+  localStorage.removeItem(TONE_KEY_LIGHT);
+  localStorage.removeItem(TONE_KEY_DARK);
+  const root = document.documentElement;
+  ['--app-bg', '--surface', '--surface-strong', '--drawer-bg', '--btn-bg'].forEach(v => {
+    root.style.removeProperty(v);
+  });
 }
 
 function applySurfaceTone(toneId, isDark) {

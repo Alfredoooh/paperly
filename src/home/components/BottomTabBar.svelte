@@ -9,6 +9,12 @@
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
+
+  export let scrolled = 0;
+  export let solidOnScroll = false;
+
+  const SILVER_THRESHOLD = 0.4;
+  $: isSolid = solidOnScroll && scrolled >= SILVER_THRESHOLD;
   
   let fabBtnEl;
   export function getFabRect() {
@@ -36,11 +42,12 @@
   }
 </script>
 
-<nav class="tab-bar">
+<nav class="tab-bar" class:solid={isSolid}>
   {#each TABS.slice(0, 2) as tab}
     <button
       class="tab-btn"
       class:active={activeTab === tab.id}
+      class:solid-btn={isSolid}
       on:click={() => select(tab)}
       aria-label={tab.label}
       aria-current={activeTab === tab.id ? 'page' : undefined}
@@ -81,6 +88,7 @@
     <button
       class="tab-btn"
       class:active={activeTab === tab.id}
+      class:solid-btn={isSolid}
       on:click={() => select(tab)}
       aria-label={tab.label}
       aria-current={activeTab === tab.id ? 'page' : undefined}
@@ -128,11 +136,22 @@
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+
+    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .tab-bar.solid {
+    background: var(--accent-primary);
   }
 
   :global([data-theme="dark"]) .tab-bar {
     background: var(--app-bg);
     border-top: 1px solid var(--border-soft);
+  }
+
+  :global([data-theme="dark"]) .tab-bar.solid {
+    background: var(--accent-primary);
+    border-top: none;
   }
 
   :global([data-theme="dark"]) .tab-bar::before {
@@ -145,6 +164,11 @@
     background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.22));
     pointer-events: none;
     z-index: 0;
+    transition: opacity .2s ease;
+  }
+
+  :global([data-theme="dark"]) .tab-bar.solid::before {
+    opacity: 0;
   }
 
   .tab-bar::after {
@@ -156,10 +180,19 @@
     height: 40px;
     background: rgb(var(--header-glass-rgb));
     z-index: -1;
+    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .tab-bar.solid::after {
+    background: var(--accent-primary);
   }
 
   :global([data-theme="dark"]) .tab-bar::after {
     background: var(--app-bg);
+  }
+
+  :global([data-theme="dark"]) .tab-bar.solid::after {
+    background: var(--accent-primary);
   }
 
   .tab-btn {
@@ -180,9 +213,13 @@
     touch-action: pan-y;
     -webkit-user-select: none;
     user-select: none;
+    transition: color .22s ease;
   }
 
   .tab-btn.active { color: var(--accent-primary); }
+
+  .tab-btn.solid-btn { color: rgba(255,255,255,0.75); }
+  .tab-btn.solid-btn.active { color: var(--text-on-accent); }
 
   .tab-icon {
     position: relative;
@@ -230,6 +267,9 @@
   }
   .tab-avatar.active {
     border-color: var(--accent-primary);
+  }
+  .solid-btn .tab-avatar.active {
+    border-color: var(--text-on-accent);
   }
   .tab-avatar-img {
     width: 100%;
@@ -301,6 +341,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .icon-mask, .tab-label, .tab-icon, .fab-btn, .fab-icon { transition: none !important; }
+    .icon-mask, .tab-label, .tab-icon, .fab-btn, .fab-icon, .tab-bar, .tab-btn { transition: none !important; }
   }
 </style>

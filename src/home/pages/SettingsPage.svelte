@@ -168,9 +168,6 @@
   <div class="st-body">
 
     <div class="st-group">
-      <!-- Segmented control: mesmo padrão visual do toggle do
-           TemplatesTab/AppHeader — thumb deslizante com azul Microsoft
-           que muda por tema (var(--accent-primary) claro / var(--accent-primary) escuro). -->
       <div class="segmented" style="--count:{THEME_OPTIONS.length}">
         <div class="segmented-thumb" style="--index:{themeIndex}"></div>
         {#each THEME_OPTIONS as opt}
@@ -310,15 +307,11 @@
   }
   .st-back-btn:active { opacity: .55; }
   .st-header-title { font-size: 16px; font-weight: 700; text-align: center; flex: 1; }
-  /* padding-bottom aumentado (88px → 130px) para dar espaço extra ao
-     botão de logout, que agora está mais perto do fundo real da tela. */
   .st-body { flex: 1; overflow-y: auto; padding: 8px 16px calc(env(safe-area-inset-bottom,0px) + 130px); -webkit-overflow-scrolling: touch; }
 
   .st-group { margin-bottom: 26px; }
   .st-group:last-child { margin-bottom: 0; }
 
-  /* Segmented control: mesmo estilo visual do AppHeader/TemplatesTab —
-     thumb deslizante, azul Microsoft que muda por tema. */
   .segmented {
     position: relative;
     display: flex;
@@ -392,10 +385,6 @@
     mask-position: center; -webkit-mask-position: center;
   }
 
-  /* Botão de logout mais perto do fundo real da tela (14px → 6px de
-     distância do safe-area-inset-bottom) — antes tinha o mesmo offset
-     "+54px" pensado para conviver com a bottombar por trás, que aqui
-     não existe (o SettingsPage é tela cheia própria). */
   .logout-fab {
     position: fixed;
     left: 16px;

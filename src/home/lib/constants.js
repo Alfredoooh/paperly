@@ -32,15 +32,6 @@ export const OCCUPATION_OPTIONS = [
   { id: 'other',         label: 'Outro' },
 ];
 
-// Ícones do grid do tab "Criar" (CreateTab): usam agora PNGs diretos
-// (sem mask-image, sem círculo/fundo colorido) para whiteboard, docs,
-// sheets e slides, servidos a partir de /icons/png/{nome}.png — igual
-// ao estilo do card "Comece a criar com" (Microsoft 365). O ícone do
-// Assistente de IA e do Início mantêm o caminho anterior (svg/logo),
-// já que não fazem parte deste pedido.
-// O campo `color` deixou de ser usado no CreateTab (ícones já não têm
-// círculo de fundo), mas é mantido caso outros ecrãs ainda dependam
-// dele.
 export const ALL_APPS = [
   { id: 'home', label: 'Início', icon: '/icons/png/logo.png', path: '/home/', color: 'var(--accent-primary)' },
   { id: 'ai', label: 'Assistente de IA', icon: '/icons/svg/apps/ai.svg', path: '/ai/', color: 'var(--accent-primary)' },
@@ -71,7 +62,6 @@ export const THEME_OPTIONS = [
 
 export const DRAWER_ITEMS = [];
 
-// Tabs da bottom bar nativa
 export const TABS = [
   {
     id: 'create',
@@ -102,24 +92,17 @@ export const TABS = [
   },
 ];
 
-// Botão central da bottom bar: NUNCA é um tab normal (não entra no
-// router, não muda activeTab). Abre sempre o chat da Nexa IA como
-// bottom-sheet modal por cima de tudo — é o único "app" da plataforma
-// que se comporta assim; todos os outros (ver ALL_APPS) navegam para
-// uma rota própria.
 export const AI_FAB = {
   id: 'ai-modal',
   label: 'Assistente de IA',
   icon: '/icons/svg/apps/png/ai.png',
 };
 
-// Toggle usado no appbar do tab "Templates"
 export const TEMPLATE_VIEWS = [
   { id: 'images', label: 'Imagens' },
   { id: 'documents', label: 'Documentos' },
 ];
 
-// Modelos de documentos apresentados no toggle "Documentos" do tab Templates.
 export const DOC_MODELS = [
   { id: 'doc-cv', label: 'Currículo', icon: '/icons/svg/regular/document.svg', prompt: 'Cria um currículo profissional para ' },
   { id: 'doc-carta', label: 'Carta de Apresentação', icon: '/icons/svg/regular/document.svg', prompt: 'Escreve uma carta de apresentação para ' },
@@ -128,7 +111,6 @@ export const DOC_MODELS = [
   { id: 'doc-ata', label: 'Ata de Reunião', icon: '/icons/svg/regular/document.svg', prompt: 'Cria uma ata de reunião sobre ' },
 ];
 
-// Modelos de imagem apresentados no toggle "Imagens" do tab Templates.
 export const IMAGE_MODELS = [
   { id: 'img-1', label: 'Retrato Realista', thumb: '/images/img_models/img1.jpg', prompt: 'Cria uma imagem em estilo retrato realista de ' },
   { id: 'img-2', label: 'Anime', thumb: '/images/img_models/img2.jpg', prompt: 'Cria uma imagem em estilo anime de ' },

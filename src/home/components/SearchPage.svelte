@@ -3,13 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { createSlideTransition } from '../lib/nav-transition.js';
 
-  export let pushed = false; // true = tela empurrada para dentro (visível)
-  // origin: DOMRect {top,left,width,height} do elemento que disparou a
-  // abertura (a search-bar do CreateTab). Quando presente, a entrada é
-  // um container transform (FLIP) a partir dessa posição/tamanho —
-  // EXATAMENTE a mesma técnica do avatar-viewer em MainPage.svelte do
-  // profile. Quando null (ex: botão de lupa do AppHeader), cai de
-  // volta ao slide-from-right normal, igual ao TemplatePreviewPage.
+  export let pushed = false;
   export let origin = null;
   export let platformApps = [];
   export let imageModels = [];
@@ -66,12 +60,6 @@
     onClose();
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // MOTOR 1 — Slide-from-right (sem origin): idêntico ao
-  // TemplatePreviewPage/SettingsPage. Spring físico via rAF, exposto
-  // como slideX, aplicado direto em translate3d — SEM CSS transition
-  // no transform (é isso que permite redirecionar a meio do gesto).
-  // ────────────────────────────────────────────────────────────────
   const slide = createSlideTransition({});
   let slideX = 100;
   const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
@@ -85,14 +73,6 @@
     }
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // MOTOR 2 — Container transform (com origin): MESMA técnica FLIP do
-  // avatar-viewer em MainPage.svelte (profile). transformVisible=false
-  // monta a camada já no rect exato da search-bar de origem (sem
-  // transition), e no frame seguinte transformVisible=true anima
-  // top/left/width/height/border-radius até inset:0. Fechar faz o
-  // inverso antes de desmontar.
-  // ────────────────────────────────────────────────────────────────
   let transformVisible = false;
   $: if (origin) {
     if (pushed && !transformVisible) {
@@ -108,12 +88,6 @@
         : `top:${origin.top}px; left:${origin.left}px; width:${origin.width}px; height:${origin.height}px; border-radius:999px;`)
     : '';
 
-  // ────────────────────────────────────────────────────────────────
-  // Input desaparece ao rolar (só reaparece no topo, scroll = 0) —
-  // reaproveita o mesmo padrão de opacidade+transform do resto da app,
-  // nunca desmonta o elemento (só o esconde), para não perder o foco
-  // de forma abrupta.
-  // ────────────────────────────────────────────────────────────────
   let searchFieldHidden = false;
   function handleBodyScroll() {
     if (!bodyEl) return;
@@ -123,8 +97,6 @@
   onDestroy(() => { unsubscribeSlide(); slide.destroy(); });
 
   onMount(() => {
-    // foca depois da transição de entrada terminar, para não atrapalhar
-    // a animação com o teclado a abrir no meio do movimento
     setTimeout(() => inputEl?.focus(), 340);
   });
 </script>
@@ -248,12 +220,7 @@
     will-change: transform;
     box-shadow: -6px 0 24px rgba(0,0,0,0.18);
   }
-  /* Sem transition no transform: o valor vem 100% do spring JS
-     (slideX) — mesmo racional do TemplatePreviewPage/SettingsPage. */
 
-  /* Container transform (FLIP): top/left/width/height/border-radius
-     em style inline, com UMA ÚNICA transition nessas propriedades —
-     mesma técnica milimétrica do .avatar-viewer no profile. */
   .search-page-transform {
     position: fixed;
     overflow: hidden;
@@ -275,8 +242,6 @@
     transform: translateY(0);
     transition: opacity .22s cubic-bezier(0.32, 0.72, 0, 1), transform .22s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  /* Header (com o input lá dentro) some ao rolar, só reaparece no
-     topo (scroll = 0) — nunca desmonta, só se esconde. */
   .search-header.hidden {
     opacity: 0;
     transform: translateY(-10px);

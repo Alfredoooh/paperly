@@ -22,11 +22,6 @@
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const NOTIF_ICON = `${FLUENT_BASE}/alert_24_regular.svg`;
 
-  // silver appbar REMOVIDO por completo — o header do Create fica
-  // sempre no estado glass/transparente original, nunca fica sólido
-  // ao rolar. isSolid deixou de existir; searchBtnVisible/demais
-  // lógicas de opacidade continuam iguais, só a mudança de fundo foi
-  // retirada.
   $: searchBarOpacity = 1 - heroProgress;
   $: searchBarScale = 1 - 0.08 * heroProgress;
   $: searchBarInert = heroProgress > 0.9;
@@ -87,8 +82,6 @@
   const APPS_SKELETON_COUNT = 6;
 </script>
 
-<!-- Header próprio do Create: SEM estado "solid" — fica sempre no
-     mesmo visual glass/transparente, independentemente do scroll. -->
 <div class="create-header" class:in={effectiveMounted}>
   <div class="create-header-inner">
     <h1 class="create-header-title visible">Criar</h1>
@@ -233,9 +226,6 @@
     font-family: 'Google Sans Text', 'Roboto Flex', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
   }
 
-  /* Header do Create: SEMPRE glass/transparente, nunca sólido —
-     silver appbar removido por completo, sem classe .solid, sem
-     transição de background. */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -267,9 +257,6 @@
     margin: 0 auto;
     padding: env(safe-area-inset-top, 0px) 16px 0;
   }
-  /* Título "Criar": peso máximo (900, tipo WhatsApp) e azul Microsoft
-     que muda por tema — antes tinha lógica de cor separada para
-     "solid", que deixou de existir junto com o silver appbar. */
   .create-header-title {
     font-size: 22px;
     font-weight: 900;

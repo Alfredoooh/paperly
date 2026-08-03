@@ -226,8 +226,8 @@
   .me-install {
     display: flex; align-items: center; gap: 10px;
     width: calc(100% - 28px); margin: 0 14px 20px; padding: 13px 16px;
-    border-radius: 14px; border: 1px solid rgba(24,90,189,0.28);
-    background: rgba(24,90,189,0.08);
+    border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
     cursor: pointer; font: inherit;
   }
   .me-install-label { font-size: 14.5px; font-weight: 600; color: var(--accent-primary); }

@@ -25,8 +25,6 @@
     onSelect(tab.id);
   }
 
-  // Ícone do FAB gira em torno de si mesmo (direita → esquerda,
-  // sentido anti-horário) a cada clique.
   let fabPressed = false;
   let fabRotation = 0;
   function openAI() {

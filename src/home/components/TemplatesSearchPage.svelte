@@ -3,10 +3,10 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { IMAGE_MODELS, DOC_MODELS } from '../lib/constants.js';
 
-  export let view = 'images'; // 'images' | 'documents' — herda a view ativa do Templates
+  export let view = 'images';
   export let onClose = () => {};
   export let onUsePrompt = () => {};
-  export let visible = false; // controla animação de entrada/saída
+  export let visible = false;
 
   let query = '';
   let inputEl;
@@ -57,7 +57,6 @@
 
   onMount(async () => {
     await tick();
-    // foca o input assim que a página entra, sem disparar zoom indesejado no iOS
     requestAnimationFrame(() => inputEl?.focus());
   });
 

@@ -4,8 +4,8 @@
   import { createSlideTransition } from '../lib/nav-transition.js';
   import { portal } from '../lib/portal.js';
 
-  export let pushed = false; // true = tela empurrada para dentro (visível)
-  export let kind = 'image'; // 'image' | 'doc'
+  export let pushed = false;
+  export let kind = 'image';
   export let item = null;
   export let onClose = () => {};
   export let onUse = () => {};
@@ -40,24 +40,6 @@
     onUse();
   }
 
-  // ------------------------------------------------------------------
-  // Popup estilo iOS (UIMenu / context menu nativo).
-  //
-  // PORTAL: o menu precisa sair da árvore de .preview-page — esse
-  // container tem overflow:hidden (cantos arredondados do slide) E
-  // will-change:transform (containing block para position:fixed/
-  // absolute dos filhos). As duas coisas juntas cortam/prendem
-  // qualquer popup absoluto que exceda os limites do card, o que
-  // estava a fazer o menu aparecer cortado/deslocado para a direita.
-  // Portado para document.body, ele passa a se posicionar relativo à
-  // viewport real, sem ser afetado pelo overflow do ancestral.
-  //
-  // POSICIONAMENTO: calculado em pixels absolutos via
-  // getBoundingClientRect() do botão, recalculado sempre que abre e
-  // no resize. Clampa contra a margem direita/esquerda do ecrã para
-  // nunca estourar a viewport, independentemente de onde o botão
-  // esteja.
-  // ------------------------------------------------------------------
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
 
   const MENU_OPTIONS = [
@@ -80,7 +62,7 @@
 
   let menuTop = 0;
   let menuLeft = 0;
-  let originRight = true; // controla transform-origin (canto de onde "nasce")
+  let originRight = true;
 
   async function toggleMenu() {
     if (menuOpen) {
@@ -92,7 +74,7 @@
     menuOpen = true;
     closing = false;
     await tick();
-    computePosition(); // recalcula com a largura real do menu já montado
+    computePosition();
   }
 
   function computePosition() {
@@ -103,19 +85,13 @@
 
     const width = menuEl?.offsetWidth || MENU_WIDTH;
 
-    // Por padrão, alinha a borda direita do menu com a borda direita
-    // do botão (comportamento natural de um menu "more" no canto
-    // direito da appbar).
     let left = btnRect.right - width;
     originRight = true;
 
-    // Clamp contra a margem esquerda.
     if (left < VIEWPORT_MARGIN) {
       left = VIEWPORT_MARGIN;
       originRight = false;
     }
-    // Clamp contra a margem direita (proteção extra caso width real
-    // seja maior que o esperado).
     if (left + width > vw - VIEWPORT_MARGIN) {
       left = vw - VIEWPORT_MARGIN - width;
     }
@@ -123,7 +99,6 @@
     let top = btnRect.bottom + GAP_FROM_BUTTON;
     const estimatedHeight = menuEl?.offsetHeight || (MENU_OPTIONS.length * 44 + 16);
     if (top + estimatedHeight > vh - VIEWPORT_MARGIN) {
-      // Sem espaço abaixo: abre para cima do botão em vez de para baixo.
       top = btnRect.top - GAP_FROM_BUTTON - estimatedHeight;
     }
 
@@ -299,13 +274,6 @@
     white-space: nowrap;
   }
 
-  /* -------------------------------------------------------------
-     Portado para document.body via use:portal — por isso é
-     position:fixed com top/left em pixels absolutos calculados em
-     JS, e NÃO depende de nenhum ancestral posicionado. z-index alto
-     o suficiente para ficar acima de .preview-page (z-index:30) e
-     de qualquer bottombar/appbar do resto do app.
-  ------------------------------------------------------------- */
   .ios-menu {
     position: fixed;
     background: var(--surface-apps-tab);

@@ -71,12 +71,6 @@
     will-change: opacity;
   }
 
-  /* Cantos SEMPRE arredondados (24px), mesmo em tela cheia — pedido
-     explícito, comportamento diferente do container-transform
-     "Material You" padrão que reto-ifica ao expandir. Duração da
-     transição aumentada (.42s → .62s) e easing trocado para uma curva
-     mais suave (0.22,1,0.36,1 — "ease-out-quint"-like), para reduzir
-     a sensação de "salto" e aproximar de uma animação nativa. */
   .ai-container {
     position: fixed;
     inset: 0;

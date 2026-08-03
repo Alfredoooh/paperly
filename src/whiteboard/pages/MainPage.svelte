@@ -40,15 +40,29 @@
   const PENDING_APPLY_KEY = 'nexa_pending_apply_whiteboard';
 
   function readPendingApply() {
-    try {
-      const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
-      if (!raw) return null;
-      sessionStorage.removeItem(PENDING_APPLY_KEY);
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.elements)) return null;
-      return parsed;
-    } catch (e) { return null; }
+  try {
+    const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(PENDING_APPLY_KEY);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!Array.isArray(parsed.elements)) return null;
+    // Cada elemento tem de ter pelo menos type/x/y/w/h numéricos
+    // válidos, ou não entra — um elemento malformado é o suficiente
+    // para o WhiteboardCanvas travar ao tentar desenhá-lo.
+    const allValid = parsed.elements.every((el) =>
+      el && typeof el === 'object' &&
+      (el.type === 'text' || el.type === 'shape' || el.type === 'image') &&
+      Number.isFinite(el.x) && Number.isFinite(el.y) &&
+      Number.isFinite(el.w) && Number.isFinite(el.h)
+    );
+    if (!allValid) return null;
+    return parsed;
+  } catch (e) {
+    try { sessionStorage.removeItem(PENDING_APPLY_KEY); } catch (e2) {}
+    return null;
   }
+}
 
   // ══════════════════════════════════════════════════════════════════
   //  ESTADO DO DESIGN — fonte única de verdade, passada para baixo aos
@@ -92,16 +106,19 @@
     // Sem resourceId (design novo) é exatamente o cenário em que um
     // pedido de aplicação vindo da IA deve ser consumido.
     if (!resourceId) {
-      const pending = readPendingApply();
-      if (pending) {
-        boardName = pending.name || boardName;
-        boardW = pending.w || boardW;
-        boardH = pending.h || boardH;
-        background = pending.background || background;
-        pendingApplyName = boardName;
-        return pending.elements || [];
-      }
-    }
+  const pending = readPendingApply();
+  if (pending) {
+    boardName = (typeof pending.name === 'string' && pending.name.trim()) ? pending.name : boardName;
+    boardW = Number.isFinite(pending.w) && pending.w > 0 ? pending.w : boardW;
+    boardH = Number.isFinite(pending.h) && pending.h > 0 ? pending.h : boardH;
+    background = (pending.background && typeof pending.background === 'object') ? pending.background : background;
+    pendingApplyName = boardName;
+    // Garante um id numérico único por elemento mesmo que a IA não
+    // tenha incluído "id" no payload (o formato ensinado ao modelo
+    // em shared/api.js não pede id, é atribuído aqui).
+    return pending.elements.map((el, i) => ({ ...el, id: Number.isFinite(el.id) ? el.id : (i + 1) }));
+  }
+}
     return [];
   }
   elements = loadOrCreateBoard();

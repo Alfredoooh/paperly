@@ -48,40 +48,56 @@
   const PENDING_APPLY_KEY = 'nexa_pending_apply_sheets';
 
   function readPendingApply() {
-    try {
-      const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
-      if (!raw) return null;
-      sessionStorage.removeItem(PENDING_APPLY_KEY);
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.sheets) || !parsed.sheets.length) return null;
-      return parsed;
-    } catch (e) { return null; }
+  try {
+    const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(PENDING_APPLY_KEY);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!Array.isArray(parsed.sheets) || !parsed.sheets.length) return null;
+    // Validação estrutural extra: cada folha tem de ter um "cells"
+    // que seja objeto (mesmo vazio). Qualquer folha malformada
+    // invalida o payload inteiro em vez de deixar passar dados
+    // parciais que travariam recomputeAll() mais tarde.
+    const allValid = parsed.sheets.every((s) => s && typeof s === 'object' && (s.cells === undefined || (typeof s.cells === 'object' && !Array.isArray(s.cells))));
+    if (!allValid) return null;
+    return parsed;
+  } catch (e) {
+    // Nunca deixar um sessionStorage corrompido travar a app: limpa
+    // a chave lixo e continua como se não houvesse nada pendente.
+    try { sessionStorage.removeItem(PENDING_APPLY_KEY); } catch (e2) {}
+    return null;
   }
+}
 
-  // Converte o payload solto vindo da IA (sheets:[{name,cells,colWidths}])
-  // para a forma interna completa que sheet-store.js espera de cada
-  // folha (id, rows, cols, charts, images), reaproveitando createSheet
-  // como base e sobrepondo os campos que a IA de facto forneceu.
-  function applyPendingToDoc(doc, pending) {
-    if (!pending) return doc;
+function applyPendingToDoc(doc, pending) {
+  if (!pending) return doc;
+  try {
     const nextSheets = pending.sheets.map((s, i) => {
       const base = doc.sheets[i] || createSheetShim();
       return {
         ...base,
-        name: s.name || base.name || `Folha${i + 1}`,
-        cells: s.cells || {},
-        colWidths: s.colWidths || {},
+        name: (s && typeof s.name === 'string' && s.name.trim()) ? s.name : (base.name || `Folha${i + 1}`),
+        cells: (s && typeof s.cells === 'object' && s.cells !== null && !Array.isArray(s.cells)) ? s.cells : {},
+        colWidths: (s && typeof s.colWidths === 'object' && s.colWidths !== null) ? s.colWidths : {},
         charts: base.charts || [],
         images: base.images || [],
       };
     });
+    if (!nextSheets.length || !nextSheets[0]) return doc;
     return {
       ...doc,
-      name: pending.name || doc.name,
+      name: (typeof pending.name === 'string' && pending.name.trim()) ? pending.name : doc.name,
       sheets: nextSheets,
-      activeSheetId: nextSheets[0] ? nextSheets[0].id : doc.activeSheetId,
+      activeSheetId: nextSheets[0].id,
     };
+  } catch (e) {
+    // Qualquer falha inesperada na aplicação do payload devolve o
+    // doc original intacto em vez de propagar o erro para dentro
+    // de recompute() e travar a reatividade do Svelte.
+    return doc;
   }
+}
 
   // Pequeno gerador local de folha "em branco" para preencher índices
   // extra do array de pending que ultrapassem o único createDocument()

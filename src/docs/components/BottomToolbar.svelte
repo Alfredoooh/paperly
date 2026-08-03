@@ -7,14 +7,11 @@
   export let c;
   export let activePanel = null;
   export let visible = false;
-  export let fontColorHex = null;   // cor atual do texto (swatch sob o "A")
+  export let fontColorHex = '#1a1a1a';   // cor atual do texto (swatch sob o "A")
   export let highlightHex = null;         // cor atual do realçador (null = sem realce, swatch cinza)
 
   const dispatch = createEventDispatcher();
   const ICON_PX = 24;
-
-  $: resolvedFontColorHex = fontColorHex || c?.textPrimary || 'var(--text-primary)';
-  $: resolvedHighlightHex = highlightHex || c?.border || 'var(--border)';
 
   // ══════════════════════════════════════════════════════════════════
   //  GRUPOS — o seletor "Base ▾" no início do bottombar troca qual
@@ -167,7 +164,7 @@
                  omissão, antes de qualquer escolha). -->
             <span class="swatch-wrap">
               <span class="swatch-letter" style="color:{c.iconTint};">A</span>
-              <span class="swatch-bar" style="background:{resolvedFontColorHex};"></span>
+              <span class="swatch-bar" style="background:{fontColorHex || '#1a1a1a'};"></span>
             </span>
           {:else if item.swatch === 'highlight'}
             <!-- Realçador: ícone de marcador com uma barra de cor por
@@ -177,7 +174,7 @@
                 class="icon-mask"
                 style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{c.iconTint};width:22px;height:22px;"
               ></span>
-              <span class="swatch-bar" style="background:{resolvedHighlightHex};"></span>
+              <span class="swatch-bar" style="background:{highlightHex || '#c9c9c9'};"></span>
             </span>
           {:else}
             <span
@@ -203,7 +200,7 @@
 
 {#if sheetOpen}
   <div class="tb-sheet-overlay" on:click={closeSheet}></div>
-  <div class="tb-sheet" style="background:{c.dialogBackground || 'var(--bg-elevated)'};">
+  <div class="tb-sheet" style="background:{c.dialogBackground || '#1c1c1e'};">
     <div class="tb-sheet-handle"></div>
     <div class="tb-sheet-title-row">
       <span class="tb-sheet-title" style="color:{c.textPrimary};">{activeGroupLabel}</span>
@@ -228,12 +225,12 @@
             {:else if item.swatch === 'font'}
               <span class="swatch-wrap swatch-wrap-sheet">
                 <span class="swatch-letter" style="color:{c.iconTint};font-size:16px;">A</span>
-                <span class="swatch-bar" style="background:{resolvedFontColorHex};"></span>
+                <span class="swatch-bar" style="background:{fontColorHex || '#1a1a1a'};"></span>
               </span>
             {:else if item.swatch === 'highlight'}
               <span class="swatch-wrap swatch-wrap-sheet">
                 <span class="icon-mask" style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{c.iconTint};width:18px;height:18px;"></span>
-                <span class="swatch-bar" style="background:{resolvedHighlightHex};"></span>
+                <span class="swatch-bar" style="background:{highlightHex || '#c9c9c9'};"></span>
               </span>
             {:else}
               <span class="icon-mask" style="mask-image:url('{iconUrl(item)}');-webkit-mask-image:url('{iconUrl(item)}');background:{item.panel && activePanel === item.id ? (c.accentPrimary || c.iconTint) : c.iconTint};width:20px;height:20px;"></span>

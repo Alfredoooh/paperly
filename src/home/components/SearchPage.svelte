@@ -3,7 +3,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { createSlideTransition } from '../lib/nav-transition.js';
 
-  export let pushed = false;
+  export let pushed = false; // true = tela empurrada para dentro (visível)
+  // origin: DOMRect {top,left,width,height} do elemento que disparou a
+  // abertura (a search-bar do CreateTab). Quando presente, a entrada é
+  // um container transform (FLIP) a partir dessa posição/tamanho —
+  // EXATAMENTE a mesma técnica do avatar-viewer em MainPage.svelte do
+  // profile. Quando null (ex: botão de lupa do AppHeader), cai de
+  // volta ao slide-from-right normal, igual ao TemplatePreviewPage.
   export let origin = null;
   export let platformApps = [];
   export let imageModels = [];
@@ -60,6 +66,12 @@
     onClose();
   }
 
+  // ────────────────────────────────────────────────────────────────
+  // MOTOR 1 — Slide-from-right (sem origin): idêntico ao
+  // TemplatePreviewPage/SettingsPage. Spring físico via rAF, exposto
+  // como slideX, aplicado direto em translate3d — SEM CSS transition
+  // no transform (é isso que permite redirecionar a meio do gesto).
+  // ────────────────────────────────────────────────────────────────
   const slide = createSlideTransition({});
   let slideX = 100;
   const unsubscribeSlide = slide.subscribe((v) => { slideX = v; });
@@ -73,6 +85,14 @@
     }
   }
 
+  // ────────────────────────────────────────────────────────────────
+  // MOTOR 2 — Container transform (com origin): MESMA técnica FLIP do
+  // avatar-viewer em MainPage.svelte (profile). transformVisible=false
+  // monta a camada já no rect exato da search-bar de origem (sem
+  // transition), e no frame seguinte transformVisible=true anima
+  // top/left/width/height/border-radius até inset:0. Fechar faz o
+  // inverso antes de desmontar.
+  // ────────────────────────────────────────────────────────────────
   let transformVisible = false;
   $: if (origin) {
     if (pushed && !transformVisible) {
@@ -88,6 +108,12 @@
         : `top:${origin.top}px; left:${origin.left}px; width:${origin.width}px; height:${origin.height}px; border-radius:999px;`)
     : '';
 
+  // ────────────────────────────────────────────────────────────────
+  // Input desaparece ao rolar (só reaparece no topo, scroll = 0) —
+  // reaproveita o mesmo padrão de opacidade+transform do resto da app,
+  // nunca desmonta o elemento (só o esconde), para não perder o foco
+  // de forma abrupta.
+  // ────────────────────────────────────────────────────────────────
   let searchFieldHidden = false;
   function handleBodyScroll() {
     if (!bodyEl) return;
@@ -97,6 +123,8 @@
   onDestroy(() => { unsubscribeSlide(); slide.destroy(); });
 
   onMount(() => {
+    // foca depois da transição de entrada terminar, para não atrapalhar
+    // a animação com o teclado a abrir no meio do movimento
     setTimeout(() => inputEl?.focus(), 340);
   });
 </script>
@@ -216,14 +244,16 @@
     z-index: 30;
     display: flex;
     flex-direction: column;
-    background: #FAFAFA;
+    background: var(--app-bg);
     will-change: transform;
     box-shadow: -6px 0 24px rgba(0,0,0,0.18);
   }
-  :global([data-theme="dark"]) .search-page {
-    background: #242424;
-  }
+  /* Sem transition no transform: o valor vem 100% do spring JS
+     (slideX) — mesmo racional do TemplatePreviewPage/SettingsPage. */
 
+  /* Container transform (FLIP): top/left/width/height/border-radius
+     em style inline, com UMA ÚNICA transition nessas propriedades —
+     mesma técnica milimétrica do .avatar-viewer no profile. */
   .search-page-transform {
     position: fixed;
     overflow: hidden;
@@ -245,6 +275,8 @@
     transform: translateY(0);
     transition: opacity .22s cubic-bezier(0.32, 0.72, 0, 1), transform .22s cubic-bezier(0.32, 0.72, 0, 1);
   }
+  /* Header (com o input lá dentro) some ao rolar, só reaparece no
+     topo (scroll = 0) — nunca desmonta, só se esconde. */
   .search-header.hidden {
     opacity: 0;
     transform: translateY(-10px);
@@ -256,7 +288,7 @@
     height: 48px;
     border-radius: 50%;
     border: none;
-    background: rgba(26,26,26,0.06);
+    background: var(--btn-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -265,15 +297,9 @@
     padding: 0;
     transition: background .22s cubic-bezier(0.16,1,0.3,1), transform .16s cubic-bezier(0.34,1.56,0.64,1);
   }
-  :global([data-theme="dark"]) .back-btn {
-    background: rgba(242,242,242,0.10);
-  }
   .back-btn:active {
-    background: rgba(26,26,26,0.11);
+    background: var(--btn-bg-active);
     transform: scale(0.88);
-  }
-  :global([data-theme="dark"]) .back-btn:active {
-    background: rgba(242,242,242,0.18);
   }
   .back-btn .icon-mask {
     width: 26px;
@@ -286,13 +312,10 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(26,26,26,0.06);
+    background: var(--btn-bg);
     border-radius: 999px;
     padding: 0 16px;
     height: 48px;
-  }
-  :global([data-theme="dark"]) .search-field {
-    background: rgba(242,242,242,0.10);
   }
   .search-icon {
     width: 18px;
@@ -308,33 +331,24 @@
     outline: none;
     font: inherit;
     font-size: 16.5px;
-    color: rgba(26,26,26,0.85);
+    color: var(--icon-strong);
     padding: 0;
   }
-  :global([data-theme="dark"]) .search-input {
-    color: rgba(242,242,242,0.88);
-  }
   .search-input::placeholder {
-    color: rgba(26,26,26,0.40);
-  }
-  :global([data-theme="dark"]) .search-input::placeholder {
-    color: rgba(242,242,242,0.38);
+    color: var(--text-faint);
   }
   .clear-btn {
     width: 24px;
     height: 24px;
     border-radius: 50%;
     border: none;
-    background: rgba(26,26,26,0.11);
+    background: var(--btn-bg-active);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
     padding: 0;
-  }
-  :global([data-theme="dark"]) .clear-btn {
-    background: rgba(242,242,242,0.18);
   }
   .clear-btn .icon-mask {
     width: 10px;
@@ -343,16 +357,13 @@
 
   .icon-mask {
     display: block;
-    background: rgba(26,26,26,0.85);
+    background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-  }
-  :global([data-theme="dark"]) .icon-mask {
-    background: rgba(242,242,242,0.88);
   }
 
   .search-body {
@@ -375,29 +386,20 @@
   .search-empty-icon {
     width: 40px;
     height: 40px;
-    background: rgba(26,26,26,0.28);
+    background: var(--icon-faint);
     margin-bottom: 6px;
-  }
-  :global([data-theme="dark"]) .search-empty-icon {
-    background: rgba(242,242,242,0.30);
   }
   .search-empty-title {
     font-size: 16px;
     font-weight: 700;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     margin: 0;
-  }
-  :global([data-theme="dark"]) .search-empty-title {
-    color: rgba(242,242,242,0.86);
   }
   .search-empty-sub {
     font-size: 13.5px;
-    color: rgba(26,26,26,0.40);
+    color: var(--text-faint);
     margin: 0;
     max-width: 260px;
-  }
-  :global([data-theme="dark"]) .search-empty-sub {
-    color: rgba(242,242,242,0.38);
   }
 
   .search-results {
@@ -410,7 +412,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 4px;
-    border-bottom: 1px solid rgba(26,26,26,0.07);
+    border-bottom: 1px solid var(--border-faint);
     border-top: none;
     border-left: none;
     border-right: none;
@@ -419,31 +421,19 @@
     text-align: left;
     transition: opacity .14s, background .14s;
   }
-  :global([data-theme="dark"]) .search-result-row {
-    border-bottom-color: rgba(242,242,242,0.09);
-  }
   .search-result-row:active {
     opacity: .6;
-    background: rgba(26,26,26,0.05);
-  }
-  :global([data-theme="dark"]) .search-result-row:active {
-    background: rgba(242,242,242,0.07);
+    background: var(--row-active);
   }
   .search-result-label {
     font-size: 15px;
     font-weight: 600;
-    color: rgba(26,26,26,0.94);
-  }
-  :global([data-theme="dark"]) .search-result-label {
-    color: rgba(242,242,242,0.86);
+    color: var(--drawer-text);
   }
   .search-result-type {
     font-size: 12px;
     font-weight: 500;
-    color: rgba(26,26,26,0.40);
-  }
-  :global([data-theme="dark"]) .search-result-type {
-    color: rgba(242,242,242,0.38);
+    color: var(--text-faint);
   }
 
   .pulse-tap {

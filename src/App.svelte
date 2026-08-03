@@ -252,7 +252,7 @@
   }
 
   :global(body) {
-    background: var(--app-bg);
+    background: #0F0F0F;
     overscroll-behavior: none;
   }
 

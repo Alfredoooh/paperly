@@ -21,6 +21,9 @@
 
   export let title = '';
 
+  // solidOnScroll: quando true, o header fica "silver" (azul Fluent
+  // sólido) assim que o utilizador desliza — igual ao CreateTab. Cada
+  // tab decide se quer este comportamento via App.svelte.
   export let solidOnScroll = false;
 
   export let showSearchBtn = false;
@@ -31,6 +34,10 @@
   export let toggleValue = '';
   export let onToggleChange = () => {};
 
+  // Threshold baixo de propósito: `scrolled` já vem normalizado
+  // 0→1 pelos primeiros 24px de scroll (ver App.svelte/handleScroll),
+  // por isso basta um leve deslize para o silver assumir — igual à
+  // sensação do CreateTab, que reage a partir de heroProgress.
   const SILVER_THRESHOLD = 0.4;
   $: isSolid = solidOnScroll && scrolled >= SILVER_THRESHOLD;
 
@@ -111,8 +118,10 @@
     pointer-events: auto;
   }
 
+  /* ---------- Silver: azul Fluent sólido, igual ao header do
+     CreateTab (#185ABD), ativado por scroll via isSolid. ---------- */
   .top-panel.solid {
-    background: var(--accent-primary);
+    background: #185ABD;
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
   }
@@ -144,6 +153,19 @@
     transition: opacity .18s linear;
   }
 
+  /* ------------------------------------------------------------------
+     FIX (bug: header enorme com "espaço de bottombar" dentro dele):
+     o padding-bottom usava env(safe-area-inset-top,0px) — a MESMA
+     variável do topo — em vez de um valor fixo pequeno. Em qualquer
+     aparelho com status bar/notch (inset-top tipicamente 24–48px),
+     isto somava esse valor DUAS vezes (uma no padding-top, correta
+     para não ficar por baixo da status bar, e outra repetida sem
+     necessidade no padding-bottom), inflando a altura total do header
+     em dezenas de pixels a mais do que o necessário — daí a sensação
+     de um bloco de espaço vazio extra, como se fosse uma bottombar
+     lá dentro. Agora o padding-bottom é um valor fixo de design
+     (10px), independente da safe-area do topo.
+     ------------------------------------------------------------------ */
   .header {
     display: flex;
     flex-direction: column;
@@ -172,7 +194,7 @@
     transition: color .2s ease;
   }
   .header-title.solid-title {
-    color: var(--text-on-accent);
+    color: #FFFFFF;
   }
 
   .header-actions {
@@ -204,7 +226,7 @@
     transform: scale(0.88);
   }
   .action-btn.solid-btn:active {
-    background: var(--btn-bg-active);
+    background: rgba(255,255,255,0.16);
   }
   .action-btn .icon-mask {
     width: 17px;
@@ -218,7 +240,7 @@
     -webkit-mask-position: center;
   }
   .action-btn .icon-mask.solid-icon {
-    background: var(--text-on-accent);
+    background: #FFFFFF;
   }
 
   .segmented {
@@ -232,7 +254,7 @@
     transition: background .22s cubic-bezier(0.16,1,0.3,1);
   }
   .segmented.solid-segmented {
-    background: var(--btn-bg-active);
+    background: rgba(255,255,255,0.14);
   }
   .segmented-thumb {
     position: absolute;
@@ -247,7 +269,7 @@
     transition: transform .48s cubic-bezier(0.22, 1.42, 0.36, 1);
   }
   .solid-segmented .segmented-thumb {
-    background: var(--text-on-accent);
+    background: #FFFFFF;
   }
   .segmented-opt {
     position: relative;
@@ -278,7 +300,7 @@
     transform: scale(1.04);
   }
   .solid-segmented .segmented-opt.active .segmented-opt-label {
-    color: var(--accent-primary);
+    color: #185ABD;
   }
   .segmented-opt:active .segmented-opt-label {
     transform: scale(0.92);
@@ -286,7 +308,7 @@
 
   @media (hover:hover) and (pointer:fine) {
     .action-btn:not(.solid-btn):hover { background: var(--btn-bg-active); }
-    .action-btn.solid-btn:hover { background: var(--btn-bg-active); }
+    .action-btn.solid-btn:hover { background: rgba(255,255,255,0.16); }
   }
 
   @media (prefers-reduced-motion: reduce) {

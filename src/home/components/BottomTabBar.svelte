@@ -9,12 +9,6 @@
   export let avatarUrl = '';
   export let avatarColor = '#FF3B30';
   export let userInitial = 'U';
-
-  export let scrolled = 0;
-  export let solidOnScroll = false;
-
-  const SILVER_THRESHOLD = 0.4;
-  $: isSolid = solidOnScroll && scrolled >= SILVER_THRESHOLD;
   
   let fabBtnEl;
   export function getFabRect() {
@@ -31,6 +25,8 @@
     onSelect(tab.id);
   }
 
+  // Ícone do FAB gira em torno de si mesmo (direita → esquerda,
+  // sentido anti-horário) a cada clique.
   let fabPressed = false;
   let fabRotation = 0;
   function openAI() {
@@ -42,12 +38,11 @@
   }
 </script>
 
-<nav class="tab-bar" class:solid={isSolid}>
+<nav class="tab-bar">
   {#each TABS.slice(0, 2) as tab}
     <button
       class="tab-btn"
       class:active={activeTab === tab.id}
-      class:solid-btn={isSolid}
       on:click={() => select(tab)}
       aria-label={tab.label}
       aria-current={activeTab === tab.id ? 'page' : undefined}
@@ -88,7 +83,6 @@
     <button
       class="tab-btn"
       class:active={activeTab === tab.id}
-      class:solid-btn={isSolid}
       on:click={() => select(tab)}
       aria-label={tab.label}
       aria-current={activeTab === tab.id ? 'page' : undefined}
@@ -123,7 +117,7 @@
     align-items: stretch;
     justify-content: space-around;
 
-    background: rgb(250,250,250);
+    background: rgb(var(--header-glass-rgb));
     background-clip: padding-box;
 
     border-top: none;
@@ -136,24 +130,11 @@
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
-
-    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .tab-bar.solid {
-    background: #0866D1;
-  }
-  :global([data-theme="dark"]) .tab-bar.solid {
-    background: #4DA8FF;
   }
 
   :global([data-theme="dark"]) .tab-bar {
-    background: #242424;
-    border-top: 1px solid rgba(242,242,242,0.12);
-  }
-
-  :global([data-theme="dark"]) .tab-bar.solid {
-    border-top: none;
+    background: var(--app-bg);
+    border-top: 1px solid var(--border-soft);
   }
 
   :global([data-theme="dark"]) .tab-bar::before {
@@ -166,11 +147,6 @@
     background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.22));
     pointer-events: none;
     z-index: 0;
-    transition: opacity .2s ease;
-  }
-
-  :global([data-theme="dark"]) .tab-bar.solid::before {
-    opacity: 0;
   }
 
   .tab-bar::after {
@@ -180,20 +156,12 @@
     right: 0;
     bottom: -40px;
     height: 40px;
-    background: rgb(250,250,250);
+    background: rgb(var(--header-glass-rgb));
     z-index: -1;
-    transition: background .24s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .tab-bar.solid::after {
-    background: #0866D1;
-  }
-  :global([data-theme="dark"]) .tab-bar.solid::after {
-    background: #4DA8FF;
   }
 
   :global([data-theme="dark"]) .tab-bar::after {
-    background: #242424;
+    background: var(--app-bg);
   }
 
   .tab-btn {
@@ -208,24 +176,15 @@
     height: 42px;
     border: none;
     background: transparent;
-    color: rgba(26,26,26,0.28);
+    color: var(--icon-faint);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: pan-y;
     -webkit-user-select: none;
     user-select: none;
-    transition: color .22s ease;
-  }
-  :global([data-theme="dark"]) .tab-btn {
-    color: rgba(242,242,242,0.30);
   }
 
-  .tab-btn.active { color: #0866D1; }
-  :global([data-theme="dark"]) .tab-btn.active { color: #4DA8FF; }
-
-  .tab-btn.solid-btn { color: rgba(255,255,255,0.75); }
-  .tab-btn.solid-btn.active { color: #FFFFFF; }
-  :global([data-theme="dark"]) .tab-btn.solid-btn.active { color: #1A1A1A; }
+  .tab-btn.active { color: var(--accent-primary); }
 
   .tab-icon {
     position: relative;
@@ -272,16 +231,7 @@
     transition: border-color .18s ease;
   }
   .tab-avatar.active {
-    border-color: #0866D1;
-  }
-  :global([data-theme="dark"]) .tab-avatar.active {
-    border-color: #4DA8FF;
-  }
-  .solid-btn .tab-avatar.active {
-    border-color: #FFFFFF;
-  }
-  :global([data-theme="dark"]) .solid-btn .tab-avatar.active {
-    border-color: #1A1A1A;
+    border-color: var(--accent-primary);
   }
   .tab-avatar-img {
     width: 100%;
@@ -297,10 +247,7 @@
     justify-content: center;
     font-size: 11px;
     font-weight: 700;
-    color: #FFFFFF;
-  }
-  :global([data-theme="dark"]) .tab-avatar-initial {
-    color: #1A1A1A;
+    color: #fff;
   }
 
   .tab-label {
@@ -356,6 +303,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .icon-mask, .tab-label, .tab-icon, .fab-btn, .fab-icon, .tab-bar, .tab-btn { transition: none !important; }
+    .icon-mask, .tab-label, .tab-icon, .fab-btn, .fab-icon { transition: none !important; }
   }
 </style>

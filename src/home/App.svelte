@@ -29,8 +29,6 @@
   const VALID_ROUTES = ['projects', 'templates', 'me'];
   const router = createRouter(BASE, VALID_ROUTES, 'create');
 
-  let ready = false;
-
   let activeTab = 'create';
   $: currentTabMeta = TABS.find(t => t.id === activeTab);
   $: currentTitle = currentTabMeta?.title || '';
@@ -56,6 +54,7 @@
     isDark = resolveIsDark(v);
     if (persist) localStorage.setItem('nexa_theme', v);
     syncTheme(isDark);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }
   function handleSystemChange() {
     if (themeValue === 'system') applyThemeValue('system', false);
@@ -276,6 +275,13 @@ function closeAIModalVisual() {
     }
   });
 
+  // ------------------------------------------------------------------
+  // settingsPushed incluído aqui: agora abrir o Settings também recua/
+  // escala a tela de trás (MeTab), exatamente como search e preview já
+  // faziam — mesmo efeito visual de "push", usando o mecanismo que já
+  // existia no app, sem depender do shell raiz (que trata o Profile
+  // como rota irmã separada).
+  // ------------------------------------------------------------------
   $: anyFullScreenOverlayPushed = searchPushed || previewPushed || settingsPushed;
   let lastOverlayPushedState = false;
   $: if (anyFullScreenOverlayPushed !== lastOverlayPushedState) {
@@ -290,7 +296,6 @@ function closeAIModalVisual() {
 
     const saved = getTheme();
     applyThemeValue(localStorage.getItem('nexa_theme') || saved, false);
-    ready = true;
 
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', handleSystemChange);
@@ -367,7 +372,6 @@ function closeAIModalVisual() {
   });
 </script>
 
-{#if ready}
 <div
   class="root"
   bind:this={rootEl}
@@ -488,7 +492,6 @@ function closeAIModalVisual() {
   origin={aiOrigin}
   onClose={closeAIModal}
 />
-{/if}
 
 <style>
   @import '../shared/theme.css';

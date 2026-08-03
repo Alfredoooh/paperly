@@ -65,12 +65,18 @@
     position: fixed;
     inset: 0;
     z-index: 90;
-    background: rgba(0,0,0,0.45);
+    background: #000;
     pointer-events: none;
     transition: opacity .52s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: opacity;
   }
 
+  /* Cantos SEMPRE arredondados (24px), mesmo em tela cheia — pedido
+     explícito, comportamento diferente do container-transform
+     "Material You" padrão que reto-ifica ao expandir. Duração da
+     transição aumentada (.42s → .62s) e easing trocado para uma curva
+     mais suave (0.22,1,0.36,1 — "ease-out-quint"-like), para reduzir
+     a sensação de "salto" e aproximar de uma animação nativa. */
   .ai-container {
     position: fixed;
     inset: 0;

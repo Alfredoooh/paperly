@@ -78,7 +78,7 @@
   .card-label { font-size:15px; font-weight:700; margin-bottom:4px; }
   .card-hint { font-size:13px; line-height:1.4; }
   .footer { margin:16px; margin-top:auto; border:1px solid; border-radius:18px; padding:12px; display:flex; align-items:center; gap:12px; }
-  .avatar { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--text-on-accent); flex-shrink:0; }
+  .avatar { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; flex-shrink:0; }
   .name { font-weight:700; }
   .email { font-size:13px; margin-top:2px; }
   .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }

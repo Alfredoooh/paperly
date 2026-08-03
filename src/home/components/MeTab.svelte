@@ -112,7 +112,7 @@
 
   {#if showInstall}
     <button class="me-install pulse-tap" on:click={handleInstall}>
-      <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');width:22px;height:22px;background:#0866D1"></span>
+      <span class="icon-mask" style="mask-image:url('{ICON.download}');-webkit-mask-image:url('{ICON.download}');width:22px;height:22px;background:#185ABD"></span>
       <span class="me-install-label">Instalar app</span>
     </button>
   {/if}
@@ -189,11 +189,8 @@
     cursor: pointer;
     text-align: left;
     font: inherit;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
-  }
-  :global([data-theme="dark"]) .me-avatar-block {
-    color: rgba(242,242,242,0.86);
   }
   .me-avatar {
     width: 60px;
@@ -209,65 +206,42 @@
   .me-avatar-initial {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 700; color: #FFFFFF;
-  }
-  :global([data-theme="dark"]) .me-avatar-initial {
-    color: #1A1A1A;
+    font-size: 24px; font-weight: 700; color: #fff;
   }
   .me-identity { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .me-name {
     margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.2px;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  :global([data-theme="dark"]) .me-name {
-    color: rgba(242,242,242,0.86);
   }
   .me-email {
-    margin: 0; font-size: 13px; font-weight: 500; color: rgba(26,26,26,0.40);
+    margin: 0; font-size: 13px; font-weight: 500; color: var(--text-faint);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  :global([data-theme="dark"]) .me-email {
-    color: rgba(242,242,242,0.38);
   }
   .me-chevron {
     width: 20px; height: 20px; flex-shrink: 0;
-    background: rgba(26,26,26,0.40);
-  }
-  :global([data-theme="dark"]) .me-chevron {
-    background: rgba(242,242,242,0.38);
+    background: var(--text-faint);
   }
 
   .me-install {
     display: flex; align-items: center; gap: 10px;
     width: calc(100% - 28px); margin: 0 14px 20px; padding: 13px 16px;
-    border-radius: 14px; border: 1px solid rgba(8,102,209,0.28);
-    background: rgba(8,102,209,0.08);
+    border-radius: 14px; border: 1px solid rgba(24,90,189,0.28);
+    background: rgba(24,90,189,0.08);
     cursor: pointer; font: inherit;
   }
-  :global([data-theme="dark"]) .me-install {
-    border-color: rgba(77,168,255,0.28);
-    background: rgba(77,168,255,0.08);
-  }
-  .me-install-label { font-size: 14.5px; font-weight: 600; color: #0866D1; }
-  :global([data-theme="dark"]) .me-install-label { color: #4DA8FF; }
+  .me-install-label { font-size: 14.5px; font-weight: 600; color: #185ABD; }
 
   .me-row {
     display: flex; align-items: center; gap: 14px;
     width: 100%; min-height: 58px; padding: 10px 16px;
     border: none; background: transparent; cursor: pointer; font: inherit;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
-  }
-  :global([data-theme="dark"]) .me-row {
-    color: rgba(242,242,242,0.86);
   }
   .me-row-icon {
     width: 24px; height: 24px; flex-shrink: 0;
-    background: rgba(26,26,26,0.94);
-  }
-  :global([data-theme="dark"]) .me-row-icon {
-    background: rgba(242,242,242,0.86);
+    background: var(--drawer-text);
   }
   .me-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
   .me-row-label {
@@ -275,8 +249,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
-  .native-tap:active { background: rgba(26,26,26,0.05); }
-  :global([data-theme="dark"]) .native-tap:active { background: rgba(242,242,242,0.07); }
+  .native-tap:active { background: var(--row-active, rgba(127,127,127,0.08)); }
   .pulse-tap {
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1), opacity .16s cubic-bezier(0.16,1,0.3,1);
   }
@@ -295,40 +268,27 @@
     width: 42px;
     height: 24px;
     border-radius: 999px;
-    border: 1.5px solid rgba(26,26,26,0.28);
+    border: 1.5px solid var(--icon-faint);
     background: transparent;
     box-sizing: border-box;
     transition: background .28s cubic-bezier(0.32, 0.72, 0, 1), border-color .28s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  :global([data-theme="dark"]) .fluent-switch {
-    border-color: rgba(242,242,242,0.30);
   }
   .fluent-switch-thumb {
     position: absolute;
     top: 3px; left: 3px;
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: rgba(26,26,26,0.28);
+    background: var(--icon-faint);
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     transition: transform .28s cubic-bezier(0.34, 1.3, 0.64, 1), background .28s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  :global([data-theme="dark"]) .fluent-switch-thumb {
-    background: rgba(242,242,242,0.30);
-  }
   .fluent-switch-on {
-    background: #0866D1;
-    border-color: #0866D1;
-  }
-  :global([data-theme="dark"]) .fluent-switch-on {
-    background: #4DA8FF;
-    border-color: #4DA8FF;
+    background: #0078D4;
+    border-color: #0078D4;
   }
   .fluent-switch-on .fluent-switch-thumb {
-    background: #FFFFFF;
+    background: #fff;
     transform: translateX(18px);
-  }
-  :global([data-theme="dark"]) .fluent-switch-on .fluent-switch-thumb {
-    background: #3A3A3D;
   }
 
   .logout-fab {
@@ -346,21 +306,21 @@
     cursor: pointer;
     font: inherit;
     z-index: 10;
-    background: #0866D1;
   }
-  :global([data-theme="dark"]) .logout-fab { background: #4DA8FF; }
+  :global([data-theme="dark"]) .logout-fab { background: #4CC2FF; }
+  :global([data-theme="light"]) .logout-fab { background: #0078D4; }
 
   .logout-fab-icon {
     width: 18px; height: 18px;
-    background: #FFFFFF;
+    background: #fff;
   }
-  :global([data-theme="dark"]) .logout-fab-icon { background: #1A1A1A; }
+  :global([data-theme="dark"]) .logout-fab-icon { background: #001A2C; }
+  :global([data-theme="dark"]) .logout-fab-label { color: #001A2C; }
 
   .logout-fab-label {
     font-size: 14px; font-weight: 700;
-    color: #FFFFFF;
+    color: #fff;
   }
-  :global([data-theme="dark"]) .logout-fab-label { color: #1A1A1A; }
 
   .logout-overlay {
     position: fixed; inset: 0; z-index: 80;
@@ -372,7 +332,7 @@
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.90);
     opacity: 0;
-    background: #FFFFFF;
+    background: var(--surface);
     border-radius: 16px;
     padding: 24px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
@@ -381,26 +341,18 @@
     transition: transform .38s cubic-bezier(0.34, 1.35, 0.64, 1), opacity .28s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform, opacity;
   }
-  :global([data-theme="dark"]) .logout-dialog {
-    background: #3A3A3D;
-  }
   .logout-dialog.logout-dialog-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  .logout-dialog-text { font-size: 16px; color: #1A1A1A; margin: 0 0 20px; text-align: center; font-family: inherit; }
-  :global([data-theme="dark"]) .logout-dialog-text { color: #F2F2F2; }
+  .logout-dialog-text { font-size: 16px; color: var(--text-primary); margin: 0 0 20px; text-align: center; font-family: inherit; }
   .logout-dialog-actions { display: flex; gap: 12px; justify-content: center; }
   .logout-btn-cancel, .logout-btn-confirm {
     flex: 1; padding: 12px 20px; border-radius: 12px; border: none;
     font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
     transition: background .2s cubic-bezier(0.32, 0.72, 0, 1), transform .18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .logout-btn-cancel { background: rgba(26,26,26,0.06); color: #1A1A1A; }
-  :global([data-theme="dark"]) .logout-btn-cancel { background: rgba(242,242,242,0.10); color: #F2F2F2; }
-  .logout-btn-cancel:active { background: rgba(26,26,26,0.11); transform: scale(0.96); }
-  :global([data-theme="dark"]) .logout-btn-cancel:active { background: rgba(242,242,242,0.18); }
-  .logout-btn-confirm { background: #0866D1; color: #FFFFFF; }
-  :global([data-theme="dark"]) .logout-btn-confirm { background: #4DA8FF; color: #1A1A1A; }
-  .logout-btn-confirm:active { background: #06529E; transform: scale(0.96); }
-  :global([data-theme="dark"]) .logout-btn-confirm:active { background: #2F8FE8; }
+  .logout-btn-cancel { background: var(--btn-bg); color: var(--text-primary); }
+  .logout-btn-cancel:active { background: var(--btn-bg-active); transform: scale(0.96); }
+  .logout-btn-confirm { background: #0078D4; color: white; }
+  .logout-btn-confirm:active { background: #005A9E; transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
     .me-row, .me-avatar-block, .me-install, .logout-fab,

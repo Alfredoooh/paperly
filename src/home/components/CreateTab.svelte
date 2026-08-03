@@ -22,6 +22,11 @@
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
   const NOTIF_ICON = `${FLUENT_BASE}/alert_24_regular.svg`;
 
+  // silver appbar REMOVIDO por completo — o header do Create fica
+  // sempre no estado glass/transparente original, nunca fica sólido
+  // ao rolar. isSolid deixou de existir; searchBtnVisible/demais
+  // lógicas de opacidade continuam iguais, só a mudança de fundo foi
+  // retirada.
   $: searchBarOpacity = 1 - heroProgress;
   $: searchBarScale = 1 - 0.08 * heroProgress;
   $: searchBarInert = heroProgress > 0.9;
@@ -82,6 +87,8 @@
   const APPS_SKELETON_COUNT = 6;
 </script>
 
+<!-- Header próprio do Create: SEM estado "solid" — fica sempre no
+     mesmo visual glass/transparente, independentemente do scroll. -->
 <div class="create-header" class:in={effectiveMounted}>
   <div class="create-header-inner">
     <h1 class="create-header-title visible">Criar</h1>
@@ -176,7 +183,7 @@
               {#if p.thumbnail}
                 <img src={p.thumbnail} alt={p.title} loading="lazy" />
               {:else}
-                <div class="recent-thumb-fallback" style="background:{p.color || '#0866D1'}"></div>
+                <div class="recent-thumb-fallback" style="background:{p.color || '#8E8E93'}"></div>
               {/if}
             </div>
             <span class="recent-card-title">{p.title}</span>
@@ -192,13 +199,13 @@
     <div class="recent-section">
       <div class="empty-state">
         <svg class="empty-state-illustration" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="14" y="18" width="70" height="54" rx="10" fill="rgba(26,26,26,0.05)" />
-          <rect x="14" y="18" width="70" height="54" rx="10" stroke="rgba(26,26,26,0.09)" stroke-width="1.5" />
-          <rect x="26" y="32" width="46" height="6" rx="3" fill="rgba(26,26,26,0.09)" />
-          <rect x="26" y="44" width="34" height="6" rx="3" fill="rgba(26,26,26,0.07)" />
-          <rect x="26" y="56" width="24" height="6" rx="3" fill="rgba(26,26,26,0.06)" />
-          <circle cx="92" cy="66" r="20" fill="#0866D1" />
-          <path d="M92 57v18M83 66h18" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" />
+          <rect x="14" y="18" width="70" height="54" rx="10" fill="var(--row-active, rgba(127,127,127,0.10))" />
+          <rect x="14" y="18" width="70" height="54" rx="10" stroke="var(--drawer-sep, rgba(127,127,127,0.25))" stroke-width="1.5" />
+          <rect x="26" y="32" width="46" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.3))" />
+          <rect x="26" y="44" width="34" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.22))" />
+          <rect x="26" y="56" width="24" height="6" rx="3" fill="var(--drawer-sep, rgba(127,127,127,0.18))" />
+          <circle cx="92" cy="66" r="20" fill="#0078D4" />
+          <path d="M92 57v18M83 66h18" stroke="#fff" stroke-width="3.4" stroke-linecap="round" />
         </svg>
         <p class="empty-state-title">Ainda sem criações recentes</p>
         <p class="empty-state-text">Os teus projetos vão aparecer aqui assim que começares a criar.</p>
@@ -226,6 +233,9 @@
     font-family: 'Google Sans Text', 'Roboto Flex', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
   }
 
+  /* Header do Create: SEMPRE glass/transparente, nunca sólido —
+     silver appbar removido por completo, sem classe .solid, sem
+     transição de background. */
   .create-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -257,6 +267,9 @@
     margin: 0 auto;
     padding: env(safe-area-inset-top, 0px) 16px 0;
   }
+  /* Título "Criar": peso máximo (900, tipo WhatsApp) e azul Microsoft
+     que muda por tema — antes tinha lógica de cor separada para
+     "solid", que deixou de existir junto com o silver appbar. */
   .create-header-title {
     font-size: 22px;
     font-weight: 900;
@@ -269,11 +282,9 @@
     white-space: nowrap;
     opacity: 0;
     transition: opacity .2s cubic-bezier(0.32, 0.72, 0, 1);
-    color: #0866D1;
   }
-  :global([data-theme="dark"]) .create-header-title {
-    color: #4DA8FF;
-  }
+  :global([data-theme="light"]) .create-header-title { color: #0078D4; }
+  :global([data-theme="dark"]) .create-header-title { color: #4CC2FF; }
   .create-header-title.visible {
     opacity: 1;
   }
@@ -317,10 +328,7 @@
   .header-icon {
     width: 21px;
     height: 21px;
-    background: rgba(26,26,26,0.94);
-  }
-  :global([data-theme="dark"]) .header-icon {
-    background: rgba(242,242,242,0.86);
+    background: var(--drawer-text);
   }
 
   .notif-btn {
@@ -346,10 +354,7 @@
   .notif-icon {
     width: 21px;
     height: 21px;
-    background: rgba(26,26,26,0.94);
-  }
-  :global([data-theme="dark"]) .notif-icon {
-    background: rgba(242,242,242,0.86);
+    background: var(--drawer-text);
   }
   .notif-dot {
     position: absolute;
@@ -358,11 +363,8 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #E0342A;
-    border: 1.5px solid #FAFAFA;
-  }
-  :global([data-theme="dark"]) .notif-dot {
-    border-color: #242424;
+    background: #E3242B;
+    border: 1.5px solid var(--app-bg, #fff);
   }
 
   @media (min-width: 720px) {
@@ -387,9 +389,9 @@
     height: 44px;
     margin: 0 14px 0;
     padding: 0 16px;
-    border: 1px solid rgba(26,26,26,0.22);
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.22));
     border-radius: 999px;
-    background: #F0F0F1;
+    background: var(--drawer-bg);
     box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
@@ -397,19 +399,15 @@
     z-index: 1;
     transition: border-color .16s cubic-bezier(0.32,0.72,0,1), background .2s cubic-bezier(0.32,0.72,0,1);
   }
-  :global([data-theme="dark"]) .search-bar {
-    background: rgba(242,242,242,0.10);
-    border-color: rgba(255,255,255,0.10);
-  }
-  :global([data-theme="light"]) .search-bar:active { border-color: #0866D1; }
-  :global([data-theme="dark"]) .search-bar:active { border-color: #4DA8FF; }
+  :global([data-theme="light"]) .search-bar:active { border-color: #0078D4; }
+  :global([data-theme="dark"]) .search-bar:active { border-color: #4CC2FF; }
   .search-bar.search-bar-inert {
     pointer-events: none;
   }
   .search-bar-icon {
     width: 17px;
     height: 17px;
-    background: rgba(26,26,26,0.28);
+    background: var(--icon-faint);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
@@ -419,16 +417,10 @@
     flex-shrink: 0;
     opacity: 0.65;
   }
-  :global([data-theme="dark"]) .search-bar-icon {
-    background: rgba(242,242,242,0.30);
-  }
   .search-bar-placeholder {
     font-size: 14px;
     font-weight: 400;
-    color: rgba(26,26,26,0.40);
-  }
-  :global([data-theme="dark"]) .search-bar-placeholder {
-    color: rgba(242,242,242,0.38);
+    color: var(--text-faint);
   }
 
   .apps-card-title {
@@ -437,24 +429,25 @@
     padding: 0 6px;
     font-size: 13px;
     font-weight: 600;
-    color: rgba(26,26,26,0.40);
-  }
-  :global([data-theme="dark"]) .apps-card-title {
-    color: rgba(242,242,242,0.38);
+    color: var(--text-faint);
   }
 
   .apps-card {
     margin: 0 14px 0;
     padding: 16px 12px 12px;
     border-radius: 22px;
-    background: #F0F0F1;
-    border: 1px solid rgba(26,26,26,0.16);
+    background: var(--drawer-bg);
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.16));
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
   :global([data-theme="dark"]) .apps-card {
-    background: rgba(242,242,242,0.10);
+    background: var(--btn-bg);
     border-color: rgba(255,255,255,0.08);
     box-shadow: none;
+  }
+  :global([data-theme="dark"]) .search-bar {
+    background: var(--btn-bg);
+    border-color: rgba(255,255,255,0.10);
   }
   .apps-grid {
     display: grid;
@@ -471,11 +464,8 @@
     padding: 0;
     cursor: pointer;
     font: inherit;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     -webkit-tap-highlight-color: transparent;
-  }
-  :global([data-theme="dark"]) .app-item {
-    color: rgba(242,242,242,0.86);
   }
   .app-item-skeleton {
     cursor: default;
@@ -524,10 +514,7 @@
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-    background: rgba(26,26,26,0.85);
-  }
-  :global([data-theme="dark"]) .icon-mask {
-    background: rgba(242,242,242,0.88);
+    background: var(--icon-strong);
   }
 
   .pulse-tap {
@@ -548,18 +535,15 @@
     font-size: 16px;
     font-weight: 600;
     letter-spacing: 0;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     margin: 0;
-  }
-  :global([data-theme="dark"]) .recent-section-title {
-    color: rgba(242,242,242,0.86);
   }
   .recent-section-cta {
     font-size: 13px;
     font-weight: 600;
-    color: #0866D1;
   }
-  :global([data-theme="dark"]) .recent-section-cta { color: #4DA8FF; }
+  :global([data-theme="light"]) .recent-section-cta { color: #0078D4; }
+  :global([data-theme="dark"]) .recent-section-cta { color: #4CC2FF; }
 
   .recent-row {
     display: flex;
@@ -592,24 +576,17 @@
     scroll-snap-align: start;
     -webkit-tap-highlight-color: transparent;
     font: inherit;
-    color: rgba(26,26,26,0.94);
-  }
-  :global([data-theme="dark"]) .recent-card {
-    color: rgba(242,242,242,0.86);
+    color: var(--drawer-text);
   }
   .recent-thumb {
     width: 132px;
     height: 132px;
     border-radius: 20px;
     overflow: hidden;
-    background: rgba(26,26,26,0.05);
-    border: 1px solid rgba(26,26,26,0.09);
+    background: var(--row-active, rgba(127,127,127,0.10));
+    border: 1px solid var(--drawer-sep, rgba(127,127,127,0.14));
     flex-shrink: 0;
     transition: transform .16s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  :global([data-theme="dark"]) .recent-thumb {
-    background: rgba(242,242,242,0.07);
-    border-color: rgba(242,242,242,0.10);
   }
   .recent-thumb img {
     width: 100%;
@@ -632,10 +609,7 @@
   .recent-card-time {
     font-size: 11.5px;
     font-weight: 400;
-    color: rgba(26,26,26,0.40);
-  }
-  :global([data-theme="dark"]) .recent-card-time {
-    color: rgba(242,242,242,0.38);
+    color: var(--text-faint);
   }
   .native-tap:active .recent-thumb {
     transform: scale(0.97);
@@ -657,31 +631,22 @@
     margin: 0 0 4px;
     font-size: 15px;
     font-weight: 600;
-    color: rgba(26,26,26,0.94);
-  }
-  :global([data-theme="dark"]) .empty-state-title {
-    color: rgba(242,242,242,0.86);
+    color: var(--drawer-text);
   }
   .empty-state-text {
     margin: 0;
     font-size: 13px;
     font-weight: 400;
     line-height: 1.4;
-    color: rgba(26,26,26,0.40);
+    color: var(--text-faint);
     max-width: 260px;
-  }
-  :global([data-theme="dark"]) .empty-state-text {
-    color: rgba(242,242,242,0.38);
   }
 
   .recent-skeleton {
     position: relative;
     overflow: hidden;
-    background: rgba(26,26,26,0.06);
+    background: var(--row-active, rgba(127,127,127,0.12));
     border-radius: 10px;
-  }
-  :global([data-theme="dark"]) .recent-skeleton {
-    background: rgba(242,242,242,0.09);
   }
   .recent-skeleton::after {
     content: '';
@@ -690,18 +655,10 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(26,26,26,0.08) 50%,
+      color-mix(in srgb, var(--drawer-text) 8%, transparent) 50%,
       transparent 100%
     );
     animation: skeleton-shimmer 1.3s ease-in-out infinite;
-  }
-  :global([data-theme="dark"]) .recent-skeleton::after {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(242,242,242,0.08) 50%,
-      transparent 100%
-    );
   }
   @keyframes skeleton-shimmer {
     0% { transform: translateX(-100%); }

@@ -58,22 +58,22 @@
   :global(html), :global(body) { height:100%; margin:0; padding:0; }
 
   :global([data-theme="dark"]) {
-    --nf-bg: var(--app-bg);
-    --nf-text: var(--text-primary);
-    --nf-text-secondary: var(--text-secondary);
-    --nf-code-a: var(--accent-primary);
-    --nf-code-b: var(--accent-primary-active);
-    --nf-btn-bg: var(--accent-primary);
-    --nf-btn-text: var(--text-on-accent);
+    --nf-bg: #0b0b0d;
+    --nf-text: #ffffff;
+    --nf-text-secondary: rgba(255,255,255,0.55);
+    --nf-code-a: #6ea8ff;
+    --nf-code-b: #2F7BF6;
+    --nf-btn-bg: #2F7BF6;
+    --nf-btn-text: #ffffff;
   }
   :global([data-theme="light"]) {
-    --nf-bg: var(--bg-elevated);
-    --nf-text: var(--text-primary);
-    --nf-text-secondary: var(--text-secondary);
-    --nf-code-a: var(--accent-primary);
-    --nf-code-b: var(--accent-primary-active);
-    --nf-btn-bg: var(--accent-primary);
-    --nf-btn-text: var(--text-on-accent);
+    --nf-bg: #ffffff;
+    --nf-text: #111111;
+    --nf-text-secondary: rgba(20,20,20,0.55);
+    --nf-code-a: #4a8dff;
+    --nf-code-b: #1f63d6;
+    --nf-btn-bg: #2F7BF6;
+    --nf-btn-text: #ffffff;
   }
 
   .root {

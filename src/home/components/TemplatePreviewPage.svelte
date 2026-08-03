@@ -4,8 +4,8 @@
   import { createSlideTransition } from '../lib/nav-transition.js';
   import { portal } from '../lib/portal.js';
 
-  export let pushed = false;
-  export let kind = 'image';
+  export let pushed = false; // true = tela empurrada para dentro (visível)
+  export let kind = 'image'; // 'image' | 'doc'
   export let item = null;
   export let onClose = () => {};
   export let onUse = () => {};
@@ -40,6 +40,24 @@
     onUse();
   }
 
+  // ------------------------------------------------------------------
+  // Popup estilo iOS (UIMenu / context menu nativo).
+  //
+  // PORTAL: o menu precisa sair da árvore de .preview-page — esse
+  // container tem overflow:hidden (cantos arredondados do slide) E
+  // will-change:transform (containing block para position:fixed/
+  // absolute dos filhos). As duas coisas juntas cortam/prendem
+  // qualquer popup absoluto que exceda os limites do card, o que
+  // estava a fazer o menu aparecer cortado/deslocado para a direita.
+  // Portado para document.body, ele passa a se posicionar relativo à
+  // viewport real, sem ser afetado pelo overflow do ancestral.
+  //
+  // POSICIONAMENTO: calculado em pixels absolutos via
+  // getBoundingClientRect() do botão, recalculado sempre que abre e
+  // no resize. Clampa contra a margem direita/esquerda do ecrã para
+  // nunca estourar a viewport, independentemente de onde o botão
+  // esteja.
+  // ------------------------------------------------------------------
   const FLUENT_BASE = 'https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@1.1.177/icons';
 
   const MENU_OPTIONS = [
@@ -62,7 +80,7 @@
 
   let menuTop = 0;
   let menuLeft = 0;
-  let originRight = true;
+  let originRight = true; // controla transform-origin (canto de onde "nasce")
 
   async function toggleMenu() {
     if (menuOpen) {
@@ -74,7 +92,7 @@
     menuOpen = true;
     closing = false;
     await tick();
-    computePosition();
+    computePosition(); // recalcula com a largura real do menu já montado
   }
 
   function computePosition() {
@@ -85,13 +103,19 @@
 
     const width = menuEl?.offsetWidth || MENU_WIDTH;
 
+    // Por padrão, alinha a borda direita do menu com a borda direita
+    // do botão (comportamento natural de um menu "more" no canto
+    // direito da appbar).
     let left = btnRect.right - width;
     originRight = true;
 
+    // Clamp contra a margem esquerda.
     if (left < VIEWPORT_MARGIN) {
       left = VIEWPORT_MARGIN;
       originRight = false;
     }
+    // Clamp contra a margem direita (proteção extra caso width real
+    // seja maior que o esperado).
     if (left + width > vw - VIEWPORT_MARGIN) {
       left = vw - VIEWPORT_MARGIN - width;
     }
@@ -99,6 +123,7 @@
     let top = btnRect.bottom + GAP_FROM_BUTTON;
     const estimatedHeight = menuEl?.offsetHeight || (MENU_OPTIONS.length * 44 + 16);
     if (top + estimatedHeight > vh - VIEWPORT_MARGIN) {
+      // Sem espaço abaixo: abre para cima do botão em vez de para baixo.
       top = btnRect.top - GAP_FROM_BUTTON - estimatedHeight;
     }
 
@@ -220,14 +245,11 @@
     z-index: 30;
     display: flex;
     flex-direction: column;
-    background: #FAFAFA;
+    background: var(--app-bg);
     border-radius: 18px;
     overflow: hidden;
     will-change: transform;
     box-shadow: -2px 0 8px rgba(0,0,0,0.08);
-  }
-  :global([data-theme="dark"]) .preview-page {
-    background: #242424;
   }
 
   .preview-header {
@@ -243,7 +265,7 @@
     height: 36px;
     border-radius: 50%;
     border: none;
-    background: rgba(26,26,26,0.06);
+    background: var(--btn-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -252,17 +274,9 @@
     padding: 0;
     transition: background .18s cubic-bezier(0.16,1,0.3,1), transform .14s cubic-bezier(0.34,1.56,0.64,1);
   }
-  :global([data-theme="dark"]) .back-btn,
-  :global([data-theme="dark"]) .more-btn {
-    background: rgba(242,242,242,0.10);
-  }
   .back-btn:active, .more-btn:active {
-    background: rgba(26,26,26,0.11);
+    background: var(--btn-bg-active);
     transform: scale(0.88);
-  }
-  :global([data-theme="dark"]) .back-btn:active,
-  :global([data-theme="dark"]) .more-btn:active {
-    background: rgba(242,242,242,0.18);
   }
   .back-btn .icon-mask {
     width: 18px;
@@ -279,31 +293,32 @@
     min-width: 0;
     font-size: 16px;
     font-weight: 700;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  :global([data-theme="dark"]) .preview-header-title {
-    color: rgba(242,242,242,0.86);
-  }
 
+  /* -------------------------------------------------------------
+     Portado para document.body via use:portal — por isso é
+     position:fixed com top/left em pixels absolutos calculados em
+     JS, e NÃO depende de nenhum ancestral posicionado. z-index alto
+     o suficiente para ficar acima de .preview-page (z-index:30) e
+     de qualquer bottombar/appbar do resto do app.
+  ------------------------------------------------------------- */
   .ios-menu {
     position: fixed;
-    background: rgba(240,240,241,0.82);
+    background: var(--surface-apps-tab);
+    background: color-mix(in srgb, var(--surface-apps-tab) 82%, transparent);
     backdrop-filter: blur(12px) saturate(160%);
     -webkit-backdrop-filter: blur(12px) saturate(160%);
-    border: 0.5px solid rgba(26,26,26,0.09);
+    border: 0.5px solid var(--border-soft);
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
     overflow: hidden;
     z-index: 500;
     transform-origin: top right;
     animation: iosMenuIn .18s cubic-bezier(0.19,1,0.22,1) forwards;
-  }
-  :global([data-theme="dark"]) .ios-menu {
-    background: rgba(44,44,46,0.82);
-    border-color: rgba(242,242,242,0.12);
   }
   .ios-menu.origin-left {
     transform-origin: top left;
@@ -341,47 +356,35 @@
   .ios-menu-label {
     font-size: 15.5px;
     font-weight: 400;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  :global([data-theme="dark"]) .ios-menu-label {
-    color: rgba(242,242,242,0.86);
-  }
   .ios-menu-icon {
     width: 19px;
     height: 19px;
     flex-shrink: 0;
-    background: rgba(26,26,26,0.94);
+    background: var(--drawer-text);
     opacity: 0.85;
-  }
-  :global([data-theme="dark"]) .ios-menu-icon {
-    background: rgba(242,242,242,0.86);
   }
   .ios-menu-divider {
     height: 0.5px;
     margin: 0 16px;
-    background: rgba(26,26,26,0.09);
-  }
-  :global([data-theme="dark"]) .ios-menu-divider {
-    background: rgba(242,242,242,0.12);
+    background: var(--border-soft);
   }
 
   .icon-mask {
     display: block;
-    background: rgba(26,26,26,0.85);
+    background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-position: center;
     -webkit-mask-position: center;
-  }
-  :global([data-theme="dark"]) .icon-mask {
-    background: rgba(242,242,242,0.88);
   }
 
   .preview-body {
@@ -401,11 +404,11 @@
     box-shadow: 0 4px 14px rgba(0,0,0,0.14);
   }
   .preview-doc-sheet {
-    background: #F0F0F1;
+    background: var(--surface-apps-tab);
     width: 100%;
     height: 100%;
     max-width: 420px;
-    border: 1px solid rgba(26,26,26,0.09);
+    border: 1px solid var(--border-soft);
     border-radius: 14px;
     display: flex;
     flex-direction: column;
@@ -414,14 +417,10 @@
     gap: 18px;
     padding: 24px;
   }
-  :global([data-theme="dark"]) .preview-doc-sheet {
-    background: #2C2C2E;
-    border-color: rgba(242,242,242,0.12);
-  }
   .preview-doc-icon {
     width: 96px;
     height: 96px;
-    background: rgba(26,26,26,0.85);
+    background: var(--icon-strong);
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-repeat: no-repeat;
@@ -429,17 +428,11 @@
     mask-position: center;
     -webkit-mask-position: center;
   }
-  :global([data-theme="dark"]) .preview-doc-icon {
-    background: rgba(242,242,242,0.88);
-  }
   .preview-doc-label {
     font-size: 19px;
     font-weight: 700;
-    color: rgba(26,26,26,0.94);
+    color: var(--drawer-text);
     text-align: center;
-  }
-  :global([data-theme="dark"]) .preview-doc-label {
-    color: rgba(242,242,242,0.86);
   }
 
   .preview-actions {
@@ -460,30 +453,19 @@
     transition: transform .14s cubic-bezier(0.34,1.56,0.64,1), opacity .14s, background .14s;
   }
   .preview-btn-cancel {
-    background: #D92D2D;
-    color: #FFFFFF;
-  }
-  :global([data-theme="dark"]) .preview-btn-cancel {
-    background: #FF6B6B;
-    color: #1A1A1A;
+    background: var(--danger);
+    color: #fff;
   }
   .preview-btn-cancel:active {
-    background: #E0342A;
+    background: var(--danger-active);
   }
   .preview-btn-use {
-    background: #0866D1;
-    color: #FFFFFF;
+    background: var(--accent-primary);
+    color: #fff;
     box-shadow: 0 2px 8px rgba(0,0,0,0.14);
   }
-  :global([data-theme="dark"]) .preview-btn-use {
-    background: #4DA8FF;
-    color: #1A1A1A;
-  }
   .preview-btn-use:active {
-    background: #06529E;
-  }
-  :global([data-theme="dark"]) .preview-btn-use:active {
-    background: #2F8FE8;
+    background: var(--accent-primary-active);
   }
 
   .pulse-tap {

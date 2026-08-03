@@ -3,10 +3,10 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { IMAGE_MODELS, DOC_MODELS } from '../lib/constants.js';
 
-  export let view = 'images';
+  export let view = 'images'; // 'images' | 'documents' — herda a view ativa do Templates
   export let onClose = () => {};
   export let onUsePrompt = () => {};
-  export let visible = false;
+  export let visible = false; // controla animação de entrada/saída
 
   let query = '';
   let inputEl;
@@ -57,6 +57,7 @@
 
   onMount(async () => {
     await tick();
+    // foca o input assim que a página entra, sem disparar zoom indesejado no iOS
     requestAnimationFrame(() => inputEl?.focus());
   });
 
@@ -340,7 +341,7 @@
     bottom: 9px;
     font-size: 12px;
     font-weight: 700;
-    color: var(--text-on-accent);
+    color: #fff;
     text-align: left;
     text-shadow: 0 1px 4px rgba(0,0,0,0.5);
     overflow: hidden;
@@ -495,7 +496,7 @@
   .preview-btn:active { transform: scale(0.96); opacity: 0.8; }
   .preview-btn-cancel {
     background: rgba(0,0,0,0.6);
-    color: var(--text-on-accent);
+    color: #fff;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }

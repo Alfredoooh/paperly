@@ -16,7 +16,7 @@
     const w = 320, h = 60;
     return {
       type: 'text', x: Math.max(0, Math.round((boardW - w) / 2)), y: Math.max(0, Math.round((boardH - h) / 2)),
-      w, h, deg: 0, text: 'Toque para editar', fontSize: 36, color: 'var(--text-primary)', align: 'left', weight: '600',
+      w, h, deg: 0, text: 'Toque para editar', fontSize: 36, color: '#1A1A1A', align: 'left', weight: '600',
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", opacity: 1, blend: 'normal',
     };
   }

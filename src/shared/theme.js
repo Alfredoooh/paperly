@@ -1,10 +1,71 @@
-import { darkPalette, lightPalette, getPalette, applyPaletteToRoot } from './colors.js';
+const lightVar = (name) => `var(${name})`;
 
-export const lightColors = lightPalette;
-export const darkColors = darkPalette;
+export const lightColors = {
+  background: lightVar('--app-bg'),
+  textPrimary: lightVar('--icon-strong'),
+  textSecondary: lightVar('--text-faint'),
+  textHint: lightVar('--text-faint'),
+  iconTint: lightVar('--icon-strong'),
+  iconTintSecondary: lightVar('--icon-faint'),
+  divider: lightVar('--border-soft'),
+  drawerBackground: lightVar('--drawer-bg'),
+  drawerText: lightVar('--drawer-text'),
+  bottomBarSolid: lightVar('--surface'),
+  dialogBackground: lightVar('--surface'),
+  sendBtnColor: lightVar('--accent-primary'),
+  sendIconColor: lightVar('--btn-solid-text'),
+  addCircleBg: lightVar('--btn-bg'),
+  tabPreviewPillBg: lightVar('--row-active'),
+  extrasCardActive: lightVar('--row-active'),
+  extrasCardActiveText: lightVar('--accent-primary'),
+  settings_section_label: lightVar('--text-faint'),
+  userBubbleBg: lightVar('--row-active'),
+  assistantBubbleBg: lightVar('--surface'),
+  authBtnBg: lightVar('--accent-primary'),
+  authBtnText: lightVar('--btn-solid-text'),
+  authInputFill: lightVar('--surface'),
+  appbarBtnBg: lightVar('--btn-bg'),
+  primary: lightVar('--accent-primary'),
+  appbarSurface: lightVar('--surface'),
+  docCanvasBg: lightVar('--app-bg'),
+  creationBarBg: lightVar('--surface'),
+  toolbarSolidBg: lightVar('--surface'),
+};
+
+export const darkColors = {
+  background: lightVar('--app-bg'),
+  textPrimary: lightVar('--icon-strong'),
+  textSecondary: lightVar('--text-faint'),
+  textHint: lightVar('--text-faint'),
+  iconTint: lightVar('--icon-strong'),
+  iconTintSecondary: lightVar('--icon-faint'),
+  divider: lightVar('--border-soft'),
+  drawerBackground: lightVar('--drawer-bg'),
+  drawerText: lightVar('--drawer-text'),
+  bottomBarSolid: lightVar('--surface'),
+  dialogBackground: lightVar('--surface'),
+  sendBtnColor: lightVar('--accent-primary'),
+  sendIconColor: lightVar('--btn-solid-text'),
+  addCircleBg: lightVar('--btn-bg'),
+  tabPreviewPillBg: lightVar('--row-active'),
+  extrasCardActive: lightVar('--row-active'),
+  extrasCardActiveText: lightVar('--accent-primary'),
+  settings_section_label: lightVar('--text-faint'),
+  userBubbleBg: lightVar('--row-active'),
+  assistantBubbleBg: lightVar('--surface'),
+  authBtnBg: lightVar('--accent-primary'),
+  authBtnText: lightVar('--btn-solid-text'),
+  authInputFill: lightVar('--surface-strong'),
+  appbarBtnBg: lightVar('--btn-bg'),
+  primary: lightVar('--accent-primary'),
+  appbarSurface: lightVar('--surface'),
+  docCanvasBg: lightVar('--app-bg'),
+  creationBarBg: lightVar('--surface'),
+  toolbarSolidBg: lightVar('--surface'),
+};
 
 export function getThemeColors(isDark) {
-  return getPalette(isDark);
+  return isDark ? darkColors : lightColors;
 }
 
 export function getTheme() {
@@ -23,9 +84,6 @@ export function syncTheme(isDark) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   const body = document.body;
-  
-  applyPaletteToRoot(isDark);
-  
   root.classList.toggle('dark', isDark);
   root.classList.toggle('light', !isDark);
   body.classList.toggle('dark', isDark);
@@ -34,7 +92,7 @@ export function syncTheme(isDark) {
   body.style.background = 'var(--app-bg)';
   body.style.color = 'var(--icon-strong)';
   
-  const bgColor = getComputedStyle(root).getPropertyValue('--app-bg').trim() || (isDark ? '#242424' : '#FAFAFA');
+  const bgColor = getComputedStyle(root).getPropertyValue('--app-bg').trim() || (isDark ? '#0F0F0F' : '#FFFFFF');
   syncStatusBar(isDark, bgColor);
   
   applySurfaceTone(getSurfaceTone(isDark), isDark);
@@ -72,6 +130,12 @@ if (typeof window !== 'undefined') {
     }
   };
 }
+
+// ══════════════════════════════════════════════════════════════════
+//  TOM DE SUPERFÍCIE CUSTOMIZÁVEL — por tema
+//  Guardado separadamente para light/dark; cada tema mantém a sua
+//  própria escolha mesmo trocando de tema.
+// ══════════════════════════════════════════════════════════════════
 
 const TONE_KEY_LIGHT = 'nexa_surface_tone_light';
 const TONE_KEY_DARK = 'nexa_surface_tone_dark';
@@ -111,15 +175,6 @@ export function setSurfaceTone(toneId, isDark) {
   const key = isDark ? TONE_KEY_DARK : TONE_KEY_LIGHT;
   localStorage.setItem(key, toneId);
   syncTheme(isDark);
-}
-
-export function resetSurfaceTone() {
-  localStorage.removeItem(TONE_KEY_LIGHT);
-  localStorage.removeItem(TONE_KEY_DARK);
-  const root = document.documentElement;
-  ['--app-bg', '--surface', '--surface-strong', '--drawer-bg', '--btn-bg'].forEach(v => {
-    root.style.removeProperty(v);
-  });
 }
 
 function applySurfaceTone(toneId, isDark) {

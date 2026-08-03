@@ -142,7 +142,7 @@
   .preview-hex { font-size:13px; font-weight:600; letter-spacing:.03em; }
   .sheet-actions { display:flex; gap:10px; padding-bottom:4px; }
   .btn-primary, .btn-secondary { flex:1; padding:12px 16px; border-radius:999px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; -webkit-tap-highlight-color:transparent; transition:transform .16s cubic-bezier(0.34,1.56,0.64,1); }
-  .btn-primary { background:var(--accent-primary); color:var(--text-on-accent); }
+  .btn-primary { background:#2F7BF6; color:#fff; }
   .btn-primary:active, .btn-secondary:active { transform:scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) { .overlay, .bottom-sheet { transition:none !important; } }

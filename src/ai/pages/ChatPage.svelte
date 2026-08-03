@@ -272,11 +272,11 @@
 
   function renderNativeTable(container, json) {
     const dark = _wIsDark();
-    const borderColor = 'var(--border)';
-    const bgColor = 'var(--bg-elevated)';
-    const headerBg = 'var(--bg-secondary)';
-    const textColor = 'var(--text-primary)';
-    const shadowColor = 'rgba(0,0,0,0.20)';
+    const borderColor = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.10)';
+    const bgColor = dark ? '#1b1b1b' : '#ffffff';
+    const headerBg = dark ? '#232323' : '#f4f4f4';
+    const textColor = dark ? '#f4f4f4' : '#222';
+    const shadowColor = dark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.08)';
     const wrap = document.createElement('div');
     wrap.style.cssText = `width:min(100%,560px);border-radius:6px;background:${bgColor};overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:6px auto;box-shadow:0 0 0 1px ${borderColor},0 6px 16px ${shadowColor};`;
     const table = document.createElement('table');
@@ -310,12 +310,12 @@
 
   function renderNativeBarChart(container, json) {
     const dark = _wIsDark();
-    const defaultColors = ['var(--accent-primary)','var(--danger)','var(--success)','var(--warning)','var(--accent-primary)','var(--success)','var(--danger)','var(--accent-primary)','var(--warning)','var(--accent-primary)'];
+    const defaultColors = ['#6F5AF6','#e74c3c','#27ae60','#f39c12','#3b82f6','#10b981','#ec4899','#8b5cf6','#f59e0b','#2f80ed'];
     const data = (json.data||json.bars||[]).map((d,i) => ({
       label: d.label||'?', value: typeof d.value==='number'?d.value:parseFloat(d.value)||0,
       color: d.color||defaultColors[i%defaultColors.length], unit: d.unit||''
     }));
-    const valueColor = 'var(--text-primary)', labelColor = 'var(--text-secondary)', legendColor = 'var(--text-secondary)';
+    const valueColor = dark?'#eee':'#333', labelColor = dark?'#aaa':'#666', legendColor = dark?'#ccc':'#444';
     const wrap = document.createElement('div');
     wrap.style.cssText = 'width:min(100%,500px);display:flex;flex-direction:column;align-items:center;gap:14px;margin:6px auto;';
     const chartEl = document.createElement('div');
@@ -343,7 +343,7 @@
   function renderNativePieChart(container, json) {
     const defaultColors = ['#2f80ed','#e74c3c','#27ae60','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e','#c0392b','#2980b9'];
     const dark = _wIsDark();
-    const legendColor = 'var(--text-secondary)';
+    const legendColor = dark?'#eee':'#333';
     const rawData = json.data||json.slices||[];
     const data = rawData.map((d,i) => ({
       label: d.label||'?', value: typeof d.value==='number'?d.value:parseFloat(d.value)||0,
@@ -389,7 +389,7 @@
       const txt=document.createElementNS(ns,'text');
       txt.setAttribute('x',tr*Math.cos(mid)); txt.setAttribute('y',tr*Math.sin(mid));
       txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
-      txt.style.cssText='font-size:12px;font-weight:bold;fill:var(--text-primary);pointer-events:none;';
+      txt.style.cssText='font-size:12px;font-weight:bold;fill:#fff;pointer-events:none;';
       txt.textContent=((item.value/total)*100).toFixed(1)+'%';
       g.appendChild(txt);
       const legItem=document.createElement('span');
@@ -403,14 +403,14 @@
 
   function renderNativeSheet(container, json) {
     const dark = _wIsDark();
-    const surface='var(--bg-elevated)', border='var(--border)', textClr='var(--text-primary)';
+    const surface=dark?'#1a1a1a':'#fffef8', border=dark?'#333':'#d6d6d6', textClr=dark?'#e8e8e8':'#222';
     const lines=json.lines||[];
     const wrap=document.createElement('div');
     wrap.style.cssText=`position:relative;width:min(92vw,640px);height:min(70vh,320px);border:1px solid ${border};background:${surface};box-shadow:0 8px 22px rgba(0,0,0,0.10);overflow:hidden;margin:6px auto;cursor:pointer;transition:width 0.4s cubic-bezier(0.2,0.9,0.3,1),height 0.4s cubic-bezier(0.2,0.9,0.3,1),border-radius 0.4s ease,box-shadow 0.4s ease;`;
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.style.cssText='display:block;width:100%;height:100%;touch-action:none;';
     const backBtn=document.createElement('button');
-    backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(0,0,0,0.45);color:var(--text-primary);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;`;
+    backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;`;
     backBtn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
     wrap.appendChild(svg); wrap.appendChild(backBtn); container.appendChild(wrap);
     const cfg={leftPad:72,rightPad:20,topPad:34,gap:32,textLift:10,minFont:10,maxFont:18,titleMaxFont:20};
@@ -435,13 +435,13 @@
         const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
         const y=i*cfg.gap;
         ln.setAttribute('x1',0);ln.setAttribute('y1',y);ln.setAttribute('x2',w);ln.setAttribute('y2',y);
-        ln.setAttribute('stroke','var(--border)');ln.setAttribute('stroke-width','1');
+        ln.setAttribute('stroke','rgba(95,145,255,0.16)');ln.setAttribute('stroke-width','1');
         ln.setAttribute('shape-rendering','crispEdges');contentGroup.appendChild(ln);
       }
       const marginX=cfg.leftPad-16;
       const mg=document.createElementNS('http://www.w3.org/2000/svg','line');
       mg.setAttribute('x1',marginX);mg.setAttribute('y1',0);mg.setAttribute('x2',marginX);mg.setAttribute('y2',contentHeight);
-      mg.setAttribute('stroke','var(--danger)');mg.setAttribute('stroke-width','1');
+      mg.setAttribute('stroke','rgba(255,90,90,0.20)');mg.setAttribute('stroke-width','1');
       mg.setAttribute('shape-rendering','crispEdges');contentGroup.appendChild(mg);
       lines.forEach((item,i)=>{
         const y=cfg.topPad+i*cfg.gap-cfg.textLift,isT=!!item.title;
@@ -474,10 +474,10 @@
 
   function renderNativeCodeBlock(container, json) {
     const dark=_wIsDark();
-    const widgetBg='var(--bg-elevated)', border='var(--border)', textColor='var(--text-primary)';
-    const lineNumClr='var(--text-tertiary)', headerText='var(--text-primary)';
-    const copyColor='var(--text-secondary)', copyHover='var(--text-primary)';
-    const feedbackBg='var(--bg-secondary)', feedbackTxt='var(--text-primary)';
+    const widgetBg=dark?'#1b1b1b':'#ffffff',border=dark?'#2f2f2f':'#d7d7d7',textColor=dark?'#e8e8e8':'#222222';
+    const lineNumClr=dark?'#7d7d7d':'#8a8a8a',headerText=dark?'#f2f2f2':'#2a2a2a';
+    const copyColor=dark?'#b0b0b0':'#5a5a5a',copyHover=dark?'#f2f2f2':'#2a2a2a';
+    const feedbackBg=dark?'rgba(245,245,245,0.92)':'rgba(20,20,20,0.92)',feedbackTxt=dark?'#1b1b1b':'#fff';
     const shadow=dark?'0 8px 24px rgba(0,0,0,0.18)':'0 8px 24px rgba(0,0,0,0.05)';
     const lang=(json.language||json.lang||'code').toLowerCase();
     const rawCode=String(json.code||json.content||json.text||'');
@@ -537,7 +537,7 @@
       .native-code-widget.theme-light .number{color:#0969da;}
       .native-code-widget.theme-light .tag{color:#0a7a2f;}
       .native-code-widget.theme-light .attr{color:#6f42c1;}
-      .native-code-widget.theme-light .operator{color:var(--text-primary);}
+      .native-code-widget.theme-light .operator{color:#555;}
     `);
     const widgetEl=document.createElement('div');
     widgetEl.className=`native-code-widget ${dark?'theme-dark':'theme-light'}`;
@@ -578,7 +578,7 @@
     const type=json.type||'forex',symbol=json.symbol||'USDEUR',name=json.name||symbol;
     const wrap=document.createElement('div');
     wrap.style.cssText='width:min(92vw,420px);background:#111318;border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.22);margin:6px auto;';
-    wrap.innerHTML=`<div id="mktStatus_${symbol}" style="text-align:center;padding:40px 16px;font-size:13px;color:var(--text-primary);font-family:Arial,sans-serif;"><div style="width:24px;height:24px;border:2px solid #222;border-top-color:#6F5AF6;border-radius:50%;animation:mktSpin 0.7s linear infinite;margin:0 auto 10px;"></div>A carregar...</div><div id="mktBlock_${symbol}" style="display:none;"><div style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 8px;"><div style="display:flex;align-items:center;gap:12px;"><img id="mktLogo_${symbol}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:#1e2128;" src="" alt="" onerror="this.style.display='none';document.getElementById('mktFallback_${symbol}').style.display='flex';" /><div id="mktFallback_${symbol}" style="width:44px;height:44px;border-radius:50%;background:#1e2128;display:none;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--text-on-accent);"></div><div><div id="mktName_${symbol}" style="font-size:15px;font-weight:700;color:var(--text-on-accent);font-family:Arial,sans-serif;"></div><div id="mktSym_${symbol}" style="font-size:12px;color:var(--text-primary);margin-top:2px;font-family:Arial,sans-serif;"></div></div></div><div style="text-align:right;"><div id="mktPrice_${symbol}" style="font-size:24px;font-weight:800;color:var(--text-on-accent);letter-spacing:-0.5px;font-family:Arial,sans-serif;"></div><div id="mktChange_${symbol}" style="display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;margin-top:4px;font-family:Arial,sans-serif;"></div></div></div><div style="padding:8px 10px 4px;"><canvas id="mktCanvas_${symbol}" style="width:100%;height:150px;display:block;border-radius:12px;"></canvas></div><div style="display:flex;justify-content:center;gap:4px;padding:8px 16px 16px;">${['1D','1S','1M','3M','1A'].map((tf,i)=>`<button onclick="mktSetTf_${symbol}(this,'${tf}')" style="background:${i===0?'#1e2128':'none'};border:none;color:${i===0?'#fff':'#444'};font-size:12px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:Arial,sans-serif;">${tf}</button>`).join('')}</div></div>`;
+    wrap.innerHTML=`<div id="mktStatus_${symbol}" style="text-align:center;padding:40px 16px;font-size:13px;color:#555;font-family:Arial,sans-serif;"><div style="width:24px;height:24px;border:2px solid #222;border-top-color:#6F5AF6;border-radius:50%;animation:mktSpin 0.7s linear infinite;margin:0 auto 10px;"></div>A carregar...</div><div id="mktBlock_${symbol}" style="display:none;"><div style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 8px;"><div style="display:flex;align-items:center;gap:12px;"><img id="mktLogo_${symbol}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:#1e2128;" src="" alt="" onerror="this.style.display='none';document.getElementById('mktFallback_${symbol}').style.display='flex';" /><div id="mktFallback_${symbol}" style="width:44px;height:44px;border-radius:50%;background:#1e2128;display:none;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;"></div><div><div id="mktName_${symbol}" style="font-size:15px;font-weight:700;color:#fff;font-family:Arial,sans-serif;"></div><div id="mktSym_${symbol}" style="font-size:12px;color:#555;margin-top:2px;font-family:Arial,sans-serif;"></div></div></div><div style="text-align:right;"><div id="mktPrice_${symbol}" style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;font-family:Arial,sans-serif;"></div><div id="mktChange_${symbol}" style="display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;margin-top:4px;font-family:Arial,sans-serif;"></div></div></div><div style="padding:8px 10px 4px;"><canvas id="mktCanvas_${symbol}" style="width:100%;height:150px;display:block;border-radius:12px;"></canvas></div><div style="display:flex;justify-content:center;gap:4px;padding:8px 16px 16px;">${['1D','1S','1M','3M','1A'].map((tf,i)=>`<button onclick="mktSetTf_${symbol}(this,'${tf}')" style="background:${i===0?'#1e2128':'none'};border:none;color:${i===0?'#fff':'#444'};font-size:12px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:Arial,sans-serif;">${tf}</button>`).join('')}</div></div>`;
     _ensureStyle('mktSpinStyle','@keyframes mktSpin { to { transform:rotate(360deg); } }');
     container.appendChild(wrap);
     const TF={'1D':{days:1,points:96,vol:0.003},'1S':{days:7,points:168,vol:0.005},'1M':{days:30,points:120,vol:0.008},'3M':{days:90,points:90,vol:0.010},'1A':{days:365,points:120,vol:0.015}};
@@ -732,7 +732,7 @@
     const btnRow=document.createElement('div');
     btnRow.style.cssText='display:flex;gap:12px;justify-content:center;';
     const startBtn=document.createElement('button');
-    startBtn.style.cssText=`padding:10px 28px;background:${primary};color:var(--text-on-accent);border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;`;
+    startBtn.style.cssText=`padding:10px 28px;background:${primary};color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;`;
     startBtn.textContent='Iniciar';
     const resetBtn=document.createElement('button');
     resetBtn.style.cssText=`padding:10px 20px;background:${bdr};color:${textClr};border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;`;
@@ -755,7 +755,7 @@
     const svg=document.createElementNS(svgNs,'svg');svg.style.cssText='width:100%;height:100%;display:block;';
     const mainG=document.createElementNS(svgNs,'g');svg.appendChild(mainG);wrap.appendChild(svg);
     const backBtn=document.createElement('button');
-    backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;background:rgba(0,0,0,0.45);color:var(--text-primary);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;`;
+    backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;background:rgba(0,0,0,0.45);color:#fff;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;`;
     backBtn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
     wrap.appendChild(backBtn);container.appendChild(wrap);
     const treeData=json.tree||json.data||{id:'root',label:json.title||'Root',color:'var(--accent-primary)',children:[]};
@@ -769,7 +769,7 @@
     function render(){
       nodePositions=layout(treeData,0,0);mainG.innerHTML='';
       function drawLinks(node){if(!collapsedNodes[node.id]&&node.children){node.children.forEach(child=>{const fr=nodePositions[node.id],to=nodePositions[child.id];if(fr&&to){const path=document.createElementNS(svgNs,'path');const dx=to.x-fr.x;path.setAttribute('d',`M${fr.x},${fr.y} C${fr.x+dx*0.5},${fr.y} ${to.x-dx*0.5},${to.y} ${to.x},${to.y}`);path.setAttribute('fill','none');path.setAttribute('stroke',linkClr);path.setAttribute('stroke-width','1.8');path.setAttribute('stroke-linecap','round');mainG.appendChild(path);}drawLinks(child);});}}
-      function drawNodes(node){if(!nodePositions[node.id])return;const{x,y}=nodePositions[node.id];const g=document.createElementNS(svgNs,'g');g.setAttribute('transform',`translate(${x},${y})`);const textLen=(node.label||'').length*7+24,rW=Math.max(70,textLen);const rect=document.createElementNS(svgNs,'rect');rect.setAttribute('x',-rW/2);rect.setAttribute('y',-nodeH/2);rect.setAttribute('width',rW);rect.setAttribute('height',nodeH);rect.setAttribute('fill',node.color||'var(--accent-primary)');rect.setAttribute('rx','8');const text=document.createElementNS(svgNs,'text');text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','central');text.style.cssText='fill:var(--text-on-accent);font-size:12px;font-weight:600;pointer-events:none;';text.textContent=node.label;g.appendChild(rect);g.appendChild(text);g.style.cursor='pointer';g.onclick=(e)=>{e.stopPropagation();if(node.children?.length){collapsedNodes[node.id]=!collapsedNodes[node.id];render();fit();}};mainG.appendChild(g);if(!collapsedNodes[node.id]&&node.children)node.children.forEach(drawNodes);}
+      function drawNodes(node){if(!nodePositions[node.id])return;const{x,y}=nodePositions[node.id];const g=document.createElementNS(svgNs,'g');g.setAttribute('transform',`translate(${x},${y})`);const textLen=(node.label||'').length*7+24,rW=Math.max(70,textLen);const rect=document.createElementNS(svgNs,'rect');rect.setAttribute('x',-rW/2);rect.setAttribute('y',-nodeH/2);rect.setAttribute('width',rW);rect.setAttribute('height',nodeH);rect.setAttribute('fill',node.color||'var(--accent-primary)');rect.setAttribute('rx','8');const text=document.createElementNS(svgNs,'text');text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','central');text.style.cssText='fill:#fff;font-size:12px;font-weight:600;pointer-events:none;';text.textContent=node.label;g.appendChild(rect);g.appendChild(text);g.style.cursor='pointer';g.onclick=(e)=>{e.stopPropagation();if(node.children?.length){collapsedNodes[node.id]=!collapsedNodes[node.id];render();fit();}};mainG.appendChild(g);if(!collapsedNodes[node.id]&&node.children)node.children.forEach(drawNodes);}
       drawLinks(treeData);drawNodes(treeData);applyTransform();
     }
     function setExpanded(value){
@@ -853,7 +853,7 @@
     const mapDiv=document.createElement('div');mapDiv.id=uid;mapDiv.style.cssText='width:100%;height:100%;background:#c8d6e5;';
     const overlay=document.createElement('div');overlay.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;';
     const backBtn=document.createElement('button');
-    backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,0.85);backdrop-filter:blur(10px);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;box-shadow:0 2px 8px rgba(0,0,0,0.1);`;
+    backBtn.style.cssText=`position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,0.85);backdrop-filter:blur(10px);color:#333;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;pointer-events:none;transition:opacity 0.25s ease;box-shadow:0 2px 8px rgba(0,0,0,0.1);`;
     backBtn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
     wrap.appendChild(mapDiv);wrap.appendChild(overlay);wrap.appendChild(backBtn);container.appendChild(wrap);
     let isExpanded=false,mapInstance=null;
@@ -1488,7 +1488,7 @@
       {/if}
       <div class="cd-actions">
         <button class="cd-btn cd-cancel" style="color:{c.textPrimary}" on:click={() => showCenterDialog=false}>Cancelar</button>
-        <button class="cd-btn cd-confirm" style="background:{c.primary};color:var(--text-on-accent)" on:click={centerDialogMode==='rename'?confirmRename:confirmEditMsg}>
+        <button class="cd-btn cd-confirm" style="background:{c.primary};color:#fff" on:click={centerDialogMode==='rename'?confirmRename:confirmEditMsg}>
           {centerDialogMode==='rename'?'Guardar':'Guardar e reenviar'}
         </button>
       </div>
@@ -1609,18 +1609,18 @@
     transition:background-color .3s ease, box-shadow .3s ease;
     user-select:none; overscroll-behavior:none;
   }
-  .bottom-bar.light { background: var(--bg-elevated); box-shadow:0 4px 24px rgba(0,0,0,.08); }
+  .bottom-bar.light { background:#FFFFFF; box-shadow:0 4px 24px rgba(0,0,0,.08); }
   .bottom-bar.dark  { background:#1F1F1F; box-shadow:0 4px 24px rgba(0,0,0,.30); }
   .chat-input { resize:none; outline:none; border:none; background:transparent; font-size:15px; line-height:1.5; padding:12px 18px 0; width:100%; font-family:inherit; -webkit-user-select:text; user-select:text; max-height:150px; overflow-y:auto; }
   .chat-input:not(.dark) { color:#1F2937; }
   .chat-input.dark { color:#F3F4F6; }
-  .chat-input:not(.dark)::placeholder { color:var(--text-tertiary); }
+  .chat-input:not(.dark)::placeholder { color:#9A9A9A; }
   .chat-input.dark::placeholder { color:#B6B6B6; }
   .att-preview { display:flex; gap:8px; padding:10px 14px 0; flex-wrap:wrap; }
   .att-preview-item { position:relative; flex-shrink:0; }
   .att-preview-img { width:56px; height:56px; object-fit:cover; border-radius:10px; }
   .att-preview-file { width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
-  .att-remove { position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background: var(--bg-elevated); border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .att-remove { position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#000; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
   .bb-row { display:flex; align-items:center; height:52px; padding:0 10px; }
   .add-btn { width:40px; height:40px; margin-left:4px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:none; cursor:pointer; }
   .edit-btn { display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:20px; border:none; cursor:pointer; }
@@ -1633,7 +1633,7 @@
     position:fixed; z-index:161;
     width:220px;
     border-radius:14px; overflow:hidden;
-    background: var(--bg-elevated);
+    background:#fff;
     box-shadow:0 8px 30px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.08);
     transform-origin:bottom right;
     animation:appsPopupIn .26s cubic-bezier(0.34,1.56,0.64,1) both;
@@ -1661,7 +1661,7 @@
   .apps-popup-row.dark:active { background:rgba(255,255,255,.05); }
   .apps-popup-icon { width:22px; height:22px; border-radius:6px; object-fit:cover; flex-shrink:0; }
   .apps-popup-label { flex:1; font-size:15px; font-weight:400; color:#000; text-align:left; }
-  .apps-popup-label.dark { color:var(--text-on-accent); }
+  .apps-popup-label.dark { color:#fff; }
 
   .sheet-title { padding:4px 20px 12px; font-size:17px; font-weight:700; }
   .sheet-row { display:flex; align-items:center; padding:14px 20px; }
@@ -1685,7 +1685,7 @@
   .cd-cancel { background:rgba(127,127,127,.14); }
 
   .rec-overlay { position:fixed; inset:0; z-index:300; background:var(--app-bg); display:flex; flex-direction:column; overflow:hidden; }
-  .rec-overlay.dark { background: var(--bg-elevated); }
+  .rec-overlay.dark { background:#0F0F0F; }
   .rec-top-bar { position:absolute; top:0; left:0; right:0; height:72px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; z-index:10; }
   .rec-top-btn { width:46px; height:46px; border-radius:50%; border:none; background:rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
   .rec-overlay.dark .rec-top-btn { background:rgba(255,255,255,.12); }

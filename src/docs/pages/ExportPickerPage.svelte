@@ -284,7 +284,7 @@
   .permission-text { font-size: 14px; line-height: 1.5; }
   .primary-btn {
     border: none; border-radius: 999px; padding: 14px 28px;
-    background: var(--accent-primary, var(--accent-primary)); color: var(--text-on-accent);
+    background: var(--accent-primary, var(--accent-primary)); color: #fff;
     font-size: 15px; font-weight: 700; cursor: pointer;
   }
 
@@ -362,7 +362,7 @@
   .confirm-bar { padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 20px); flex-shrink: 0; }
   .confirm-btn {
     width: 100%; border: none; border-radius: 999px; padding: 15px;
-    background: var(--accent-primary, var(--accent-primary)); color: var(--text-on-accent);
+    background: var(--accent-primary, var(--accent-primary)); color: #fff;
     font-size: 15px; font-weight: 700; cursor: pointer;
   }
   .confirm-btn:disabled { opacity: 0.6; }

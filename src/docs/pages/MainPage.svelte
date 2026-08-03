@@ -36,11 +36,37 @@
   const STORAGE_PREFIX = 'docs_';
   const CUSTOM_COLORS_KEY = STORAGE_PREFIX + 'custom_colors';
 
+  // ── Conteúdo pendente vindo do Assistente de IA ─────────────────
+  // Quando o utilizador prime "Aplicar" num cartão de documento
+  // gerado pela IA (ver ai/pages/ChatPage.svelte -> renderNativeAppContent
+  // -> applyDocsContent), o chat grava aqui um payload {title, html}
+  // em sessionStorage e navega para /docs/ SEM resourceId, o que faz
+  // loadOrCreateDoc() criar sempre um documento novo — exatamente
+  // como qualquer outro documento novo criado a partir do zero, só
+  // que já vem com o conteúdo da IA lá dentro em vez de vazio.
+  const PENDING_APPLY_KEY = 'nexa_pending_apply_docs';
+
+  function readPendingApply() {
+    try {
+      const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
+      if (!raw) return null;
+      sessionStorage.removeItem(PENDING_APPLY_KEY);
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.html !== 'string') return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+
   let docPageComp;
   let docName = 'Documento sem título';
   let docId = resourceId || null;
   let saveTimeout;
   let savedState = 'saved';
+
+  // Guardado à parte de loadOrCreateDoc() para o onMount poder
+  // injetar o HTML pendente no editor DEPOIS do DocPage estar
+  // montado (initialContent só é lido na criação do componente).
+  let pendingApplyPayload = null;
 
   function loadOrCreateDoc() {
     if (resourceId) {
@@ -56,6 +82,17 @@
     }
     docId = resourceId || ('doc_' + Date.now().toString(36));
     docName = 'Documento sem título';
+
+    // Sem resourceId (documento novo) é exatamente o cenário em que
+    // um pedido de aplicação vindo da IA deve ser consumido: se
+    // existir, este documento novo nasce já com esse conteúdo.
+    if (!resourceId) {
+      pendingApplyPayload = readPendingApply();
+      if (pendingApplyPayload) {
+        docName = pendingApplyPayload.title || docName;
+        return pendingApplyPayload.html || '';
+      }
+    }
     return '';
   }
 
@@ -86,6 +123,16 @@
     // --kb-offset, que só a BottomToolbar/CreationToolsBar leem via
     // transform. Menos código a reagir ao teclado = menos formas de
     // ele saltar.
+
+    // Se este documento nasceu a partir de um cartão "Aplicar" da IA,
+    // persistimos imediatamente para o doc aparecer logo na lista de
+    // documentos (DocumentsTab/home) e avisamos o utilizador com um
+    // toast, tal como qualquer outra ação bem-sucedida na app.
+    if (pendingApplyPayload) {
+      persist();
+      showToast('Documento aplicado com sucesso');
+      pendingApplyPayload = null;
+    }
   });
 
   function getEditorHTML() { return docPageComp ? docPageComp.getContent() : ''; }
@@ -228,390 +275,282 @@
     }));
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  ESTADO DE EDIÇÃO — isEditing controla TANTO o appbar (que grupo
-  //  de botões aparece à esquerda/direita) COMO qual bottom bar
-  //  aparece.
-  //  O appbar é 100% ESTÁTICO — nunca sobe, nunca desce, nunca
-  //  desaparece, independentemente do teclado ou de qualquer ação.
-  //  Fica sempre fixo no topo do ecrã. Só a bottom bar
-  //  (BottomToolbar/CreationToolsBar) reage ao teclado, exatamente
-  //  como no ChatPage.svelte: só o input/toolbar sobe, o appbar
-  //  fica parado.
-  // ══════════════════════════════════════════════════════════════════
+  let activePageIndex = 0;
+  let totalPages = 1;
+  let showDocMenu = false;
+  let docMenuAnchor = null;
+  let docMenuBtnEl;
+  let showDeleteConfirm = false;
+  let fileInputEl;
+  let footnotes = [];
+  let linkUrlDraft = '';
+  let footnoteDraft = '';
+  let exportPickerVisible = false;
+  let exportPickerMode = 'export';
+  let exportSlideX = createSlideTransition({});
+
   let isEditing = false;
 
-  function handlePageFocus() { if (!isEditing) isEditing = true; }
-
-  function confirmDoneEditing() {
-    buzz();
-    docPageComp && docPageComp.blurEditor();
-    docPageComp && docPageComp.deselectFloat();
-    activePanel = null;
-    designModalOpen = false;
+  function enterEditing() {
+    isEditing = true;
     activeToolbarGroup = 'base';
+    requestAnimationFrame(() => focusEditor());
+  }
+  function exitEditing() {
     isEditing = false;
+    activeToolbarGroup = 'base';
+    docPageComp && docPageComp.blurEditor();
+    activePanel = null;
   }
 
-  function handleAppbarLeftAction() {
-    buzz();
-    if (isEditing) { confirmDoneEditing(); return; }
-    dispatch('nav', { to: 'home' });
+  function setupKeyboardAvoidance() {
+    if (!window.visualViewport) return;
+    const vv = window.visualViewport;
+    function applyOffset() {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--kb-offset', offset + 'px');
+    }
+    vv.addEventListener('resize', applyOffset);
+    vv.addEventListener('scroll', applyOffset);
+    applyOffset();
   }
 
-  function handleToolbarAction(id) {
-    buzz();
-    if (id === 'done') { confirmDoneEditing(); return; }
-    if (id === 'undo') { undo(); return; }
-    if (id === 'redo') { redo(); return; }
-    if (id === 'bold') { exec('bold'); return; }
-    if (id === 'italic') { exec('italic'); return; }
-    if (id === 'underline') { exec('underline'); return; }
-    if (id === 'strikethrough') { exec('strikeThrough'); return; }
-    if (id === 'color' || id === 'fontcolor') { colorModalOpen = true; return; }
-    if (id === 'link') { openLinkPanel(); return; }
-    if (id === 'footnote') { openFootnotePanel(); return; }
-    if (id === 'insert') { triggerImagePicker(); return; }
-    if (id === 'table') { tableModalOpen = true; return; }
-    if (id === 'layers') { refreshLayers(); layersModalOpen = true; return; }
-    if (id === 'design') { designModalOpen = true; return; }
-    activePanel = id;
+  function handlePageFocusFromChild(e) {
+    activePageIndex = e.detail;
+    refreshLayers();
   }
 
-  function handleToolbarGroupChange(id) {
-    activeToolbarGroup = id;
+  function handleImageRequestEdit(e) {
+    refreshLayers();
   }
 
-  function handleCreationToolAction(id) {
-    buzz();
-    if (id === 'edit') { isEditing = true; requestAnimationFrame(() => focusEditor()); return; }
-    if (id === 'devicelayout') { showToast('Vista para dispositivo em breve'); return; }
-    if (id === 'headings') { showToast('Cabeçalhos em breve'); return; }
-    if (id === 'share') { openExport('share'); return; }
-    if (id === 'readaloud') { showToast('Ler em voz alta em breve'); return; }
-  }
-
-  function handleDesignSelect(e) {
-    activeDesignTool = e.detail;
-    designModalOpen = false;
-    showToast('Ferramenta selecionada');
+  function handleToolbarGroupChange(detail) {
+    activeToolbarGroup = detail;
   }
 
   function closeFormatModal() { activePanel = null; }
 
-  function setFont(value) { exec('fontName', value); activePanel = null; }
+  function setFont(font) { exec('fontName', font); }
   function setSize(px) {
     focusEditor();
     document.execCommand('fontSize', false, '7');
+    scheduleSave();
     docPageComp && docPageComp.normalizeFontSizeMarkers(px);
+    pushHistory();
+  }
+  function setAlign(align) {
+    const map = { left: 'justifyLeft', center: 'justifyCenter', right: 'justifyRight', justify: 'justifyFull' };
+    exec(map[align] || 'justifyLeft');
+  }
+  function setList(kind) {
+    exec(kind === 'ordered' ? 'insertOrderedList' : 'insertUnorderedList');
+  }
+
+  function confirmInsertLink(e) {
+    const url = (e.detail || '').trim();
+    if (!url) { activePanel = null; return; }
+    focusEditor();
+    document.execCommand('createLink', false, url);
+    docPageComp && docPageComp.tagLinksWithHref(url);
     scheduleSave();
     pushHistory(true);
     activePanel = null;
   }
-  function setAlign(cmd) { exec(cmd); activePanel = null; }
-  function setList(cmd) { exec(cmd); activePanel = null; }
+  function removeLink() {
+    focusEditor();
+    document.execCommand('unlink');
+    scheduleSave();
+    pushHistory(true);
+    activePanel = null;
+  }
+
+  function confirmInsertFootnote(e) {
+    const text = (e.detail || '').trim();
+    if (!text) { activePanel = null; return; }
+    const id = 'fn' + (footnotes.length + 1) + '_' + Date.now().toString(36);
+    footnotes = [...footnotes, { id, text }];
+    focusEditor();
+    document.execCommand('insertHTML', false, `<sup data-footnote-id="${id}">[${footnotes.length}]</sup>`);
+    scheduleSave();
+    pushHistory(true);
+    activePanel = null;
+  }
+
+  function removeFootnote(id) {
+    footnotes = footnotes.filter(f => f.id !== id);
+    docPageComp && docPageComp.removeFootnoteRef(id);
+    scheduleSave();
+  }
+
+  function selectColor(hex) {
+    if (colorPickerTargetIsHighlight) {
+      focusEditor();
+      document.execCommand('hiliteColor', false, hex === 'transparent' ? 'transparent' : hex);
+      highlightHex = hex === 'transparent' ? null : hex;
+    } else {
+      focusEditor();
+      document.execCommand('foreColor', false, hex);
+      fontColorHex = hex;
+    }
+    scheduleSave();
+    pushHistory(true);
+    colorModalOpen = false;
+  }
+
+  let colorPickerTargetIsHighlight = false;
+  function requestAddColor() {
+    colorModalOpen = false;
+    colorPickerOpen = true;
+  }
+  function confirmCustomColor(hex) {
+    customColors = [hex, ...customColors.filter(c => c !== hex)].slice(0, 12);
+    persistCustomColors();
+    colorPickerOpen = false;
+    selectColor(hex);
+  }
+  function cancelCustomColor() { colorPickerOpen = false; }
 
   function insertImage(e) {
-    const file = e.target.files?.[0];
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      docPageComp && docPageComp.insertImageAtCursor(ev.target.result);
+    reader.onload = () => {
+      docPageComp && docPageComp.insertImageAtCursor(reader.result);
       scheduleSave();
       pushHistory(true);
+      refreshLayers();
     };
     reader.readAsDataURL(file);
     e.target.value = '';
   }
 
-  function handleImageRequestEdit(e) {
-    refreshLayers();
-    layersModalOpen = true;
+  function insertTable(detail) {
+    docPageComp && docPageComp.insertTable(detail.rows, detail.cols);
+    scheduleSave();
+    pushHistory(true);
+    tableModalOpen = false;
   }
 
   function handleLayerSelect(e) {
-    const [pageIndexStr, objIdStr] = String(e.detail).split(':');
-    docPageComp && docPageComp.selectFloatById(Number(pageIndexStr), Number(objIdStr));
-    layersModalOpen = false;
+    const { pageIndex, objId } = e.detail;
+    docPageComp && docPageComp.selectFloatById(pageIndex, objId);
   }
-
   function handleLayerDelete(e) {
-    const [pageIndexStr, objIdStr] = String(e.detail).split(':');
-    docPageComp && docPageComp.deleteImage({ pageIndex: Number(pageIndexStr), objId: Number(objIdStr) });
-    scheduleSave();
-    pushHistory(true);
+    const { pageIndex, objId } = e.detail;
+    docPageComp && docPageComp.deleteImage({ pageIndex, objId });
     refreshLayers();
-    if (currentPageLayers.length === 0) layersModalOpen = false;
   }
 
-  function insertTable(e) {
-    const { rows, cols } = e.detail;
-    docPageComp && docPageComp.insertTable(rows, cols);
-    tableModalOpen = false;
-    scheduleSave();
-    pushHistory(true);
+  function handleDesignSelect(e) {
+    designModalOpen = false;
+    activeDesignTool = null;
+    showToast('Modelo aplicado');
   }
 
-  function selectColor(hex) {
-    exec('foreColor', hex);
-    fontColorHex = hex;
-    colorModalOpen = false;
-  }
-  function requestAddColor() { colorModalOpen = false; colorPickerOpen = true; }
-  function confirmCustomColor(hex) {
-    if (!customColors.includes(hex)) { customColors = [...customColors, hex]; persistCustomColors(); }
-    colorPickerOpen = false;
-    colorModalOpen = true;
-  }
-  function cancelCustomColor() { colorPickerOpen = false; colorModalOpen = true; }
-
-  let linkUrlDraft = '';
-  let savedSelectionRange = null;
-
-  function openLinkPanel() {
-    focusEditor();
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount && !sel.isCollapsed) {
-      savedSelectionRange = sel.getRangeAt(0).cloneRange();
-    } else { savedSelectionRange = null; }
-    linkUrlDraft = '';
-    activePanel = 'link';
-  }
-  function restoreSelection() {
-    if (!savedSelectionRange) return;
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(savedSelectionRange);
-  }
-  function confirmInsertLink() {
-    const url = linkUrlDraft.trim();
-    if (!url) return;
-    focusEditor();
-    restoreSelection();
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) {
-      document.execCommand('insertHTML', false,
-        `<a href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
-    } else {
-      document.execCommand('createLink', false, url);
-      docPageComp && docPageComp.tagLinksWithHref(url);
-    }
-    scheduleSave(); pushHistory(true);
-    linkUrlDraft = ''; savedSelectionRange = null; activePanel = null;
-  }
-  function removeLink() {
-    focusEditor(); restoreSelection();
-    document.execCommand('unlink');
-    scheduleSave(); pushHistory(true); activePanel = null;
-  }
-  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function escapeAttr(str) { return escapeHtml(str).replace(/"/g,'&quot;'); }
-
-  let footnotes = [];
-  let footnoteDraft = '';
-  let footnoteCounter = 0;
-
-  function openFootnotePanel() { focusEditor(); footnoteDraft = ''; activePanel = 'footnote'; }
-  function confirmInsertFootnote() {
-    const text = footnoteDraft.trim();
-    if (!text) return;
-    focusEditor();
-    footnoteCounter += 1;
-    const num = footnoteCounter;
-    const noteId = 'fn' + num + '_' + Date.now().toString(36);
-    footnotes = [...footnotes, { id: noteId, num, text }];
-    document.execCommand('insertHTML', false,
-      `<sup class="footnote-ref" data-footnote-id="${noteId}">${num}</sup>`);
-    scheduleSave(); pushHistory(true);
-    footnoteDraft = ''; activePanel = null;
-  }
-  function removeFootnote(id) {
-    footnotes = footnotes.filter(f => f.id !== id);
-    docPageComp && docPageComp.removeFootnoteRef(id);
-    scheduleSave(); pushHistory(true);
+  function handleCreationToolAction(action) {
+    if (action === 'edit') { enterEditing(); return; }
+    if (action === 'table') { tableModalOpen = true; return; }
+    if (action === 'image') { fileInputEl && fileInputEl.click(); return; }
+    if (action === 'layers') { refreshLayers(); layersModalOpen = true; return; }
+    if (action === 'design') { designModalOpen = true; return; }
   }
 
-  let fileInputEl;
-  function triggerImagePicker() { fileInputEl?.click(); }
+  function handleToolbarAction(action) {
+    const { type, value } = action || {};
+    if (type === 'exit') { exitEditing(); return; }
+    if (type === 'bold') { exec('bold'); return; }
+    if (type === 'italic') { exec('italic'); return; }
+    if (type === 'underline') { exec('underline'); return; }
+    if (type === 'strike') { exec('strikeThrough'); return; }
+    if (type === 'font') { activePanel = 'font'; return; }
+    if (type === 'size') { activePanel = 'size'; return; }
+    if (type === 'align') { activePanel = 'align'; return; }
+    if (type === 'list') { activePanel = 'list'; return; }
+    if (type === 'color') { colorPickerTargetIsHighlight = false; colorModalOpen = true; return; }
+    if (type === 'highlight') { colorPickerTargetIsHighlight = true; colorModalOpen = true; return; }
+    if (type === 'link') { activePanel = 'link'; return; }
+    if (type === 'footnote') { activePanel = 'footnote'; return; }
+    if (type === 'table') { tableModalOpen = true; return; }
+    if (type === 'image') { fileInputEl && fileInputEl.click(); return; }
+    if (type === 'undo') { undo(); return; }
+    if (type === 'redo') { redo(); return; }
+  }
 
   function handleKeydown(e) {
-    const mod = e.metaKey || e.ctrlKey;
-    if (!mod) return;
-    const key = e.key.toLowerCase();
-    if (key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-    else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) { e.preventDefault(); redo(); return; }
+    scheduleSave();
+    pushHistory();
   }
-
-  // ══════════════════════════════════════════════════════════════════
-  //  KEYBOARD AVOIDANCE — versão mínima, igual em espírito ao
-  //  setupKeyboard() do ChatPage.svelte (referência que o utilizador
-  //  deu como "certo"): window.visualViewport é a ÚNICA fonte de
-  //  verdade, --kb-offset é a ÚNICA variável escrita, e SÓ a
-  //  BottomToolbar/CreationToolsBar leem essa variável via
-  //  transform. O appbar não tem NENHUMA linha de código, em lado
-  //  nenhum deste ficheiro, que o ligue ao teclado — por isso não
-  //  há forma de ele saltar.
-  //
-  //  --app-vh deixou de existir por completo — já não é necessário,
-  //  porque .root usa 100dvh diretamente no CSS (ver <style> abaixo),
-  //  que já lida nativamente com a barra de UI do Android/iOS sem
-  //  nenhum JS a recalcular nada.
-  // ══════════════════════════════════════════════════════════════════
-  let kbOffset = 0;
-  let kbUpdateRaf = null;
-  let vvRef = null;
-
-  function computeKbOffset() {
-    const vv = window.visualViewport;
-    if (!vv) { kbOffset = 0; return; }
-    const overlap = window.innerHeight - (vv.height + vv.offsetTop);
-    kbOffset = overlap > 40 ? Math.round(overlap) : 0;
-    document.documentElement.style.setProperty('--kb-offset', `${kbOffset}px`);
-  }
-  function scheduleKbUpdate() {
-    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
-    kbUpdateRaf = requestAnimationFrame(computeKbOffset);
-  }
-
-  function setupKeyboardAvoidance() {
-    computeKbOffset();
-    vvRef = window.visualViewport;
-    if (vvRef) {
-      vvRef.addEventListener('resize', scheduleKbUpdate);
-      vvRef.addEventListener('scroll', scheduleKbUpdate);
-    }
-  }
-
-  let activePageIndex = 0;
-  let totalPages = 1;
-
-  function handlePageFocusFromChild(e) { activePageIndex = e.detail; handlePageFocus(); }
-
-  const mainRecoil = createBackRecoilTransition();
-  let mainRecoilValue = 0;
-  const unsubscribeMainRecoil = mainRecoil.subscribe((v) => { mainRecoilValue = v; });
-
-  const exportSlide = createSlideTransition({});
-  let exportSlideX = 100;
-  const unsubscribeExportSlide = exportSlide.subscribe((v) => { exportSlideX = v; });
-
-  let exportPickerOpen = false;
-  let exportPickerVisible = false;
-  let exportPickerMode = 'export';
-  let exportNavToken = 0;
-
-  function openExport(mode) {
-    exportPickerMode = mode;
-    exportNavToken += 1;
-    const token = exportNavToken;
-    exportPickerVisible = true;
-    exportPickerOpen = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (exportNavToken !== token) return;
-      exportSlide.open();
-      mainRecoil.recoil();
-    }));
-  }
-
-  function closeExportPicker() {
-    exportNavToken += 1;
-    const token = exportNavToken;
-    exportSlide.close();
-    mainRecoil.reset();
-    setTimeout(() => {
-      if (exportNavToken !== token) return;
-      exportPickerOpen = false;
-      exportPickerVisible = false;
-    }, 340);
-  }
-
-  $: mainRecoilTranslate = -8 * mainRecoilValue;
-  $: mainRecoilScale = 1 - 0.02 * mainRecoilValue;
-  $: mainTransformStyle = `transform: translate3d(${mainRecoilTranslate}%, 0, 0) scale(${mainRecoilScale});`;
-
-  onDestroy(() => {
-    if (vvRef) {
-      vvRef.removeEventListener('resize', scheduleKbUpdate);
-      vvRef.removeEventListener('scroll', scheduleKbUpdate);
-    }
-    if (kbUpdateRaf) cancelAnimationFrame(kbUpdateRaf);
-    clearTimeout(saveTimeout);
-    clearTimeout(historyDebounce);
-    unsubscribeMainRecoil?.();
-    unsubscribeExportSlide?.();
-    mainRecoil.destroy?.();
-    exportSlide.destroy?.();
-  });
-
-  let showDocMenu = false;
-  let docMenuBtnEl;
-  let docMenuAnchor = { top: 0, right: 0 };
 
   function openDocMenu() {
-    buzz();
-    if (docMenuBtnEl) {
-      const r = docMenuBtnEl.getBoundingClientRect();
-      docMenuAnchor = { top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) };
-    }
+    docMenuAnchor = docMenuBtnEl;
     showDocMenu = true;
   }
   function closeDocMenu() { showDocMenu = false; }
 
   function handleDocMenuSelect(e) {
-    const id = e.detail;
+    const action = e.detail;
     showDocMenu = false;
-    if (id === 'duplicate') duplicateDoc();
-    else if (id === 'share') openExport('share');
-    else if (id === 'export') openExport('export');
-    else if (id === 'delete') askDeleteDoc();
-  }
-
-  function duplicateDoc() {
-    const raw = localStorage.getItem(STORAGE_PREFIX + docId);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
+    if (action === 'rename') {
+      setTimeout(() => {
+        const input = document.querySelector('.doc-name-input');
+        if (input) { input.focus(); input.select(); }
+      }, 200);
+      return;
+    }
+    if (action === 'delete') { showDeleteConfirm = true; return; }
+    if (action === 'export') { exportPickerMode = 'export'; exportPickerVisible = true; setSuppressRouterPopstate(true); return; }
+    if (action === 'print') { exportPickerMode = 'print'; exportPickerVisible = true; setSuppressRouterPopstate(true); return; }
+    if (action === 'duplicate') {
       const newId = 'doc_' + Date.now().toString(36);
-      const payload = { name: parsed.name + ' (cópia)', content: parsed.content, updatedAt: Date.now() };
-      localStorage.setItem(STORAGE_PREFIX + newId, JSON.stringify(payload));
-      const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
-      const index = indexRaw ? JSON.parse(indexRaw) : [];
-      index.push({ id: newId, name: payload.name, updatedAt: payload.updatedAt });
-      localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
-      showToast('Documento duplicado');
-    } catch (e) { showToast('Não foi possível duplicar'); }
+      const payload = { name: docName + ' (cópia)', content: getEditorHTML(), updatedAt: Date.now() };
+      try {
+        localStorage.setItem(STORAGE_PREFIX + newId, JSON.stringify(payload));
+        const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
+        const index = indexRaw ? JSON.parse(indexRaw) : [];
+        index.push({ id: newId, name: payload.name, updatedAt: payload.updatedAt });
+        localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index));
+        showToast('Documento duplicado');
+      } catch (err) {}
+      return;
+    }
   }
 
-  let showDeleteConfirm = false;
-  function askDeleteDoc() { showDeleteConfirm = true; }
   function cancelDeleteDoc() { showDeleteConfirm = false; }
   function confirmDeleteDoc() {
+    showDeleteConfirm = false;
     try {
       localStorage.removeItem(STORAGE_PREFIX + docId);
       const indexRaw = localStorage.getItem(STORAGE_PREFIX + 'index');
       const index = indexRaw ? JSON.parse(indexRaw) : [];
       localStorage.setItem(STORAGE_PREFIX + 'index', JSON.stringify(index.filter(d => d.id !== docId)));
     } catch (e) {}
-    showDeleteConfirm = false;
     dispatch('nav', { to: 'home' });
   }
+
+  function closeExportPicker() {
+    exportPickerVisible = false;
+    setSuppressRouterPopstate(false);
+  }
+
+  onDestroy(() => {
+    clearTimeout(saveTimeout);
+    clearTimeout(historyDebounce);
+    if (savedState !== 'saved') persist();
+  });
 </script>
 
-<div
-  class="root"
-  style="background:{c.background};color:{c.textPrimary};{mainTransformStyle}"
->
-  <div class="appbar" style="background:{c.background};border-bottom:0.5px solid {c.divider};color:{c.textPrimary};">
-    <button class="appbar-btn" on:click={handleAppbarLeftAction} aria-label={isEditing ? 'Concluir edição' : 'Fechar'}>
-      {#if isEditing}
-        <span class="icon-mask" style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
-      {:else}
-        <span class="icon-mask" style="mask-image:url('{localIconPath('dismiss_24_regular')}');-webkit-mask-image:url('{localIconPath('dismiss_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
-      {/if}
+<div class="root" style="background:{c.background};color:{c.textPrimary}">
+  <div class="appbar" style="background:{c.appbarSurface};">
+    <button class="appbar-btn" on:click={() => dispatch('nav', { to: 'home' })} aria-label="Voltar">
+      <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_left_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_left_24_regular')}');background:{c.iconTint};width:24px;height:24px;"></span>
     </button>
 
     <div class="appbar-center">
       {#if !isEditing}
+        <span style="font-size:16px;color:{c.textPrimary};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;">{docName}</span>
+      {:else}
         <input
           class="doc-name-input"
           style="color:{c.textPrimary}"

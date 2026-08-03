@@ -12,6 +12,7 @@
   } from '../lib/sheet-store.js';
   import { FormulaError } from '../lib/formula-engine.js';
   import { getThemeColors } from '$shared/theme.js';
+  import { showToast } from '$shared/utils.js';
   import SheetGrid from '../components/SheetGrid.svelte';
   import CellFormatBar from '../components/CellFormatBar.svelte';
   import CellNumberFormatModal from '../components/CellNumberFormatModal.svelte';
@@ -26,6 +27,7 @@
 
   export let isDark = false;
   export let user = null;
+  export let resourceId = null;
   export let appTitle = 'Nexa Sheets';
   export let appId = 'sheets';
   export let iconPath = '/icons/svg/apps/sheets.svg';
@@ -34,12 +36,77 @@
 
   $: c = getThemeColors(isDark);
 
+  // ── Conteúdo pendente vindo do Assistente de IA ─────────────────
+  // Quando o utilizador prime "Aplicar" num cartão de folha de cálculo
+  // gerado pela IA (ver ai/pages/ChatPage.svelte -> renderNativeAppContent
+  // -> applySheetsContent), o chat grava aqui um payload
+  // {name, sheets:[{name, cells, colWidths}]} em sessionStorage e
+  // navega para /sheets/. Como esta app SEMPRE cria um documento novo
+  // ao montar (ver loadOrCreate abaixo, que ignora resourceId de
+  // propósito — nota histórica do projeto), o payload pendente é
+  // aplicado sobre esse documento novo antes de ser guardado.
+  const PENDING_APPLY_KEY = 'nexa_pending_apply_sheets';
+
+  function readPendingApply() {
+    try {
+      const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
+      if (!raw) return null;
+      sessionStorage.removeItem(PENDING_APPLY_KEY);
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.sheets) || !parsed.sheets.length) return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+
+  // Converte o payload solto vindo da IA (sheets:[{name,cells,colWidths}])
+  // para a forma interna completa que sheet-store.js espera de cada
+  // folha (id, rows, cols, charts, images), reaproveitando createSheet
+  // como base e sobrepondo os campos que a IA de facto forneceu.
+  function applyPendingToDoc(doc, pending) {
+    if (!pending) return doc;
+    const nextSheets = pending.sheets.map((s, i) => {
+      const base = doc.sheets[i] || createSheetShim();
+      return {
+        ...base,
+        name: s.name || base.name || `Folha${i + 1}`,
+        cells: s.cells || {},
+        colWidths: s.colWidths || {},
+        charts: base.charts || [],
+        images: base.images || [],
+      };
+    });
+    return {
+      ...doc,
+      name: pending.name || doc.name,
+      sheets: nextSheets,
+      activeSheetId: nextSheets[0] ? nextSheets[0].id : doc.activeSheetId,
+    };
+  }
+
+  // Pequeno gerador local de folha "em branco" para preencher índices
+  // extra do array de pending que ultrapassem o único createDocument()
+  // inicial (createDocument só cria 1 folha; se a IA mandar 3 abas,
+  // as duas seguintes nascem aqui com o mesmo formato de createSheet).
+  function createSheetShim() {
+    return {
+      id: 'tab_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: 'Folha1',
+      rows: 60,
+      cols: 1000,
+      cells: {},
+      colWidths: {},
+      charts: [],
+      images: [],
+    };
+  }
+
   // ── Documento ────────────────────────────────────────────────
 
   let doc = null;
   let resolvedValues = {};
   let resolvedErrors = {};
   let docReady = false;
+  let appliedFromAi = false;
 
   $: activeSheet = doc ? getActiveSheet(doc) : null;
 
@@ -53,6 +120,16 @@
     if (!loaded) {
       loaded = createDocument(id);
     }
+
+    // Consumir conteúdo pendente da IA, se existir, ANTES da primeira
+    // recomputação — assim as fórmulas já entram calculadas no primeiro
+    // paint em vez de aparecerem vazias por uma fração de segundo.
+    const pending = readPendingApply();
+    if (pending) {
+      loaded = applyPendingToDoc(loaded, pending);
+      appliedFromAi = true;
+    }
+
     doc = loaded;
     activeAddr = 'A1';
     selectionAnchor = 'A1';
@@ -174,260 +251,206 @@
   let formulaBarFocused = false;
   let formulaBarDraft = '';
 
-  function onFormulaBarFocus() {
+  function handleFormulaBarFocus() {
     formulaBarFocused = true;
-    formulaBarDraft = String(formulaBarValue);
+    formulaBarDraft = formulaBarValue;
   }
-  function onFormulaBarInput(e) {
+  function handleFormulaBarInput(e) {
     formulaBarDraft = e.target.value;
   }
-  function commitFormulaBar() {
-    if (formulaBarFocused && activeAddr) {
-      handleCellChange({ detail: { addr: activeAddr, raw: formulaBarDraft } });
-    }
+  function commitFormulaBarDraft() {
+    if (!formulaBarFocused) return;
     formulaBarFocused = false;
+    if (formulaBarDraft === formulaBarValue) return;
+    handleCellChange({ detail: { addr: activeAddr, raw: formulaBarDraft } });
   }
-  function onFormulaBarKeydown(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitFormulaBar();
-      e.target.blur();
-    } else if (e.key === 'Escape') {
-      formulaBarFocused = false;
-      e.target.blur();
-    }
+  function handleFormulaBarKeydown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); commitFormulaBarDraft(); gridComp && gridComp.focusCell(activeAddr); }
+    if (e.key === 'Escape') { formulaBarFocused = false; formulaBarDraft = formulaBarValue; }
   }
 
-  $: activeCellMeta = activeSheet && activeAddr ? (activeSheet.cells[activeAddr] || {}) : {};
-  $: activeErrorCode = activeSheet && activeAddr && resolvedValues[activeAddr] instanceof FormulaError
-    ? resolvedValues[activeAddr].code
-    : null;
+  // ── Seleção de célula/range vinda do grid ───────────────────
 
-  // ── Barra de formatação de célula (bottom toolbar) ────────────
-
-  let formatBarVisible = false;
-  $: formatBarVisible = docReady;
-
-  let colorModalMode = null;
-  let colorModalVisible = false;
-  let colorPickerVisible = false;
-  let customColors = [];
-  let numFormatModalVisible = false;
-
-  function applyMetaToSelection(patchFn) {
-    const a = parseCellId(selectionAnchor);
-    const b = parseCellId(selectionFocus);
-    if (!a || !b) return;
-    const r0 = Math.min(a.row, b.row), r1 = Math.max(a.row, b.row);
-    const c0 = Math.min(a.col, b.col), c1 = Math.max(a.col, b.col);
-    pushHistoryIfNeededOnce();
-    const cells = { ...activeSheet.cells };
-    for (let r = r0; r <= r1; r++) {
-      for (let col = c0; col <= c1; col++) {
-        const addr = cellId(r, col);
-        const meta = { ...(cells[addr] || { raw: '' }) };
-        patchFn(meta);
-        cells[addr] = meta;
-      }
-    }
-    applyCellsToActiveSheet(cells);
-    recompute();
-    scheduleSave();
-  }
-
-  let historyPushedForBatch = false;
-  function pushHistoryIfNeededOnce() {
-    if (!historyPushedForBatch) {
-      pushHistory();
-      historyPushedForBatch = true;
-      setTimeout(() => { historyPushedForBatch = false; }, 50);
-    }
-  }
-
-  function handleFormatAction(e) {
-    const action = e.detail;
-    const id = typeof action === 'string' ? action : action.id;
-
-    if (id === 'bold') { applyMetaToSelection((meta) => { meta.bold = !meta.bold; }); return; }
-    if (id === 'italic') { applyMetaToSelection((meta) => { meta.italic = !meta.italic; }); return; }
-    if (id === 'underline') { applyMetaToSelection((meta) => { meta.underline = !meta.underline; }); return; }
-    if (id === 'align') { const value = action.value; applyMetaToSelection((meta) => { meta.align = value; }); return; }
-    if (id === 'textcolor') { colorModalMode = 'text'; colorModalVisible = true; return; }
-    if (id === 'fillcolor') { colorModalMode = 'fill'; colorModalVisible = true; return; }
-    if (id === 'numformat') { numFormatModalVisible = true; return; }
-    if (id === 'insertrow') { insertRowAtActive(); return; }
-    if (id === 'insertcol') { insertColAtActive(); return; }
-    if (id === 'deleterow') { deleteRowAtActive(); return; }
-    if (id === 'deletecol') { deleteColAtActive(); return; }
-    if (id === 'insertchart') { openChartModalForInsert(); return; }
-    if (id === 'insertimage') { triggerImagePicker(); return; }
-  }
-
-  function handleColorSelect(e) {
-    const hex = e.detail;
-    if (colorModalMode === 'text') {
-      applyMetaToSelection((meta) => { meta.color = hex; });
-    } else if (colorModalMode === 'fill') {
-      applyMetaToSelection((meta) => { meta.fill = hex; });
-    }
-    colorModalVisible = false;
-    colorModalMode = null;
-  }
-  function handleAddCustomColor() {
-    colorModalVisible = false;
-    colorPickerVisible = true;
-  }
-  function handlePickerConfirm(e) {
-    const hex = e.detail;
-    if (!customColors.includes(hex)) customColors = [...customColors, hex];
-    colorPickerVisible = false;
-    if (colorModalMode === 'text') {
-      applyMetaToSelection((meta) => { meta.color = hex; });
-    } else if (colorModalMode === 'fill') {
-      applyMetaToSelection((meta) => { meta.fill = hex; });
-    }
-    colorModalMode = null;
-  }
-  function handlePickerCancel() {
-    colorPickerVisible = false;
-    colorModalVisible = true;
-  }
-  function handleNumFormatSelect(e) {
-    const format = e.detail;
-    applyMetaToSelection((meta) => { meta.format = format; });
-    numFormatModalVisible = false;
-  }
-
-  // ── Inserir/apagar linhas e colunas ──────────────────────────
-
-  function reindexCells(transformFn) {
-    const next = {};
-    for (const [addr, val] of Object.entries(activeSheet.cells)) {
-      const pos = parseCellId(addr);
-      if (!pos) continue;
-      const result = transformFn(pos.row, pos.col);
-      if (result === null) continue;
-      next[cellId(result.row, result.col)] = val;
-    }
-    return next;
-  }
-
-  function patchActiveSheet(patch) {
-    doc = {
-      ...doc,
-      sheets: doc.sheets.map((s) => (s.id === activeSheet.id ? { ...s, ...patch } : s)),
-    };
-  }
-
-  function insertRowAtActive() {
-    const pos = parseCellId(activeAddr);
-    if (!pos) return;
-    pushHistory();
-    const cells = reindexCells((row, col) => ({ row: row >= pos.row ? row + 1 : row, col }));
-    patchActiveSheet({ cells, rows: activeSheet.rows + 1 });
-    recompute();
-    scheduleSave();
-  }
-  function insertColAtActive() {
-    const pos = parseCellId(activeAddr);
-    if (!pos) return;
-    pushHistory();
-    const cells = reindexCells((row, col) => ({ row, col: col >= pos.col ? col + 1 : col }));
-    patchActiveSheet({ cells, cols: activeSheet.cols + 1 });
-    recompute();
-    scheduleSave();
-  }
-  function deleteRowAtActive() {
-    const pos = parseCellId(activeAddr);
-    if (!pos || activeSheet.rows <= 1) return;
-    pushHistory();
-    const cells = reindexCells((row, col) => {
-      if (row === pos.row) return null;
-      return { row: row > pos.row ? row - 1 : row, col };
-    });
-    patchActiveSheet({ cells, rows: activeSheet.rows - 1 });
-    recompute();
-    scheduleSave();
-  }
-  function deleteColAtActive() {
-    const pos = parseCellId(activeAddr);
-    if (!pos || activeSheet.cols <= 1) return;
-    pushHistory();
-    const cells = reindexCells((row, col) => {
-      if (col === pos.col) return null;
-      return { row, col: col > pos.col ? col - 1 : col };
-    });
-    patchActiveSheet({ cells, cols: activeSheet.cols - 1 });
-    recompute();
-    scheduleSave();
-  }
-
-  // ── Zoom da folha (diminuir/ampliar o "papel") ───────────────
-
-  let sheetZoomScale = 1;
-  function handleZoomChange(e) {
-    sheetZoomScale = e.detail.scale;
-  }
-
-  // ── Gráficos ──────────────────────────────────────────────────
-
-  let chartModalVisible = false;
-  let editingChartId = null;
-  let selectedChartId = null;
-  let selectedImageId = null;
-
-  function activeSelectionRange() {
-    const a = parseCellId(selectionAnchor);
-    const b = parseCellId(selectionFocus);
-    if (!a || !b) return '';
-    const r0 = Math.min(a.row, b.row), r1 = Math.max(a.row, b.row);
-    const c0 = Math.min(a.col, b.col), c1 = Math.max(a.col, b.col);
-    return `${cellId(r0, c0)}:${cellId(r1, c1)}`;
-  }
-
-  function openChartModalForInsert() {
-    editingChartId = null;
-    chartModalVisible = true;
-  }
-  function openChartModalForEdit(chartId) {
-    editingChartId = chartId;
-    chartModalVisible = true;
-  }
-  $: editingChartObj = editingChartId && activeSheet
-    ? (activeSheet.charts || []).find((ch) => ch.id === editingChartId)
-    : null;
-  $: chartDefaultRange = (() => {
-    const sel = activeSelectionRange();
-    if (!sel) return '';
-    const [from, to] = sel.split(':');
-    return from === to ? '' : sel;
-  })();
-
-  function handleChartConfirm(e) {
-    const cfg = e.detail;
-    if (editingChartId) {
-      doc = updateChart(doc, activeSheet.id, editingChartId, cfg);
-    } else {
-      doc = addChart(doc, activeSheet.id, cfg);
-    }
-    chartModalVisible = false;
-    editingChartId = null;
-    scheduleSave();
-  }
-  function handleChartSelect(chartId) {
-    selectedChartId = chartId;
+  function handleCellSelect(e) {
+    activeAddr = e.detail.addr;
+    selectionAnchor = e.detail.anchor || e.detail.addr;
+    selectionFocus = e.detail.focus || e.detail.addr;
+    selectedChartId = null;
     selectedImageId = null;
   }
+
+  // ── Formatação de célula (negrito, itálico, alinhamento, cor, etc.) ──
+
+  $: activeCellMeta = activeSheet && activeAddr ? (activeSheet.cells[activeAddr] || {}) : {};
+
+  function rangeAddrs() {
+    const a = parseCellId(selectionAnchor);
+    const f = parseCellId(selectionFocus);
+    if (!a || !f) return [activeAddr];
+    const r0 = Math.min(a.row, f.row), r1 = Math.max(a.row, f.row);
+    const c0 = Math.min(a.col, f.col), c1 = Math.max(a.col, f.col);
+    const addrs = [];
+    for (let r = r0; r <= r1; r++) for (let cIdx = c0; cIdx <= c1; cIdx++) addrs.push(cellId(r, cIdx));
+    return addrs;
+  }
+
+  function toggleCellFormat(key) {
+    scheduleHistoryPush();
+    const cells = { ...activeSheet.cells };
+    const addrs = rangeAddrs();
+    const allActive = addrs.every((addr) => cells[addr] && cells[addr][key]);
+    addrs.forEach((addr) => {
+      const meta = { ...(cells[addr] || { raw: '' }) };
+      meta[key] = !allActive;
+      cells[addr] = meta;
+    });
+    applyCellsToActiveSheet(cells);
+    scheduleSave();
+  }
+
+  function setCellFormat(key, value) {
+    scheduleHistoryPush();
+    const cells = { ...activeSheet.cells };
+    const addrs = rangeAddrs();
+    addrs.forEach((addr) => {
+      const meta = { ...(cells[addr] || { raw: '' }) };
+      meta[key] = value;
+      cells[addr] = meta;
+    });
+    applyCellsToActiveSheet(cells);
+    scheduleSave();
+  }
+
+  function handleToggleBold() { toggleCellFormat('bold'); }
+  function handleToggleItalic() { toggleCellFormat('italic'); }
+  function handleSetAlign(e) { setCellFormat('align', e.detail); }
+
+  let colorModalOpen = false;
+  let colorModalTarget = 'color';
+  let colorPickerOpen = false;
+  let customColors = [];
+
+  function loadCustomColors() {
+    try {
+      const raw = localStorage.getItem('sheets_custom_colors');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  customColors = loadCustomColors();
+  function persistCustomColors() {
+    try { localStorage.setItem('sheets_custom_colors', JSON.stringify(customColors)); } catch (e) {}
+  }
+
+  function openColorModal(target) { colorModalTarget = target; colorModalOpen = true; }
+  function handleColorSelect(e) {
+    setCellFormat(colorModalTarget === 'fill' ? 'fill' : 'color', e.detail);
+    colorModalOpen = false;
+  }
+  function requestAddColor() { colorModalOpen = false; colorPickerOpen = true; }
+  function confirmCustomColor(e) {
+    const hex = e.detail;
+    customColors = [hex, ...customColors.filter((c) => c !== hex)].slice(0, 12);
+    persistCustomColors();
+    colorPickerOpen = false;
+    setCellFormat(colorModalTarget === 'fill' ? 'fill' : 'color', hex);
+  }
+  function cancelCustomColor() { colorPickerOpen = false; }
+
+  let numberFormatModalOpen = false;
+  function handleSetNumberFormat(e) {
+    setCellFormat('format', e.detail);
+    numberFormatModalOpen = false;
+  }
+
+  // ── Menu da folha (abas, adicionar, duplicar, exportar, apagar) ──
+
+  let sheetMenuOpen = false;
+  function openSheetMenu() { sheetMenuOpen = true; }
+  function closeSheetMenu() { sheetMenuOpen = false; }
+
+  function handleAddSheet() {
+    doc = addSheet(doc);
+    activeAddr = 'A1'; selectionAnchor = 'A1'; selectionFocus = 'A1';
+    selectedChartId = null; selectedImageId = null;
+    recompute();
+    scheduleSave();
+  }
+  function handleRemoveSheet(e) {
+    doc = removeSheet(doc, e.detail);
+    activeAddr = 'A1'; selectionAnchor = 'A1'; selectionFocus = 'A1';
+    selectedChartId = null; selectedImageId = null;
+    recompute();
+    scheduleSave();
+  }
+  function handleRenameSheet(e) {
+    doc = renameSheet(doc, e.detail.sheetId, e.detail.name);
+    scheduleSave();
+  }
+  function handleDuplicateSheet(e) {
+    doc = duplicateSheet(doc, e.detail);
+    recompute();
+    scheduleSave();
+  }
+  function handleSetActiveSheet(e) {
+    doc = setActiveSheet(doc, e.detail);
+    activeAddr = 'A1'; selectionAnchor = 'A1'; selectionFocus = 'A1';
+    selectedChartId = null; selectedImageId = null;
+    recompute();
+  }
+  function handleExportCsv() {
+    downloadCsv(doc, resolvedValues);
+    sheetMenuOpen = false;
+  }
+  function handleDuplicateDoc() {
+    const copy = duplicateDocument(doc.id);
+    if (copy) showToast('Pasta de cálculo duplicada');
+    sheetMenuOpen = false;
+  }
+
+  let showDeleteConfirm = false;
+  function requestDeleteDoc() { sheetMenuOpen = false; showDeleteConfirm = true; }
+  function cancelDeleteDoc() { showDeleteConfirm = false; }
+  function confirmDeleteDoc() {
+    showDeleteConfirm = false;
+    deleteDocument(doc.id);
+    dispatch('nav', { to: 'home' });
+  }
+
+  // ── Gráficos flutuantes ──────────────────────────────────────
+
+  let chartModalOpen = false;
+  let chartModalEditId = null;
+  let selectedChartId = null;
+
+  function openChartModalForNew() {
+    chartModalEditId = null;
+    chartModalOpen = true;
+  }
+  function openChartModalForEdit(chartId) {
+    chartModalEditId = chartId;
+    chartModalOpen = true;
+  }
+  function handleChartConfirm(e) {
+    if (chartModalEditId) {
+      doc = updateChart(doc, activeSheet.id, chartModalEditId, e.detail);
+    } else {
+      doc = addChart(doc, activeSheet.id, e.detail);
+    }
+    chartModalOpen = false;
+    chartModalEditId = null;
+    scheduleSave();
+  }
   function handleChartMove(e) {
-    const { id, x, y } = e.detail;
-    doc = moveChart(doc, activeSheet.id, id, x, y);
+    doc = moveChart(doc, activeSheet.id, e.detail.id, e.detail.x, e.detail.y);
+    scheduleSave();
   }
   function handleChartResize(e) {
-    const { id, w, h } = e.detail;
-    doc = resizeChart(doc, activeSheet.id, id, w, h);
-  }
-  function handleGestureEnd() {
+    doc = resizeChart(doc, activeSheet.id, e.detail.id, e.detail.w, e.detail.h);
     scheduleSave();
+  }
+  function handleChartSelect(e) {
+    selectedChartId = e.detail;
+    selectedImageId = null;
   }
   function handleRemoveSelectedChart() {
     if (!selectedChartId) return;
@@ -436,37 +459,34 @@
     scheduleSave();
   }
 
-  // ── Imagens flutuantes ────────────────────────────────────────
+  // ── Imagens flutuantes ───────────────────────────────────────
 
-  let fileInputEl;
-  function triggerImagePicker() {
-    fileInputEl && fileInputEl.click();
-  }
-  function onImageFileSelected(e) {
+  let selectedImageId = null;
+  let sheetFileInputEl;
+
+  function requestInsertImage() { sheetFileInputEl && sheetFileInputEl.click(); sheetMenuOpen = false; }
+  function handleImageFileChange(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      doc = addImage(doc, activeSheet.id, {
-        src: reader.result,
-        x: 60, y: 60, w: 200, h: 200,
-      });
+      doc = addImage(doc, activeSheet.id, { src: reader.result });
       scheduleSave();
     };
     reader.readAsDataURL(file);
     e.target.value = '';
   }
-  function handleImageSelect(imageId) {
-    selectedImageId = imageId;
-    selectedChartId = null;
-  }
   function handleImageMove(e) {
-    const { id, x, y } = e.detail;
-    doc = moveImage(doc, activeSheet.id, id, x, y);
+    doc = moveImage(doc, activeSheet.id, e.detail.id, e.detail.x, e.detail.y);
+    scheduleSave();
   }
   function handleImageResize(e) {
-    const { id, w, h } = e.detail;
-    doc = resizeImage(doc, activeSheet.id, id, w, h);
+    doc = resizeImage(doc, activeSheet.id, e.detail.id, e.detail.w, e.detail.h);
+    scheduleSave();
+  }
+  function handleImageSelect(e) {
+    selectedImageId = e.detail;
+    selectedChartId = null;
   }
   function handleRemoveSelectedImage() {
     if (!selectedImageId) return;
@@ -474,129 +494,11 @@
     selectedImageId = null;
     scheduleSave();
   }
-  function deselectFloatingOnGridTap() {
-    if (selectedChartId) selectedChartId = null;
-    if (selectedImageId) selectedImageId = null;
-  }
 
-  // ── Abas (folhas) ─────────────────────────────────────────────
+  // ── Zoom ─────────────────────────────────────────────────────
 
-  let renamingSheetId = null;
-  let renameDraft = '';
-  let renameInputEl;
-
-  function switchToSheet(sheetId) {
-    if (sheetId === doc.activeSheetId) return;
-    saveImmediately();
-    doc = setActiveSheet(doc, sheetId);
-    activeAddr = 'A1';
-    selectionAnchor = 'A1';
-    selectionFocus = 'A1';
-    formulaBarFocused = false;
-    selectedChartId = null;
-    selectedImageId = null;
-    recompute();
-    scheduleSave();
-  }
-
-  function handleAddSheet() {
-    if (doc.sheets.length >= MAX_SHEETS) return;
-    saveImmediately();
-    doc = addSheet(doc);
-    activeAddr = 'A1';
-    selectionAnchor = 'A1';
-    selectionFocus = 'A1';
-    recompute();
-    scheduleSave();
-  }
-
-  function handleDuplicateSheet(sheetId) {
-    if (doc.sheets.length >= MAX_SHEETS) return;
-    saveImmediately();
-    doc = duplicateSheet(doc, sheetId);
-    activeAddr = 'A1';
-    selectionAnchor = 'A1';
-    selectionFocus = 'A1';
-    recompute();
-    scheduleSave();
-  }
-
-  let confirmDeleteSheetId = null;
-  function handleRequestDeleteSheet(sheetId) {
-    if (doc.sheets.length <= 1) return;
-    confirmDeleteSheetId = sheetId;
-  }
-  function confirmDeleteSheet() {
-    if (!confirmDeleteSheetId) return;
-    doc = removeSheet(doc, confirmDeleteSheetId);
-    confirmDeleteSheetId = null;
-    activeAddr = 'A1';
-    selectionAnchor = 'A1';
-    selectionFocus = 'A1';
-    recompute();
-    scheduleSave();
-  }
-
-  async function startRenameSheet(sheetId) {
-    const sheet = doc.sheets.find((s) => s.id === sheetId);
-    if (!sheet) return;
-    renamingSheetId = sheetId;
-    renameDraft = sheet.name;
-    await tick();
-    renameInputEl && renameInputEl.select();
-  }
-  function commitRenameSheet() {
-    if (renamingSheetId) {
-      doc = renameSheet(doc, renamingSheetId, renameDraft);
-      scheduleSave();
-    }
-    renamingSheetId = null;
-  }
-
-  // ── Nome do documento — vive no SheetMenu, não no appbar ──────
-
-  function handleRenameDoc(e) {
-    const trimmed = (e.detail || '').trim();
-    doc = { ...doc, name: trimmed || 'Nova pasta de cálculo' };
-    saveImmediately();
-  }
-
-  // ── Menu (⋮) ──────────────────────────────────────────────────
-
-  let menuVisible = false;
-  let confirmDeleteVisible = false;
-  let confirmLoading = false;
-
-  function openMenu() {
-    menuVisible = true;
-  }
-
-  function handleMenuSelect(e) {
-    const id = e.detail;
-    menuVisible = false;
-    if (id === 'duplicate') {
-      saveImmediately();
-      duplicateDocument(doc.id);
-      return;
-    }
-    if (id === 'export') {
-      downloadCsv(doc, resolvedValues);
-      return;
-    }
-    if (id === 'delete') {
-      confirmDeleteVisible = true;
-      return;
-    }
-  }
-  function confirmDelete() {
-    confirmLoading = true;
-    deleteDocument(doc.id);
-    setTimeout(() => {
-      confirmLoading = false;
-      confirmDeleteVisible = false;
-      dispatch('nav', { to: 'home' });
-    }, 200);
-  }
+  let zoomLevel = 1;
+  function handleZoomChange(e) { zoomLevel = e.detail; }
 
   // ── Navegação para trás ──────────────────────────────────────
 
@@ -609,6 +511,15 @@
 
   onMount(() => {
     loadOrCreate();
+    // Se este documento nasceu a partir de um cartão "Aplicar" da IA,
+    // persistimos de imediato para aparecer logo na lista de
+    // pastas de cálculo (DocumentsTab/home) e avisamos com um toast,
+    // tal como qualquer outra criação bem-sucedida na app.
+    if (appliedFromAi) {
+      persistDocument(doc);
+      showToast('Folha de cálculo aplicada com sucesso');
+      appliedFromAi = false;
+    }
     const beforeUnload = () => { if (doc) saveImmediately(); };
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
@@ -642,359 +553,215 @@
       <button class="appbar-btn" on:click={handleRemoveSelectedImage} aria-label="Remover imagem">
         <span class="icon-mask" style="mask-image:url('{localIconPath('delete_24_regular')}');-webkit-mask-image:url('{localIconPath('delete_24_regular')}');background:var(--danger);"></span>
       </button>
+    {:else}
+      <button class="appbar-btn" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
+        <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_undo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_undo_24_regular')}');background:{c.iconTint};opacity:{canUndo ? 1 : 0.32};"></span>
+      </button>
+      <button class="appbar-btn" disabled={!canRedo} on:click={redo} aria-label="Refazer">
+        <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_redo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_redo_24_regular')}');background:{c.iconTint};opacity:{canRedo ? 1 : 0.32};"></span>
+      </button>
+      <button class="appbar-btn" on:click={openChartModalForNew} aria-label="Inserir gráfico">
+        <span class="icon-mask" style="mask-image:url('{localIconPath('data_bar_vertical_24_regular')}');-webkit-mask-image:url('{localIconPath('data_bar_vertical_24_regular')}');background:{c.iconTint};"></span>
+      </button>
     {/if}
 
-    <button class="appbar-btn" disabled={!canUndo} on:click={undo} aria-label="Desfazer">
-      <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_undo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_undo_24_regular')}');background:{c.iconTint};opacity:{canUndo ? 1 : 0.32};"></span>
-    </button>
-    <button class="appbar-btn" disabled={!canRedo} on:click={redo} aria-label="Refazer">
-      <span class="icon-mask" style="mask-image:url('{localIconPath('arrow_redo_24_regular')}');-webkit-mask-image:url('{localIconPath('arrow_redo_24_regular')}');background:{c.iconTint};opacity:{canRedo ? 1 : 0.32};"></span>
-    </button>
-    <button class="appbar-btn" on:click={goBack} aria-label="Concluir">
-      <span class="icon-mask" style="mask-image:url('{localIconPath('checkmark_24_regular')}');-webkit-mask-image:url('{localIconPath('checkmark_24_regular')}');background:{c.iconTint};"></span>
-    </button>
-    <button class="appbar-btn" on:click={openMenu} aria-label="Mais opções">
-      <span class="icon-mask" style="mask-image:url('{localIconPath('more_vertical_24_regular')}');-webkit-mask-image:url('{localIconPath('more_vertical_24_regular')}');background:{c.iconTint};"></span>
+    <button class="appbar-btn" on:click={openSheetMenu} aria-label="Mais opções">
+      <span class="icon-mask" style="mask-image:url('{localIconPath('more_horizontal_24_regular')}');-webkit-mask-image:url('{localIconPath('more_horizontal_24_regular')}');background:{c.iconTint};"></span>
     </button>
   </div>
 
-  <!-- Grelha (com zoom via SheetZoom) + gráficos/imagens flutuantes
-       por cima, em camada absoluta ancorada ao mesmo grid-with-floats. -->
   {#if docReady && activeSheet}
-    <div class="grid-with-floats">
-      <SheetZoom bind:scale={sheetZoomScale} minScale={0.5} maxScale={3} on:zoomchange={handleZoomChange}>
+    <div class="grid-area">
+      <SheetZoom bind:zoom={zoomLevel} on:zoomchange={handleZoomChange}>
         <SheetGrid
           bind:this={gridComp}
-          doc={activeSheet}
-          {resolvedValues}
           {c}
-          bind:activeAddr
-          bind:selectionAnchor
-          bind:selectionFocus
+          {isDark}
+          sheet={activeSheet}
+          {resolvedValues}
+          {resolvedErrors}
+          {activeAddr}
+          {selectionAnchor}
+          {selectionFocus}
+          zoom={zoomLevel}
           on:cellchange={handleCellChange}
+          on:cellselect={handleCellSelect}
+          on:deselectfloating={() => { selectedChartId = null; selectedImageId = null; }}
         />
-        {#each (activeSheet.charts || []) as chart (chart.id)}
+        {#each activeSheet.charts || [] as chart (chart.id)}
           <ChartCanvas
             {chart}
-            {resolvedValues}
             {c}
+            {isDark}
+            sheet={activeSheet}
+            {resolvedValues}
             selected={selectedChartId === chart.id}
-            scaleFactor={sheetZoomScale}
-            on:select={(e) => handleChartSelect(e.detail)}
             on:move={handleChartMove}
             on:resize={handleChartResize}
-            on:gestureend={handleGestureEnd}
+            on:select={() => handleChartSelect({ detail: chart.id })}
           />
         {/each}
-        {#each (activeSheet.images || []) as image (image.id)}
+        {#each activeSheet.images || [] as image (image.id)}
           <FloatingImage
             {image}
-            {c}
             selected={selectedImageId === image.id}
-            scaleFactor={sheetZoomScale}
-            on:select={(e) => handleImageSelect(e.detail)}
             on:move={handleImageMove}
             on:resize={handleImageResize}
-            on:gestureend={handleGestureEnd}
+            on:select={() => handleImageSelect({ detail: image.id })}
           />
         {/each}
       </SheetZoom>
     </div>
-  {/if}
 
-  <input
-    type="file"
-    accept="image/*"
-    bind:this={fileInputEl}
-    on:change={onImageFileSelected}
-    style="display:none;"
-  />
-
-  <!-- Barra de abas (tabs) -->
-  {#if docReady && doc}
-    <div class="sheet-tabs" style="background:{c.dialogBackground};border-color:{c.divider};">
-      <div class="sheet-tabs-scroll">
-        {#each doc.sheets as sheet (sheet.id)}
-          <div class="sheet-tab-wrap">
-            {#if renamingSheetId === sheet.id}
-              <input
-                class="sheet-tab-input"
-                bind:this={renameInputEl}
-                bind:value={renameDraft}
-                style="color:{c.primary};border-color:{c.primary};"
-                on:blur={commitRenameSheet}
-                on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitRenameSheet(); } else if (e.key === 'Escape') { renamingSheetId = null; } }}
-              />
-            {:else}
-              <button
-                class="sheet-tab"
-                class:sheet-tab-active={sheet.id === doc.activeSheetId}
-                style={sheet.id === doc.activeSheetId
-                  ? `color:${c.primary};border-color:${c.primary};background:${c.appbarBtnBgActive};`
-                  : `color:${c.textSecondary};border-color:transparent;`}
-                on:click={() => switchToSheet(sheet.id)}
-                on:dblclick={() => startRenameSheet(sheet.id)}
-              >
-                {sheet.name}
-              </button>
-            {/if}
-          </div>
-        {/each}
-        <button
-          class="sheet-tab-add"
-          on:click={handleAddSheet}
-          disabled={doc.sheets.length >= MAX_SHEETS}
-          aria-label="Nova folha"
-        >
-          <span class="icon-mask" style="mask-image:url('{localIconPath('add_24_regular')}');-webkit-mask-image:url('{localIconPath('add_24_regular')}');background:{c.textSecondary};width:18px;height:18px;"></span>
-        </button>
-      </div>
-
-      {#if activeSheet}
-        <div class="sheet-tab-actions">
-          <button
-            class="sheet-tab-action-btn"
-            on:click={() => handleDuplicateSheet(activeSheet.id)}
-            disabled={doc.sheets.length >= MAX_SHEETS}
-            aria-label="Duplicar folha"
-          >
-            <span class="icon-mask" style="mask-image:url('{localIconPath('copy_24_regular')}');-webkit-mask-image:url('{localIconPath('copy_24_regular')}');background:{c.iconTint};width:18px;height:18px;"></span>
-          </button>
-          <button
-            class="sheet-tab-action-btn"
-            on:click={() => handleRequestDeleteSheet(activeSheet.id)}
-            disabled={doc.sheets.length <= 1}
-            aria-label="Apagar folha"
-          >
-            <span class="icon-mask" style="mask-image:url('{localIconPath('delete_24_regular')}');-webkit-mask-image:url('{localIconPath('delete_24_regular')}');background:{doc.sheets.length <= 1 ? c.textSecondary : 'var(--danger)'};width:18px;height:18px;"></span>
-          </button>
-        </div>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Barra de fórmulas: ANCORADA AO RODAPÉ, logo acima do bottom
-       toolbar — NUNCA no topo. Fica visível só quando uma célula
-       está ativa, como uma faixa fina de contexto imediatamente
-       antes das ferramentas de formatação. -->
-  {#if docReady}
-    <div class="formula-bar" style="background:{c.toolbarSolidBg || c.dialogBackground};border-color:{c.divider};">
-      <div class="fx-addr" style="color:{c.textSecondary};border-color:{c.divider};">{activeAddr}</div>
-      <div class="fx-sign" style="color:{c.textSecondary};">ƒx</div>
+    <div class="formula-bar" style="background:{c.dialogBackground};border-color:{c.divider};">
+      <span class="formula-addr" style="color:{c.textSecondary};">{activeAddr}</span>
       <input
-        class="fx-input"
+        class="formula-input"
         style="color:{c.textPrimary};"
         value={formulaBarFocused ? formulaBarDraft : formulaBarValue}
-        on:focus={onFormulaBarFocus}
-        on:input={onFormulaBarInput}
-        on:blur={commitFormulaBar}
-        on:keydown={onFormulaBarKeydown}
+        on:focus={handleFormulaBarFocus}
+        on:input={handleFormulaBarInput}
+        on:blur={commitFormulaBarDraft}
+        on:keydown={handleFormulaBarKeydown}
+        placeholder="Introduz um valor ou fórmula (=A1+B1)"
       />
-      {#if activeErrorCode}
-        <div class="fx-error-badge" title={activeErrorCode}>{activeErrorCode}</div>
-      {/if}
     </div>
+
+    <CellFormatBar
+      {c}
+      {isDark}
+      cellMeta={activeCellMeta}
+      on:togglebold={handleToggleBold}
+      on:toggleitalic={handleToggleItalic}
+      on:setalign={handleSetAlign}
+      on:openColorModal={(e) => openColorModal(e.detail)}
+      on:openNumberFormat={() => numberFormatModalOpen = true}
+    />
   {/if}
 
-  {#if docReady}
-    <div class="format-bar-spacer"></div>
-  {/if}
+  <SheetMenu
+    visible={sheetMenuOpen}
+    {c}
+    {isDark}
+    {doc}
+    activeSheetId={activeSheet ? activeSheet.id : null}
+    {MAX_SHEETS}
+    on:close={closeSheetMenu}
+    on:addSheet={handleAddSheet}
+    on:removeSheet={handleRemoveSheet}
+    on:renameSheet={handleRenameSheet}
+    on:duplicateSheet={handleDuplicateSheet}
+    on:setActiveSheet={handleSetActiveSheet}
+    on:exportCsv={handleExportCsv}
+    on:duplicateDoc={handleDuplicateDoc}
+    on:insertImage={requestInsertImage}
+    on:deleteDoc={requestDeleteDoc}
+  />
+
+  <ChartModal
+    visible={chartModalOpen}
+    {c}
+    {isDark}
+    sheet={activeSheet}
+    editingChart={chartModalEditId ? (activeSheet.charts || []).find((ch) => ch.id === chartModalEditId) : null}
+    on:close={() => { chartModalOpen = false; chartModalEditId = null; }}
+    on:confirm={handleChartConfirm}
+  />
+
+  <ColorModal
+    visible={colorModalOpen}
+    {c}
+    {customColors}
+    on:close={() => colorModalOpen = false}
+    on:select={handleColorSelect}
+    on:addcolor={requestAddColor}
+  />
+
+  <ColorPickerModal
+    visible={colorPickerOpen}
+    {c}
+    on:confirm={confirmCustomColor}
+    on:cancel={cancelCustomColor}
+  />
+
+  <CellNumberFormatModal
+    visible={numberFormatModalOpen}
+    {c}
+    currentFormat={activeCellMeta.format || 'general'}
+    on:close={() => numberFormatModalOpen = false}
+    on:select={handleSetNumberFormat}
+  />
+
+  <ConfirmDialog
+    visible={showDeleteConfirm}
+    {c}
+    message={`Tens a certeza que queres apagar "${doc ? doc.name : ''}"? Esta ação não pode ser desfeita.`}
+    confirmLabel="Apagar"
+    on:cancel={cancelDeleteDoc}
+    on:confirm={confirmDeleteDoc}
+  />
+
+  <input type="file" accept="image/*" bind:this={sheetFileInputEl} on:change={handleImageFileChange} style="display:none" />
 </div>
 
-<CellFormatBar
-  {c}
-  visible={formatBarVisible}
-  activeMeta={activeCellMeta}
-  on:action={handleFormatAction}
-/>
-
-<ColorModal
-  visible={colorModalVisible}
-  {c}
-  {customColors}
-  title={colorModalMode === 'fill' ? 'Cor de preenchimento' : 'Cor do texto'}
-  on:select={handleColorSelect}
-  on:addcolor={handleAddCustomColor}
-  on:close={() => { colorModalVisible = false; colorModalMode = null; }}
-/>
-
-<ColorPickerModal
-  visible={colorPickerVisible}
-  {c}
-  on:confirm={handlePickerConfirm}
-  on:cancel={handlePickerCancel}
-/>
-
-<CellNumberFormatModal
-  visible={numFormatModalVisible}
-  {c}
-  currentFormat={activeCellMeta.format || 'general'}
-  on:select={handleNumFormatSelect}
-  on:close={() => { numFormatModalVisible = false; }}
-/>
-
-<ChartModal
-  visible={chartModalVisible}
-  {c}
-  defaultRange={chartDefaultRange}
-  editingChart={editingChartObj}
-  on:confirm={handleChartConfirm}
-  on:close={() => { chartModalVisible = false; editingChartId = null; }}
-/>
-
-<SheetMenu
-  visible={menuVisible}
-  {c}
-  docName={doc ? doc.name : ''}
-  on:select={handleMenuSelect}
-  on:rename={handleRenameDoc}
-  on:close={() => { menuVisible = false; }}
-/>
-
-<ConfirmDialog
-  visible={confirmDeleteVisible}
-  {c}
-  message="Apagar esta folha de cálculo? Esta ação não pode ser desfeita."
-  confirmLabel="Apagar"
-  loading={confirmLoading}
-  on:cancel={() => { confirmDeleteVisible = false; }}
-  on:confirm={confirmDelete}
-/>
-
-<ConfirmDialog
-  visible={!!confirmDeleteSheetId}
-  {c}
-  message="Apagar esta folha? Todas as células e formatação desta aba serão perdidas."
-  confirmLabel="Apagar"
-  loading={false}
-  on:cancel={() => { confirmDeleteSheetId = null; }}
-  on:confirm={confirmDeleteSheet}
-/>
-
 <style>
+  :global(html), :global(body) { width: 100%; height: 100%; overflow: hidden; }
+
   .page-shell {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    width: 100%;
     overflow: hidden;
   }
 
   .appbar {
-    display: flex; align-items: center; gap: 2px;
-    padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px 8px;
-    border-bottom: 1px solid;
+    display: flex; align-items: center; gap: 4px;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 8px 12px;
     flex-shrink: 0;
+    border-bottom: 1px solid;
   }
-  .appbar-spacer { flex: 1; min-width: 8px; }
-  /* SEM fundo/container nos botões do appbar — tal como pedido. */
   .appbar-btn {
-    width: 40px; height: 40px; border: none; background: transparent;
+    width: 36px; height: 36px; border-radius: 8px; border: none;
+    background: transparent;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-    transition: opacity .12s;
+    transition: opacity .14s;
   }
   .appbar-btn:active { opacity: .55; }
   .appbar-btn:disabled { cursor: default; }
-  .appbar-btn:disabled:active { opacity: .32; }
+  .appbar-btn:disabled:active { opacity: 1; }
+  .appbar-spacer { flex: 1; }
 
-  .grid-with-floats {
-    position: relative;
+  .grid-area {
     flex: 1;
     min-height: 0;
     overflow: hidden;
-  }
-  .grid-with-floats :global(.grid-shell) {
-    position: absolute;
-    inset: 0;
+    position: relative;
   }
 
-  .sheet-tabs {
-    display: flex; align-items: center; gap: 4px;
-    padding: 4px 6px;
-    border-top: 1px solid;
-    flex-shrink: 0;
-  }
-  .sheet-tabs-scroll {
-    flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px;
-    overflow-x: auto; scrollbar-width: none;
-  }
-  .sheet-tabs-scroll::-webkit-scrollbar { display: none; }
-  .sheet-tab-wrap { flex-shrink: 0; }
-  .sheet-tab {
-    display: block; flex-shrink: 0;
-    font-size: 13px; font-weight: 600;
-    padding: 7px 14px; border-radius: 10px 10px 0 0;
-    border: none; border-bottom: 2px solid;
-    background: none; cursor: pointer; white-space: nowrap;
-    max-width: 140px; overflow: hidden; text-overflow: ellipsis;
-    -webkit-tap-highlight-color: transparent;
-    transition: background .12s ease, color .12s ease;
-  }
-  .sheet-tab:active { transform: scale(0.97); }
-  .sheet-tab-input {
-    font-size: 13px; font-weight: 600;
-    padding: 6px 10px; border-radius: 8px;
-    border: 1.5px solid; outline: none; background: none;
-    width: 110px; font-family: inherit;
-  }
-  .sheet-tab-add {
-    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
-    border: none; background: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .sheet-tab-add:active { transform: scale(0.9); }
-  .sheet-tab-add:disabled { opacity: 0.35; cursor: default; }
-
-  .sheet-tab-actions {
-    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-    padding-left: 4px; border-left: 1px solid rgba(127,127,127,0.16);
-  }
-  .sheet-tab-action-btn {
-    width: 30px; height: 30px; border: none; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    background: transparent;
-    -webkit-tap-highlight-color: transparent;
-    transition: transform .12s ease;
-  }
-  .sheet-tab-action-btn:active { transform: scale(0.88); }
-  .sheet-tab-action-btn:disabled { opacity: 0.35; cursor: default; }
-
-  /* Barra de fórmulas — agora no RODAPÉ (acima do bottom toolbar),
-     nunca no topo. */
   .formula-bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
     border-top: 1px solid;
     flex-shrink: 0;
   }
-  .fx-addr {
-    font-size: 12px; font-weight: 700; font-family: 'SF Mono', 'Courier New', monospace;
-    padding: 5px 8px; border-radius: 8px; border: 1px solid;
-    min-width: 44px; text-align: center; flex-shrink: 0;
+  .formula-addr {
+    font-size: 12px; font-weight: 700; min-width: 40px;
+    font-variant-numeric: tabular-nums;
   }
-  .fx-sign { font-size: 13px; font-style: italic; font-weight: 700; flex-shrink: 0; opacity: 0.7; }
-  .fx-input {
-    flex: 1; min-width: 0; border: none; outline: none; background: none;
-    font-size: 14px; font-family: 'SF Mono', 'Courier New', monospace; padding: 6px 4px;
-  }
-  .fx-error-badge {
-    font-size: 11px; font-weight: 700; color: #C42B1C;
-    background: rgba(196,43,28,0.12); padding: 3px 7px; border-radius: 6px;
-    flex-shrink: 0;
-  }
-
-  .format-bar-spacer {
-    height: calc(60px + env(safe-area-inset-bottom, 0px));
-    flex-shrink: 0;
+  .formula-input {
+    flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+    font-size: 14px; font-family: 'Courier New', Courier, monospace;
+    -webkit-user-select: text; user-select: text;
   }
 
   .icon-mask {
-    display: block; flex-shrink: 0;
-    width: 24px; height: 24px; max-width: 24px; max-height: 24px;
+    display: block; width: 22px; height: 22px;
     mask-size: contain; -webkit-mask-size: contain;
     mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
     mask-position: center; -webkit-mask-position: center;
+    flex-shrink: 0;
   }
 </style>

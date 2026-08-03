@@ -29,6 +29,27 @@
   const CM_TO_PX = 96 / 2.54;
   function cmToPx(cm) { return cm * CM_TO_PX; }
 
+  // ── Conteúdo pendente vindo do Assistente de IA ─────────────────
+  // Quando o utilizador prime "Aplicar" num cartão de design gerado
+  // pela IA (ver ai/pages/ChatPage.svelte -> renderNativeAppContent
+  // -> applyWhiteboardContent), o chat grava aqui um payload
+  // {name, w, h, background, elements} em sessionStorage e navega
+  // para /whiteboard/ SEM resourceId, o que faz loadOrCreateBoard()
+  // criar sempre um board novo — exatamente como um design novo
+  // criado do zero, só que já vem preenchido com o conteúdo da IA.
+  const PENDING_APPLY_KEY = 'nexa_pending_apply_whiteboard';
+
+  function readPendingApply() {
+    try {
+      const raw = sessionStorage.getItem(PENDING_APPLY_KEY);
+      if (!raw) return null;
+      sessionStorage.removeItem(PENDING_APPLY_KEY);
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.elements)) return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+
   // ══════════════════════════════════════════════════════════════════
   //  ESTADO DO DESIGN — fonte única de verdade, passada para baixo aos
   //  componentes filhos. Cada filho só recebe o que precisa e dispara
@@ -44,6 +65,12 @@
   let nextElId = 1;
   let saveTimeout;
   let savedState = 'saved';
+
+  // Preenchido em loadOrCreateBoard() quando um payload pendente da
+  // IA é consumido, para o onMount poder persistir e avisar o
+  // utilizador logo após a montagem (o toast só existe depois do
+  // componente estar no DOM).
+  let pendingApplyName = null;
 
   function loadOrCreateBoard() {
     if (resourceId) {
@@ -61,6 +88,20 @@
       }
     }
     boardId = resourceId || ('wb_' + Date.now().toString(36));
+
+    // Sem resourceId (design novo) é exatamente o cenário em que um
+    // pedido de aplicação vindo da IA deve ser consumido.
+    if (!resourceId) {
+      const pending = readPendingApply();
+      if (pending) {
+        boardName = pending.name || boardName;
+        boardW = pending.w || boardW;
+        boardH = pending.h || boardH;
+        background = pending.background || background;
+        pendingApplyName = boardName;
+        return pending.elements || [];
+      }
+    }
     return [];
   }
   elements = loadOrCreateBoard();
@@ -249,6 +290,19 @@
 
   function backToHome() { dispatch('nav', { to: 'home' }); }
 
+  onMount(() => {
+    // Se este board nasceu a partir de um cartão "Aplicar" da IA,
+    // persistimos imediatamente para aparecer logo na lista de
+    // projetos/designs e avisamos com um toast local simples (não há
+    // showToast global importado aqui, por isso mostramos via
+    // savedState + vibração, consistente com o resto desta página).
+    if (pendingApplyName) {
+      persist();
+      buzz();
+      pendingApplyName = null;
+    }
+  });
+
   onDestroy(() => {
     clearTimeout(saveTimeout);
     clearTimeout(historyDebounce);
@@ -258,114 +312,118 @@
 <div class="root" style="background:{c.background};color:{c.textPrimary}">
   <WhiteboardTopBar
     {c}
+    {isDark}
     {boardName}
     {savedState}
-    {canUndo}
-    {canRedo}
+    canUndo={canUndo}
+    canRedo={canRedo}
     on:back={backToHome}
-    on:namechange={handleNameInput}
+    on:nameChange={handleNameInput}
     on:undo={undo}
     on:redo={redo}
+    on:openLayers={() => sheetLayers = true}
   />
 
   <WhiteboardCanvas
-    {c}
     {boardW}
     {boardH}
     {background}
     {elements}
     {selectedId}
-    on:select={handleSelect}
     on:elementschange={handleElementsChange}
-    on:requesttext={() => activePropTab = 'text'}
-    on:requestcrop={() => activePropTab = 'crop'}
+    on:select={handleSelect}
+    on:requestcrop={() => {}}
   />
 
   {#if selectedEl}
     <ElementToolbar
       {c}
+      {isDark}
       element={selectedEl}
-      on:edittext={() => activePropTab = 'text'}
-      on:opentab={(e) => activePropTab = e.detail}
-      on:openfill={() => openColorPicker({ detail: 'fill' })}
-      on:opentextcolor={() => openColorPicker({ detail: 'text' })}
       on:duplicate={duplicateSelected}
-      on:front={bringToFront}
-      on:back={sendToBack}
       on:delete={deleteSelected}
+      on:bringtofront={bringToFront}
+      on:sendtoback={sendToBack}
+      on:openproperties={(e) => activePropTab = e.detail}
+      on:openColorPicker={openColorPicker}
+    />
+  {:else}
+    <WhiteboardBottomBar
+      {c}
+      {isDark}
+      on:openSize={() => sheetSize = true}
+      on:openShapes={() => sheetShapes = true}
+      on:openTemplates={() => sheetTemplates = true}
+      on:openBgColor={handleBgColorPickerRequest}
+      on:addElement={handleAddElement}
     />
   {/if}
 
-  <WhiteboardBottomBar
+  <SizeSheet
+    visible={sheetSize}
     {c}
-    hidden={!!selectedEl}
-    on:templates={() => { buzz(); sheetTemplates = true; }}
-    on:addtext={(e) => handleAddElement(e)}
-    on:addimage={(e) => handleAddElement(e)}
-    on:shapes={() => { buzz(); sheetShapes = true; }}
-    on:size={() => { buzz(); sheetSize = true; }}
-    on:layers={() => { buzz(); sheetLayers = true; }}
-    boardW={boardW}
-    boardH={boardH}
+    {boardW}
+    {boardH}
+    on:close={() => sheetSize = false}
+    on:apply={handleBoardSizeChange}
+  />
+
+  <ShapesSheet
+    visible={sheetShapes}
+    {c}
+    on:close={() => sheetShapes = false}
+    on:add={handleAddElement}
+  />
+
+  <TemplatesSheet
+    visible={sheetTemplates}
+    {c}
+    on:close={() => sheetTemplates = false}
+    on:apply={handleApplyTemplate}
+  />
+
+  <LayersSheet
+    visible={sheetLayers}
+    {c}
+    {isDark}
+    {elements}
+    {selectedId}
+    on:close={() => sheetLayers = false}
+    on:select={handleSelect}
+    on:reorder={(e) => { elements = e.detail; scheduleSave(); pushHistory(true); }}
+  />
+
+  {#if selectedEl && activePropTab}
+    <PropertiesSheet
+      visible={!!activePropTab}
+      {c}
+      {isDark}
+      tab={activePropTab}
+      element={selectedEl}
+      on:close={() => activePropTab = null}
+      on:update={(e) => { elements = elements.map(el => el.id === selectedId ? { ...el, ...e.detail } : el); scheduleSave(); pushHistory(!!e.detail.__immediate); }}
+      on:openColorPicker={openColorPicker}
+    />
+  {/if}
+
+  <ColorPickerSheet
+    visible={colorPickerOpen}
+    {c}
+    {isDark}
+    on:close={() => colorPickerOpen = false}
+    on:select={applyColorFromPicker}
   />
 </div>
 
-<SizeSheet
-  visible={sheetSize}
-  {c}
-  {boardW}
-  {boardH}
-  {background}
-  on:close={() => sheetSize = false}
-  on:applysize={handleBoardSizeChange}
-  on:backgroundchange={handleBackgroundChange}
-  on:openbgcolorpicker={handleBgColorPickerRequest}
-/>
-
-<ShapesSheet
-  visible={sheetShapes}
-  {c}
-  {boardW}
-  {boardH}
-  on:close={() => sheetShapes = false}
-  on:addshape={handleAddElement}
-/>
-
-<TemplatesSheet
-  visible={sheetTemplates}
-  {c}
-  on:close={() => sheetTemplates = false}
-  on:apply={handleApplyTemplate}
-/>
-
-<LayersSheet
-  visible={sheetLayers}
-  {c}
-  {elements}
-  {selectedId}
-  on:close={() => sheetLayers = false}
-  on:select={handleSelect}
-  on:delete={(e) => { elements = elements.filter(x => x.id !== e.detail); if (selectedId === e.detail) selectedId = null; scheduleSave(); pushHistory(true); }}
-/>
-
-<PropertiesSheet
-  activePanel={activePropTab}
-  {c}
-  element={selectedEl}
-  on:close={() => activePropTab = null}
-  on:update={(e) => { elements = elements.map(el => el.id === selectedId ? { ...el, ...e.detail } : el); }}
-  on:commit={() => { scheduleSave(); pushHistory(!!true); }}
-  on:openpicker={openColorPicker}
-/>
-
-<ColorPickerSheet
-  visible={colorPickerOpen}
-  {c}
-  on:cancel={() => colorPickerOpen = false}
-  on:confirm={applyColorFromPicker}
-/>
-
 <style>
-  :global(html), :global(body) { width:100%; height:100%; overflow:hidden; overscroll-behavior:none; position:relative; }
-  .root { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
+  :global(html), :global(body) { width: 100%; height: 100%; overflow: hidden; }
+  .root {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+    height: 100dvh;
+  }
 </style>
